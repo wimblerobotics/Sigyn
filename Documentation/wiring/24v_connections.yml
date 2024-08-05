@@ -1,7 +1,7 @@
   -
     - DC_DC_24V_10A: [IN_PLUS]
     - 24V_To_Barrier_Cable: [4]
-    - Barrier_Strip_TOP: [BS_TOP_36V_Plus_1]
+    - Barrier_Strip_TOP: [BS_TOP_36V_Plus_2]
   -
     - DC_DC_24V_10A: [IN_GND]
     - 24V_To_Barrier_Cable: [3]

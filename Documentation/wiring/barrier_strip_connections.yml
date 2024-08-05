@@ -14,7 +14,7 @@
       BS_TOP_12V_2,
       BS_TOP_5V_1,
       BS_TOP_5V_2,
-      BS_TOP_3.3V_1,
+      BS_TOP_3r3V_1,
       ]
     - BS_Interconnect: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     - Barrier_Strip_BOT: [
@@ -32,6 +32,6 @@
       BS_BOT_12V_2,
       BS_BOT_5V_1,
       BS_BOT_5V_2,
-      BS_BOT_3.3V_1,
+      BS_BOT_3r3V_1,
       ]
  
