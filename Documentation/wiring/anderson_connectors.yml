@@ -1,0 +1,11 @@
+  # Anderson_Control_Panel_To_Battery_Connector:
+  #   type: Anderson Powerpole
+  #   pinlabels: [ WH, YE ]
+  #   pincolors: [ RD, BK ]
+
+
+  Anderson_Control_Panel_To_Powerstrip_Connector:
+    type: Anderson Powerpole
+    pinlabels: [ RD,  BK ]
+    pincolors: [ RD, BK ]
+ 

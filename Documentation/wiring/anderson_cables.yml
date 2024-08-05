@@ -1,0 +1,27 @@
+  Control_Panel_To_Anderson_Powerstrip_Connector:
+    wirecount: 2
+    color_code: IEC
+    colors: [RD, BK]
+    gauge: "16 AWG"
+    show_wirecount: false 
+    
+  Anderson_Control_Panel_To_Barrier_Cable:
+    wirecount: 2
+    color_code: IEC
+    colors: [RD, BK]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  Anderson_Control_Panel_To_Battery_Cable:
+    wirecount: 2
+    color_code: IEC
+    colors: [WH, YE]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  Battery_Cable_To_Battery:
+    wirecount: 2
+    color_code: IEC
+    colors: [RD, BK]
+    gauge: "16 AWG"
+    show_wirecount: false 

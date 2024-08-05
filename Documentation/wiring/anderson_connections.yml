@@ -1,0 +1,17 @@
+  -
+    - Anderson_Control_Panel_To_Powerstrip_Connector: [RD]
+    - Anderson_Control_Panel_To_Barrier_Cable: [1]
+    - Barrier_Strip_TOP: [BS_TOP_36V_Plus_1]
+  -
+    - Anderson_Control_Panel_To_Powerstrip_Connector: [BK]
+    - Anderson_Control_Panel_To_Barrier_Cable: [2]
+    - Barrier_Strip_TOP: [BS_TOP_GND_1]
+
+  -
+    - Battery_Connector: [PLUS]
+    - Battery_Cable_To_Battery: [1]
+    - Battery: [36V_PLUS]
+  -
+    - Battery_Connector: [MINUS]
+    - Battery_Cable_To_Battery: [2]
+    - Battery: [36V_MINUS]

@@ -1,0 +1,5 @@
+  Battery_Connector:
+    type: Anderson Powerpole
+    pinlabels: [ PLUS, MINUS ]
+    pincolors: [ RD, BK ]
+ 
