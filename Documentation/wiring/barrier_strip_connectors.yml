@@ -15,7 +15,7 @@
       BS_TOP_12V_2,
       BS_TOP_5V_1,
       BS_TOP_5V_2,
-      BS_TOP_3.3V_1,
+      BS_TOP_3r3V_1,
     ] 
   Barrier_Strip_BOT:
     type: Barrier
@@ -34,6 +34,6 @@
       BS_BOT_12V_2,
       BS_BOT_5V_1,
       BS_BOT_5V_2,
-      BS_BOT_3.3V_1,
+      BS_BOT_3r3V_1,
     ]
     
