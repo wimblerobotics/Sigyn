@@ -1,0 +1,27 @@
+  12V_To_Barrier_Cable:
+    wirecount: 4
+    color_code: IEC
+    colors: [YE, BK, BK, RD]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  12V_To_Shunt_Cable:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  12V_Shunt_To_BS_GND:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  12V_Shunt_To_Fusebox_8_Shunts:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false

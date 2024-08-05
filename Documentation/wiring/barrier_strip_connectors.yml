@@ -1,0 +1,39 @@
+  Barrier_Strip_TOP:
+    type: Barrier
+    pinlabels: [ 
+      BS_TOP_36V_Plus_1,
+      BS_TOP_36V_Plus_2,
+      BS_TOP_36V_Plus_3,
+      BS_TOP_GND_1,
+      BS_TOP_GND_2,
+      BS_TOP_GND_3,
+      BS_TOP_GND_4,
+      BS_TOP_GND_5,
+      BS_TOP_GND_6,
+      BS_TOP_24V_1,
+      BS_TOP_12V_1,
+      BS_TOP_12V_2,
+      BS_TOP_5V_1,
+      BS_TOP_5V_2,
+      BS_TOP_3.3V_1,
+    ] 
+  Barrier_Strip_BOT:
+    type: Barrier
+    pinlabels: [ 
+      BS_BOT_36V_Plus_1,
+      BS_BOT_36V_Plus_2,
+      BS_BOT_36V_Plus_3,
+      BS_BOT_GND_1,
+      BS_BOT_GND_2,
+      BS_BOT_GND_3,
+      BS_BOT_GND_4,
+      BS_BOT_GND_5,
+      BS_BOT_GND_6,
+      BS_BOT_24V_1,
+      BS_BOT_12V_1,
+      BS_BOT_12V_2,
+      BS_BOT_5V_1,
+      BS_BOT_5V_2,
+      BS_BOT_3.3V_1,
+    ]
+    

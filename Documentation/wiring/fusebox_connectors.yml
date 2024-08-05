@@ -1,0 +1,12 @@
+  Fusebox_8_Shunts:
+    pinlabels: [F1, F2, F3, F4, F5, F6, F7, F8]
+    image:
+      src: "images/Fusebox_8.png"
+      width: 160
+      height: 160
+  Fusebox_8_Supplies  :
+    pinlabels: [F1, F2, F3, F4, F5, F6, F7, F8]
+    image:
+      src: "images/Fusebox_8.png"
+      width: 160
+      height: 160

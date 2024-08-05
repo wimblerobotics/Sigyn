@@ -1,0 +1,16 @@
+  -
+    - DC_DC_12V_30A: [IN_PLUS]
+    - 12V_To_Barrier_Cable: [4]
+    - Barrier_Strip_BOT: [BS_BOT_36V_Plus_1]
+  -
+    - DC_DC_12V_30A: [IN_GND]
+    - 12V_To_Barrier_Cable: [3]
+    - Barrier_Strip_BOT: [BS_BOT_GND_2]
+  -
+    - DC_DC_12V_30A: [OUT_GND]
+    - 12V_To_Shunt_Cable: [1]
+    - Fusebox_8_Supplies: [F3]
+  -
+    - DC_DC_12V_30A: [OUT_PLUS]
+    - 12V_To_Barrier_Cable: [1]
+    - Barrier_Strip_BOT: [BS_BOT_12V_1]

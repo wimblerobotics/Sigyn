@@ -1,0 +1,27 @@
+  SHUNT_24V_75milliohm:
+    pinlabels: [TOP, BOT]
+    image:
+      src: "images/SHUNT_75milliohm.jpeg"
+      width: 160
+      height: 160
+  
+  SHUNT_12V_75milliohm:
+    pinlabels: [TOP, BOT]
+    image:
+      src: "images/SHUNT_75milliohm.jpeg"
+      width: 160
+      height: 160
+
+  SHUNT_5V_75milliohm:
+    pinlabels: [TOP, BOT]
+    image:
+      src: "images/SHUNT_75milliohm.jpeg"
+      width: 160
+      height: 160
+
+  SHUNT_3r3V_75milliohm:
+    pinlabels: [TOP, BOT]
+    image:
+      src: "images/SHUNT_75milliohm.jpeg"
+      width: 160
+      height: 160

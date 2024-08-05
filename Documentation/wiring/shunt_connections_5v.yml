@@ -1,0 +1,10 @@
+  -
+    - SHUNT_5V_75milliohm: [BOT]
+    - 5V_Shunt_To_Fusebox_8_Shunts: [1]
+    - Fusebox_8_Shunts: [F2]
+
+  -
+    - SHUNT_5V_75milliohm: [TOP]
+    - 5V_Shunt_To_BS_GND: [1]
+    - Barrier_Strip_BOT: [BS_BOT_GND_4]
+  
