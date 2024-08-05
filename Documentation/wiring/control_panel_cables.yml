@@ -1,0 +1,7 @@
+  Control_Panel_To_BAT_Cable:
+    wirecount: 2
+    color_code: IEC
+    colors: [WH, YE]
+    gauge: "16 AWG"
+    show_wirecount: false 
+        

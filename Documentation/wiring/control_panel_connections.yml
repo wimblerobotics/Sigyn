@@ -1,0 +1,9 @@
+  -
+    - Battery_Connector: [MINUS]
+    - Control_Panel_To_BAT_Cable: [2]
+    - BATGND_LN5: [1]
+
+  -
+    - Battery_Connector: [PLUS]
+    - Control_Panel_To_BAT_Cable: [1]
+    - BATPLS_LN5: [1]

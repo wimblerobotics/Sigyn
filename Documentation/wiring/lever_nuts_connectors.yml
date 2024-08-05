@@ -1,0 +1,16 @@
+  BATGND_LN5:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 80
+ 
+  BATPLS_LN5:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 80
+ 
