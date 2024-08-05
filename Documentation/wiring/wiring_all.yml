@@ -1,0 +1,37 @@
+
+templates:
+  # - &SHUNT_75milliohm
+  #   pinlabels: [TOP, BOT]
+  # - &DC_DC_24V_10A
+  #   pinlabels: [OUT, OUT_GND, IN_GND, IN]
+  # - &DC_DC_12V_30A
+  #   pinlabels: [OUT, OUT_GND, IN_GND, IN]
+  # - &DC_DC_5V_10A
+  #   pinlabels: [OUT, OUT_GND, IN_GND, IN]
+  # - &DC_DC_3r3V_10A
+  #   pinlabels: [OUT, OUT_GND, IN_GND, IN]
+  # - &Fusebox_8_Shunts
+  #   pinlabels: [F1, F2, F3, F4, F5, F6, F7, F8]
+
+connectors:
+include(barrier_strip_connectors.yml)
+include(dc_dc_converters.yml)
+include(fusebox_connectors.yml)
+include(shunt_connectors.yml)
+
+cables:
+include(5v_cables.yml)
+include(12v_cables.yml)
+include(24v_cables.yml)
+include(barrier_strip_cables.yml)
+include(fusebox_cables.yml)
+  
+connections:
+include(5v_connections.yml)
+include(12v_connections.yml)
+include(24v_connections.yml)
+include(barrier_strip_connections.yml)
+include(fusebox_connections.yml)
+include(shunt_connections_5v.yml)
+include(shunt_connections_12v.yml)
+include(shunt_connections_24v.yml)

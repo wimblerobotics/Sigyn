@@ -1,0 +1,16 @@
+  -
+    - DC_DC_5V_10A: [IN_PLUS]
+    - 5V_To_Barrier_Cable: [4]
+    - Barrier_Strip_TOP: [BS_TOP_36V_Plus_3]
+  -
+    - DC_DC_5V_10A: [IN_GND]
+    - 5V_To_Barrier_Cable: [3]
+    - Barrier_Strip_BOT: [BS_BOT_GND_4]
+  -
+    - DC_DC_5V_10A: [OUT_GND]
+    - 5V_To_Shunt_Cable: [1]
+    - Fusebox_8_Supplies: [F2]
+  -
+    - DC_DC_5V_10A: [OUT_PLUS]
+    - 5V_To_Barrier_Cable: [1]
+    - Barrier_Strip_TOP: [BS_TOP_5V_1]
