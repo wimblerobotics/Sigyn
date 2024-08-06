@@ -4,7 +4,7 @@
     image:
       src: "images/LeverNuts5.png"
       width: 80
-      height: 80
+      height: 68
  
   BATPLS_LN5:
     type: XHF Lever Nuts
@@ -12,5 +12,38 @@
     image:
       src: "images/LeverNuts5.png"
       width: 80
-      height: 80
- 
+      height: 68
+
+  SWITCH_LN4:
+    type: XHF Lever Nuts
+    pincount: 4
+    image:
+      src: "images/LeverNuts4.png"
+      width: 80
+      height: 82
+  
+  MGND:
+    type: XHF Lever Nuts
+    pincount: 4
+    image:
+      src: "images/LeverNuts4.png"
+      width: 80
+      height: 82
+
+  MPLUS:
+    type: XHF Lever Nuts
+    pincount: 4
+    image:
+      src: "images/LeverNuts4.png"
+      width: 80
+      height: 82
+
+  24VSNS:
+    type: XHF Lever Nuts
+    pincount: 2
+    image:
+      src: "images/LeverNuts2.png"
+      width: 80
+      height: 82
+  
+  

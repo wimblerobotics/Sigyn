@@ -1,0 +1,7 @@
+  EMERGENCY_STOP:
+    type: HB-K20
+    pincount: 4
+    image:
+      src: "images/EmergencyStop.png"
+      width: 80
+      height: 130

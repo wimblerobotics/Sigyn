@@ -1,0 +1,6 @@
+  Charger_Port_Cable:
+    wirecount: 2
+    color_code: IEC
+    colors: [RD, BN]
+    gauge: "16 AWG"
+    show_wirecount: false 
