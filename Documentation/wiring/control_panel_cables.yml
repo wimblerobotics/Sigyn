@@ -1,7 +1,62 @@
   Control_Panel_To_BAT_Cable:
     wirecount: 2
     color_code: IEC
-    colors: [WH, YE]
+    colors: [ WH, YE ]
     gauge: "16 AWG"
     show_wirecount: false 
-        
+
+  Control_Panel_To_EStop_Cable:
+    wirecount: 2
+    color_code: IEC
+    colors: [ RD, RD ]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  EStop_Cable_To_SWITCH:
+    wirecount: 1
+    color_code: IEC
+    colors: [ RD ]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  SWITCH_TO_DROK_400286:
+    wirecount: 1
+    color_code: IEC
+    colors: [ RD ]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  SWITCH_TO_Anderson_Control_Panel:
+    wirecount: 1
+    color_code: IEC
+    colors: [ BU ]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  SHUNT_24V_75milliohm_To_24V_Meter:
+    wirecount: 2
+    color_code: IEC
+    colors: [ RD, BK ]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  24V_METER_TO_POWER:
+    wirecount: 3
+    color_code: IEC
+    colors: [ YE, BK, RD ]
+    gauge: "20 AWG"
+    show_wirecount: false
+
+  24V_METER_TO_SENSE:
+    wirecount: 1
+    color_code: IEC
+    colors: [ RD ]
+    gauge: "20 AWG"
+    show_wirecount: false
+  
+  24V_SENSE_TO_BARRIER:
+    wirecount: 1
+    color_code: IEC
+    colors: [ RD ]
+    gauge: "20 AWG"
+    show_wirecount: false

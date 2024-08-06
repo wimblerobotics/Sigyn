@@ -1,0 +1,7 @@
+  Charger_Port:
+    pinlabels: [ 36V_PLUS, 36V_MINUS ]
+    pincolors: [ RD, BK ]
+    image:
+      src: "images/PowerPolePanelMount.jpeg"
+      width: 80
+      height: 61

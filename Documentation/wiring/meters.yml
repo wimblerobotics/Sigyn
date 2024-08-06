@@ -1,0 +1,6 @@
+  METER_24V:
+    pinlabels: [SENSE, PLUS, GND, CURRENT_PLUS, CURRENT_MINUS]
+    image:
+      src: "images/VoltageCurrentMeter.png"
+      width: 160
+      height: 160

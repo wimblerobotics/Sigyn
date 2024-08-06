@@ -1,9 +1,53 @@
   -
-    - Battery_Connector: [MINUS]
-    - Control_Panel_To_BAT_Cable: [2]
-    - BATGND_LN5: [1]
+    - Charger_Port: [36V_PLUS]
+    - Charger_Port_Cable: [RD]
+    - BATPLS_LN5: [2]
+  
+  -
+    - BATPLS_LN5: [3]
+    - Control_Panel_To_EStop_Cable: [1]
+    - EMERGENCY_STOP: [3]
+  
+  -
+    - EMERGENCY_STOP: [2]
+    - EStop_Cable_To_SWITCH: [1]
+    - SWITCH_LN4: [2]
+  
+  -
+    - SWITCH_LN4: [1]
+    - SWITCH_TO_DROK_400286: [1]
+    - DROK_400286: [METER_PLUS]
 
   -
-    - Battery_Connector: [PLUS]
-    - Control_Panel_To_BAT_Cable: [1]
-    - BATPLS_LN5: [1]
+    - SWITCH_LN4: [4]
+    - SWITCH_TO_Anderson_Control_Panel: [1]
+    - Anderson_Control_Panel_To_Powerstrip_Connector: [RD]
+
+  ###
+  # 24V Meter
+  ###
+  -
+    - SHUNT_24V_75milliohm: [BOT, TOP]
+    - SHUNT_24V_75milliohm_To_24V_Meter: [1, 2]
+    - METER_24V: [CURRENT_PLUS, CURRENT_MINUS]
+  
+  -
+    - METER_24V: [GND]
+    - 24V_METER_TO_POWER: [2]
+    - MGND: [1]
+
+  -
+    - METER_24V: [PLUS]
+    - 24V_METER_TO_POWER: [3]
+    - MPLUS: [1]
+
+  -
+    - METER_24V: [SENSE]
+    - 24V_METER_TO_SENSE: [1]
+    - 24VSNS: [1] 
+  
+  -
+    - 24VSNS: [2]
+    - 24V_SENSE_TO_BARRIER: [1]
+    - Barrier_Strip_TOP: [BS_TOP_24V_1]
+
