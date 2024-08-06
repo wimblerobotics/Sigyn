@@ -1,9 +1,9 @@
   -
-    - Anderson_Control_Panel_To_Powerstrip_Connector: [RD]
+    - ASTRIP: [RD]
     - Anderson_Control_Panel_To_Barrier_Cable: [1]
     - Barrier_Strip_TOP: [BS_TOP_36V_Plus_1]
   -
-    - Anderson_Control_Panel_To_Powerstrip_Connector: [BK]
+    - ASTRIP: [BK]
     - Anderson_Control_Panel_To_Barrier_Cable: [2]
     - Barrier_Strip_TOP: [BS_TOP_GND_1]
 

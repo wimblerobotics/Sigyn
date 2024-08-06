@@ -30,6 +30,14 @@
       width: 80
       height: 82
 
+  MGND2:
+    type: XHF Lever Nuts
+    pincount: 4
+    image:
+      src: "images/LeverNuts4.png"
+      width: 80
+      height: 82
+
   MPLUS:
     type: XHF Lever Nuts
     pincount: 4
@@ -38,12 +46,34 @@
       width: 80
       height: 82
 
-  24VSNS:
+  MPLUS2:
+    type: XHF Lever Nuts
+    pincount: 4
+    image:
+      src: "images/LeverNuts4.png"
+      width: 80
+      height: 82
+  
+  12VSNS:
     type: XHF Lever Nuts
     pincount: 2
     image:
       src: "images/LeverNuts2.png"
       width: 80
       height: 82
-  
+
+  5V1:
+    type: XHF Lever Nuts
+    pincount: 4
+    image:
+      src: "images/LeverNuts4.png"
+      width: 80
+      height: 82
+  3r3V1:
+    type: XHF Lever Nuts
+    pincount: 4
+    image:
+      src: "images/LeverNuts4.png"
+      width: 80
+      height: 82
   

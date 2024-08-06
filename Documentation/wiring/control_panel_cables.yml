@@ -4,6 +4,13 @@
     colors: [ WH, YE ]
     gauge: "16 AWG"
     show_wirecount: false 
+  
+  BATGND_TO_DROK_400286:
+    wirecount: 1
+    color_code: IEC
+    colors: [ BK ]
+    gauge: "16 AWG"
+    show_wirecount: false
 
   Control_Panel_To_EStop_Cable:
     wirecount: 2
@@ -27,9 +34,9 @@
     show_wirecount: false
   
   SWITCH_TO_Anderson_Control_Panel:
-    wirecount: 1
+    wirecount: 2
     color_code: IEC
-    colors: [ BU ]
+    colors: [ BU, GN ]
     gauge: "16 AWG"
     show_wirecount: false
   
@@ -47,16 +54,86 @@
     gauge: "20 AWG"
     show_wirecount: false
 
-  24V_METER_TO_SENSE:
-    wirecount: 1
-    color_code: IEC
-    colors: [ RD ]
-    gauge: "20 AWG"
-    show_wirecount: false
-  
   24V_SENSE_TO_BARRIER:
     wirecount: 1
     color_code: IEC
     colors: [ RD ]
     gauge: "20 AWG"
+    show_wirecount: false
+
+  SHUNT_12V_75milliohm_To_12V_Meter:
+    wirecount: 2
+    color_code: IEC
+    colors: [ RD, BK ]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  12V_METER_TO_POWER:
+    wirecount: 3
+    color_code: IEC
+    colors: [ YE, BK, RD ]
+    gauge: "20 AWG"
+    show_wirecount: false
+
+  12V_SENSE_TO_BARRIER:
+    wirecount: 1
+    color_code: IEC
+    colors: [ RD ]
+    gauge: "20 AWG"
+    show_wirecount: false
+
+  SHUNT_5V_75milliohm_To_5V_Meter:
+    wirecount: 2
+    color_code: IEC
+    colors: [ RD, BK ]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  5V_METER_TO_POWER:
+    wirecount: 3
+    color_code: IEC
+    colors: [ YE, BK, RD ]
+    gauge: "20 AWG"
+    show_wirecount: false
+
+  5V_SENSE_TO_BARRIER:
+    wirecount: 1
+    color_code: IEC
+    colors: [ RD ]
+    gauge: "20 AWG"
+    show_wirecount: false
+
+  MPLUS_TO_MPLUS2:
+    wirecount: 1
+    color_code: IEC
+    colors: [ RD ]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  MGND_TO_MGND2:
+    wirecount: 1
+    color_code: IEC
+    colors: [ RD ]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  3r3V_METER_TO_POWER:
+    wirecount: 3
+    color_code: IEC
+    colors: [ YE, BK, RD ]
+    gauge: "20 AWG"
+    show_wirecount: false
+
+  SHUNT_3r3V_75milliohm_To_3r3V_Meter:
+    wirecount: 2
+    color_code: IEC
+    colors: [ RD, BK ]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  METERS_TO_BARRIER_STRIP:
+    wirecount: 2
+    color_code: IEC
+    colors: [ RD, BK ]
+    gauge: "18 AWG"
     show_wirecount: false
