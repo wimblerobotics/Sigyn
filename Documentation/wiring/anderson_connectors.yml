@@ -1,10 +1,10 @@
-  # Anderson_Control_Panel_To_Battery_Connector:
-  #   type: Anderson Powerpole
-  #   pinlabels: [ WH, YE ]
-  #   pincolors: [ RD, BK ]
+  ABAT:
+    type: Anderson Powerpole
+    pinlabels: [ 36V_PLUS, 36V_MINUS ]
+    pincolors: [ RD, BK ]
 
 
-  Anderson_Control_Panel_To_Powerstrip_Connector:
+  ASTRIP:
     type: Anderson Powerpole
     pinlabels: [ RD,  BK ]
     pincolors: [ RD, BK ]

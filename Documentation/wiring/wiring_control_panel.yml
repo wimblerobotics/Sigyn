@@ -3,8 +3,8 @@ templates:
 connectors:
 include(anderson_connectors.yml)
 include(barrier_strip_connectors.yml)
-include(charger_port.yml)
 include(DROK_400286.yml)
+include(charger_port.yml)
 include(emergency_stop.yml)
 include(lever_nuts_connectors.yml)
 include(meters.yml)

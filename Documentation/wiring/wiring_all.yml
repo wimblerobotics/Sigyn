@@ -6,9 +6,13 @@ include(barrier_strip_connectors.yml)
 include(anderson_connectors.yml)
 include(battery.yml)
 include(battery_connector.yml)
+include(charger_port.yml)
 include(dc_dc_converters.yml)
+include(DROK_400286.yml)
+include(emergency_stop.yml)
 include(fusebox_connectors.yml)
 include(lever_nuts_connectors.yml)
+include(meters.yml)
 include(shunt_connectors.yml)
 
 cables:
@@ -18,6 +22,8 @@ include(12v_cables.yml)
 include(24v_cables.yml)
 include(anderson_cables.yml)
 include(barrier_strip_cables.yml)
+include(charger_port_cables.yml)
+include(control_panel_cables.yml)
 include(fusebox_cables.yml)
   
 connections:
