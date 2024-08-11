@@ -1,0 +1,107 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="base">
+  <xacro:include filename="$(find description)/urdf/properties.urdf.xacro" />
+  <xacro:include filename="$(find description)/urdf/caster.urdf.xacro" />
+  <xacro:include filename="$(find description)/urdf/depthai_macro.urdf.xacro" />
+  <xacro:include filename="$(find description)/urdf/inertials.xacro" />
+  <xacro:include filename="$(find description)/urdf/ld06.urdf.xacro" />
+  <xacro:include filename="$(find description)/urdf/material.urdf.xacro" />
+  <xacro:include filename="$(find description)/urdf/gazebo.urdf.xacro" />
+  <xacro:include filename="$(find description)/urdf/wheel.urdf.xacro" />
+  <xacro:include filename="$(find description)/urdf/oakd.urdf.xacro" />
+
+
+  <link name="base_link">
+    <collision>
+      <geometry>
+        <cylinder radius="${body_radius}" length="${body_height}" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 ${(body_height/2)}" />
+    </collision>
+    <visual>
+      <geometry>
+        <cylinder radius="${body_radius}" length="${body_height}" />
+      </geometry>
+      <material name="aluminum_frame" />
+      <origin rpy="0 0 0" xyz="0 0 ${(body_height/2)}" />
+    </visual>
+    <xacro:solid_cylinder_inertial rpy="0 0 0" xyz="0 0 0.05" mass_kg="${mass}"
+      radius="${body_radius}" length="${body_height}" />
+  </link>
+  <gazebo reference="base_link">
+    <material>
+      Gazebo/Grey
+    </material>
+  </gazebo>
+
+  <link name="base_footprint" />
+
+  <joint name="base_footprint_joint" type="fixed">
+    <origin xyz="0 0 ${base_to_floor_z_offset}" rpy="0 0 0" />
+    <parent link="base_footprint" />
+    <child link="base_link" />
+  </joint>
+
+  <xacro:wheel
+    side="left"
+    radius="${wheel_radius}"
+    width="${wheel_width}"
+    pos_x="${wheel_pos_x}"
+    pos_y="${wheel_pos_y}"
+    pos_z="${wheel_pos_z}"
+    mass_kg="${wheel_mass_kg}"
+  />
+
+  <xacro:wheel
+    side="right"
+    radius="${wheel_radius}"
+    width="${wheel_width}"
+    pos_x="${wheel_pos_x}"
+    pos_y="${-wheel_pos_y}"
+    pos_z="${wheel_pos_z}"
+    mass_kg="${wheel_mass_kg}"
+  />
+  <xacro:caster_wheel
+    mass_kg="0.01"
+  />
+
+  <!--     <link name="scan" />
+    <joint name="base_to_scan" type="fixed">
+      <parent link="base_link" />
+      <child link="scan" />
+      <origin xyz="-0.018  -0.090 0.430" rpy="0 0 ${M_PI}" />
+    </joint>
+    <xacro:ld06 lidar_prefix="top_lidar">
+        <origin xyz="0 0 0" rpy="0 0 0" />
+    </xacro:ld06>
+    <joint name="base_to_lidar_frame_top_lidar" type="fixed">
+      <parent link="scan" />
+      <child link="lidar_frame_top_lidar" />
+      <origin xyz="0 0 0" rpy="0 0 0" />
+    </joint>
+
+    <xacro:diff_drive_controller
+        wheel_separation="${wheel_pos_y * 2}"
+        wheel_radius="${wheel_radius}"
+    /> -->
+
+  <!--
+Copyright (c) 2024 Michael Wimble
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+-->
+
+</robot>

@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+<!-- 
+  Adapted from code from:
+https://github.com/jetdillo/tenacity_rover/tree/0945115d723c82f1d72bb4542ab3540b5a3fad10/tenacity_description/urdf
+-->
+
+<!--  xacro macros for oakd mount -->
+<robot name="oakd" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:macro name="oakd_link" params="mount_point">
+    <xacro:property name="oakd_length" value="0.0803" />
+    <xacro:property name="oakd_width" value="0.0957" />
+    <xacro:property name="oakd_depth" value="0.1267" />
+    <xacro:property name="oakd_mass" value="0.15" />
+
+    <link name="oakd_${mount_point}">
+      <pose>0.0 0.0 0.0 0.0 0.0 0.0</pose>
+      <visual>
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <geometry>
+          <!-- <box size="${oakd_length} ${oakd_width} ${oakd_depth}" /> -->
+          <mesh filename="file://$(find description)/meshes/OAK-D.dae" />
+        </geometry>
+        <color rgba="0.15 0.15 0.15 1" />
+      </visual>
+      <collision>
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <geometry>
+          <box size="${oakd_length} ${oakd_width} ${oakd_depth}" />
+        </geometry>
+      </collision>
+      <xacro:solid_cuboid_inertial
+        rpy="0 0 0" xyz="0 0 0"
+        mass_kg="${oakd_mass}"
+        x="${oakd_length}" y="${oakd_width}" z="${oakd_depth}" />
+    </link>
+
+    <gazebo reference="oakd_${mount_point}">
+      <material>Gazebo/Red</material>
+
+      <sensor name="camera_${mount_point}" type="camera">
+        <always_on>true</always_on>
+        <visualize>true</visualize>
+        <update_rate>10</update_rate>
+        <camera name='__default__'>
+          <horizontal_fov>1.089</horizontal_fov>
+          <image>
+            <format>R8G8B8</format>
+            <width>640</width>
+            <height>480</height>
+          </image>
+          <clip>
+            <near>0.05</near>
+            <far>8.0</far>
+          </clip>
+        </camera>
+        <plugin name='camera_controller_${mount_point}' filename='libgazebo_ros_camera.so'>
+          <alwaysOn>1</alwaysOn>
+          <updateRate>0.0</updateRate>
+          <cameraName>camera_${mount_point}</cameraName>
+          <hackBaseline>0.07</hackBaseline>
+          <distortionK1>0.0</distortionK1>
+          <distortionK2>0.0</distortionK2>
+          <distortionK3>0.0</distortionK3>
+          <distortionT1>0.0</distortionT1>
+          <distortionT2>0.0</distortionT2>
+        </plugin>
+      </sensor>
+    </gazebo>
+
+    <gazebo reference="oakd_joint_${mount_point}">
+    </gazebo>
+  </xacro:macro>
+
+  <xacro:macro name="oakd_joint" params="mount_point *joint_pose">
+    <joint name="oakd_joint_${mount_point}" type="fixed">
+      <!-- <origin rpy="${roll} ${pitch} ${yaw}" xyz="${x}+0.1 ${y}-0.01 ${z}" /> -->
+      <parent link="base_link" />
+      <child link="oakd_${mount_point}" />
+      <xacro:insert_block name="joint_pose" />
+    </joint>
+
+    <gazebo reference="oakd_joint_${mount_point}">
+      <preserveFixedJoint>true</preserveFixedJoint>
+    </gazebo>
+  </xacro:macro>
+</robot>

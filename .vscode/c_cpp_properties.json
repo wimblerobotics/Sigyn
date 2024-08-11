@@ -1,0 +1,24 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/ros/s_ws/install/rviz_2d_overlay_plugins/include/**",
+        "/home/ros/s_ws/install/rviz_2d_overlay_msgs/include/**",
+        "/home/ros/s_ws/install/msgs/include/**",
+        "/home/ros/s_ws/install/ira_laser_tools/include/**",
+        "/opt/ros/humble/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
