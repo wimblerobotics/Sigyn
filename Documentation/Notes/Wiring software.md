@@ -1,4 +1,6 @@
 ``` bash
+m4 <wireviz_sigyn.yml >foo.yml;wireviz --format hp -O sigyn_wiring foo.yml
+
 m4 <wiring_all.yml >foo.yml;wireviz --format hp -O sigyn_all__wiring foo.yml
 m4 <wiring_anderson.yml >foo.yml;wireviz --format hp -O sigyn_anderson__wiring foo.yml
 m4 <wiring_control_panel.yml >foo.yml;wireviz --format hp -O sigyn_control_panel__wiring foo.yml

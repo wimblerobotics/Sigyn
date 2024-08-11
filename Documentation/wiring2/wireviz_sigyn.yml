@@ -1,0 +1,16 @@
+connectors:
+include(connectors.yml)
+
+cables:
+include(cables.yml)
+
+connections:
+include(connections_3r3.yml)
+include(connections_5.yml)
+include(connections_12.yml)
+include(connections_24.yml)
+include(connections_anderson.yml)
+include(connections_barrier_strip.yml)
+include(connections_control_panel.yml)
+include(connections_cpu.yml)
+include(connections_fusebox.yml)

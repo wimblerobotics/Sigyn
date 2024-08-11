@@ -1,0 +1,1361 @@
+connectors:
+  ###
+  # Anderson Powerpole
+  ###
+  ANDERSON_BATTERY:
+    type: Anderson Powerpole
+    pinlabels: [ 36V_PLUS, 36V_MINUS ]
+    pincolors: [ RD, BK ]
+
+  ANDERSON_5V_STRIP:
+    type: Anderson Powerpole
+    pinlabels: [ RD,  BK ]
+    pincolors: [ RD, BK ]
+
+  ###
+  # Barrier Strip
+  ###
+  BARRIER_STRIP_TOP:
+    type: Barrier
+    pinlabels: [ 
+      BS_TOP_36V_Plus_1,
+      BS_TOP_36V_Plus_2,
+      BS_TOP_36V_Plus_3,
+      BS_TOP_GND_1,
+      BS_TOP_GND_2,
+      BS_TOP_GND_3,
+      BS_TOP_GND_4,
+      BS_TOP_GND_5,
+      BS_TOP_GND_6,
+      BS_TOP_24V_1,
+      BS_TOP_12V_1,
+      BS_TOP_12V_2,
+      BS_TOP_5V_1,
+      BS_TOP_5V_2,
+      BS_TOP_3r3V_1,
+    ]
+
+  BARRIER_STRIP_BOT:
+    type: Barrier
+    pinlabels: [ 
+      BS_BOT_36V_Plus_1,
+      BS_BOT_36V_Plus_2,
+      BS_BOT_36V_Plus_3,
+      BS_BOT_GND_1,
+      BS_BOT_GND_2,
+      BS_BOT_GND_3,
+      BS_BOT_GND_4,
+      BS_BOT_GND_5,
+      BS_BOT_GND_6,
+      BS_BOT_24V_1,
+      BS_BOT_12V_1,
+      BS_BOT_12V_2,
+      BS_BOT_5V_1,
+      BS_BOT_5V_2,
+      BS_BOT_3r3V_1,
+    ]
+  
+  ###
+  # Battery
+  ###
+  BATTERY:
+    pinlabels: [ 36V_PLUS, 36V_MINUS ]
+    pincolors: [ RD, BK ]
+  
+  ###
+  # Fusebox
+  ###
+  FUSEBOX_8_SHUNTS:
+    pinlabels: [F1, F2, F3, F4, 1A, 2A, 3A, 4A]
+    image:
+      src: "images/Fusebox_8.png"
+      width: 160
+      height: 160
+  FUSEBOX_8_SUPPLIES:
+    pinlabels: [F1, F2, F3, F4, 1B, 2B, 3B, 4B]
+    image:
+      src: "images/Fusebox_8.png"
+      width: 160
+      height: 160
+  
+  ###
+  # Shunts
+  ###
+  SHUNT_24V_75milliohm:
+    pinlabels: [TOP, BOT]
+    image:
+      src: "images/SHUNT_75milliohm.jpeg"
+      width: 160
+      height: 160
+  
+  SHUNT_12V_75milliohm:
+    pinlabels: [TOP, BOT]
+    image:
+      src: "images/SHUNT_75milliohm.jpeg"
+      width: 160
+      height: 160
+
+  SHUNT_5V_75milliohm:
+    pinlabels: [TOP, BOT]
+    image:
+      src: "images/SHUNT_75milliohm.jpeg"
+      width: 160
+      height: 160
+
+  SHUNT_3r3V_75milliohm:
+    pinlabels: [TOP, BOT]
+    image:
+      src: "images/SHUNT_75milliohm.jpeg"
+      width: 160
+      height: 160
+
+  ###
+  # Lever Nuts
+  ###
+  BATGND_LN5:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
+ 
+  BATPLS_LN5:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
+
+  SWITCH_LN4:
+    type: XHF Lever Nuts
+    pincount: 4
+    image:
+      src: "images/LeverNuts4.png"
+      width: 80
+      height: 82
+  
+  MGND:
+    type: XHF Lever Nuts
+    pincount: 4
+    image:
+      src: "images/LeverNuts4.png"
+      width: 80
+      height: 82
+
+  MGND2:
+    type: XHF Lever Nuts
+    pincount: 4
+    image:
+      src: "images/LeverNuts4.png"
+      width: 80
+      height: 82
+
+  MPLUS:
+    type: XHF Lever Nuts
+    pincount: 4
+    image:
+      src: "images/LeverNuts4.png"
+      width: 80
+      height: 82
+
+  MPLUS2:
+    type: XHF Lever Nuts
+    pincount: 4
+    image:
+      src: "images/LeverNuts4.png"
+      width: 80
+      height: 82
+  
+  12VSNS:
+    type: XHF Lever Nuts
+    pincount: 2
+    image:
+      src: "images/LeverNuts2.png"
+      width: 80
+      height: 82
+
+  5V1:
+    type: XHF Lever Nuts
+    pincount: 4
+    image:
+      src: "images/LeverNuts4.png"
+      width: 80
+      height: 82
+
+  24GND7:
+    type: XHF Lever Nuts
+    pincount: 3
+    image:
+      src: "images/LeverNuts3.png"
+      width: 80
+      height: 82
+
+  12GND7:
+    type: XHF Lever Nuts
+    pincount: 3
+    image:
+      src: "images/LeverNuts3.png"
+      width: 80
+      height: 82
+  5GND7:
+    type: XHF Lever Nuts
+    pincount: 3
+    image:
+      src: "images/LeverNuts3.png"
+      width: 80
+      height: 82
+
+  3R3GND7:
+    type: XHF Lever Nuts
+    pincount: 3
+    image:
+      src: "images/LeverNuts3.png"
+      width: 80
+      height: 82
+
+  GND1:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 82
+
+  GND2:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 82
+
+  GND3:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 82
+
+  GND4:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 82
+
+  3R3V1:
+    type: XHF Lever Nuts
+    pincount: 4
+    image:
+      src: "images/LeverNuts4.png"
+      width: 80
+      height: 82
+
+  3R3V4:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 82
+
+  5V4:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 82
+
+  5V5:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 82
+
+  12V4:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 82
+
+  12V5:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 82
+
+  12V6:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 82
+
+###
+# DROK 400286 Meter
+###
+  DROK_400286:
+    pinlabels: [ METER_PLUS, METER_MINUS, TORUS ]
+    image:
+      src: "images/DROK_400286.png"
+      width: 80
+      height: 61
+
+###
+# Charger Port
+###
+  CHARGER_PORT:
+    pinlabels: [ 36V_PLUS, 36V_MINUS ]
+    pincolors: [ RD, BK ]
+    image:
+      src: "images/PowerPolePanelMount.jpeg"
+      width: 80
+      height: 61
+
+###
+# Emergency Stop
+###
+  EMERGENCY_STOP:
+    type: HB-K20
+    pincount: 4
+    image:
+      src: "images/EmergencyStop.png"
+      width: 80
+      height: 130
+
+###
+# Meters
+###
+  METER_24V:
+    pinlabels: [SENSE, PLUS, GND, CURRENT_PLUS, CURRENT_MINUS]
+    image:
+      src: "images/VoltageCurrentMeter.png"
+      width: 160
+      height: 160
+  
+  METER_12V:
+    pinlabels: [SENSE, PLUS, GND, CURRENT_PLUS, CURRENT_MINUS]
+    image:
+      src: "images/VoltageCurrentMeter.png"
+      width: 160
+      height: 160
+
+  METER_5V:
+    pinlabels: [SENSE, PLUS, GND, CURRENT_PLUS, CURRENT_MINUS]
+    image:
+      src: "images/VoltageCurrentMeter.png"
+      width: 160
+      height: 160
+
+  METER_3r3V:
+    pinlabels: [SENSE, PLUS, GND, CURRENT_PLUS, CURRENT_MINUS]
+    image:
+      src: "images/VoltageCurrentMeter.png"
+      width: 160
+      height: 160
+
+###
+# DC-DC Converters
+###
+  DC_DC_24V_10A:
+    pinlabels: [OUT_PLUS, OUT_GND, IN_GND, IN_PLUS]
+    image:
+      src: "images/24V10A_DC_DC.jpeg"
+      width: 160
+      height: 147
+  DC_DC_12V_30A:
+    pinlabels: [OUT_PLUS, OUT_GND, IN_GND, IN_PLUS]
+    image:
+      src: "images/12V30A_DC_DC.jpeg"
+      width: 160
+      height: 165
+  DC_DC_5V_10A:
+    pinlabels: [OUT_PLUS, OUT_GND, IN_GND, IN_PLUS]
+    image:
+      src: "images/5V10A_DC_DC.jpeg"
+      width: 160
+      height: 189
+  DC_DC_3r3V_10A:
+    pinlabels: [OUT_PLUS, OUT_GND, IN_GND, IN_PLUS]
+    image:
+      src: "images/3r3V12A_DC_DC.png"
+      width: 160
+      height: 189
+
+###
+# CPU
+###
+  CPU_24:
+    pincount: 24
+
+  CPU_8_12V:
+    pincount: 4
+
+  CPU_8_GND:
+    pincount: 4
+
+cables:
+  ###
+  # Amderson Powerpole Cables
+  ###
+  Control_Panel_To_Anderson_Powerstrip_Connector:
+    wirecount: 2
+    color_code: IEC
+    colors: [RD, BK]
+    gauge: "16 AWG"
+    show_wirecount: false 
+    
+  Anderson_Control_Panel_To_Barrier_Cable:
+    wirecount: 2
+    color_code: IEC
+    colors: [RD, BK]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  Anderson_Control_Panel_To_Battery_Cable:
+    wirecount: 2
+    color_code: IEC
+    colors: [WH, YE]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  Battery_Cable_To_Battery:
+    wirecount: 2
+    color_code: IEC
+    colors: [RD, BK]
+    gauge: "16 AWG"
+    show_wirecount: false   
+  
+  Control_Panel_To_Anderson_Powerstrip_Connector:
+    wirecount: 2
+    color_code: IEC
+    colors: [RD, BK]
+    gauge: "16 AWG"
+    show_wirecount: false 
+    
+  Anderson_Control_Panel_To_Barrier_Cable:
+    wirecount: 2
+    color_code: IEC
+    colors: [RD, BK]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  Anderson_Control_Panel_To_Battery_Cable:
+    wirecount: 2
+    color_code: IEC
+    colors: [WH, YE]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  Battery_Cable_To_Battery:
+    wirecount: 2
+    color_code: IEC
+    colors: [RD, BK]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+###
+# Barrier Strip Cables
+###
+  BS_Interconnect:
+    wirecount: 15
+
+###
+# Charger port cables
+###
+  Charger_Port_Cable:
+    wirecount: 2
+    color_code: IEC
+    colors: [BN, BK]
+    gauge: "16 AWG"
+    show_wirecount: false 
+    
+###
+# Control panel cables
+###
+  Control_Panel_To_BAT_Cable:
+    wirecount: 2
+    color_code: IEC
+    colors: [ WH, YE ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+  
+  BATGND_TO_DROK_400286:
+    wirecount: 1
+    color_code: IEC
+    colors: [ BK ]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  Control_Panel_To_EStop_Cable:
+    wirecount: 2
+    color_code: IEC
+    colors: [ RD, RD ]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  EStop_Cable_To_SWITCH:
+    wirecount: 1
+    color_code: IEC
+    colors: [ RD ]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  SWITCH_TO_DROK_400286:
+    wirecount: 1
+    color_code: IEC
+    colors: [ RD ]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  SWITCH_TO_Anderson_Control_Panel:
+    wirecount: 2
+    color_code: IEC
+    colors: [ BU, GN ]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  SHUNT_24V_75milliohm_To_24V_Meter:
+    wirecount: 2
+    color_code: IEC
+    colors: [ RD, BK ]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  24V_METER_TO_POWER:
+    wirecount: 3
+    color_code: IEC
+    colors: [ YE, BK, RD ]
+    gauge: "20 AWG"
+    show_wirecount: false
+
+  24V_SENSE_TO_BARRIER:
+    wirecount: 1
+    color_code: IEC
+    colors: [ RD ]
+    gauge: "20 AWG"
+    show_wirecount: false
+
+  SHUNT_12V_75milliohm_To_12V_Meter:
+    wirecount: 2
+    color_code: IEC
+    colors: [ RD, BK ]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  12V_METER_TO_POWER:
+    wirecount: 3
+    color_code: IEC
+    colors: [ YE, BK, RD ]
+    gauge: "20 AWG"
+    show_wirecount: false
+
+  12V_SENSE_TO_BARRIER:
+    wirecount: 1
+    color_code: IEC
+    colors: [ RD ]
+    gauge: "20 AWG"
+    show_wirecount: false
+
+  SHUNT_5V_75milliohm_To_5V_Meter:
+    wirecount: 2
+    color_code: IEC
+    colors: [ RD, BK ]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  5V_METER_TO_POWER:
+    wirecount: 3
+    color_code: IEC
+    colors: [ YE, BK, RD ]
+    gauge: "20 AWG"
+    show_wirecount: false
+
+  5V_SENSE_TO_BARRIER:
+    wirecount: 1
+    color_code: IEC
+    colors: [ RD ]
+    gauge: "20 AWG"
+    show_wirecount: false
+
+  MPLUS_TO_MPLUS2:
+    wirecount: 1
+    color_code: IEC
+    colors: [ RD ]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  MGND_TO_MGND2:
+    wirecount: 1
+    color_code: IEC
+    colors: [ BK ]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  3r3V_METER_TO_POWER:
+    wirecount: 3
+    color_code: IEC
+    colors: [ YE, BK, RD ]
+    gauge: "20 AWG"
+    show_wirecount: false
+
+  SHUNT_3r3V_75milliohm_To_3r3V_Meter:
+    wirecount: 2
+    color_code: IEC
+    colors: [ RD, BK ]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  METERS_TO_BARRIER_STRIP:
+    wirecount: 2
+    color_code: IEC
+    colors: [ RD, BK ]
+    gauge: "18 AWG"
+    show_wirecount: false
+
+###
+# Fusebox cables
+###
+  Fuse_Interconnect:
+    wirecount: 8
+
+###
+# 3R3V Cables
+###
+  3R3V_To_BS:
+    wirecount: 2
+    color_code: IEC
+    colors: [YE, RD]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  3r3V_To_Shunt_Cable:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  3r3V_Shunt_To_BS_GND:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  3r3V_Shunt_To_Fusebox_8_Shunts:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  3r3V_To_SharedGnd1:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  3r3V_To_SharedGnd2:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+###
+# 5V Cables
+###
+  5V_To_BS:
+    wirecount: 2
+    color_code: IEC
+    colors: [YE, RD]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  5V_To_Shunt_Cable:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  5V_Shunt_To_BS_GND:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  5V_Shunt_To_Fusebox_8_Shunts:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  5V_To_SharedGnd1:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  5V_To_SharedGnd2:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+###
+# 12V Cables
+###
+  12V_To_BS:
+    wirecount: 2
+    color_code: IEC
+    colors: [YE, RD]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  12V_To_Shunt_Cable:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  12V_Shunt_To_BS_GND:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  12V_Shunt_To_Fusebox_8_Shunts:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  12V_To_SharedGnd1:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  12V_To_SharedGnd2:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+###
+# 24V Cables
+###
+  24V_To_BS:
+    wirecount: 2
+    color_code: IEC
+    colors: [YE, RD]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  24V_To_Shunt_Cable:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  24V_Shunt_To_BS_GND:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  24V_Shunt_To_Fusebox_8_Shunts:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  24V_To_SharedGnd1:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  24V_To_SharedGnd2:
+    wirecount: 1
+    color_code: IEC
+    colors: [GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+###
+# CPU Cables
+###
+  CPU_24_CABLE:
+    wirecount: 24
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  CPU_8_PLUS_CABLE:
+    wirecount: 4
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  CPU_8_GND_CABLE:
+    wirecount: 4
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  CPU_GNDS_CABLE:
+    wirecount: 3
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  12V4_To_12V6_PLUS_CABLE:
+    wirecount: 1
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  12V5_To_12V6_PLUS_CABLE:
+    wirecount: 1
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  12V6_To_BS_CABLE:
+    wirecount: 1
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  GND1_TO_BS_CABLE:
+    wirecount: 1
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  GND3_TO_BS_CABLE:
+    wirecount: 1
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  GND4_TO_BS_CABLE:
+    wirecount: 1
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  3R3V1_TO_BS_CABLE:
+    wirecount: 1
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  3R3V1_TO_3R3V4_CABLE:
+    wirecount: 1
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  5V4_TO_BS_CABLE:
+    wirecount: 1
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  5V5_TO_5V1_CABLE:
+    wirecount: 1
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  5V1_TO_BS_CABLE:
+    wirecount: 1
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+
+
+connections:
+  -
+    - DC_DC_3r3V_10A: [IN_PLUS]
+    - 3R3V_To_BS: [2]
+    - BARRIER_STRIP_BOT: [BS_BOT_36V_Plus_2]
+  -
+    - DC_DC_3r3V_10A: [IN_GND]
+    - 3r3V_To_SharedGnd1: [1]
+    - 3R3GND7: [2]
+  -
+    - DC_DC_3r3V_10A: [OUT_GND]
+    - 3r3V_To_SharedGnd2: [1]
+    - 3R3GND7: [1]
+  -
+    - 3R3GND7: [3]
+    - 3r3V_To_Shunt_Cable: [1]
+    - FUSEBOX_8_SUPPLIES: [4B]
+  -
+    - DC_DC_3r3V_10A: [OUT_PLUS]
+    - 3R3V_To_BS: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_5V_1]
+  -
+    - SHUNT_3r3V_75milliohm: [TOP]
+    - 3r3V_Shunt_To_Fusebox_8_Shunts: [1]
+    - FUSEBOX_8_SHUNTS: [4A]
+
+  -
+    - SHUNT_3r3V_75milliohm: [TOP]
+    - 3r3V_Shunt_To_BS_GND: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_GND_5]
+  
+  -
+    - DC_DC_5V_10A: [IN_PLUS]
+    - 5V_To_BS: [2]
+    - BARRIER_STRIP_TOP: [BS_TOP_36V_Plus_3]
+  -
+    - DC_DC_5V_10A: [IN_GND]
+    - 5V_To_SharedGnd1: [1]
+    - 5GND7: [2]
+  -
+    - DC_DC_5V_10A: [OUT_GND]
+    - 5V_To_SharedGnd2: [1]
+    - 5GND7: [1]
+  -
+    - 5GND7: [3]
+    - 5V_To_Shunt_Cable: [1]
+    - FUSEBOX_8_SUPPLIES: [3B]
+  -
+    - DC_DC_5V_10A: [OUT_PLUS]
+    - 5V_To_BS: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_5V_1]
+  -
+    - SHUNT_5V_75milliohm: [TOP]
+    - 5V_Shunt_To_Fusebox_8_Shunts: [1]
+    - FUSEBOX_8_SHUNTS: [3A]
+
+  -
+    - SHUNT_5V_75milliohm: [TOP]
+    - 5V_Shunt_To_BS_GND: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_GND_5]
+  
+  -
+    - DC_DC_12V_30A: [IN_PLUS]
+    - 12V_To_BS: [2]
+    - BARRIER_STRIP_BOT: [BS_BOT_36V_Plus_1]
+  -
+    - DC_DC_12V_30A: [IN_GND]
+    - 12V_To_SharedGnd1: [1]
+    - 12GND7: [2]
+  -
+    - DC_DC_12V_30A: [OUT_GND]
+    - 12V_To_SharedGnd2: [1]
+    - 12GND7: [1]
+  -
+    - 12GND7: [3]
+    - 12V_To_Shunt_Cable: [1]
+    - FUSEBOX_8_SUPPLIES: [2B]
+  -
+    - DC_DC_12V_30A: [OUT_PLUS]
+    - 12V_To_BS: [1]
+    - BARRIER_STRIP_BOT: [BS_BOT_12V_1]
+  -
+    - SHUNT_12V_75milliohm: [TOP]
+    - 12V_Shunt_To_Fusebox_8_Shunts: [1]
+    - FUSEBOX_8_SHUNTS: [2A]
+  -
+    - SHUNT_12V_75milliohm: [TOP]
+    - 12V_Shunt_To_BS_GND: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_GND_2]
+
+  -
+    - DC_DC_24V_10A: [IN_PLUS]
+    - 24V_To_BS: [2]
+    - BARRIER_STRIP_TOP: [BS_TOP_36V_Plus_2]
+  -
+    - DC_DC_24V_10A: [IN_GND]
+    - 24V_To_SharedGnd1: [1]
+    - 24GND7: [2]
+  -
+    - DC_DC_24V_10A: [OUT_GND]
+    - 24V_To_SharedGnd2: [1]
+    - 24GND7: [1]
+  -
+    - 24GND7: [3]
+    - 24V_To_Shunt_Cable: [1]
+    - FUSEBOX_8_SUPPLIES: [1B]
+  -
+    - DC_DC_24V_10A: [OUT_PLUS]
+    - 24V_To_BS: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_24V_1]
+  -
+    - SHUNT_24V_75milliohm: [TOP]
+    - 24V_Shunt_To_Fusebox_8_Shunts: [1]
+    - FUSEBOX_8_SHUNTS: [1A]
+  -
+    - SHUNT_24V_75milliohm: [TOP]
+    - 24V_Shunt_To_BS_GND: [1]
+    - BARRIER_STRIP_BOT: [BS_BOT_GND_3]
+
+  -
+    - ANDERSON_5V_STRIP: [RD]
+    - Anderson_Control_Panel_To_Barrier_Cable: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_36V_Plus_1]
+  -
+    - ANDERSON_5V_STRIP: [BK]
+    - Anderson_Control_Panel_To_Barrier_Cable: [2]
+    - BARRIER_STRIP_TOP: [BS_TOP_GND_1]
+
+  -
+    - ANDERSON_BATTERY: [36V_PLUS]
+    - Battery_Cable_To_Battery: [1]
+    - BATTERY: [36V_PLUS]
+  -
+    - ANDERSON_BATTERY: [36V_MINUS]
+    - Battery_Cable_To_Battery: [2]
+    - BATTERY: [36V_MINUS]
+
+  -
+    - ANDERSON_BATTERY: [36V_MINUS]
+    - Control_Panel_To_BAT_Cable: [2]
+    - BATGND_LN5: [1]
+
+  -
+    - ANDERSON_BATTERY: [36V_PLUS]
+    - Control_Panel_To_BAT_Cable: [1]
+    - BATPLS_LN5: [1]
+  -
+    - BARRIER_STRIP_TOP: [
+      BS_TOP_36V_Plus_1,
+      BS_TOP_36V_Plus_2,
+      BS_TOP_36V_Plus_3,
+      BS_TOP_GND_1,
+      BS_TOP_GND_2,
+      BS_TOP_GND_3,
+      BS_TOP_GND_4,
+      BS_TOP_GND_5,
+      BS_TOP_GND_6,
+      BS_TOP_24V_1,
+      BS_TOP_12V_1,
+      BS_TOP_12V_2,
+      BS_TOP_5V_1,
+      BS_TOP_5V_2,
+      BS_TOP_3r3V_1,
+      ]
+    - BS_Interconnect: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    - BARRIER_STRIP_BOT: [
+      BS_BOT_36V_Plus_1,
+      BS_BOT_36V_Plus_2,
+      BS_BOT_36V_Plus_3,
+      BS_BOT_GND_1,
+      BS_BOT_GND_2,
+      BS_BOT_GND_3,
+      BS_BOT_GND_4,
+      BS_BOT_GND_5,
+      BS_BOT_GND_6,
+      BS_BOT_24V_1,
+      BS_BOT_12V_1,
+      BS_BOT_12V_2,
+      BS_BOT_5V_1,
+      BS_BOT_5V_2,
+      BS_BOT_3r3V_1,
+      ]
+ 
+###
+# BATPLS
+###
+  -
+    - CHARGER_PORT: [36V_PLUS]
+    - Charger_Port_Cable: [BN]
+    - BATPLS_LN5: [4]
+  -
+    - BATPLS_LN5: [3]
+    - Control_Panel_To_EStop_Cable: [1]
+    - EMERGENCY_STOP: [3]
+  -
+    - BATPLS_LN5: [5]
+    - Control_Panel_To_BAT_Cable: [1]
+    - ANDERSON_BATTERY: [36V_PLUS]
+
+###
+# BATGND
+###
+  -
+    - BATGND_LN5: [2]
+    - BATGND_TO_DROK_400286: [1]
+    - DROK_400286: [METER_MINUS]
+  -
+    - BATGND_LN5: [3]
+    - SWITCH_TO_Anderson_Control_Panel: [2]
+    - ANDERSON_5V_STRIP: [BK]
+  -
+    - CHARGER_PORT: [36V_MINUS]
+    - Charger_Port_Cable: [BK]
+    - BATGND_LN5: [4]
+  -
+    - BATGND_LN5: [5]
+    - Control_Panel_To_BAT_Cable: [2]
+    - ANDERSON_BATTERY: [36V_MINUS]
+
+###
+# SWITCH
+###
+  -
+    - EMERGENCY_STOP: [2]
+    - EStop_Cable_To_SWITCH: [1]
+    - SWITCH_LN4: [2]
+  -
+    - SWITCH_LN4: [1]
+    - SWITCH_TO_DROK_400286: [1]
+    - DROK_400286: [METER_PLUS]
+  -
+    - SWITCH_LN4: [4]
+    - SWITCH_TO_Anderson_Control_Panel: [1]
+    - ANDERSON_5V_STRIP: [RD]
+  
+  ###
+  # Meter power
+  ###
+  - 
+    - MPLUS: [4]
+    - METERS_TO_BARRIER_STRIP: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_12V_2]
+  - 
+    - MGND: [4]
+    - METERS_TO_BARRIER_STRIP: [2]
+    - BARRIER_STRIP_TOP: [BS_TOP_GND_6]
+
+
+  ###
+  # Inter lever nut connections
+  ###
+  -
+    - MPLUS: [3]
+    - MPLUS_TO_MPLUS2: [1]
+    - MPLUS2: [4]
+  -
+    - MGND: [3]
+    - MGND_TO_MGND2: [1]
+    - MGND2: [4]
+
+  ###
+  # 24V Meter
+  ###
+  -
+    - SHUNT_24V_75milliohm: [BOT, TOP]
+    - SHUNT_24V_75milliohm_To_24V_Meter: [1, 2]
+    - METER_24V: [CURRENT_PLUS, CURRENT_MINUS]
+  
+  -
+    - METER_24V: [GND]
+    - 24V_METER_TO_POWER: [2]
+    - MGND: [1]
+
+  -
+    - METER_24V: [PLUS]
+    - 24V_METER_TO_POWER: [3]
+    - MPLUS: [1]
+
+  -
+    - METER_24V: [SENSE]
+    - 24V_METER_TO_POWER: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_24V_1]
+
+  ###
+  # 12V Meter
+  ###
+  -
+    - SHUNT_12V_75milliohm: [BOT, TOP]
+    - SHUNT_12V_75milliohm_To_12V_Meter: [1, 2]
+    - METER_12V: [CURRENT_PLUS, CURRENT_MINUS]
+  
+  -
+    - METER_12V: [GND]
+    - 12V_METER_TO_POWER: [2]
+    - MGND: [2]
+
+  -
+    - METER_12V: [PLUS]
+    - 12V_METER_TO_POWER: [3]
+    - MPLUS: [2]
+
+  -
+    - METER_12V: [SENSE]
+    - 12V_METER_TO_POWER: [1]
+    - MPLUS: [2]
+
+  ###
+  # 5V Meter
+  ###
+  -
+    - SHUNT_5V_75milliohm: [BOT, TOP]
+    - SHUNT_5V_75milliohm_To_5V_Meter: [1, 2]
+    - METER_5V: [CURRENT_PLUS, CURRENT_MINUS]
+  
+  -
+    - METER_5V: [GND]
+    - 5V_METER_TO_POWER: [2]
+    - MGND2: [1]
+
+  -
+    - METER_5V: [PLUS]
+    - 5V_METER_TO_POWER: [3]
+    - MPLUS2: [1]
+
+  -
+    - METER_5V: [SENSE]
+    - 5V_METER_TO_POWER: [1]
+    - 5V1: [3]
+
+  ###
+  # 3.3V Meter
+  ###
+  -
+    - SHUNT_3r3V_75milliohm: [BOT, TOP]
+    - SHUNT_3r3V_75milliohm_To_3r3V_Meter: [1, 2]
+    - METER_3r3V: [CURRENT_PLUS, CURRENT_MINUS]
+  
+  -
+    - METER_3r3V: [GND]
+    - 3r3V_METER_TO_POWER: [2]
+    - MGND2: [3]
+
+  -
+    - METER_3r3V: [PLUS]
+    - 3r3V_METER_TO_POWER: [3]
+    - MPLUS2: [2]
+
+  -
+    - METER_3r3V: [SENSE]
+    - 3r3V_METER_TO_POWER: [1]
+    - 3R3V1: [3]
+
+
+  -
+    - GND2: [1]
+    - CPU_GNDS_CABLE: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_GND_4]
+  -
+    - GND2: [2-5]
+    - CPU_8_GND_CABLE: [1-4]
+    - CPU_8_GND: [1-4]
+
+  -
+    - GND2: [1]
+    - CPU_GNDS_CABLE: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_GND_4]
+  -
+    - GND2: [2-5]
+    - CPU_8_GND_CABLE: [1-4]
+    - CPU_8_GND: [1-4]
+  
+  - 
+    - 12V4: [2-5]
+    - CPU_8_PLUS_CABLE: [1-4]
+    - CPU_8_12V: [1-4]
+
+  -
+    - 12V4: [1]
+    - 12V4_To_12V6_PLUS_CABLE: [1]
+    - 12V6: [5]
+  -
+    - 12V5: [4-5]
+    - CPU_24_CABLE: [10-11]
+    - CPU_24: [10-11]
+  
+  -
+    - 12V5: [1]
+    - 12V5_To_12V6_PLUS_CABLE: [1]
+    - 12V6: [4]
+    
+  -
+    - 12V6: [1]
+    - 12V6_To_BS_CABLE: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_12V_1]
+  
+  -
+    - GND1: [1]
+    - GND1_TO_BS_CABLE: [1]
+    - BARRIER_STRIP_BOT: [BS_BOT_GND_5]
+  
+  -
+    - GND1: [2]
+    - CPU_24_CABLE: [24]
+    - CPU_24: [24]
+  -
+    - GND3: [1]
+    - GND3_TO_BS_CABLE: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_GND_2]
+  
+  -
+    - GND3: [2-5]
+    - CPU_24_CABLE: [15, 7, 3, 5]
+    - CPU_24: [15, 7, 3, 5]
+
+  -
+    - GND4: [1]
+    - GND4_TO_BS_CABLE: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_GND_1]
+  
+  -
+    - GND4: [2-5]
+    - CPU_24_CABLE: [19-16]
+    - CPU_24: [19-16]
+  
+  - 
+    - 3R3V1: [1]
+    - 3R3V1_TO_BS_CABLE: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_3r3V_1]
+  
+  -
+    - 3R3V1: [2]
+    - 3R3V1_TO_3R3V4_CABLE: [1]
+    - 3R3V4: [1]
+  
+  -
+    - 3R3V4: [2-5]
+    - CPU_24_CABLE: [12, 2, 1, 13]
+    - CPU_24: [12, 2, 1, 13]
+  
+  -
+    - 5V4: [1]
+    - 5V4_TO_BS_CABLE: [1]
+    - BARRIER_STRIP_BOT: [BS_BOT_5V_1]
+  
+  -
+    - 5V4: [2-5]
+    - CPU_24_CABLE: [23, 22, 21, 9]
+    - CPU_24: [23, 22, 21, 9] 
+  
+  -
+    - 5V1: [2]
+    - 5V1_TO_BS_CABLE: [1]
+    - BARRIER_STRIP_BOT: [BS_BOT_5V_2]
+
+  -
+    - 5V5: [1]
+    - 5V5_TO_5V1_CABLE: [1]
+    - 5V1: [1]
+
+  -
+    - 5V5: [2-4]
+    - CPU_24_CABLE: [8, 6, 4]
+    - CPU_24: [8, 6, 4]
+
+  -
+    - FUSEBOX_8_SHUNTS: [F1, F2, F3, F4, 1A, 2A, 3A, 4A]
+    - Fuse_Interconnect: [1, 2, 3, 4, 5, 6, 7, 8]
+    - FUSEBOX_8_SUPPLIES: [F1, F2, F3, F4, 1B, 2B, 3B, 4B]
