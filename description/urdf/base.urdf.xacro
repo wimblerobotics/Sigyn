@@ -65,25 +65,25 @@
     mass_kg="0.01"
   />
 
-  <!--     <link name="scan" />
-    <joint name="base_to_scan" type="fixed">
-      <parent link="base_link" />
-      <child link="scan" />
-      <origin xyz="-0.018  -0.090 0.430" rpy="0 0 ${M_PI}" />
-    </joint>
-    <xacro:ld06 lidar_prefix="top_lidar">
-        <origin xyz="0 0 0" rpy="0 0 0" />
-    </xacro:ld06>
-    <joint name="base_to_lidar_frame_top_lidar" type="fixed">
-      <parent link="scan" />
-      <child link="lidar_frame_top_lidar" />
-      <origin xyz="0 0 0" rpy="0 0 0" />
-    </joint>
+  <link name="scan" />
+  <joint name="base_to_scan" type="fixed">
+    <parent link="base_link" />
+    <child link="scan" />
+    <origin xyz="0.155 0 0.305" rpy="0 0 ${M_PI}" />
+  </joint>
+  <xacro:ld06 lidar_prefix="top_lidar">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </xacro:ld06>
+  <joint name="base_to_lidar_frame_top_lidar" type="fixed">
+    <parent link="scan" />
+    <child link="lidar_frame_top_lidar" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </joint>
 
-    <xacro:diff_drive_controller
-        wheel_separation="${wheel_pos_y * 2}"
-        wheel_radius="${wheel_radius}"
-    /> -->
+  <xacro:diff_drive_controller
+    wheel_separation="${wheel_pos_y * 2}"
+    wheel_radius="${wheel_radius}"
+  />
 
   <!--
 Copyright (c) 2024 Michael Wimble
