@@ -1,6 +1,0 @@
-  DROK_400286:
-    pinlabels: [ METER_PLUS, METER_MINUS, TORUS ]
-    image:
-      src: "images/DROK_400286.png"
-      width: 80
-      height: 61
