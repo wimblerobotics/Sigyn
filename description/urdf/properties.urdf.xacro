@@ -2,7 +2,7 @@
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
   <xacro:property name="M_PI" value="3.14159" />
 
-  <xacro:property name="body_height" value="0.262" />
+  <xacro:property name="body_height" value="0.290" />
   <xacro:property name="body_radius" value="0.2286" />
   <xacro:property name="mass" value="22" />
 
