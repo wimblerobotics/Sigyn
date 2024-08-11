@@ -1,0 +1,30 @@
+  -
+    - DC_DC_5V_10A: [IN_PLUS]
+    - 5V_To_BS: [2]
+    - BARRIER_STRIP_TOP: [BS_TOP_36V_Plus_3]
+  -
+    - DC_DC_5V_10A: [IN_GND]
+    - 5V_To_SharedGnd1: [1]
+    - 5GND7: [2]
+  -
+    - DC_DC_5V_10A: [OUT_GND]
+    - 5V_To_SharedGnd2: [1]
+    - 5GND7: [1]
+  -
+    - 5GND7: [3]
+    - 5V_To_Shunt_Cable: [1]
+    - FUSEBOX_8_SUPPLIES: [3B]
+  -
+    - DC_DC_5V_10A: [OUT_PLUS]
+    - 5V_To_BS: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_5V_1]
+  -
+    - SHUNT_5V_75milliohm: [TOP]
+    - 5V_Shunt_To_Fusebox_8_Shunts: [1]
+    - FUSEBOX_8_SHUNTS: [3A]
+
+  -
+    - SHUNT_5V_75milliohm: [TOP]
+    - 5V_Shunt_To_BS_GND: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_GND_5]
+  

@@ -1,0 +1,28 @@
+  -
+    - DC_DC_12V_30A: [IN_PLUS]
+    - 12V_To_BS: [2]
+    - BARRIER_STRIP_BOT: [BS_BOT_36V_Plus_1]
+  -
+    - DC_DC_12V_30A: [IN_GND]
+    - 12V_To_SharedGnd1: [1]
+    - 12GND7: [2]
+  -
+    - DC_DC_12V_30A: [OUT_GND]
+    - 12V_To_SharedGnd2: [1]
+    - 12GND7: [1]
+  -
+    - 12GND7: [3]
+    - 12V_To_Shunt_Cable: [1]
+    - FUSEBOX_8_SUPPLIES: [2B]
+  -
+    - DC_DC_12V_30A: [OUT_PLUS]
+    - 12V_To_BS: [1]
+    - BARRIER_STRIP_BOT: [BS_BOT_12V_1]
+  -
+    - SHUNT_12V_75milliohm: [TOP]
+    - 12V_Shunt_To_Fusebox_8_Shunts: [1]
+    - FUSEBOX_8_SHUNTS: [2A]
+  -
+    - SHUNT_12V_75milliohm: [TOP]
+    - 12V_Shunt_To_BS_GND: [1]
+    - BARRIER_STRIP_TOP: [BS_TOP_GND_2]
