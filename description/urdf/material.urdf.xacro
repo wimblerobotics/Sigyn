@@ -1,4 +1,22 @@
 <?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="material">
+
+    <material name="aluminum_frame">
+        <color rgba="0.516 0.527 0.535 1" />
+    </material>
+
+    <material name="caster_wheel_material">
+        <color rgba="0.9 0.1 0.1 1" />
+    </material>
+
+    <material name="t265_material">
+        <color rgba="0.80 0.40 0.60 1" />
+    </material>
+
+    <material name="wheel_material">
+        <color rgba="0.15 0.15 0.15 1" />
+    </material>
+
 <!--
 Copyright (c) 2024 Michael Wimble
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -17,22 +35,5 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 -->
-<robot xmlns:xacro="http://ros.org/wiki/xacro" name="material">
-
-    <material name="aluminum_frame">
-        <color rgba="0.516 0.527 0.535 1" />
-    </material>
-
-    <material name="caster_wheel_material">
-        <color rgba="0.9 0.1 0.1 1" />
-    </material>
-
-    <material name="t265_material">
-        <color rgba="0.80 0.40 0.60 1" />
-    </material>
-
-    <material name="wheel_material">
-        <color rgba="0.15 0.15 0.15 1" />
-    </material>
 
 </robot>
