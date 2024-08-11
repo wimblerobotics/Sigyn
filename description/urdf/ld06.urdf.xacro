@@ -1,0 +1,187 @@
+<?xml version="1.0"?>
+<!--
+Copyright (c) 2024 Michael Wimble
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+-->
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="ld06">
+
+  <xacro:macro name="ld06" params="lidar_prefix *joint_pose">
+    <material name="ld06_${lidar_prefix}_grey">
+      <color rgba="0.3 0.3 0.3 1" />
+    </material>
+
+    <material name="ld06_${lidar_prefix}_blackish">
+      <color rgba="0.1 0.1 0.1 1" />
+    </material>
+
+    <material name="ld06_${lidar_prefix}_cylinder">
+      <color rgba="0.05 0.05 0.2 1" />
+    </material>
+    <xacro:property name="ldlidar_z_offset" value="-0.003" />
+
+    <xacro:property name="ld06_base_box_height" value="0.020" />
+    <xacro:property name="ld06_base_box_width" value="0.060" />
+    <xacro:property name="ld06_box_width" value="0.037" />
+    <xacro:property name="ld06_box_height" value="0.022" />
+    <xacro:property name="ld06_cylinder_height" value="0.013" />
+    <xacro:property name="ld06_cylinder_radius" value="0.015" />
+
+    <link name="ld06_box_${lidar_prefix}">
+      <collision>
+        <geometry>
+          <box size="${ld06_box_width} ${ld06_box_width} ${ld06_box_height}" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="0 0 0" />
+      </collision>
+      <visual>
+        <geometry>
+          <box size="${ld06_box_width} ${ld06_box_width} ${ld06_box_height}" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <material name="ld06_${lidar_prefix}_blackish" />
+      </visual>
+    </link>
+    <gazebo reference="ld06_box_${lidar_prefix}">
+      <material>
+        Gazebo/Black
+      </material>
+    </gazebo>
+    <link name="ld06_cylinder_${lidar_prefix}">
+      <collision>
+        <geometry>
+          <cylinder radius="${ld06_cylinder_radius}" length="${ld06_cylinder_height}" />
+        </geometry>
+      </collision>
+      <visual>
+        <geometry>
+          <cylinder radius="${ld06_cylinder_radius}" length="${ld06_cylinder_height}" />
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <material name="ld06_${lidar_prefix}_cylinder" />
+      </visual>
+    </link>
+    <gazebo reference="ld06_cylinder_${lidar_prefix}">
+      <material>
+        Gazebo/BlueGlow
+      </material>
+    </gazebo>
+    <link name="lidar_frame_${lidar_prefix}">
+      <collision>
+        <geometry>
+          <box size="${ld06_base_box_width} ${ld06_base_box_width / 2} ${ld06_base_box_height}" />
+        </geometry>
+      </collision>
+      <visual>
+        <geometry>
+          <box size="${ld06_base_box_width} ${ld06_base_box_width / 2} ${ld06_base_box_height}" />
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <material name="ld06_${lidar_prefix}_grey" />
+      </visual>
+    </link>
+    <gazebo reference="ld06_frame_${lidar_prefix}">
+      <material>
+        Gazebo/Grey
+      </material>
+    </gazebo>
+    <link name="ld06_base_cylinder_${lidar_prefix}">
+      <collision>
+        <geometry>
+          <cylinder radius="${ld06_base_box_width / 2}" length="${ld06_base_box_height}" />
+        </geometry>
+      </collision>
+      <visual>
+        <geometry>
+          <cylinder radius="${ld06_base_box_width / 2}" length="${ld06_base_box_height}" />
+        </geometry>
+        <material name="ld06_${lidar_prefix}_grey" />
+        <origin xyz="0 ${ld06_base_box_width / 4} 0" rpy="0 0 0" />
+      </visual>
+    </link>
+    <gazebo reference="ld06_base_cylinder_${lidar_prefix}">
+      <material>
+        Gazebo/Grey
+      </material>
+    </gazebo>
+    <joint name="ld06_base_cylinder_base_box_${lidar_prefix}" type="fixed">
+      <parent link="lidar_frame_${lidar_prefix}" />
+      <child link="ld06_base_cylinder_${lidar_prefix}" />
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <axis xyz="0 0 0" />
+    </joint>
+    <joint name="ld06_box_base_box_${lidar_prefix}" type="fixed">
+      <parent link="lidar_frame_${lidar_prefix}" />
+      <child link="ld06_box_${lidar_prefix}" />
+      <origin xyz="0 0.017 ${ld06_base_box_height}" rpy="0 0 0" />
+      <axis xyz="0 0 0" />
+    </joint>
+    <joint name="ld06_cylinder_box_${lidar_prefix}" type="fixed">
+      <parent link="ld06_box_${lidar_prefix}" />
+      <child link="ld06_cylinder_${lidar_prefix}" />
+      <origin xyz="0 0 ${ld06_box_height - ld06_cylinder_height/2}" rpy="0 0 0" />
+      <axis xyz="0 0 0" />
+    </joint>
+    <!-- <joint name="base_to_lidar_frame_${lidar_prefix}" type="fixed">
+      <parent link="base_link" />
+      <child link="lidar_frame_${lidar_prefix}" />
+      <xacro:insert_block name="joint_pose" />
+    </joint> -->
+
+    <gazebo reference="lidar_frame_${lidar_prefix}">
+      <sensor name="sensor_ray_${lidar_prefix}" type="ray">
+        <always_on>true</always_on>
+        <update_rate>10</update_rate>
+        <pose>0 0 0 0 0 0</pose>
+        <visualize>true</visualize>
+        <ray>
+          <scan>
+            <horizontal>
+              <samples>450</samples>
+              <resolution>1.0</resolution>
+              <min_angle>0</min_angle>
+              <max_angle>6.28</max_angle>
+            </horizontal>
+          </scan>
+          <range>
+            <min>0.05</min>
+            <max>10.0</max>
+            <resolution>0.01</resolution>
+          </range>
+          <!-- <noise>
+            <type>gaussian</type>
+            <mean>0.0</mean>
+            <stddev>0.02</stddev>
+          </noise> -->
+        </ray>
+
+        <plugin name="laserscan_${lidar_prefix}" filename="libgazebo_ros_ray_sensor.so">
+          <ros>
+            <remapping>~/out:=/scan_${lidar_prefix}</remapping>
+          </ros>
+          <always_on>true</always_on>
+          <frame_name>lidar_frame_${lidar_prefix}</frame_name>
+          <output_type>sensor_msgs/LaserScan</output_type>
+          <topic_name>/scan_${lidar_prefix}</topic_name>
+          <update_rate>10.0</update_rate>
+        </plugin>
+      </sensor>
+      <material>
+        Gazebo/Black
+      </material>
+    </gazebo>
+  </xacro:macro>
+</robot>

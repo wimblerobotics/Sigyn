@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:macro name="caster_wheel" params="mass_kg">
+    <xacro:property name="caster_radius" value="0.025" />
+    <xacro:property name="caster_width" value="0.023" />
+    <xacro:property name="caster_offset" value="0.035" />
+    <xacro:property name="caster_wheel_x" value="${-(body_radius-caster_offset)}" />
+
+    <link name="caster_wheel_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0" />
+        <geometry>
+          <cylinder radius="${caster_radius}" length="${caster_width}" />
+        </geometry>
+        <material name="red">
+          <color rgba="0.416 0.051 0.047 1.0" />
+        </material>
+      </visual>
+
+      <collision>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0" />
+        <geometry>
+          <cylinder radius="${caster_radius}" length="${caster_width}" />
+        </geometry>
+      </collision>
+
+      <xacro:solid_cylinder_inertial rpy="${pi/2} 0 0" xyz="0 0 0" mass_kg="${mass_kg}"
+        radius="${body_radius}" length="${body_height}" />
+
+    </link>
+
+    <gazebo reference="caster_wheel_link">
+      <mu1>0.01</mu1>
+      <mu2>0.01</mu2>
+      <material>Gazebo/Red</material>
+    </gazebo>
+
+    <joint name="caster_wheel_joint" type="fixed">
+      <parent link="base_link" />
+      <child link="caster_wheel_link" />
+      <origin
+        xyz="${caster_wheel_x} 0 -${wheel_radius + gear_box_center_height - caster_radius + 0.007}"
+        rpy="0 0 0" />
+    </joint>
+  </xacro:macro>
+
+  <!--
+Copyright (c) 2024 Michael Wimble
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+-->
+
+</robot>
