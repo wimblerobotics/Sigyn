@@ -1,0 +1,506 @@
+amcl: # See: https://assets.researchsquare.com/files/rs-225880/v1_covered.pdf?c=1631856303
+  ros__parameters:
+    use_sim_time: true
+    alpha1: 0.20 #0.2  # Expected process noise in odometry’s rotation estimate from rotation.
+    alpha2: 0.20 #0.2  # Expected process noise in odometry’s rotation estimate from translation.
+    alpha3: 0.20 #0.2  # Expected process noise in odometry’s translation estimate from translation.
+    alpha4: 0.20 #0.2  # Expected process noise in odometry’s translation estimate from rotation.
+    alpha5: 0.20       # For Omni models only: translation noise.
+    base_frame_id: "base_footprint"
+    beam_skip_distance: 0.5 # Ignore beams that most particles disagree with in Likelihood field model. Maximum distance to consider skipping for (m).
+    beam_skip_error_threshold: 0.9  # Percentage of beams after not matching map to force full update due to bad convergance.
+    beam_skip_threshold: 0.3  # Percentage of beams required to skip.
+    do_beamskip: false  # Whether to do beam skipping in Likelihood field model.
+    global_frame_id: "map"  # The name of the coordinate frame published by the localization system.
+    lambda_short: 0.1   # Exponential decay parameter for z_short part of model.
+    laser_likelihood_max_dist: 2.0 # Maximum distance to do obstacle inflation on map, for use in likelihood_field model.
+    laser_max_range: -1.0   # Maximum scan range to be considered, -1.0 will cause the laser’s reported maximum range to be used.
+    laser_min_range: -1.0   # Minimum scan range to be considered, -1.0 will cause the laser’s reported minimum range to be used.
+    laser_model_type: "likelihood_field" # Which model to use, either beam, likelihood_field, or likelihood_field_prob.
+    max_beams: 450          # How many evenly-spaced beams in each scan to be used when updating the filter.
+    max_particles: 2000     # Maximum allowed number of particles.
+    min_particles: 1000     # Minimum allowed number of particles.
+    odom_frame_id: "odom"   # Which frame to use for odometry.
+    pf_err: 0.05            # Particle Filter population error.  
+    pf_z: 0.99              # Particle filter population density.
+    recovery_alpha_fast: 0.01  # Exponential decay rate for the fast average weight filter, used in deciding when to recover by adding random poses.
+    recovery_alpha_slow: 0.001 # Exponential decay rate for the slow average weight filter, used in deciding when to recover by adding random poses. A good value might be 0.001.
+    resample_interval: 1    # Number of filter updates required before resampling.
+    robot_model_type: "nav2_amcl::DifferentialMotionModel" # The fully-qualified type of the plugin class.
+    save_pose_rate: 0.5     # Maximum rate (Hz) at which to store the last estimated pose and covariance to the parameter server.
+    sigma_hit: 0.2          # Standard deviation for Gaussian model used in z_hit part of the model.
+    tf_broadcast: true      # Set this to false to prevent amcl from publishing the transform between the global frame and the odometry frame.
+    transform_tolerance: 0.3 # Time with which to post-date the transform that is published, to indicate that this transform is valid into the future.
+    # One degree = 0.017453278 radians
+    update_min_a: 0.01745   # Rotational movement required before performing a filter update.
+    update_min_d: 0.05      # Translational movement required before performing a filter update.
+    z_hit: 0.95             # Mixture weight for z_hit part of model, sum of all used z weight must be 1. 
+    z_max: 0.001            # Mixture weight for z_max part of model, sum of all used z weight must be 1. Beam uses all 4, likelihood model uses z_hit and z_rand.
+    z_rand: 0.05            # Mixture weight for z_rand part of model, sum of all used z weight must be 1.
+    z_short: 0.001          # Mixture weight for z_short part of model, sum of all used z weight must be 1.
+    scan_topic: scan
+    set_initial_pose: true # Causes AMCL to set initial pose from the initial_pose* parameters instead of waiting for the initial_pose message.
+    initial_pose:
+      x: 1.0 #8.0 #8.25
+      y: 1.0 #3.0 #3.145
+      yaw:  1.571 # 1.571
+
+
+amcl_map_client:
+  ros__parameters:
+    use_sim_time: True
+
+amcl_rclcpp_node:
+  ros__parameters:
+    use_sim_time: True
+
+bt_navigator:
+  ros__parameters:
+    use_sim_time: True
+    global_frame: map
+    robot_base_frame: base_link
+    odom_topic: /odom
+    bt_loop_duration: 10
+    default_server_timeout: 20
+    # 'default_nav_through_poses_bt_xml' and 'default_nav_to_pose_bt_xml' are use defaults:
+    # nav2_bt_navigator/navigate_to_pose_w_replanning_and_recovery.xml
+    # nav2_bt_navigator/navigate_through_poses_w_replanning_and_recovery.xml
+    # They can be set here or via a RewrittenYaml remap from a parent launch file to Nav2.
+    plugin_lib_names:
+    - nav2_compute_path_to_pose_action_bt_node
+    - nav2_compute_path_through_poses_action_bt_node
+    - nav2_smooth_path_action_bt_node
+    - nav2_follow_path_action_bt_node
+    - nav2_spin_action_bt_node
+    - nav2_wait_action_bt_node
+    - nav2_assisted_teleop_action_bt_node
+    - nav2_back_up_action_bt_node
+    - nav2_drive_on_heading_bt_node
+    - nav2_clear_costmap_service_bt_node
+    - nav2_is_stuck_condition_bt_node
+    - nav2_goal_reached_condition_bt_node
+    - nav2_goal_updated_condition_bt_node
+    - nav2_globally_updated_goal_condition_bt_node
+    - nav2_is_path_valid_condition_bt_node
+    - nav2_initial_pose_received_condition_bt_node
+    - nav2_reinitialize_global_localization_service_bt_node
+    - nav2_rate_controller_bt_node
+    - nav2_distance_controller_bt_node
+    - nav2_speed_controller_bt_node
+    - nav2_truncate_path_action_bt_node
+    - nav2_truncate_path_local_action_bt_node
+    - nav2_goal_updater_node_bt_node
+    - nav2_recovery_node_bt_node
+    - nav2_pipeline_sequence_bt_node
+    - nav2_round_robin_node_bt_node
+    - nav2_transform_available_condition_bt_node
+    - nav2_time_expired_condition_bt_node
+    - nav2_path_expiring_timer_condition
+    - nav2_distance_traveled_condition_bt_node
+    - nav2_single_trigger_bt_node
+    - nav2_goal_updated_controller_bt_node
+    - nav2_is_battery_low_condition_bt_node
+    - nav2_navigate_through_poses_action_bt_node
+    - nav2_navigate_to_pose_action_bt_node
+    - nav2_remove_passed_goals_action_bt_node
+    - nav2_planner_selector_bt_node
+    - nav2_controller_selector_bt_node
+    - nav2_goal_checker_selector_bt_node
+    - nav2_controller_cancel_bt_node
+    - nav2_path_longer_on_approach_bt_node
+    - nav2_wait_cancel_bt_node
+    - nav2_spin_cancel_bt_node
+    - nav2_back_up_cancel_bt_node
+    - nav2_assisted_teleop_cancel_bt_node
+    - nav2_drive_on_heading_cancel_bt_node
+
+bt_navigator_navigate_through_poses_rclcpp_node:
+  ros__parameters:
+    use_sim_time: True
+
+bt_navigator_navigate_to_pose_rclcpp_node:
+  ros__parameters:
+    use_sim_time: True
+
+controller_server:
+  ros__parameters:
+    # See "Notes to Users" in https://index.ros.org/p/nav2_mppi_controller/github-ros-planning-navigation2/
+    # Note, time_steps * vx_max * model_dt determines what local costmap size should be.
+    # E.g. 241800 * 0.25 * 0.033 = 1.485 costmap radius.
+    # current_goal_checker: ["general_goal_checker"]
+    controller_frequency: 30.0 # Frequency to run controller (Hz).
+    controller_plugins: ["FollowPath"] # List of mapped names for controller plugins for processing requests and parameters.
+    failure_tolerance: 0.3 # Max duration controller plugin can fail before FollowPath action fails.
+    goal_checker_plugins: ["general_goal_checker"] # Mapped name for goal checker plugin for checking goal is reached. 
+    min_theta_velocity_threshold: 0.001 # Set z-vel to zero if less than this.
+    min_x_velocity_threshold: 0.001 # Set x-vel to zero if less than this.
+    min_y_velocity_threshold: 0.0 # Set y-vel to zero if less than this.
+    progress_checker_plugin: "progress_checker" # Mapped name for progress checker plugin for checking progress made by robot.
+    use_realtime_priority: False # Note, requires edit of /etc/security/limits.conf
+    use_sim_time: False
+
+    # Progress checker parameters
+    progress_checker:
+      plugin: "nav2_controller::SimpleProgressChecker"
+      required_movement_radius: 0.5 # Minimum amount a robot must move to be progressing to goal (m).
+      movement_time_allowance: 10.0 # Maximum amount of time a robot has to move the minimum radius (s).
+
+    # General goal checker parameters
+    general_goal_checker:
+      stateful: False # Whether to check for XY position tolerance after rotating to goal orientation
+          # in case of minor localization changes.
+      plugin: "nav2_controller::SimpleGoalChecker"
+      xy_goal_tolerance: 0.15
+      yaw_goal_tolerance: 0.2
+    # DWB parameters
+    FollowPath:
+      plugin: "dwb_core::DWBLocalPlanner"
+      debug_trajectory_details: False
+      min_vel_x: -0.01 # 0.0
+      min_vel_y: 0.0
+      max_vel_x: 0.2 # 0.26
+      max_vel_y: 0.0
+      max_vel_theta: 0.3
+      min_speed_xy: 0.0
+      max_speed_xy: 0.26
+      min_speed_theta: -0.3
+      # Add high threshold velocity for turtlebot 3 issue.
+      # https://github.com/ROBOTIS-GIT/turtlebot3_simulations/issues/75
+      acc_lim_x: 1.0
+      acc_lim_y: 0.0
+      acc_lim_theta: 0.8
+      decel_lim_x: -1.0
+      decel_lim_y: 0.0
+      decel_lim_theta: -0.8
+      vx_samples: 50 # 20
+      vy_samples: 5
+      vtheta_samples: 50 # 20
+      sim_time: 2.0 # 1.7
+      linear_granularity: 0.05
+      angular_granularity: 0.025
+      transform_tolerance: 0.2
+      xy_goal_tolerance: 0.05
+      trans_stopped_velocity: 0.05
+      short_circuit_trajectory_evaluation: True
+      stateful: True
+      critics: [
+        "RotateToGoal", 
+        "Oscillation", 
+        "BaseObstacle", 
+        "GoalAlign", 
+        "PathAlign", 
+        "PathDist", 
+        "GoalDist"]
+      BaseObstacle:
+        scale: 20.0 # 0.02
+      GoalAlign:
+        scale: 15.0 # 24.0
+        forward_point_distance: 0.3
+      GoalDist:
+        scale: 20.0  # 24.0
+      PathAlign:
+        forward_point_distance: 0.4 # 0.0508
+        scale: 32.0 # 32.0
+      PathDist:
+        scale: 32.0 # 32.0
+      RotateToGoal:
+        lookahead_time: 0.5 # -1.0
+        scale: 8.0
+        slowing_factor: 5.0
+
+controller_server_rclcpp_node:
+  ros__parameters:
+    use_sim_time: true
+
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      use_sim_time: True
+      # always_send_full_costmap: True # Whether to send full costmap every update, rather than updates.
+      global_frame: odom
+      height: 3 # Height of costmap (m).
+      # initial_transform_timeout: 60.0 # Time to wait for transform to be available before erroring out.
+      # lethal_cost_threshold: 100 # Minimum cost of an occupancy grid map to be considered a lethal obstacle.
+      # map_topic: /map # Topic of map from map_server or SLAM.
+      # origin_x: 0.0 # X origin of the costmap relative to width (m).
+      # origin_y: 0.0 # Y origin of the costmap relative to height (m).
+      publish_frequency: 2.0 # Frequency to publish costmap to topic.
+      resolution: 0.0508 # Resolution of 1 pixel of the costmap, in meters.
+      robot_base_frame: base_link
+      robot_radius: 0.2286 # Radius of robot base (m).
+      rolling_window: True # Whether costmap should roll with robot base frame.
+      # track_unknown_space: True # If false, treats unknown space as free space, else as unknown space.
+      # transform_tolerance: 0.3 # TF transform tolerance.
+      # trinary_costmap: True # Whether to use trinary or continuous costmap.
+      # unknown_cost_value: 255 # Cost of unknown space if tracking it.
+      update_frequency: 5.0 # Costmap update frequency.
+      width: 3 # Width of costmap (m).
+
+      plugins: [
+        # "sonar_layer",
+        "lidar_layer",
+        # "oakd_layer",
+        "inflation_layer"]
+
+      inflation_layer:
+        enabled: True
+        cost_scaling_factor: 2.0 # Exponential decay factor across inflation radius.
+        inflate_around_unknown: True # Whether to inflate unknown cells.
+        inflate_unknown: False # Whether to inflate unknown space.
+        inflation_radius: 0.3 # Radius to inflate costmap around lethal obstacles.
+        plugin: "nav2_costmap_2d::InflationLayer"
+
+      lidar_layer:
+        enabled: True
+        combination_method: 1 # 0 => Overwrite, 1 => >Max, 2 => MaxWithoutUnknownOverwrite
+        footprint_clearing_enabled: True # Clear any occupied cells under robot footprint.
+        map_subscribe_transient_local: True
+        observation_sources: scan
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        scan:
+          clearing: True # Whether source should raytrace clear in costmap.
+          # expected_update_rate: 0.0 # Expected rate to get new data from sensor.
+          data_type: "LaserScan" # Data type of input, LaserScan or PointCloud2.
+          inf_is_valid: True # Are infinite returns from laser scanners valid measurements to raycast.
+          marking: True # Whether source should mark in costmap.
+          max_obstacle_height: 2.0 # Maximum height to add return to occupancy grid.
+          min_obstacle_height: 0.0 # Minimum height to add return to occupancy grid.
+          obstacle_max_range: 2.4 # Maximum range to mark obstacles in costmap.
+          obstacle_min_range: 0.0 # Minimum range to mark obstacles in costmap.
+          raytrace_max_range: 3.0 # Maximum range to raytrace clear obstacles from costmap.
+          raytrace_min_range: 0.0 # Minimum range to raytrace clear obstacles from costmap.
+          topic: /scan # Topic of data.
+
+      oakd_layer:
+        enabled: True
+        combination_method: 1 # 0 => Overwrite, 1 => >Max, 2 => MaxWithoutUnknownOverwrite
+        footprint_clearing_enabled: True # Clear any occupied cells under robot footprint.
+        max_obstacle_height: 1.0 # Maximum height to add return to occupancy grid.
+        mark_threshold: 0 # Minimum number of voxels in a column to mark as occupied in 2D occupancy grid.
+        observation_sources: oakd_left_obstacle oakd_right_obstacle
+        origin_z: 0.0 # Where to start marking voxels (m).
+        plugin: "nav2_costmap_2d::VoxelLayer"
+        publish_voxel_map: False # Whether to publish 3D voxel grid for debug, computationally expensive.
+        unknown_threshold: 15 # Minimum number of empty voxels in a column to mark as unknown in 2D occupancy grid.
+        z_resolution: 0.0508 # Resolution of voxels in height (m).
+        z_voxels: 10 # Number of voxels high to mark, maximum 16.
+
+        oakd_left_obstacle:
+          clearing: True # Whether source should raytrace clear in costmap.
+          data_type: "PointCloud2" # Data type of input, LaserScan or PointCloud2.
+          # expected_update_rate: 8.0 # Expected rate to get new data from sensor.
+          inf_is_valid: True # Are infinite returns from laser scanners valid measurements to raycast.
+          marking: True # Whether source should mark in costmap.
+          max_obstacle_height: 1.0 # Maximum height to add return to occupancy grid.
+          min_obstacle_height: 0.0508 # Minimum height to add return to occupancy grid.
+          observation_persistence: 0.0 # How long to store messages in a buffer to add to costmap before removing them (s).
+          obstacle_max_range: 5.0 # Maximum range to mark obstacles in costmap.
+          obstacle_min_range: 0.0 # Minimum range to mark obstacles in costmap.
+          raytrace_max_range: 5.0 # Maximum range to raytrace clear obstacles from costmap.
+          raytrace_min_range: 0.0 # Minimum range to raytrace clear obstacles from costmap.
+          topic: /oakd_left/stereo/points # Topic of data.
+        oakd_right_obstacle:
+          clearing: True # Whether source should raytrace clear in costmap.
+          data_type: "PointCloud2" # Data type of input, LaserScan or PointCloud2.
+          # expected_update_rate: 8.0 # Expected rate to get new data from sensor.
+          inf_is_valid: True # Are infinite returns from laser scanners valid measurements to raycast.
+          marking: True # Whether source should mark in costmap.
+          max_obstacle_height: 1.0 # Maximum height to add return to occupancy grid.
+          min_obstacle_height: 0.0508  # Minimum height to add return to occupancy grid.
+          observation_persistence: 0.0 # How long to store messages in a buffer to add to costmap before removing them (s).
+          obstacle_max_range: 5.0 # Maximum range to mark obstacles in costmap.
+          obstacle_min_range: 0.0 # Minimum range to mark obstacles in costmap.
+          raytrace_max_range: 5.0 # Maximum range to raytrace clear obstacles from costmap.
+          raytrace_min_range: 0.0 # Minimum range to raytrace clear obstacles from costmap.
+          topic: /oakd_right/stereo/points # Topic of data.
+        map_subscribe_transient_local: True
+        transform_tolerance: 0.3 # TF transform tolerance.
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      always_send_full_costmap: True # Whether to send full costmap every update, rather than updates.
+      global_frame: map
+      publish_frequency: 1.0 # Frequency to publish costmap to topic.
+      resolution: 0.0508 # Resolution of 1 pixel of the costmap, in meters.
+      robot_base_frame: base_link
+      robot_radius: 0.2286 # Radius of robot base (m).
+      track_unknown_space: True # If false, treats unknown space as free space, else as unknown space.
+      transform_tolerance: 0.3
+      update_frequency: 1.0 # Costmap update frequency.
+      use_sim_time: True
+
+      plugins: [
+        "static_layer", 
+        "obstacle_layer", 
+        "inflation_layer"
+      ]
+
+      inflation_layer:
+        enabled: True
+        cost_scaling_factor: 3.0 # Exponential decay factor across inflation radius.
+        # inflate_around_unknown: False # Whether to inflate unknown cells.
+        # inflate_unknown: False # Whether to inflate unknown space.
+        inflation_radius: 0.4 # Radius to inflate costmap around lethal obstacles.
+        plugin: "nav2_costmap_2d::InflationLayer"
+
+      obstacle_layer:
+        enabled: True
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        # footprint_clearing_enabled: True
+        # combination_method: 1 # 0 => Overwrite, 1 => >Max, 2 => MaxWithoutUnknownOverwrite
+        observation_sources: scan # oakd_left_obstacle oakd_right_obstacle
+        scan:
+          clearing: True # Whether source should raytrace clear in costmap.
+          # expected_update_rate: 0.0 # Expected rate to get new data from sensor.
+          data_type: "LaserScan" # Data type of input, LaserScan or PointCloud2.
+          inf_is_valid: True # Are infinite returns from laser scanners valid measurements to raycast.
+          marking: True # Whether source should mark in costmap.
+          max_obstacle_height: 2.0 # Maximum height to add return to occupancy grid.
+          min_obstacle_height: 0.0 # Minimum height to add return to occupancy grid.
+          obstacle_max_range: 5.0 # Maximum range to mark obstacles in costmap.
+          obstacle_min_range: 0.0 # Minimum range to mark obstacles in costmap.
+          raytrace_max_range: 5.0 # Maximum range to raytrace clear obstacles from costmap.
+          raytrace_min_range: 0.0 # Minimum range to raytrace clear obstacles from costmap.
+          topic: /scan # Topic of data.
+
+        oakd_left_obstacle: 
+          topic: /oakd_left/stereo/points
+          data_type: "PointCloud2"
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.01
+          obstacle_max_range: 5.0
+          obstacle_min_range: 0.0
+          clearing: False
+          marking: True
+        oakd_right_obstacle:
+          topic: /oakd_right/stereo/points
+          data_type: "PointCloud2"
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.01
+          obstacle_max_range: 5.0
+          obstacle_min_range: 0.0
+          clearing: False
+          marking: True
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: True
+
+map_server:
+  ros__parameters:
+    use_sim_time: True
+    # Overridden in launch by the "map" launch configuration or provided default value.
+    # To use in yaml, remove the default "map" value in the tb3_simulation_launch.py file & provide full path to map below.
+    yaml_filename: ""
+
+map_saver:
+  ros__parameters:
+    use_sim_time: True
+    save_map_timeout: 5.0
+    free_thresh_default: 0.25
+    occupied_thresh_default: 0.65
+    map_subscribe_transient_local: True
+
+planner_server:
+  ros__parameters:
+    expected_planner_frequency: 20.0
+    planner_plugins: ["GridBased"]
+    use_sim_time: True
+
+    GridBased:
+      plugin: "nav2_navfn_planner/NavfnPlanner"
+      tolerance: 0.5
+      use_astar: false
+      allow_unknown: true
+
+smoother_server:
+  ros__parameters:
+    use_sim_time: True
+    smoother_plugins: ["simple_smoother"]
+    simple_smoother:
+      robot_base_frame: base_footprint
+      plugin: "nav2_smoother::SimpleSmoother"
+      tolerance: 1.0e-10
+      max_its: 1000
+      do_refinement: True
+
+behavior_server:
+  ros__parameters:
+    costmap_topic: local_costmap/costmap_raw
+    footprint_topic: local_costmap/published_footprint
+    cycle_frequency: 20.0
+    behavior_plugins: ["spin", "backup", "drive_on_heading", "assisted_teleop", "wait"]
+    spin:
+      plugin: "nav2_behaviors/Spin"
+    backup:
+      plugin: "nav2_behaviors/BackUp"
+    drive_on_heading:
+      plugin: "nav2_behaviors/DriveOnHeading"
+    wait:
+      plugin: "nav2_behaviors/Wait"
+    assisted_teleop:
+      plugin: "nav2_behaviors/AssistedTeleop"
+    global_frame: odom
+    robot_base_frame: base_link
+    transform_tolerance: 0.3
+    use_sim_time: true
+    simulate_ahead_time: 2.0
+    max_rotational_vel: 1.0
+    min_rotational_vel: 0.017
+    rotational_acc_lim: 0.2
+
+planner_server_rclcpp_node:
+  ros__parameters:
+    use_sim_time: True
+
+recoveries_server:
+  ros__parameters:
+    costmap_topic: local_costmap/costmap_raw
+    footprint_topic: local_costmap/published_footprint
+    cycle_frequency: 10.0
+    recovery_plugins: ["spin", "backup", "wait"]
+    spin:
+      plugin: "nav2_recoveries/Spin"
+    backup:
+      plugin: "nav2_recoveries/BackUp"
+    wait:
+      plugin: "nav2_recoveries/Wait"
+    global_frame: odom
+    robot_base_frame: base_link
+    transform_timeout: 0.1
+    use_sim_time: true
+    simulate_ahead_time: 2.0
+    max_rotational_vel: 4.0
+    min_rotational_vel: 0.4
+    rotational_acc_lim: 3.2
+
+robot_state_publisher:
+  ros__parameters:
+    use_sim_time: True
+
+waypoint_follower:
+  ros__parameters:
+    use_sim_time: True
+    loop_rate: 20
+    stop_on_failure: False
+    waypoint_task_executor_plugin: "wait_at_waypoint"
+    wait_at_waypoint:
+      plugin: "nav2_waypoint_follower::WaitAtWaypoint"
+      enabled: True
+      waypoint_pause_duration: 200
+
+velocity_smoother:
+  ros__parameters:
+    use_sim_time: True
+    use_realtime_priority: True
+    smoothing_frequency: 50.0 
+    scale_velocities: False
+    feedback: "OPEN_LOOP"
+    max_velocity: [0.2, 0.0, 0.1]
+    min_velocity: [-0.2, 0.0, -0.1]
+    max_accel: [0.1, 0.0, 0.1]
+    max_decel: [-0.1, 0.0, -0.1]
+    odom_topic: "odom"
+    odom_duration: 0.2
+    deadband_velocity: [0.0, 0.0, 0.0]
+    velocity_timeout: 1.0
