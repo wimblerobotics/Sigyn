@@ -35,7 +35,7 @@ In one window, you need to run the MicroRos agent via
 ``` bash
 ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/teensy_sensor
 ```
-Note that this relies on udev rules to create a symbolic link to the teensy 4.1 device in the ***/dev*** directory (see [00-teensy.rules](udev/00-teensy.rules).
+Note that this relies on udev rules to create a symbolic link to the teensy 4.1 device in the ***/dev*** directory (see [00-teensy.rules](udev/00-teensy.rules)).
 
 In another window, run the nav2 stack, which also launches the other needed components.
 ``` bash
