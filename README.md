@@ -47,7 +47,7 @@ To visualize the system, run ***rviz2***. There is a configuration file which sh
 rviz2 -d ~/sigyn_ws/src/Sigyn/rviz/config/config.rviz
 ```
 
-I usuall begin by using begin by using the ***rviz2*** interface to set the 2D Pose Estimate, then I use the teleop module to move the robot around a bit to make sure that localization is working. Then I set a goal and watch it work.
+I usually begin by using the ***rviz2*** interface to set the 2D Pose Estimate, then I use the teleop module to move the robot around a bit to make sure that localization is working. Then I set a goal and watch it work.
 
 If you don't have your own way of running teleoperation, here's what I use:
 ``` bash
