@@ -88,6 +88,14 @@ int64_t TMicroRos::FixedTime(const char *caller) {
 }
 
 void TMicroRos::loop() {
+  static bool has_homed = false;
+  if (!has_homed) {
+    while (!AtBottomLimit()) {
+      StepPulse(kDown);
+    }
+    has_homed = true;
+  }
+
   switch (state_) {
     case kWaitingAgent: {
 #if USE_TSD
@@ -182,10 +190,6 @@ void TMicroRos::setup() {
     pinMode(kPinTrigger2, INPUT);  // Top limit switch.
     pinMode(kPinEcho3, OUTPUT);
     pinMode(kPinTrigger3, OUTPUT);
-    while (!AtBottomLimit()) {
-      StepPulse(kDown);
-    }
-
     set_microros_transports();
     state_ = kWaitingAgent;
     while (state_ != kAgentConnected) {
@@ -219,7 +223,6 @@ void TMicroRos::TimerCallback(rcl_timer_t *timer, int64_t last_call_time) {
 }
 
 void TMicroRos::CommandCallback(const void *msg) {
-  const float kMmPerPulse = 0.181;
   // 0.1742, 0.178, 1400=>0.182, 2300=>0.1826, 3300=>0.181
 
   //  4000  1224
@@ -229,28 +232,49 @@ void TMicroRos::CommandCallback(const void *msg) {
   // -800   320
   // -1300  250
   // -1800  180
-  static int32_t last_position = 0;
   if (TMicroRos::singleton().state_ == kAgentConnected) {
-    const std_msgs__msg__Int32 *command = (const std_msgs__msg__Int32 *)msg;
+    const std_msgs__msg__Float32 *command = (const std_msgs__msg__Float32 *)msg;
 
     char diagnostic_message[256];
     snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos::CommandCallback(] command: %ld", command->data);
+             "INFO [TMicroRos::CommandCallback(] command: %4.3f",
+             command->data);
     TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-    if (command->data != last_position) {
-      boolean setdir = command->data > last_position;  // Set Direction
-      while (last_position != command->data) {
-        StepPulse(setdir ? kUp : kDown);
-        last_position += setdir ? 1 : -1;
-        char diagnostic_message[256];
-        snprintf(
-            diagnostic_message, sizeof(diagnostic_message),
-            "INFO [TMicroRos::CommandCallback] target: %ld, last_position: %ld",
-            command->data, last_position);
-        TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-      }
+    float target_position = command->data;
+    if (current_position_ != target_position) {
+      int32_t pulses_needed =
+          abs((target_position - current_position_)) / kMmPerPulse_;
+      Direction direction_to_travel =
+          target_position > current_position_ ? kUp : kDown;
+      StepPulse(direction_to_travel);
 
-      last_position = command->data;
+      while (pulses_needed-- > 0) {
+        if ((direction_to_travel == kUp) && AtTopLimit()) {
+          char diagnostic_message[256];
+          snprintf(diagnostic_message, sizeof(diagnostic_message),
+                   "INFO [TMicroRos::CommandCallback] Already at top limit, "
+                   "not moving further up");
+          TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+          return;
+        }
+
+        if ((direction_to_travel == kDown) && AtBottomLimit()) {
+          char diagnostic_message[256];
+          snprintf(diagnostic_message, sizeof(diagnostic_message),
+                   "INFO [TMicroRos::CommandCallback] Already at bottom limit, "
+                   "not moving further down");
+          TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+          return;
+        }
+
+        char diagnostic_message[256];
+        snprintf(diagnostic_message, sizeof(diagnostic_message),
+                 "INFO [TMicroRos::CommandCallback] target_position: %7.6f, "
+                 "current_position: %7.6f, pulses_needed: %ld",
+                 target_position, current_position_, pulses_needed);
+        TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+        StepPulse(direction_to_travel);
+      }
     }
 #if USE_TSD
     TSd::singleton().log(diagnostic_message);
@@ -259,11 +283,35 @@ void TMicroRos::CommandCallback(const void *msg) {
 }
 
 bool TMicroRos::AtBottomLimit() {
-  return digitalRead(kPinEcho2);
+  static const float kBottomPosition = 0.2;
+  bool atBottom = digitalRead(kPinEcho2);
+  if (atBottom) {
+    current_position_ = kBottomPosition;
+    char diagnostic_message[256];
+    snprintf(diagnostic_message, sizeof(diagnostic_message),
+             "INFO [TMicroRos::AtBottomLimit] At Bottom of elevator, "
+             "current_position_: %4.3f",
+             current_position_);
+    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+  }
+
+  return atBottom;
 }
 
 bool TMicroRos::AtTopLimit() {
-  return digitalRead(kPinTrigger2);
+  static const float kTopPosition = 1.375;
+  bool atTop = digitalRead(kPinTrigger2);
+  if (atTop) {
+    current_position_ = kTopPosition;
+    char diagnostic_message[256];
+    snprintf(diagnostic_message, sizeof(diagnostic_message),
+             "INFO [TMicroRos::AtTopLimit] At Top of elevator, "
+             "current_position_: %4.3f",
+             current_position_);
+    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+  }
+
+  return atTop;
 }
 
 void TMicroRos::StepPulse(Direction direction) {
@@ -281,6 +329,11 @@ void TMicroRos::StepPulse(Direction direction) {
   delayMicroseconds(pd);
   digitalWrite(kPinEcho3, LOW);
   delayMicroseconds(pd);
+  if (direction == kUp) {
+    current_position_ += kMmPerPulse_;
+  } else {
+    current_position_ -= kMmPerPulse_;
+  }
 }
 
 TMicroRos::TMicroRos() : TModule(TModule::kMicroRos) {
@@ -312,7 +365,7 @@ bool TMicroRos::CreateEntities() {
   // Create subscribers.
   RCCHECK(rclc_subscription_init_default(
       &command_subscriber_, &node_,
-      ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32), "gripper_cmd"));
+      ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32), "gripper_cmd"));
 
   // Create timer,
   const unsigned int timer_timeout_ns = 1'000'000'000;
@@ -352,4 +405,6 @@ TMicroRos &TMicroRos::singleton() {
 }
 
 TMicroRos *TMicroRos::g_singleton_ = nullptr;
+const float TMicroRos::kMmPerPulse_ = 0.000181;
+float TMicroRos::current_position_ = 0.0;
 volatile int64_t TMicroRos::ros_sync_time_ = 0;

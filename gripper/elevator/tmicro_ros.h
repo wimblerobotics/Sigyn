@@ -6,7 +6,7 @@
 #include <rclc/executor.h>
 #include <rclc/rclc.h>
 #include <rmw_microros/rmw_microros.h>
-#include <std_msgs/msg/int32.h>
+#include <std_msgs/msg/float32.h>
 #include <std_msgs/msg/string.h>
 #include <stdio.h>
 
@@ -25,10 +25,7 @@ class TMicroRos : TModule {
   static TMicroRos& singleton();
 
  protected:
-  enum Direction {
-    kUp,
-    kDown
-  };
+  enum Direction { kUp, kDown };
 
   // Check if the elevator is at the bottom limit.
   static bool AtBottomLimit();
@@ -48,9 +45,7 @@ class TMicroRos : TModule {
   // Step one pulse.
   static void StepPulse(Direction upwdirectionrds);
 
-
  private:
-
   enum State {
     kWaitingAgent,
     kAgentAvailable,
@@ -102,8 +97,14 @@ class TMicroRos : TModule {
   rcl_publisher_t stats_publisher_;
 
   // ROS messages, allocated once.
-  std_msgs__msg__Int32 command_msg_;
+  std_msgs__msg__Float32 command_msg_;
   std_msgs__msg__String string_msg_;
+
+  // Elevator position;
+  static float current_position_; // In meters.
+
+  // Mm per pulse.
+  static const float kMmPerPulse_;  
 
   // Singleton instance.
   static TMicroRos* g_singleton_;
