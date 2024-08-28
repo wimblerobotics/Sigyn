@@ -58,6 +58,22 @@ void loop() {
 //     kPinTrigger3 = 14
 //   };
 
+// void setup() {
+//   pinMode(kPinEcho2, INPUT);
+//   pinMode(kPinTrigger2, INPUT);
+//   Serial.begin(9600);
+// }
+
+// void loop() {
+//   bool senseTop = digitalRead(kPinEcho2);
+//   bool senseBottom = digitalRead(kPinTrigger2);
+//   Serial.print("Sense: ^");
+//   Serial.print(senseTop);
+//   Serial.print(" v");
+//   Serial.println(senseBottom);
+//   delay(500);
+// }
+
 // boolean setdir = LOW; // Set Direction
 // int pd = 500;       // Pulse Delay period
 
