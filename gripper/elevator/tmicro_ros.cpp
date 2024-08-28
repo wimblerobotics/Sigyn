@@ -178,8 +178,14 @@ void TMicroRos::setup() {
   if (!is_setup) {
     Wire.begin();
     pinMode(13, OUTPUT);
+    pinMode(kPinEcho2, INPUT);     // Bottom limit switch.
+    pinMode(kPinTrigger2, INPUT);  // Top limit switch.
     pinMode(kPinEcho3, OUTPUT);
     pinMode(kPinTrigger3, OUTPUT);
+    while (!AtBottomLimit()) {
+      StepPulse(kDown);
+    }
+
     set_microros_transports();
     state_ = kWaitingAgent;
     while (state_ != kAgentConnected) {
@@ -213,7 +219,7 @@ void TMicroRos::TimerCallback(rcl_timer_t *timer, int64_t last_call_time) {
 }
 
 void TMicroRos::CommandCallback(const void *msg) {
-  const float kMmPerPulse = 0.181; 
+  const float kMmPerPulse = 0.181;
   // 0.1742, 0.178, 1400=>0.182, 2300=>0.1826, 3300=>0.181
 
   //  4000  1224
@@ -233,13 +239,8 @@ void TMicroRos::CommandCallback(const void *msg) {
     TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
     if (command->data != last_position) {
       boolean setdir = command->data > last_position;  // Set Direction
-      const int pd = 500;                              // Pulse Delay period
       while (last_position != command->data) {
-        digitalWrite(kPinTrigger3, !setdir);
-        digitalWrite(kPinEcho3, HIGH);
-        delayMicroseconds(pd);
-        digitalWrite(kPinEcho3, LOW);
-        delayMicroseconds(pd);
+        StepPulse(setdir ? kUp : kDown);
         last_position += setdir ? 1 : -1;
         char diagnostic_message[256];
         snprintf(
@@ -255,6 +256,31 @@ void TMicroRos::CommandCallback(const void *msg) {
     TSd::singleton().log(diagnostic_message);
 #endif
   }
+}
+
+bool TMicroRos::AtBottomLimit() {
+  return digitalRead(kPinEcho2);
+}
+
+bool TMicroRos::AtTopLimit() {
+  return digitalRead(kPinTrigger2);
+}
+
+void TMicroRos::StepPulse(Direction direction) {
+  const int pd = 500;  // Pulse Delay period
+  if ((direction == kUp) && AtTopLimit()) {
+    return;
+  }
+
+  if ((direction == kDown) && AtBottomLimit()) {
+    return;
+  }
+
+  digitalWrite(kPinTrigger3, direction == kDown);
+  digitalWrite(kPinEcho3, HIGH);
+  delayMicroseconds(pd);
+  digitalWrite(kPinEcho3, LOW);
+  delayMicroseconds(pd);
 }
 
 TMicroRos::TMicroRos() : TModule(TModule::kMicroRos) {

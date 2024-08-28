@@ -1,6 +1,5 @@
 #pragma once
 
-#include <diagnostic_msgs/msg/diagnostic_status.h>
 #include <micro_ros_arduino.h>
 #include <rcl/error_handling.h>
 #include <rcl/rcl.h>
@@ -26,6 +25,17 @@ class TMicroRos : TModule {
   static TMicroRos& singleton();
 
  protected:
+  enum Direction {
+    kUp,
+    kDown
+  };
+
+  // Check if the elevator is at the bottom limit.
+  static bool AtBottomLimit();
+
+  // Check if the elevator is at the top limit.
+  static bool AtTopLimit();
+
   // From TModule.
   void loop();
 
@@ -35,7 +45,12 @@ class TMicroRos : TModule {
   // From TModule
   void setup();
 
+  // Step one pulse.
+  static void StepPulse(Direction upwdirectionrds);
+
+
  private:
+
   enum State {
     kWaitingAgent,
     kAgentAvailable,
