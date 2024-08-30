@@ -74,6 +74,9 @@
       src: "images/DM524T.png"
       width: 123
       height: 162
+    loops:
+      - [2, 4]
+      - [4, 6]
 
   ###
   # NEMA 23 Stepper Motor

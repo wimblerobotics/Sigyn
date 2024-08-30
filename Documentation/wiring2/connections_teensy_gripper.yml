@@ -3,16 +3,6 @@
   - 4WireWShield.cJ20: [1-3]
   - DM542T.Elevator: [DIR_MINUS, PUL_PLUS, DIR_PLUS]
 
-- # Common ground
-  - DM542T.Elevator: 2
-  - WIRE.C2-4: [1]
-  - DM542T.Elevator: 4
-
-- # Common ground
-  - DM542T.Elevator: [4]
-  - WIRE.C4_6: [1]
-  - DM542T.Elevator: [6]
-
 - # Arduino to lower photointerrupter
   - PHR4.J21: [1-2]
   - 4WireWShield.cJ21: [1-2]
