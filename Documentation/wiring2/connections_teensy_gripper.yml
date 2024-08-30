@@ -1,0 +1,45 @@
+- # Arduino to elevator stepper
+  - PHR4.J20: [1-3]
+  - 4WireWShield.cJ20: [1-3]
+  - DM542T.Elevator: [DIR_MINUS, PUL_PLUS, DIR_PLUS]
+
+- # Common ground
+  - DM542T.Elevator: 2
+  - WIRE.C2-4: [1]
+  - DM542T.Elevator: 4
+
+- # Common ground
+  - DM542T.Elevator: [4]
+  - WIRE.C4_6: [1]
+  - DM542T.Elevator: [6]
+
+- # Arduino to lower photointerrupter
+  - PHR4.J21: [1-2]
+  - 4WireWShield.cJ21: [1-2]
+  - EE_SX675_WR.LOWER: [GND, OUT]
+- 
+  - PHR4.J21: [4]
+  - 4WireWShield.cJ21: [4]
+  - EE_SX675_WR.LOWER: [VCC]
+- 
+  - PHR4.J21: [4]
+  - 4WireWShield.cJ21: [4]
+  - EE_SX675_WR.LOWER: [L]
+
+- # Arduino to upper photointerrupter
+  - PHR4.J21: [1,3]
+  - 4WireWShield.cJ21: [1,3]
+  - EE_SX675_WR.UPPER: [GND, OUT]
+- 
+  - PHR4.J21: [4]
+  - 4WireWShield.cJ21: [4]
+  - EE_SX675_WR.UPPER: [VCC]
+- 
+  - PHR4.J21: [4]
+  - 4WireWShield.cJ21: [4]
+  - EE_SX675_WR.UPPER: [L]
+
+- # Stepper motor
+  - NEMA_23: [A_PLUS, A_MINUS, B_PLUS, B_MINUS]
+  - NEMA_23_CABLE: [1-4]
+  - DM542T.Elevator: [A_PLUS, A_MINUS, B_PLUS, B_MINUS]

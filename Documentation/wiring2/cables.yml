@@ -480,3 +480,32 @@
     gauge: "16 AWG"
     show_wirecount: false
   
+###
+# Teensy cables
+###
+  4WireWShield:
+    wirecount: 4
+    color_code: IEC
+    colors: [BK, GN, WH, RD]
+#    colors: [RD, WH, BN, BK]
+    gauge: "20 AWG"
+    show_wirecount: false 
+    shield: true
+  
+  ###
+  # Stepper Motor Cables
+  ###
+  NEMA_23_CABLE:
+    wirecount: 4
+    color_code: IEC
+    colors: [BK, GN, RD, BU]
+    gauge: "20 AWG"
+    show_wirecount: false
+  
+  WIRE:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK]
+    gauge: "20 AWG"
+    show_wirecount: false
+

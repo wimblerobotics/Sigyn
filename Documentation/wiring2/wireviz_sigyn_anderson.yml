@@ -1,27 +1,8 @@
-  -
-    - ANDERSON_5V_STRIP: [RD]
-    - Anderson_Control_Panel_To_Barrier_Cable: [1]
-    - BARRIER_STRIP_TOP: [BS_TOP_36V_Plus_1]
-  -
-    - ANDERSON_5V_STRIP: [BK]
-    - Anderson_Control_Panel_To_Barrier_Cable: [2]
-    - BARRIER_STRIP_TOP: [BS_TOP_GND_1]
+connectors:
+include(connectors.yml)
 
-  -
-    - BATTERY_CONNECTOR: [PLUS]
-    - Battery_Cable_To_Battery: [1]
-    - BATTERY: [36V_PLUS]
-  -
-    - BATTERY_CONNECTOR: [MINUS]
-    - Battery_Cable_To_Battery: [2]
-    - BATTERY: [36V_MINUS]
+cables:
+include(cables.yml)
 
-  -
-    - BATTERY_CONNECTOR: [MINUS]
-    - Control_Panel_To_BAT_Cable: [2]
-    - BATGND_LN5: [1]
-
-  -
-    - BATTERY_CONNECTOR: [PLUS]
-    - Control_Panel_To_BAT_Cable: [1]
-    - BATPLS_LN5: [1]
+connections:
+include(connections_anderson.yml)

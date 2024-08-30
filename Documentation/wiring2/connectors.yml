@@ -61,6 +61,61 @@
     pinlabels: [ 36V_PLUS, 36V_MINUS ]
     pincolors: [ RD, BK ]
   
+  
+  ###
+  # Stepper Motor Controller
+  ###
+  DM542T:
+    manufacturer: StepperOnline
+    mpn: "DM542T"
+    pincount: 14
+    pinlabels: [ PUL_PLUS, PUL_MINUS, DIR_PLUS, DIR_MINUS, ENA_PLUS, ENA_MINUS, ALM_PLUS, ALM_MINUS, GND, VDC, A_PLUS, A_MINUS, B_PLUS, B_MINUS ]
+    image:
+      src: "images/DM524T.png"
+      width: 123
+      height: 162
+
+  ###
+  # NEMA 23 Stepper Motor
+  ###
+  NEMA_23:
+    manufacturer: StepperOnline
+    mpn: "23HS22-2804S"
+    pincount: 4
+    pinlabels: [ A_PLUS, A_MINUS, B_PLUS, B_MINUS ]
+    pincolors: [BK, GN, RD, BU]
+    image:
+      src: "images/23HS22-2804S-1000x1000.jpg"
+      width: 160
+      height: 160
+
+  ###
+  # Molex connectors
+  ###
+  PHR4:
+    type: Molex
+    manufacturer: Molex
+    mpn: "PHR-4"
+    supplier: DigiKey
+    spn: "455-1164-ND"
+    pincount: 4
+    image:
+      src: "images/PHR-4.jpg"
+      width: 80
+      height: 80
+
+  ###
+  # Photo Interrupter
+  ###
+  EE_SX675_WR:
+    pinlabels: [ VCC, L, OUT, GND ]
+    manufacturer: Heechoo
+    mpn: "EE-SX675-WR"
+    image:
+      src: "images/EE-SX675-WR.png"
+      width: 77
+      height: 88
+
   ###
   # Fusebox
   ###

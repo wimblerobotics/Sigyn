@@ -54,4 +54,4 @@ CATKIN_IGNORE
 .DS_Store
 
 # Documentation
-/Documentation/wiring/foo.yml
+/Documentation/wiring2/foo.yml
