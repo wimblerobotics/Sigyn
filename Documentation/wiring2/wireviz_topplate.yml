@@ -5,4 +5,4 @@ cables:
 include(cables.yml)
 
 connections:
-include(connections_anderson.yml)
+include(connections_teensy_gripper.yml)
