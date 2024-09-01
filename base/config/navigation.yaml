@@ -41,10 +41,9 @@ amcl: # See: https://assets.researchsquare.com/files/rs-225880/v1_covered.pdf?c=
     scan_topic: scan
     set_initial_pose: true # Causes AMCL to set initial pose from the initial_pose* parameters instead of waiting for the initial_pose message.
     initial_pose:
-      x: 1.0 #8.0 #8.25
-      y: 1.0 #3.0 #3.145
-      yaw:  1.571 # 1.571
-
+      x: 8.3
+      y: 2.4
+      yaw: 1.571
 
 amcl_map_client:
   ros__parameters:
