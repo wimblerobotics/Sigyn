@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'scripts'
+package_name = 'py_scripts'
 
 setup(
     name=package_name,
