@@ -15,7 +15,7 @@ ld = LaunchDescription()
 
 ld.add_action(DeclareLaunchArgument(
     name= 'map', 
-    default_value='map_20240306.yaml',
+    default_value='snowberry4v31.yaml',
     description='map file to use for navigation'))
 
 ld.add_action(DeclareLaunchArgument(
@@ -24,4 +24,4 @@ ld.add_action(DeclareLaunchArgument(
     description='Use simulation (Gazebo) clock if true'))
 
 map = LaunchConfiguration('map')
-map_path = os.path.join(base_directory_path, 'maps', 'map_20240306.yaml')
+map_path = os.path.join(base_directory_path, 'maps', 'snowberry4v31.yaml')
