@@ -1,0 +1,1 @@
+docker build --platform linux/amd64 -t rosjazzy  -f D2 .
