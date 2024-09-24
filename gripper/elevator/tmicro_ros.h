@@ -28,10 +28,16 @@ class TMicroRos : TModule {
   enum Direction { kUp, kDown };
 
   // Check if the elevator is at the bottom limit.
-  static bool AtBottomLimit();
+  static bool ElevatorAtBottomLimit();
 
   // Check if the elevator is at the top limit.
-  static bool AtTopLimit();
+  static bool ElevatorAtTopLimit();
+
+  // Check if the extender is at the most extended limit.
+  static bool ExtenderAtOutLimit();
+
+  // Check if the extender is at the least extended limit.
+  static bool ExtenderAtInLimit();
 
   // From TModule.
   void loop();
@@ -43,7 +49,8 @@ class TMicroRos : TModule {
   void setup();
 
   // Step one pulse.
-  static void StepPulse(Direction upwdirectionrds);
+  static void ElevatorStepPulse(Direction upwdirectionrds);
+  static void ExtenderStepPulse(Direction upwdirectionrds);
 
  private:
   enum State {
@@ -54,14 +61,14 @@ class TMicroRos : TModule {
   } state_;
 
   enum {
-    kPinEcho0 = 35,
-    kPinTrigger0 = 34,
-    kPinEcho1 = 37,
-    kPinTrigger1 = 36,
-    kPinEcho2 = 41,
-    kPinTrigger2 = 40,
-    kPinEcho3 = 15,
-    kPinTrigger3 = 14
+    kExtenderInLimitSwitchPin = 35,      // Echo 3
+    kExtenderOutLimitSwitchPin = 34,     // Trigger 3
+    kExtenderStepPulsePin = 37,          // Echo 2
+    kExtenderStepDirectionPin = 36,      // Trigger 2
+    kElevatorBottomLimitSwitchPin = 41,  // Echo 1
+    kElevatorTopLimitSwitchPin = 40,     // Trigger 1
+    kElevatorStepPulsePin = 15,          // Echo 0
+    kElevatorStepDirectionPin = 14       // Trigger 0
   };
 
   // Private constructor.
@@ -77,15 +84,19 @@ class TMicroRos : TModule {
   // Regular maintenance, publish stats, etc.
   static void TimerCallback(rcl_timer_t* timer, int64_t last_call_time);
 
-  // Handler for cmd_vel messages.
-  static void CommandCallback(const void* msg);
+  // Handler for elevator_cmd messages.
+  static void ElevatorCommandCallback(const void* msg);
+
+  // Handler for elevator_cmd messages.
+  static void ExtenderCommandCallback(const void* msg);
 
   // For checking for a reasonable ROS time.
   static volatile int64_t ros_sync_time_;
 
   // Micro-ROS variables
   rcl_allocator_t allocator_;
-  rcl_subscription_t command_subscriber_;
+  rcl_subscription_t elevator_command_subscriber_;
+  rcl_subscription_t extender_command_subscriber_;
   rclc_executor_t executor_;
   bool micro_ros_init_successful_;
   rcl_node_t node_;
@@ -97,14 +108,17 @@ class TMicroRos : TModule {
   rcl_publisher_t stats_publisher_;
 
   // ROS messages, allocated once.
-  std_msgs__msg__Float32 command_msg_;
+  std_msgs__msg__Float32 elevator_command_msg_;
+  std_msgs__msg__Float32 extender_command_msg_;
   std_msgs__msg__String string_msg_;
 
   // Elevator position;
-  static float current_position_; // In meters.
+  static float current_elevator_position_;  // In meters.
+  static float current_extender_position_;  // In meters.
 
   // Mm per pulse.
-  static const float kMmPerPulse_;  
+  static const float kElevatorMmPerPulse_;
+  static const float kExtenderMmPerPulse_;
 
   // Singleton instance.
   static TMicroRos* g_singleton_;
