@@ -13,10 +13,10 @@ ekf_config_path = os.path.join(base_directory_path, 'config/ekf.yaml')
 
 ld = LaunchDescription()
 
-ld.add_action(DeclareLaunchArgument(
-    name= 'map', 
-    default_value='snowberry4v31.yaml',
-    description='map file to use for navigation'))
+# ld.add_action(DeclareLaunchArgument(
+#     name= 'map', 
+#     default_value='snowberry4v31.yaml',
+#     description='map file to use for navigation'))
 
 ld.add_action(DeclareLaunchArgument(
     name='use_sim_time', 

@@ -1,0 +1,11 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "slam_nav.launch.py",
+      "type": "ros",
+      "request": "launch",
+      "target": "/home/ros/sigyn_ws/install/base/share/base/launch/slam.launch.py"
+    },
+  ]
+}
