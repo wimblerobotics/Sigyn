@@ -1,7 +1,6 @@
 image: snowberry4v31B.pgm
 mode: trinary
 resolution: 0.01694
-#origin: [15.0114, -15.4686, 0]
 origin: [0, 0, 0]
 negate: 0
 occupied_thresh: 0.65

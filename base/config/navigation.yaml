@@ -223,7 +223,7 @@ local_costmap:
       # map_topic: /map # Topic of map from map_server or SLAM.
       # origin_x: 0.0 # X origin of the costmap relative to width (m).
       # origin_y: 0.0 # Y origin of the costmap relative to height (m).
-      publish_frequency: 2.0 # Frequency to publish costmap to topic.
+      publish_frequency: 10.0 # Frequency to publish costmap to topic.
       resolution: 0.0508 # Resolution of 1 pixel of the costmap, in meters.
       robot_base_frame: base_link
       robot_radius: 0.2286 # Radius of robot base (m).
@@ -345,10 +345,10 @@ global_costmap:
 
       obstacle_layer:
         enabled: True
-        plugin: "nav2_costmap_2d::ObstacleLayer"
-        # footprint_clearing_enabled: True
-        # combination_method: 1 # 0 => Overwrite, 1 => >Max, 2 => MaxWithoutUnknownOverwrite
+        footprint_clearing_enabled: True
+        combination_method: 1 # 0 => Overwrite, 1 => >Max, 2 => MaxWithoutUnknownOverwrite
         observation_sources: scan # oakd_left_obstacle oakd_right_obstacle
+        plugin: "nav2_costmap_2d::ObstacleLayer"
         scan:
           clearing: True # Whether source should raytrace clear in costmap.
           # expected_update_rate: 0.0 # Expected rate to get new data from sensor.
@@ -357,9 +357,9 @@ global_costmap:
           marking: True # Whether source should mark in costmap.
           max_obstacle_height: 2.0 # Maximum height to add return to occupancy grid.
           min_obstacle_height: 0.0 # Minimum height to add return to occupancy grid.
-          obstacle_max_range: 5.0 # Maximum range to mark obstacles in costmap.
+          obstacle_max_range: 8.0 # Maximum range to mark obstacles in costmap.
           obstacle_min_range: 0.0 # Minimum range to mark obstacles in costmap.
-          raytrace_max_range: 5.0 # Maximum range to raytrace clear obstacles from costmap.
+          raytrace_max_range: 8.0 # Maximum range to raytrace clear obstacles from costmap.
           raytrace_min_range: 0.0 # Minimum range to raytrace clear obstacles from costmap.
           topic: /scan # Topic of data.
 
@@ -503,3 +503,79 @@ velocity_smoother:
     odom_duration: 0.2
     deadband_velocity: [0.0, 0.0, 0.0]
     velocity_timeout: 1.0
+
+slam_toolbox:
+  ros__parameters:
+
+    # Plugin params
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI
+    ceres_trust_strategy: LEVENBERG_MARQUARDT
+    ceres_dogleg_type: TRADITIONAL_DOGLEG
+    ceres_loss_function: None
+
+    # ROS Parameters
+    odom_frame: odom
+    map_frame: map
+    base_frame: base_footprint
+    scan_topic: /scan
+    use_map_saver: true
+    mode: localization # mapping #localization
+
+    # if you'd like to immediately start continuing a map at a given pose
+    # or at the dock, but they are mutually exclusive, if pose is given
+    # will use pose
+    #map_file_name: test_steve
+    # map_start_pose: [0.0, 0.0, 0.0]
+    #map_start_at_dock: true
+
+    debug_logging: false
+    throttle_scans: 1
+    transform_publish_period: 0.02 #if 0 never publishes odometry
+    map_update_interval: 5.0
+    resolution: 0.05
+    min_laser_range: 0.0 #for rastering images
+    max_laser_range: 20.0 #for rastering images
+    minimum_time_interval: 0.5
+    transform_timeout: 0.2
+    tf_buffer_duration: 30.0
+    stack_size_to_use: 40000000 #// program needs a larger stack size to serialize large maps
+    enable_interactive_mode: true
+
+    # General Parameters
+    use_scan_matching: true
+    use_scan_barycenter: true
+    minimum_travel_distance: 0.2
+    minimum_travel_heading: 0.2
+    scan_buffer_size: 10
+    scan_buffer_maximum_scan_distance: 10.0
+    link_match_minimum_response_fine: 0.1  
+    link_scan_maximum_distance: 1.5
+    loop_search_maximum_distance: 3.0
+    do_loop_closing: true 
+    loop_match_minimum_chain_size: 10           
+    loop_match_maximum_variance_coarse: 3.0  
+    loop_match_minimum_response_coarse: 0.35    
+    loop_match_minimum_response_fine: 0.45
+
+    # Correlation Parameters - Correlation Parameters
+    correlation_search_space_dimension: 0.5
+    correlation_search_space_resolution: 0.01
+    correlation_search_space_smear_deviation: 0.1 
+
+    # Correlation Parameters - Loop Closure Parameters
+    loop_search_space_dimension: 8.0
+    loop_search_space_resolution: 0.05
+    loop_search_space_smear_deviation: 0.03
+
+    # Scan Matcher Parameters
+    distance_variance_penalty: 0.5      
+    angle_variance_penalty: 1.0    
+
+    fine_search_angle_offset: 0.00349     
+    coarse_search_angle_offset: 0.349   
+    coarse_angle_resolution: 0.0349        
+    minimum_angle_penalty: 0.9
+    minimum_distance_penalty: 0.5
+    use_response_expansion: true
