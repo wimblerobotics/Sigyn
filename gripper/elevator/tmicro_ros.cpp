@@ -90,10 +90,15 @@ int64_t TMicroRos::FixedTime(const char *caller) {
 void TMicroRos::loop() {
   static bool has_homed = false;
   if (!has_homed) {
-    // while (!ElevatorAtBottomLimit()) {
-    //   ElevatorStepPulse(kDown);
-    // }
     // ### Do the same for the extender.
+    while (!ElevatorAtBottomLimit()) {
+      ElevatorStepPulse(kDown);
+    }
+
+    while (!ExtenderAtInLimit()) {
+      ExtenderStepPulse(kDown);
+    }
+
     has_homed = true;
   }
 
@@ -145,6 +150,21 @@ void TMicroRos::loop() {
           rclc_executor_spin_some(&executor_, RCL_MS_TO_NS(1));
         }
       }
+      // {
+      //   char msg[256];
+      //   snprintf(msg, sizeof(msg),
+      //            "INFO [TMicroRos::loop] current_elevator_position_: %4.3f"
+      //            ", at top: %s"
+      //            ", at bottom: %s"
+      //            ", extended: %s"
+      //            ", retracted: %s",
+      //             current_elevator_position_,
+      //            ElevatorAtTopLimit() ? "true" : "false",
+      //            ElevatorAtBottomLimit() ? "true" : "false",
+      //            ExtenderAtOutLimit() ? "true" : "false",
+      //            ExtenderAtInLimit() ? "true" : "false");
+      //   TMicroRos::singleton().PublishDiagnostic(msg);
+      // }
     } break;
 
     case kAgentDisconnected: {
@@ -341,13 +361,13 @@ void TMicroRos::ExtenderCommandCallback(const void *msg) {
 }
 
 bool TMicroRos::ElevatorAtBottomLimit() {
-  static const float kBottomPosition = 0.2;
-  bool atBottom = !digitalRead(kElevatorBottomLimitSwitchPin);
+  static const float kBottomPosition = 0.0;
+  bool atBottom = digitalRead(kElevatorBottomLimitSwitchPin);
   if (atBottom) {
     current_elevator_position_ = kBottomPosition;
     char diagnostic_message[256];
     snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos::ElevatorAtBottomLimit] At nottom of elevator, "
+             "INFO [TMicroRos::ElevatorAtBottomLimit] At bottom of elevator, "
              "current_position_: %4.3f",
              current_elevator_position_);
     TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
@@ -357,8 +377,8 @@ bool TMicroRos::ElevatorAtBottomLimit() {
 }
 
 bool TMicroRos::ElevatorAtTopLimit() {
-  static const float kTopPosition = 1.375;
-  bool atTop = !digitalRead(kElevatorTopLimitSwitchPin);
+  static const float kTopPosition = 0.9;
+  bool atTop = digitalRead(kElevatorTopLimitSwitchPin);
   if (atTop) {
     current_elevator_position_ = kTopPosition;
     char diagnostic_message[256];
@@ -373,13 +393,13 @@ bool TMicroRos::ElevatorAtTopLimit() {
 }
 
 bool TMicroRos::ExtenderAtInLimit() {
-  static const float kBottomPosition = 0.0;
-  bool atBottom = ! digitalRead(kExtenderInLimitSwitchPin);
+  static const float kRetractedPosition = 0.0;
+  bool atBottom = !digitalRead(kExtenderInLimitSwitchPin);
   if (atBottom) {
-    current_elevator_position_ = kBottomPosition;
+    current_elevator_position_ = kRetractedPosition;
     char diagnostic_message[256];
     snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos::ExtenderAtInLimit] At fully closed extender, "
+             "INFO [TMicroRos::ExtenderAtInLimit] Extender fully closed retracted, "
              "current_position_: %4.3f",
              current_elevator_position_);
     TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
@@ -389,13 +409,13 @@ bool TMicroRos::ExtenderAtInLimit() {
 }
 
 bool TMicroRos::ExtenderAtOutLimit() {
-  static const float kTopPosition = 0.4572;
-  bool atTop = ! digitalRead(kExtenderOutLimitSwitchPin);
+  static const float kExtendedPosition = 0.342;
+  bool atTop = !digitalRead(kExtenderOutLimitSwitchPin);
   if (atTop) {
-    current_elevator_position_ = kTopPosition;
+    current_elevator_position_ = kExtendedPosition;
     char diagnostic_message[256];
     snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos::ExtenderAtOutLimit] At fully extended extender, "
+             "INFO [TMicroRos::ExtenderAtOutLimit] Extender fully extended, "
              "current_position_: %4.3f",
              current_elevator_position_);
     TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
@@ -524,7 +544,7 @@ TMicroRos &TMicroRos::singleton() {
 }
 
 TMicroRos *TMicroRos::g_singleton_ = nullptr;
-const float TMicroRos::kElevatorMmPerPulse_ = 0.000181;
+const float TMicroRos::kElevatorMmPerPulse_ = 0.000180369;
 const float TMicroRos::kExtenderMmPerPulse_ = 0.000149626;
 float TMicroRos::current_elevator_position_ = 0.0;
 float TMicroRos::current_extender_position_ = 0.0;

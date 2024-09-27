@@ -1,3 +1,6 @@
+// ros2 topic pub -1 /extender_cmd std_msgs/msg/Float32 data:\ 0.2\ 
+// ros2 topic pub -1 /elevator_cmd std_msgs/msg/Float32 data:\ 0.2\ 
+
 #pragma once
 
 #include <micro_ros_arduino.h>
@@ -61,12 +64,17 @@ class TMicroRos : TModule {
   } state_;
 
   enum {
+    // For limit switches, 0 => interrupted, 1 => not interrupted.
     kExtenderInLimitSwitchPin = 35,      // Echo 3
     kExtenderOutLimitSwitchPin = 34,     // Trigger 3
     kExtenderStepPulsePin = 37,          // Echo 2
     kExtenderStepDirectionPin = 36,      // Trigger 2
     kElevatorBottomLimitSwitchPin = 41,  // Echo 1
     kElevatorTopLimitSwitchPin = 40,     // Trigger 1
+
+    // kElevatorTopLimitSwitchPin = 41,     // Echo 1
+    // kElevatorBottomLimitSwitchPin = 40,  // Trigger 1
+
     kElevatorStepPulsePin = 15,          // Echo 0
     kElevatorStepDirectionPin = 14       // Trigger 0
   };
