@@ -1,5 +1,7 @@
-// ros2 topic pub -1 /extender_cmd std_msgs/msg/Float32 data:\ 0.2\ 
-// ros2 topic pub -1 /elevator_cmd std_msgs/msg/Float32 data:\ 0.2\ 
+/* 
+  ros2 topic pub -1 /extender_cmd std_msgs/msg/Float32 data:\ 0.2\ 
+  ros2 topic pub -1 /elevator_cmd std_msgs/msg/Float32 data:\ 0.2\ 
+*/
 
 #pragma once
 
@@ -86,6 +88,9 @@ class TMicroRos : TModule {
 
   void DestroyEntities();
 
+  static void doElevatorCommand();
+  static void doExtenderCommand();
+
   // Sync ROS time.
   static void SyncTime(const char* caller, uint32_t fixed_time_call_count);
 
@@ -127,6 +132,12 @@ class TMicroRos : TModule {
   // Mm per pulse.
   static const float kElevatorMmPerPulse_;
   static const float kExtenderMmPerPulse_;
+
+  static int32_t elevator_remaining_pulses_;
+  static int32_t extender_remaining_pulses_;
+  static bool elevator_has_command_;
+  static bool extender_has_command_;
+
 
   // Singleton instance.
   static TMicroRos* g_singleton_;

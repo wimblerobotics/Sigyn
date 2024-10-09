@@ -150,6 +150,9 @@ void TMicroRos::loop() {
           rclc_executor_spin_some(&executor_, RCL_MS_TO_NS(1));
         }
       }
+
+      doExtenderCommand();
+      doElevatorCommand();
       // {
       //   char msg[256];
       //   snprintf(msg, sizeof(msg),
@@ -261,47 +264,108 @@ void TMicroRos::ElevatorCommandCallback(const void *msg) {
     TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
     float target_position = command->data;
     if (current_elevator_position_ != target_position) {
-      int32_t pulses_needed =
-          abs((target_position - current_elevator_position_)) /
-          kElevatorMmPerPulse_;
-      Direction direction_to_travel =
-          target_position > current_elevator_position_ ? kUp : kDown;
-      ElevatorStepPulse(direction_to_travel);
+      elevator_remaining_pulses_ =
+          (target_position - current_elevator_position_) / kElevatorMmPerPulse_;
+      elevator_has_command_ = true;
 
-      while (pulses_needed-- > 0) {
-        if ((direction_to_travel == kUp) && ElevatorAtTopLimit()) {
-          char diagnostic_message[256];
-          snprintf(
-              diagnostic_message, sizeof(diagnostic_message),
-              "INFO [TMicroRos::ElevatorCommandCallback] Already at top limit, "
-              "not moving further up");
-          TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-          return;
-        }
-
-        if ((direction_to_travel == kDown) && ElevatorAtBottomLimit()) {
-          char diagnostic_message[256];
-          snprintf(diagnostic_message, sizeof(diagnostic_message),
-                   "INFO [TMicroRos::ElevatorCommandCallback] Already at "
-                   "bottom limit, "
-                   "not moving further down");
-          TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-          return;
-        }
-
-        char diagnostic_message[256];
-        snprintf(
-            diagnostic_message, sizeof(diagnostic_message),
-            "INFO [TMicroRos::ElevatorCommandCallback] target_position: %7.6f, "
-            "current_position: %7.6f, pulses_needed: %ld",
-            target_position, current_elevator_position_, pulses_needed);
-        TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-        ElevatorStepPulse(direction_to_travel);
-      }
+      char diagnostic_message[256];
+      snprintf(
+          diagnostic_message, sizeof(diagnostic_message),
+          "INFO [TMicroRos::ElevatorCommandCallback] target_position: %7.6f, "
+          "current_position: %7.6f, remaining_pulses: %ld",
+          target_position, current_elevator_position_,
+          elevator_remaining_pulses_);
+      TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
     }
+  }
 #if USE_TSD
-    TSd::singleton().log(diagnostic_message);
+  TSd::singleton().log(diagnostic_message);
 #endif
+}
+
+void TMicroRos::doElevatorCommand() {
+  Direction direction_to_travel = elevator_remaining_pulses_ > 0 ? kUp : kDown;
+  char diagnostic_message[256];
+  if (elevator_has_command_) {
+    if ((direction_to_travel == kUp) && ElevatorAtTopLimit()) {
+      snprintf(diagnostic_message, sizeof(diagnostic_message),
+               "INFO [TMicroRos::doElevatorCommand] Already at top limit, "
+               "not moving further up, current_position: %7.6f",
+               current_elevator_position_);
+      TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+      elevator_has_command_ = false;
+      return;
+    }
+
+    if ((direction_to_travel == kDown) && ElevatorAtBottomLimit()) {
+      snprintf(diagnostic_message, sizeof(diagnostic_message),
+               "INFO [TMicroRos::doElevatorCommand] Already at bottom limit, "
+               "not moving further down. current_position: %7.6f",
+               current_extender_position_);
+      TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+      elevator_has_command_ = false;
+      return;
+    }
+
+    ElevatorStepPulse(direction_to_travel);
+    if (elevator_remaining_pulses_ > 0) {
+      elevator_remaining_pulses_--;
+    } else if (elevator_remaining_pulses_ < 0) {
+      elevator_remaining_pulses_++;
+    }
+
+    if (elevator_remaining_pulses_ == 0) {
+      elevator_has_command_ = false;
+    }
+
+    snprintf(diagnostic_message, sizeof(diagnostic_message),
+             "INFO [TMicroRos::doElevatorCommand] remaining_pulses: %ld, "
+             "current_position: %7.6f",
+             elevator_remaining_pulses_, current_elevator_position_);
+    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+  }
+}
+
+void TMicroRos::doExtenderCommand() {
+  Direction direction_to_travel = extender_remaining_pulses_ > 0 ? kUp : kDown;
+  char diagnostic_message[256];
+  if (extender_has_command_) {
+    if ((direction_to_travel == kUp) && ExtenderAtOutLimit()) {
+      snprintf(diagnostic_message, sizeof(diagnostic_message),
+               "INFO [TMicroRos::doExtenderCommand] Already at out limit, "
+               "not moving further out, current_position: %7.6f",
+               current_extender_position_);
+      TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+      extender_has_command_ = false;
+      return;
+    }
+
+    if ((direction_to_travel == kDown) && ExtenderAtInLimit()) {
+      snprintf(diagnostic_message, sizeof(diagnostic_message),
+               "INFO [TMicroRos::doExtenderCommand] Already at in limit, "
+               "not moving further in. current_position: %7.6f",
+               current_extender_position_);
+      TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+      extender_has_command_ = false;
+      return;
+    }
+
+    ExtenderStepPulse(direction_to_travel);
+    if (extender_remaining_pulses_ > 0) {
+      extender_remaining_pulses_--;
+    } else if (extender_remaining_pulses_ < 0) {
+      extender_remaining_pulses_++;
+    }
+
+    if (extender_remaining_pulses_ == 0) {
+      extender_has_command_ = false;
+    }
+
+    snprintf(diagnostic_message, sizeof(diagnostic_message),
+             "INFO [TMicroRos::doExtenderCommand] remaining_pulses: %ld, "
+             "current_position: %7.6f",
+             extender_remaining_pulses_, current_extender_position_);
+    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
   }
 }
 
@@ -316,48 +380,23 @@ void TMicroRos::ExtenderCommandCallback(const void *msg) {
     TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
     float target_position = command->data;
     if (current_extender_position_ != target_position) {
-      int32_t pulses_needed =
-          abs((target_position - current_extender_position_)) /
-          kExtenderMmPerPulse_;
-      Direction direction_to_travel =
-          target_position > current_extender_position_ ? kUp : kDown;
-      ExtenderStepPulse(direction_to_travel);
+      extender_remaining_pulses_ =
+          (target_position - current_extender_position_) / kExtenderMmPerPulse_;
+      extender_has_command_ = true;
 
-      while (pulses_needed-- > 0) {
-        if ((direction_to_travel == kUp) && ExtenderAtOutLimit()) {
-          char diagnostic_message[256];
-          snprintf(
-              diagnostic_message, sizeof(diagnostic_message),
-              "INFO [TMicroRos::ExtenderCommandCallback] Already at out limit, "
-              "not moving further out");
-          TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-          return;
-        }
-
-        if ((direction_to_travel == kDown) && ExtenderAtInLimit()) {
-          char diagnostic_message[256];
-          snprintf(
-              diagnostic_message, sizeof(diagnostic_message),
-              "INFO [TMicroRos::ExtenderCommandCallback] Already at in limit, "
-              "not moving further in");
-          TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-          return;
-        }
-
-        char diagnostic_message[256];
-        snprintf(
-            diagnostic_message, sizeof(diagnostic_message),
-            "INFO [TMicroRos::ExtenderCommandCallback] target_position: %7.6f, "
-            "current_position: %7.6f, pulses_needed: %ld",
-            target_position, current_extender_position_, pulses_needed);
-        TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-        ExtenderStepPulse(direction_to_travel);
-      }
+      char diagnostic_message[256];
+      snprintf(
+          diagnostic_message, sizeof(diagnostic_message),
+          "INFO [TMicroRos::ExtenderCommandCallback] target_position: %7.6f, "
+          "current_position: %7.6f, remaining_pulses: %ld",
+          target_position, current_extender_position_,
+          extender_remaining_pulses_);
+      TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
     }
-#if USE_TSD
-    TSd::singleton().log(diagnostic_message);
-#endif
   }
+#if USE_TSD
+  TSd::singleton().log(diagnostic_message);
+#endif
 }
 
 bool TMicroRos::ElevatorAtBottomLimit() {
@@ -396,12 +435,12 @@ bool TMicroRos::ExtenderAtInLimit() {
   static const float kRetractedPosition = 0.0;
   bool atBottom = !digitalRead(kExtenderInLimitSwitchPin);
   if (atBottom) {
-    current_elevator_position_ = kRetractedPosition;
+    current_extender_position_ = kRetractedPosition;
     char diagnostic_message[256];
     snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos::ExtenderAtInLimit] Extender fully closed retracted, "
+             "INFO [TMicroRos::ExtenderAtInLimit] Extender fully retracted, "
              "current_position_: %4.3f",
-             current_elevator_position_);
+             current_extender_position_);
     TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
   }
 
@@ -412,12 +451,12 @@ bool TMicroRos::ExtenderAtOutLimit() {
   static const float kExtendedPosition = 0.342;
   bool atTop = !digitalRead(kExtenderOutLimitSwitchPin);
   if (atTop) {
-    current_elevator_position_ = kExtendedPosition;
+    current_extender_position_ = kExtendedPosition;
     char diagnostic_message[256];
     snprintf(diagnostic_message, sizeof(diagnostic_message),
              "INFO [TMicroRos::ExtenderAtOutLimit] Extender fully extended, "
              "current_position_: %4.3f",
-             current_elevator_position_);
+             current_extender_position_);
     TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
   }
 
@@ -549,3 +588,8 @@ const float TMicroRos::kExtenderMmPerPulse_ = 0.000149626;
 float TMicroRos::current_elevator_position_ = 0.0;
 float TMicroRos::current_extender_position_ = 0.0;
 volatile int64_t TMicroRos::ros_sync_time_ = 0;
+
+int32_t TMicroRos::elevator_remaining_pulses_ = 0.0;
+int32_t TMicroRos::extender_remaining_pulses_ = 0.0;
+bool TMicroRos::elevator_has_command_ = false;
+bool TMicroRos::extender_has_command_ = false;
