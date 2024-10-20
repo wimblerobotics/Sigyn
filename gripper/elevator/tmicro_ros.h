@@ -1,6 +1,6 @@
-/* 
-  ros2 topic pub -1 /extender_cmd std_msgs/msg/Float32 data:\ 0.2\ 
-  ros2 topic pub -1 /elevator_cmd std_msgs/msg/Float32 data:\ 0.2\ 
+/*
+  ros2 topic pub -1 /extender_cmd std_msgs/msg/Float32 data:\ 0.2\
+  ros2 topic pub -1 /elevator_cmd std_msgs/msg/Float32 data:\ 0.2\
 */
 
 #pragma once
@@ -15,10 +15,12 @@
 #include <std_msgs/msg/string.h>
 #include <stdio.h>
 
+#include "sigyn_interfaces/action/move_elevator.h"
 #include "tmodule.h"
 
-class TMicroRos : TModule {
- public:
+class TMicroRos : TModule
+{
+public:
   // Check if ROS time appears to be correct and, if not, fix it.
   // Returns a reasonable ROS time.
   static int64_t FixedTime(const char* caller);
@@ -29,8 +31,12 @@ class TMicroRos : TModule {
   // Singleton constructor.
   static TMicroRos& singleton();
 
- protected:
-  enum Direction { kUp, kDown };
+protected:
+  enum Direction
+  {
+    kUp,
+    kDown
+  };
 
   // Check if the elevator is at the bottom limit.
   static bool ElevatorAtBottomLimit();
@@ -48,7 +54,10 @@ class TMicroRos : TModule {
   void loop();
 
   // From TModule
-  const char* name() { return "uRos"; }
+  const char* name()
+  {
+    return "uRos";
+  }
 
   // From TModule
   void setup();
@@ -57,15 +66,17 @@ class TMicroRos : TModule {
   static void ElevatorStepPulse(Direction upwdirectionrds);
   static void ExtenderStepPulse(Direction upwdirectionrds);
 
- private:
-  enum State {
+private:
+  enum State
+  {
     kWaitingAgent,
     kAgentAvailable,
     kAgentConnected,
     kAgentDisconnected
   } state_;
 
-  enum {
+  enum
+  {
     // For limit switches, 0 => interrupted, 1 => not interrupted.
     kExtenderInLimitSwitchPin = 35,      // Echo 3
     kExtenderOutLimitSwitchPin = 34,     // Trigger 3
@@ -77,8 +88,8 @@ class TMicroRos : TModule {
     // kElevatorTopLimitSwitchPin = 41,     // Echo 1
     // kElevatorBottomLimitSwitchPin = 40,  // Trigger 1
 
-    kElevatorStepPulsePin = 15,          // Echo 0
-    kElevatorStepDirectionPin = 14       // Trigger 0
+    kElevatorStepPulsePin = 15,     // Echo 0
+    kElevatorStepDirectionPin = 14  // Trigger 0
   };
 
   // Private constructor.
@@ -91,8 +102,12 @@ class TMicroRos : TModule {
   static void doElevatorCommand();
   static void doExtenderCommand();
 
-  // Sync ROS time.
-  static void SyncTime(const char* caller, uint32_t fixed_time_call_count);
+  // Gripper action handler.
+  // static rcl_ret_t HandleGripperGoal(rclc_action_goal_handle_t* goal_handle, void* context);
+  // static bool HandleGripperCancel(rclc_action_goal_handle_t* goal_handle, void* context);
+
+      // Sync ROS time.
+      static void SyncTime(const char* caller, uint32_t fixed_time_call_count);
 
   // Regular maintenance, publish stats, etc.
   static void TimerCallback(rcl_timer_t* timer, int64_t last_call_time);
@@ -111,6 +126,7 @@ class TMicroRos : TModule {
   rcl_subscription_t elevator_command_subscriber_;
   rcl_subscription_t extender_command_subscriber_;
   rclc_executor_t executor_;
+  rclc_action_server_t gripper_action_server_;
   bool micro_ros_init_successful_;
   rcl_node_t node_;
   rclc_support_t support_;
@@ -137,7 +153,6 @@ class TMicroRos : TModule {
   static int32_t extender_remaining_pulses_;
   static bool elevator_has_command_;
   static bool extender_has_command_;
-
 
   // Singleton instance.
   static TMicroRos* g_singleton_;
