@@ -13,10 +13,11 @@
 #endif
 
 // Initialize all TModule instances in any required order.
-TMicroRos& micro_ros = TMicroRos::singleton();
 #if USE_TSD
 TSd& sd = TSd::singleton();
 #endif
+
+TMicroRos& micro_ros = TMicroRos::singleton();
 
 // WDT_T4<WDT3> wdt;
 
@@ -35,6 +36,7 @@ void setup() {
   //  calls. config.timeout = 20000;  // Maximum time (ms) between watchdog
   //  feed() calls. config.callback = watchdogTimeout;
 
+  TSd::singleton().log("setup() about to call TModule::DoSetup()");
   TModule::DoSetup();
 
   //  wdt.begin(config);
