@@ -530,26 +530,42 @@ void TMicroRos::ExtenderStepPulse(Direction direction) {
 }
 
 // Implementation example:
-static rcl_ret_t HandleGripperGoal(rclc_action_goal_handle_t *goal_handle,
-                                   void *context) {
+rcl_ret_t TMicroRos::HandleGripperGoal(rclc_action_goal_handle_t *goal_handle,
+                                       void *context) {
   (void)context;
 
-  // sigyn_interfaces__action__MoveElevator_SendGoal_Request *req =
-  //     (sigyn_interfaces__action__MoveElevator_SendGoal_Request *)
-  //         goal_handle->ros_goal_request;
+  sigyn_interfaces__action__MoveElevator_SendGoal_Request *req =
+      (sigyn_interfaces__action__MoveElevator_SendGoal_Request *)
+          goal_handle->ros_goal_request;
 
   // Activate here the goal processing task
+  float goal_position = req->goal.goal_position;
   char diagnostic_message[256];
   snprintf(diagnostic_message, sizeof(diagnostic_message),
            "INFO [TMicroRos::HandleGripperGoal(] goal_position: %4.3f",
-           123.45 /*req->goal.goal_position*/);
+           goal_position);
   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+
+  if (TMicroRos::singleton().current_elevator_position_ != goal_position) {
+    TMicroRos::singleton().elevator_remaining_pulses_ =
+        (goal_position - TMicroRos::singleton().current_elevator_position_) /
+        kElevatorMmPerPulse_;
+    TMicroRos::singleton().elevator_has_command_ = true;
+
+    char diagnostic_message[256];
+    snprintf(diagnostic_message, sizeof(diagnostic_message),
+             "INFO [TMicroRos::HandleGripperGoal] goal_position: %7.6f, "
+             "current_position: %7.6f, remaining_pulses: %ld",
+             goal_position, TMicroRos::singleton().current_elevator_position_,
+             TMicroRos::singleton().elevator_remaining_pulses_);
+    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+  }
 
   return RCL_RET_ACTION_GOAL_ACCEPTED;
 }
 
-static bool HandleGripperCancel(rclc_action_goal_handle_t *goal_handle,
-                                void *context) {
+bool TMicroRos::HandleGripperCancel(rclc_action_goal_handle_t *goal_handle,
+                                    void *context) {
   char diagnostic_message[256];
   snprintf(diagnostic_message, sizeof(diagnostic_message),
            "INFO [TMicroRos::HandleGripperCancel]");
