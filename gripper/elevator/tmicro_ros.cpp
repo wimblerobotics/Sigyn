@@ -98,8 +98,7 @@ void TMicroRos::loop() {
   static bool showedAgentConnected = false;
   if (!has_homed) {
 #if USE_TSD
-    TSd::singleton().log("INFO [TMicroRos::loop] homing. Compiled on: " __DATE__
-                         ", " __TIME__);
+    TSd::singleton().log("INFO [TMicroRos::loop] homing.");
 #endif
     while (!ElevatorAtBottomLimit()) {
       ElevatorStepPulse(kDown);
@@ -811,20 +810,20 @@ bool TMicroRos::CreateEntities() {
 
 
 
-  rclc_action_server_t action_server;
-  rclc_result = rclc_action_server_init_default(
-      &action_server, &node_, &support_,
-      ROSIDL_GET_ACTION_TYPE_SUPPORT(example_interfaces, Fibonacci),
-      "fibonacci");
-#if DEBUG
-  snprintf(diagnostic_message, sizeof(diagnostic_message),
-           "INFO [TMicroRos::createEntities] rclc_action_server_init_default "
-           "result: %ld",
-           rclc_result);
-  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-#endif
+//   rclc_action_server_t action_server;
+//   rclc_result = rclc_action_server_init_default(
+//       &action_server, &node_, &support_,
+//       ROSIDL_GET_ACTION_TYPE_SUPPORT(example_interfaces, Fibonacci),
+//       "fibonacci");
+// #if DEBUG
+//   snprintf(diagnostic_message, sizeof(diagnostic_message),
+//            "INFO [TMicroRos::createEntities] rclc_action_server_init_default "
+//            "result: %ld",
+//            rclc_result);
+//   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+// #endif
 
-  example_interfaces__action__Fibonacci_SendGoal_Request ros_goal_request[10];
+//   example_interfaces__action__Fibonacci_SendGoal_Request ros_goal_request[10];
 
 //   rclc_result = rclc_executor_add_action_server(
 //       &executor_, &action_server, 10, ros_goal_request,

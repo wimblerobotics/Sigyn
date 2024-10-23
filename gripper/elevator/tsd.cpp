@@ -1,8 +1,10 @@
+#include "sdios.h"
+#include <SdFat.h>
+
 #include "tsd.h"
 
 #include <Arduino.h>
 #include <Regexp.h>
-#include <SD.h>
 #include <stdint.h>
 
 // #include "tmicro_ros.h"
@@ -29,14 +31,15 @@ void TSd::flush() {
   }
 }
 
-void TSd::log(const char* message) {
+void TSd::log(const char *message) {
+  // Serial.print("TSd::log about to log: ");//Serial.println(message);
   if (g_initialized_) {
     char log_message[kChunkSize];
     uint32_t now = millis();
     snprintf(log_message, sizeof(log_message), "[%07ld.%03ld] %s\n", now / 1000,
              now % 1000, message);
     data_buffer_ += log_message;
-    if (true || (data_buffer_.length() >= kChunkSize)) {
+    if (true || data_buffer_.length() >= kChunkSize) {
       size_t bytes_written =
           g_logFile_.write(data_buffer_.c_str(), data_buffer_.length());
       if (bytes_written > 0) {
@@ -53,10 +56,10 @@ void TSd::log(const char* message) {
 
 void TSd::loop() {}
 
-void TSd::regexpMatchCallback(const char* match, const unsigned int length,
-                              const MatchState& matchState) {
-  char regexMatchString[10];  // Big enough to hold 5-digit file serial number.
-  matchState.GetCapture(regexMatchString, 0);  // Get 0-th match from regexp.
+void TSd::regexpMatchCallback(const char *match, const unsigned int length,
+                              const MatchState &matchState) {
+  char regexMatchString[10]; // Big enough to hold 5-digit file serial number.
+  matchState.GetCapture(regexMatchString, 0); // Get 0-th match from regexp.
   int logSerialNumberAsInt = atoi(regexMatchString);
   if (logSerialNumberAsInt > TSd::g_highestExistingLogFileNumber_) {
     TSd::g_highestExistingLogFileNumber_ = logSerialNumberAsInt;
@@ -66,34 +69,46 @@ void TSd::regexpMatchCallback(const char* match, const unsigned int length,
 void TSd::setup() {}
 
 TSd::TSd() : TModule(TModule::kSd) {
+  // Serial.println("TSd::Tsd()");
   if (!g_initialized_) {
     data_buffer_.reserve(8192);
     g_highestExistingLogFileNumber_ = 0;
-    if (!g_sd_.begin(BUILTIN_SDCARD)) {
-      // ERROR Unable to access builtin SD card.
+    if (!g_sd_.begin(SdioConfig(FIFO_SDIO))) {
+      // Serial.println("failed begin");
+      //  ERROR Unable to access builtin SD card.
+      //  g_logFile_ = g_sd_.open("error", FILE_WRITE);
     } else {
-      File rootDirectory = g_sd_.open("/");
+      FsFile rootDirectory = g_sd_.open("/");
+      // Serial.println("opened root");
+
       while (true) {
-        File nextFileInDirectory = rootDirectory.openNextFile();
-        if (!nextFileInDirectory) break;
+        FsFile nextFileInDirectory = rootDirectory.openNextFile();
+        if (!nextFileInDirectory) {
+          // Serial.println("no nextFileInDirectory");
+          break;
+        }
         char fileName[256];
-        strncpy(fileName, nextFileInDirectory.name(), sizeof(fileName));
+        nextFileInDirectory.getName(fileName, sizeof(fileName));
+        // Serial.print("found file: ");//Serial.println(fileName);
+        //  strncpy(fileName, nextFileInDirectory.name(), sizeof(fileName));
         MatchState matchState;
         matchState.Target(fileName);
         matchState.GlobalMatch("LOG(%d+).TXT", regexpMatchCallback);
       }
 
-      char newLogFileName[20];  // Big enough to hold file name like:
-                                // LOG12345.TXT.
+      char newLogFileName[20]; // Big enough to hold file name like:
+                               // LOG12345.TXT.
       sprintf(newLogFileName, "LOG%05d.TXT", ++g_highestExistingLogFileNumber_);
       g_logFile_ = g_sd_.open(newLogFileName, FILE_WRITE);
+      // Serial.print("opened log: ");//Serial.println(newLogFileName);
     }
 
     g_initialized_ = true;
+    TSd::singleton().log("[TSd::TSd] Compiled on: " __DATE__ ", " __TIME__);
   }
 }
 
-TSd& TSd::singleton() {
+TSd &TSd::singleton() {
   if (!g_singleton_) {
     g_singleton_ = new TSd();
   }
@@ -101,12 +116,12 @@ TSd& TSd::singleton() {
   return *g_singleton_;
 }
 
-SDClass TSd::g_sd_;
+SdFs TSd::g_sd_;
 
 int TSd::g_highestExistingLogFileNumber_ = 0;
 
 bool TSd::g_initialized_ = false;
 
-File TSd::g_logFile_;
+FsFile TSd::g_logFile_;
 
-TSd* TSd::g_singleton_ = nullptr;
+TSd *TSd::g_singleton_ = nullptr;
