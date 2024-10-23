@@ -1,7 +1,7 @@
 #pragma once
-
+#include "SdFat.h"
+#include "sdios.h"
 #include <Regexp.h>
-#include <SD.h>
 
 #include "tmodule.h"
 
@@ -12,7 +12,7 @@
 // will be created on the card with a name having a serial number of one higher
 // than any existing log file name,or LOG00001.TXT if no existing log files
 // were found.
-//
+
 // Every time TSd::singleton().log() is called, the message is added to a
 // string buffer. When the buffer becomes full enough, it is written as one
 // large chunck of text to the log file. This is done so that lots of little
@@ -35,39 +35,39 @@
 // until the system is restarted.
 
 class TSd : TModule {
- public:
+public:
   // Flush the log file.
   void flush();
 
   // Write message to log file.
-  void log(const char* message);
+  void log(const char *message);
 
   // Singleton constructor.
-  static TSd& singleton();
+  static TSd &singleton();
 
- protected:
+protected:
   // From TModule.
   void loop();
 
   // From TModule.
-  virtual const char* name() { return "TSd"; }
+  virtual const char *name() { return "TSd"; }
 
   void setup();
 
- private:
+private:
   static const unsigned int kChunkSize = 4096;
 
   // Private constructor.
   TSd();
 
-  static void regexpMatchCallback(const char* match, const unsigned int length,
-                                  const MatchState& matchState);
+  static void regexpMatchCallback(const char *match, const unsigned int length,
+                                  const MatchState &matchState);
 
   // Used to hold a big chunk of data so writes are fewer.
   String data_buffer_;
 
   // The SD card device.
-  static SDClass g_sd_;
+  static SdFs g_sd_;
 
   // Used to find to highest log file number already on the SD card.
   static int g_highestExistingLogFileNumber_;
@@ -76,8 +76,8 @@ class TSd : TModule {
   static bool g_initialized_;
 
   // The file handle for the log file on the SD card device.
-  static File g_logFile_;
+  static FsFile g_logFile_;
 
   // Singleton instance.
-  static TSd* g_singleton_;
+  static TSd *g_singleton_;
 };
