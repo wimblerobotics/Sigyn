@@ -32,7 +32,6 @@ void TSd::flush() {
 }
 
 void TSd::log(const char *message) {
-  // Serial.print("TSd::log about to log: ");//Serial.println(message);
   if (g_initialized_) {
     char log_message[kChunkSize];
     uint32_t now = millis();
@@ -69,28 +68,22 @@ void TSd::regexpMatchCallback(const char *match, const unsigned int length,
 void TSd::setup() {}
 
 TSd::TSd() : TModule(TModule::kSd) {
-  // Serial.println("TSd::Tsd()");
   if (!g_initialized_) {
     data_buffer_.reserve(8192);
     g_highestExistingLogFileNumber_ = 0;
     if (!g_sd_.begin(SdioConfig(FIFO_SDIO))) {
-      // Serial.println("failed begin");
       //  ERROR Unable to access builtin SD card.
       //  g_logFile_ = g_sd_.open("error", FILE_WRITE);
     } else {
       FsFile rootDirectory = g_sd_.open("/");
-      // Serial.println("opened root");
 
       while (true) {
         FsFile nextFileInDirectory = rootDirectory.openNextFile();
         if (!nextFileInDirectory) {
-          // Serial.println("no nextFileInDirectory");
           break;
         }
         char fileName[256];
         nextFileInDirectory.getName(fileName, sizeof(fileName));
-        // Serial.print("found file: ");//Serial.println(fileName);
-        //  strncpy(fileName, nextFileInDirectory.name(), sizeof(fileName));
         MatchState matchState;
         matchState.Target(fileName);
         matchState.GlobalMatch("LOG(%d+).TXT", regexpMatchCallback);
@@ -100,7 +93,6 @@ TSd::TSd() : TModule(TModule::kSd) {
                                // LOG12345.TXT.
       sprintf(newLogFileName, "LOG%05d.TXT", ++g_highestExistingLogFileNumber_);
       g_logFile_ = g_sd_.open(newLogFileName, FILE_WRITE);
-      // Serial.print("opened log: ");//Serial.println(newLogFileName);
     }
 
     g_initialized_ = true;
