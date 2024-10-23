@@ -10,8 +10,9 @@
               "/home/ros/sigyn_ws/install/rviz_2d_overlay_msgs/include/**",
               "/home/ros/sigyn_ws/install/msgs/include/**",
               "/home/ros/sigyn_ws/install/ira_laser_tools/include/**",
-              "/opt/ros/humble/include/**",
+              "/opt/ros/jazzy/include/**",
               "/usr/include/**",
+              "/home/ros/Arduino/libraries/**",
               "/home/ros/.arduino15/packages/teensy/hardware/avr/1.59.0/libraries/**"
                 ],
           "defines": [],

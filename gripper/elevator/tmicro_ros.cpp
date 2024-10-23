@@ -1,3 +1,5 @@
+#include <micro_ros_arduino.h>
+
 #include "tmicro_ros.h"
 
 #include <Wire.h>
@@ -21,16 +23,16 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#define ignore_result(x) \
-  if (x) {               \
+#define ignore_result(x)                                                       \
+  if (x) {                                                                     \
   }
 
-#define RCCHECK(fn)                \
-  {                                \
-    rcl_ret_t temp_rc = fn;        \
-    if ((temp_rc != RCL_RET_OK)) { \
-      return false;                \
-    }                              \
+#define RCCHECK(fn)                                                            \
+  {                                                                            \
+    rcl_ret_t temp_rc = fn;                                                    \
+    if ((temp_rc != RCL_RET_OK)) {                                             \
+      return false;                                                            \
+    }                                                                          \
   }
 
 void TMicroRos::SyncTime(const char *caller, uint32_t fixed_time_call_count) {
@@ -41,15 +43,14 @@ void TMicroRos::SyncTime(const char *caller, uint32_t fixed_time_call_count) {
   call_count++;
   uint32_t start = micros();
   rmw_ret_t sync_result =
-      rmw_uros_sync_session(timeout_ms);  // Atttempt synchronization.
+      rmw_uros_sync_session(timeout_ms); // Atttempt synchronization.
   int32_t now = micros();
   float sync_duration_ms = (now - start) / 1000.0;
   float duration_since_last_sync_ms = (now - time_at_last_sync) / 1000.0;
   time_at_last_sync = now;
   if (sync_result == RMW_RET_OK) {
-    ros_sync_time_ =
-        rmw_uros_epoch_nanos();  // Capture the current ROS time
-                                 // after attempted synchronization.
+    ros_sync_time_ = rmw_uros_epoch_nanos(); // Capture the current ROS time
+                                             // after attempted synchronization.
   }
 
   char diagnostic_message[256];
@@ -112,98 +113,97 @@ void TMicroRos::loop() {
   }
 
   switch (state_) {
-    case kWaitingAgent: {
+  case kWaitingAgent: {
 #if USE_TSD
-      if (!showedWaitingAgent) {
-        TSd::singleton().log("INFO [TMicroRos::loop] kWaitingAgent");
-        showedWaitingAgent = true;
-      }
-#endif
-      static int64_t last_time = uxr_millis();
-      if ((uxr_millis() - last_time) > 500) {
-        state_ = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? kAgentAvailable
-                                                             : kWaitingAgent;
-        last_time = uxr_millis();
-      }
-      break;
+    if (!showedWaitingAgent) {
+      TSd::singleton().log("INFO [TMicroRos::loop] kWaitingAgent");
+      showedWaitingAgent = true;
     }
-
-    case kAgentAvailable: {
-#if USE_TSD
-      if (!showedAgentAvailable) {
-        TSd::singleton().log("INFO [TMicroRos::loop] kAgentAvailable");
-        showedWaitingAgent = false;
-        showedAgentAvailable = true;
-      }
 #endif
-      if (CreateEntities()) {
-#if USE_TSD
-        TSd::singleton().log(
-            "INFO [TMicroRos::loop] kAgentAvailable successful CreateEntities");
-#endif
-        state_ = kAgentConnected;
-      } else {
-#if USE_TSD
-        TSd::singleton().log(
-            "ERROR [TMicroRos::loop] kAgentAvailable FAILED CreateEntities");
-#endif
-        state_ = kWaitingAgent;
-        DestroyEntities();
-      }
-      break;
+    static int64_t last_time = uxr_millis();
+    if ((uxr_millis() - last_time) > 500) {
+      state_ = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? kAgentAvailable
+                                                           : kWaitingAgent;
+      last_time = uxr_millis();
     }
+    break;
+  }
 
-    case kAgentConnected: {
+  case kAgentAvailable: {
 #if USE_TSD
-      if (!showedAgentConnected) {
-        TSd::singleton().log("INFO [TMicroRos::loop] kAgentConnected");
-        showedWaitingAgent = false;
-        showedAgentAvailable = false;
-        showedAgentConnected = true;
-      }
-#endif
-      static int64_t last_time = uxr_millis();
-      if ((uxr_millis() - last_time) > 10) {
-        state_ = (RMW_RET_OK == rmw_uros_ping_agent(100, 1))
-                     ? kAgentConnected
-                     : kAgentDisconnected;
-        last_time = uxr_millis();
-      }
-
-      doExtenderCommand();
-      doElevatorCommand();
-      // {
-      //   char msg[256];
-      //   snprintf(msg, sizeof(msg),
-      //            "INFO [TMicroRos::loop] current_elevator_position_: %4.3f"
-      //            ", at top: %s"
-      //            ", at bottom: %s"
-      //            ", extended: %s"
-      //            ", retracted: %s",
-      //             current_elevator_position_,
-      //            ElevatorAtTopLimit() ? "true" : "false",
-      //            ElevatorAtBottomLimit() ? "true" : "false",
-      //            ExtenderAtOutLimit() ? "true" : "false",
-      //            ExtenderAtInLimit() ? "true" : "false");
-      //   TMicroRos::singleton().PublishDiagnostic(msg);
-      // }
-      if (TMicroRos::singleton().state_ == kAgentConnected) {
-        rclc_executor_spin_some(&executor_, RCL_MS_TO_NS(1));
-      }
-      break;
+    if (!showedAgentAvailable) {
+      TSd::singleton().log("INFO [TMicroRos::loop] kAgentAvailable");
+      showedWaitingAgent = false;
+      showedAgentAvailable = true;
     }
-
-    case kAgentDisconnected: {
-#if USE_TSD
-      TSd::singleton().log("INFO [TMicroRos::loop] kAgentDisconnected");
 #endif
-      DestroyEntities();
+    if (CreateEntities()) {
+#if USE_TSD
+      TSd::singleton().log(
+          "INFO [TMicroRos::loop] kAgentAvailable successful CreateEntities");
+#endif
+      state_ = kAgentConnected;
+    } else {
+#if USE_TSD
+      TSd::singleton().log(
+          "ERROR [TMicroRos::loop] kAgentAvailable FAILED CreateEntities");
+#endif
       state_ = kWaitingAgent;
-      break;
+      DestroyEntities();
+    }
+    break;
+  }
+
+  case kAgentConnected: {
+#if USE_TSD
+    if (!showedAgentConnected) {
+      TSd::singleton().log("INFO [TMicroRos::loop] kAgentConnected");
+      showedWaitingAgent = false;
+      showedAgentAvailable = false;
+      showedAgentConnected = true;
+    }
+#endif
+    static int64_t last_time = uxr_millis();
+    if ((uxr_millis() - last_time) > 10) {
+      state_ = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? kAgentConnected
+                                                           : kAgentDisconnected;
+      last_time = uxr_millis();
     }
 
-    default:
-      break;
+    doExtenderCommand();
+    doElevatorCommand();
+    // {
+    //   char msg[256];
+    //   snprintf(msg, sizeof(msg),
+    //            "INFO [TMicroRos::loop] current_elevator_position_: %4.3f"
+    //            ", at top: %s"
+    //            ", at bottom: %s"
+    //            ", extended: %s"
+    //            ", retracted: %s",
+    //             current_elevator_position_,
+    //            ElevatorAtTopLimit() ? "true" : "false",
+    //            ElevatorAtBottomLimit() ? "true" : "false",
+    //            ExtenderAtOutLimit() ? "true" : "false",
+    //            ExtenderAtInLimit() ? "true" : "false");
+    //   TMicroRos::singleton().PublishDiagnostic(msg);
+    // }
+    if (TMicroRos::singleton().state_ == kAgentConnected) {
+      rclc_executor_spin_some(&executor_, RCL_MS_TO_NS(1));
+    }
+    break;
+  }
+
+  case kAgentDisconnected: {
+#if USE_TSD
+    TSd::singleton().log("INFO [TMicroRos::loop] kAgentDisconnected");
+#endif
+    DestroyEntities();
+    state_ = kWaitingAgent;
+    break;
+  }
+
+  default:
+    break;
   }
 
   {
@@ -486,7 +486,7 @@ bool TMicroRos::ExtenderAtOutLimit() {
 }
 
 void TMicroRos::ElevatorStepPulse(Direction direction) {
-  const int pd = 500;  // Pulse Delay period
+  const int pd = 500; // Pulse Delay period
   if ((direction == kUp) && ElevatorAtTopLimit()) {
     return;
   }
@@ -508,7 +508,7 @@ void TMicroRos::ElevatorStepPulse(Direction direction) {
 }
 
 void TMicroRos::ExtenderStepPulse(Direction direction) {
-  const int pd = 500;  // Pulse Delay period
+  const int pd = 500; // Pulse Delay period
   if ((direction == kUp) && ExtenderAtOutLimit()) {
     return;
   }
@@ -534,20 +534,15 @@ static rcl_ret_t HandleGripperGoal(rclc_action_goal_handle_t *goal_handle,
                                    void *context) {
   (void)context;
 
-  sigyn_interfaces__action__MoveElevator_SendGoal_Request *req =
-      (sigyn_interfaces__action__MoveElevator_SendGoal_Request *)
-          goal_handle->ros_goal_request;
-
-  // // Too big, rejecting
-  // if (req->goal.order > 200) {
-  //   return RCL_RET_ACTION_GOAL_REJECTED;
-  // }
+  // sigyn_interfaces__action__MoveElevator_SendGoal_Request *req =
+  //     (sigyn_interfaces__action__MoveElevator_SendGoal_Request *)
+  //         goal_handle->ros_goal_request;
 
   // Activate here the goal processing task
   char diagnostic_message[256];
   snprintf(diagnostic_message, sizeof(diagnostic_message),
            "INFO [TMicroRos::HandleGripperGoal(] goal_position: %4.3f",
-           req->goal.goal_position);
+           123.45 /*req->goal.goal_position*/);
   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 
   return RCL_RET_ACTION_GOAL_ACCEPTED;
@@ -559,93 +554,8 @@ static bool HandleGripperCancel(rclc_action_goal_handle_t *goal_handle,
   snprintf(diagnostic_message, sizeof(diagnostic_message),
            "INFO [TMicroRos::HandleGripperCancel]");
   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-  if (false /* goal can be cancelled */) {
-    return true;
-  }
-
-  return false;
+  return true;
 }
-
-// void fibonacci_worker(void * args)
-// {
-//   (void) args;
-//   rclc_action_goal_handle_t * goal_handle = (rclc_action_goal_handle_t *) args;
-//   rcl_action_goal_state_t goal_state;
-
-//   example_interfaces__action__Fibonacci_SendGoal_Request * req =
-//     (example_interfaces__action__Fibonacci_SendGoal_Request *) goal_handle->ros_goal_request;
-
-//   example_interfaces__action__Fibonacci_GetResult_Response response = {0};
-//   example_interfaces__action__Fibonacci_FeedbackMessage feedback;
-
-//   if (req->goal.order < 2) {
-//     goal_state = GOAL_STATE_ABORTED;
-//   } else {
-//     feedback.feedback.sequence.capacity = req->goal.order;
-//     feedback.feedback.sequence.size = 0;
-//     feedback.feedback.sequence.data =
-//       (int32_t *) malloc(feedback.feedback.sequence.capacity * sizeof(int32_t));
-
-//     feedback.feedback.sequence.data[0] = 0;
-//     feedback.feedback.sequence.data[1] = 1;
-//     feedback.feedback.sequence.size = 2;
-
-//     for (size_t i = 2; i < (size_t) req->goal.order && !goal_handle->goal_cancelled; i++) {
-//       feedback.feedback.sequence.data[i] = feedback.feedback.sequence.data[i - 1] +
-//         feedback.feedback.sequence.data[i - 2];
-//       feedback.feedback.sequence.size++;
-
-//       TSd::singleton().log("Publishing feedback\n");
-//       rclc_action_publish_feedback(goal_handle, &feedback);
-//       // usleep(500000);
-//     }
-
-//     if (!goal_handle->goal_cancelled) {
-//       response.result.sequence.capacity = feedback.feedback.sequence.capacity;
-//       response.result.sequence.size = feedback.feedback.sequence.size;
-//       response.result.sequence.data = feedback.feedback.sequence.data;
-//       goal_state = GOAL_STATE_SUCCEEDED;
-//     } else {
-//       goal_state = GOAL_STATE_CANCELED;
-//     }
-//   }
-
-//   TSd::singleton().log("Goal sending result array\n");
-
-//   rcl_ret_t rc;
-//   do {
-//     rc = rclc_action_send_result(goal_handle, goal_state, &response);
-//     // usleep(1e6);
-//   } while (rc != RCL_RET_OK);
-
-//   free(feedback.feedback.sequence.data);
-// }
-
-// rcl_ret_t handle_goal(rclc_action_goal_handle_t * goal_handle, void * context)
-// {
-//   (void) context;
-
-//   example_interfaces__action__Fibonacci_SendGoal_Request * req =
-//     (example_interfaces__action__Fibonacci_SendGoal_Request *)  goal_handle->ros_goal_request;
-
-//   if (req->goal.order > 200) {
-//     TSd::singleton().log("Goal rejected\n");
-//     return RCL_RET_ACTION_GOAL_REJECTED;
-//   }
-
-//   TSd::singleton().log("Goal accepted\n");
-
-//    fibonacci_worker(goal_handle);
-//   return RCL_RET_ACTION_GOAL_ACCEPTED;
-// }
-
-// bool handle_cancel(rclc_action_goal_handle_t * goal_handle, void * context)
-// {
-//   (void) context;
-//   (void) goal_handle;
-
-//   return true;
-// }
 
 TMicroRos::TMicroRos() : TModule(TModule::kMicroRos) {
   string_msg_.data.capacity = 512;
@@ -786,94 +696,40 @@ bool TMicroRos::CreateEntities() {
   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 #endif
 
+  // Create action handler.
+  const char *action_name = "move_gripper";
+  const rosidl_action_type_support_t *type_support =
+      ROSIDL_GET_ACTION_TYPE_SUPPORT(sigyn_interfaces, MoveElevator);
+  rclc_result = rclc_action_server_init_default(
+      &gripper_action_server_, &node_, &support_, type_support, action_name);
+#if DEBUG
+  snprintf(diagnostic_message, sizeof(diagnostic_message),
+           "INFO [TMicroRos::createEntities] rclc_action_server_init_default "
+           "result: %ld",
+           rclc_result);
+  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+#endif
 
+#define NUMBER_OF_SIMULTANEOUS_GRIPPER_HANDLES 10
+  // Goal request storage
+  sigyn_interfaces__action__MoveElevator_SendGoal_Request
+      ros_goal_request[NUMBER_OF_SIMULTANEOUS_GRIPPER_HANDLES];
 
-  //   // Create action handler.
-  //   const rosidl_action_type_support_t* type_support =
-  //   ROSIDL_GET_ACTION_TYPE_SUPPORT(sigyn_interfaces, MoveElevator);
-  //   RCCHECK(rclc_action_server_init_default(&gripper_action_server_, &node_,
-  //   &support_, type_support, "move_gripper"));
-
-  // #define NUMBER_OF_SIMULTANEOUS_GRIPPER_HANDLES 1
-  //   // Goal request storage
-  //   sigyn_interfaces__action__MoveElevator_SendGoal_Request
-  //   ros_goal_request[NUMBER_OF_SIMULTANEOUS_GRIPPER_HANDLES];
-
-  // RCCHECK(rclc_executor_add_action_server(&executor_,
-  // &gripper_action_server_, NUMBER_OF_SIMULTANEOUS_GRIPPER_HANDLES,
-  //                                         ros_goal_request,
-  //                                         sizeof(sigyn_interfaces__action__MoveElevator_SendGoal_Request),
-  //                                         HandleGripperGoal, // Goal request callback
-  //                                         HandleGripperCancel, // Goal cancel callback
-  //                                         &gripper_action_server_  // Context
-  //                                         ));
-
-
-
-//   rclc_action_server_t action_server;
-//   rclc_result = rclc_action_server_init_default(
-//       &action_server, &node_, &support_,
-//       ROSIDL_GET_ACTION_TYPE_SUPPORT(example_interfaces, Fibonacci),
-//       "fibonacci");
-// #if DEBUG
-//   snprintf(diagnostic_message, sizeof(diagnostic_message),
-//            "INFO [TMicroRos::createEntities] rclc_action_server_init_default "
-//            "result: %ld",
-//            rclc_result);
-//   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-// #endif
-
-//   example_interfaces__action__Fibonacci_SendGoal_Request ros_goal_request[10];
-
-//   rclc_result = rclc_executor_add_action_server(
-//       &executor_, &action_server, 10, ros_goal_request,
-//       sizeof(example_interfaces__action__Fibonacci_SendGoal_Request),
-//       [](rclc_action_goal_handle_t *, void *)
-//           -> rcl_ret_t { 
-//             // TSd::singleton().log("action server request handled");
-//             return RCL_RET_ACTION_GOAL_REJECTED; }
-//       ,
-//       [](rclc_action_goal_handle_t * ,
-//         void *) -> bool {
-//             //  TSd::singleton().log("action server cancel handled");
-//           return false; }
-
-//       ,
-//       &action_server);
-// #if DEBUG
-//   snprintf(diagnostic_message, sizeof(diagnostic_message),
-//            "INFO [TMicroRos::createEntities] rclc_executor_add_action_server "
-//            "result: %ld",
-//            rclc_result);
-//   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-// #endif
-
-
-
-// // Create action service
-// 	rclc_action_server_t action_server;
-// 	RCCHECK(
-// 		rclc_action_server_init_default(
-// 		&action_server,
-// 		&node_,
-// 		&support_,
-// 		ROSIDL_GET_ACTION_TYPE_SUPPORT(example_interfaces, Fibonacci),
-// 		"fibonacci"
-// 	));
-// example_interfaces__action__Fibonacci_SendGoal_Request ros_goal_request[10];
-
-// 	RCCHECK(
-//     	rclc_executor_add_action_server(
-//       		&executor_,
-//      		  &action_server,
-//       		10,
-//       		ros_goal_request,
-//       		sizeof(example_interfaces__action__Fibonacci_SendGoal_Request),
-//       		handle_goal,
-//       		handle_cancel,
-//       		(void *) &action_server));
-
-
+  rclc_result = rclc_executor_add_action_server(
+      &executor_, &gripper_action_server_,
+      NUMBER_OF_SIMULTANEOUS_GRIPPER_HANDLES, ros_goal_request,
+      sizeof(sigyn_interfaces__action__MoveElevator_SendGoal_Request),
+      HandleGripperGoal,              // Goal request callback
+      HandleGripperCancel,            // Goal cancel callback
+      (void *)&gripper_action_server_ // Context
+  );
+#if DEBUG
+  snprintf(diagnostic_message, sizeof(diagnostic_message),
+           "INFO [TMicroRos::createEntities] rclc_executor_add_action_server "
+           "result: %ld",
+           rclc_result);
+  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+#endif
 
   return true;
 }

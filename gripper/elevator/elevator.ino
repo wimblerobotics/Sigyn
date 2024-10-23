@@ -12,13 +12,8 @@
 #include "tsd.h"
 #endif
 
-
 // Initialize all TModule instances in any required order.
-#if USE_TSD
-// TSd& sd = TSd::singleton();
-#endif
-
-TMicroRos& micro_ros = TMicroRos::singleton();
+TMicroRos &micro_ros = TMicroRos::singleton();
 
 // WDT_T4<WDT3> wdt;
 
@@ -39,7 +34,9 @@ void setup() {
   //  calls. config.timeout = 20000;  // Maximum time (ms) between watchdog
   //  feed() calls. config.callback = watchdogTimeout;
 
+#if USE_TSD
   TSd::singleton().log("elevator setup() complete");
+#endif
   TModule::DoSetup();
 
   //  wdt.begin(config);

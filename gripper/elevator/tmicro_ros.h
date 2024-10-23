@@ -84,10 +84,6 @@ private:
     kExtenderStepDirectionPin = 36,      // Trigger 2
     kElevatorBottomLimitSwitchPin = 41,  // Echo 1
     kElevatorTopLimitSwitchPin = 40,     // Trigger 1
-
-    // kElevatorTopLimitSwitchPin = 41,     // Echo 1
-    // kElevatorBottomLimitSwitchPin = 40,  // Trigger 1
-
     kElevatorStepPulsePin = 15,     // Echo 0
     kElevatorStepDirectionPin = 14  // Trigger 0
   };
