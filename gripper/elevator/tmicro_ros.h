@@ -87,6 +87,8 @@ private:
 
   static void doElevatorCommand();
   static void doExtenderCommand();
+  static void markElevatorSucceeded();
+  static void sendElevatorFeedback();
 
   // Sync ROS time.
   static void SyncTime(const char *caller, uint32_t fixed_time_call_count);
@@ -141,6 +143,8 @@ private:
   static int32_t extender_remaining_pulses_;
   static bool elevator_has_command_;
   static bool extender_has_command_;
+  static rclc_action_goal_handle_t *gripper_goal_handle_;
+  static bool executing_gripper_goal_;
 
   // Singleton instance.
   static TMicroRos *g_singleton_;
