@@ -20,6 +20,7 @@
 #if USE_TSD
 #include "tsd.h"
 #endif
+#include "tmotorClass.h"
 #include <stdio.h>
 #include <unistd.h>
 
@@ -101,14 +102,8 @@ void TMicroRos::loop() {
 #if USE_TSD
     TSd::singleton().log("INFO [TMicroRos::loop] homing.");
 #endif
-    while (!ElevatorAtBottomLimit()) {
-      ElevatorStepPulse(kDown);
-    }
-
-    while (!ExtenderAtInLimit()) {
-      ExtenderStepPulse(kDown);
-    }
-
+    elevator_->Home();
+    extender_->Home();
     has_homed = true;
   }
 
@@ -170,8 +165,8 @@ void TMicroRos::loop() {
       last_time = uxr_millis();
     }
 
-    doExtenderCommand();
-    doElevatorCommand();
+    elevator_->DoMovementRequest();
+    extender_->DoMovementRequest();
     // {
     //   char msg[256];
     //   snprintf(msg, sizeof(msg),
@@ -235,16 +230,6 @@ void TMicroRos::setup() {
     Wire.begin();
     pinMode(13, OUTPUT);
 
-    pinMode(kElevatorBottomLimitSwitchPin, INPUT);
-    pinMode(kElevatorTopLimitSwitchPin, INPUT);
-    pinMode(kElevatorStepPulsePin, OUTPUT);
-    pinMode(kElevatorStepDirectionPin, OUTPUT);
-
-    pinMode(kExtenderInLimitSwitchPin, INPUT);
-    pinMode(kExtenderOutLimitSwitchPin, INPUT);
-    pinMode(kExtenderStepPulsePin, OUTPUT);
-    pinMode(kExtenderStepDirectionPin, OUTPUT);
-
     set_microros_transports();
     state_ = kWaitingAgent;
     while (state_ != kAgentConnected) {
@@ -279,350 +264,6 @@ void TMicroRos::TimerCallback(rcl_timer_t *timer, int64_t last_call_time) {
       // #endif
     }
   }
-}
-
-void TMicroRos::ElevatorCommandCallback(const void *msg) {
-  if (TMicroRos::singleton().state_ == kAgentConnected) {
-    const std_msgs__msg__Float32 *command = (const std_msgs__msg__Float32 *)msg;
-
-    char diagnostic_message[256];
-    snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos::ElevatorCommandCallback(] command: %4.3f",
-             command->data);
-    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-    float target_position = command->data;
-    if (current_elevator_position_ != target_position) {
-      elevator_remaining_pulses_ =
-          (target_position - current_elevator_position_) / kElevatorMmPerPulse_;
-      elevator_has_command_ = true;
-
-      char diagnostic_message[256];
-      snprintf(
-          diagnostic_message, sizeof(diagnostic_message),
-          "INFO [TMicroRos::ElevatorCommandCallback] target_position: %7.6f, "
-          "current_position: %7.6f, remaining_pulses: %ld",
-          target_position, current_elevator_position_,
-          elevator_remaining_pulses_);
-      TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-    }
-  }
-}
-
-void TMicroRos::sendElevatorFeedback() {
-  if (executing_gripper_goal_) {
-    sigyn_interfaces__action__MoveElevator_FeedbackMessage feedback;
-    feedback.goal_id = gripper_goal_handle_->goal_id;
-    feedback.feedback.current_position = current_elevator_position_;
-    rclc_action_publish_feedback(gripper_goal_handle_, &feedback);
-  }
-}
-
-void TMicroRos::markElevatorSucceeded() {
-  sigyn_interfaces__action__MoveElevator_GetResult_Response result = {0};
-  result.result.final_position = current_elevator_position_;
-  rcl_ret_t rclc_result = rclc_action_send_result(
-      gripper_goal_handle_, GOAL_STATE_SUCCEEDED, &result);
-
-  char diagnostic_message[256];
-  snprintf(
-      diagnostic_message, sizeof(diagnostic_message),
-      "INFO [TMicroRos::markElevatorSucceeded] rclc_action_send_result: %ld",
-      rclc_result);
-  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-}
-
-void TMicroRos::doElevatorCommand() {
-  if (elevator_has_command_) {
-    if (executing_gripper_goal_ && gripper_goal_handle_->goal_cancelled) {
-      sigyn_interfaces__action__MoveElevator_GetResult_Response result = {0};
-      result.result.final_position = current_elevator_position_;
-      // ### Note: Possibly repeat after small delay until return code ==
-      // RCL_RET_OK. Also other send places.
-      rcl_ret_t rclc_result = rclc_action_send_result(
-          gripper_goal_handle_, GOAL_STATE_CANCELED, &result);
-
-      char diagnostic_message[256];
-      snprintf(diagnostic_message, sizeof(diagnostic_message),
-               "INFO [TMicroRos::doElevatorCommand] "
-               "goal canceled, rclc_action_send_result: %ld",
-               rclc_result);
-      TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-      executing_gripper_goal_ = false;
-      return;
-    }
-
-    Direction direction_to_travel =
-        elevator_remaining_pulses_ > 0 ? kUp : kDown;
-    char diagnostic_message[256];
-
-    if ((direction_to_travel == kUp) && ElevatorAtTopLimit()) {
-      snprintf(diagnostic_message, sizeof(diagnostic_message),
-               "INFO [TMicroRos::doElevatorCommand] Already at top limit, "
-               "not moving further up, current_position: %7.6f",
-               current_elevator_position_);
-      TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-      elevator_has_command_ = false;
-      return;
-    }
-
-    if ((direction_to_travel == kDown) && ElevatorAtBottomLimit()) {
-      snprintf(diagnostic_message, sizeof(diagnostic_message),
-               "INFO [TMicroRos::doElevatorCommand] Already at bottom limit, "
-               "not moving further down. current_position: %7.6f",
-               current_extender_position_);
-      TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-      elevator_has_command_ = false;
-      return;
-    }
-
-    ElevatorStepPulse(direction_to_travel);
-    if (elevator_remaining_pulses_ > 0) {
-      elevator_remaining_pulses_--;
-    } else if (elevator_remaining_pulses_ < 0) {
-      elevator_remaining_pulses_++;
-    }
-
-    if (elevator_remaining_pulses_ == 0) {
-      elevator_has_command_ = false;
-    }
-
-    sendElevatorFeedback();
-    snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos::doElevatorCommand] remaining_pulses: %ld, "
-             "current_position: %7.6f",
-             elevator_remaining_pulses_, current_elevator_position_);
-    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-  } else {
-    if (executing_gripper_goal_) {
-      markElevatorSucceeded();
-      executing_gripper_goal_ = false;
-    }
-  }
-}
-
-void TMicroRos::doExtenderCommand() {
-  Direction direction_to_travel = extender_remaining_pulses_ > 0 ? kUp : kDown;
-  char diagnostic_message[256];
-  if (extender_has_command_) {
-    if ((direction_to_travel == kUp) && ExtenderAtOutLimit()) {
-      snprintf(diagnostic_message, sizeof(diagnostic_message),
-               "INFO [TMicroRos::doExtenderCommand] Already at out limit, "
-               "not moving further out, current_position: %7.6f",
-               current_extender_position_);
-      TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-      extender_has_command_ = false;
-      return;
-    }
-
-    if ((direction_to_travel == kDown) && ExtenderAtInLimit()) {
-      snprintf(diagnostic_message, sizeof(diagnostic_message),
-               "INFO [TMicroRos::doExtenderCommand] Already at in limit, "
-               "not moving further in. current_position: %7.6f",
-               current_extender_position_);
-      TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-      extender_has_command_ = false;
-      return;
-    }
-
-    ExtenderStepPulse(direction_to_travel);
-    if (extender_remaining_pulses_ > 0) {
-      extender_remaining_pulses_--;
-    } else if (extender_remaining_pulses_ < 0) {
-      extender_remaining_pulses_++;
-    }
-
-    if (extender_remaining_pulses_ == 0) {
-      extender_has_command_ = false;
-    }
-
-    snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos::doExtenderCommand] remaining_pulses: %ld, "
-             "current_position: %7.6f",
-             extender_remaining_pulses_, current_extender_position_);
-    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-  }
-}
-
-void TMicroRos::ExtenderCommandCallback(const void *msg) {
-  if (TMicroRos::singleton().state_ == kAgentConnected) {
-    const std_msgs__msg__Float32 *command = (const std_msgs__msg__Float32 *)msg;
-
-    char diagnostic_message[256];
-    snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos::ExtenderCommandCallback(] command: %4.3f",
-             command->data);
-    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-    float target_position = command->data;
-    if (current_extender_position_ != target_position) {
-      extender_remaining_pulses_ =
-          (target_position - current_extender_position_) / kExtenderMmPerPulse_;
-      extender_has_command_ = true;
-
-      char diagnostic_message[256];
-      snprintf(
-          diagnostic_message, sizeof(diagnostic_message),
-          "INFO [TMicroRos::ExtenderCommandCallback] target_position: %7.6f, "
-          "current_position: %7.6f, remaining_pulses: %ld",
-          target_position, current_extender_position_,
-          extender_remaining_pulses_);
-      TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-    }
-  }
-}
-
-bool TMicroRos::ElevatorAtBottomLimit() {
-  static const float kBottomPosition = 0.0;
-  bool atBottom = digitalRead(kElevatorBottomLimitSwitchPin);
-  if (atBottom) {
-    current_elevator_position_ = kBottomPosition;
-    char diagnostic_message[256];
-    snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos::ElevatorAtBottomLimit] At bottom of elevator, "
-             "current_position_: %4.3f",
-             current_elevator_position_);
-    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-  }
-
-  return atBottom;
-}
-
-bool TMicroRos::ElevatorAtTopLimit() {
-  static const float kTopPosition = 0.9;
-  bool atTop = digitalRead(kElevatorTopLimitSwitchPin);
-  if (atTop) {
-    current_elevator_position_ = kTopPosition;
-    char diagnostic_message[256];
-    snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos::ElevatorAtTopLimit] At top of elevator, "
-             "current_position_: %4.3f",
-             current_elevator_position_);
-    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-  }
-
-  return atTop;
-}
-
-bool TMicroRos::ExtenderAtInLimit() {
-  static const float kRetractedPosition = 0.0;
-  bool atBottom = !digitalRead(kExtenderInLimitSwitchPin);
-  if (atBottom) {
-    current_extender_position_ = kRetractedPosition;
-    char diagnostic_message[256];
-    snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos::ExtenderAtInLimit] Extender fully retracted, "
-             "current_position_: %4.3f",
-             current_extender_position_);
-    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-  }
-
-  return atBottom;
-}
-
-bool TMicroRos::ExtenderAtOutLimit() {
-  static const float kExtendedPosition = 0.342;
-  bool atTop = !digitalRead(kExtenderOutLimitSwitchPin);
-  if (atTop) {
-    current_extender_position_ = kExtendedPosition;
-    char diagnostic_message[256];
-    snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos::ExtenderAtOutLimit] Extender fully extended, "
-             "current_position_: %4.3f",
-             current_extender_position_);
-    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-  }
-
-  return atTop;
-}
-
-void TMicroRos::ElevatorStepPulse(Direction direction) {
-  const int pd = 500; // Pulse Delay period
-  if ((direction == kUp) && ElevatorAtTopLimit()) {
-    return;
-  }
-
-  if ((direction == kDown) && ElevatorAtBottomLimit()) {
-    return;
-  }
-
-  digitalWrite(kElevatorStepDirectionPin, direction == kDown);
-  digitalWrite(kElevatorStepPulsePin, HIGH);
-  delayMicroseconds(pd);
-  digitalWrite(kElevatorStepPulsePin, LOW);
-  delayMicroseconds(pd);
-  if (direction == kUp) {
-    current_elevator_position_ += kElevatorMmPerPulse_;
-  } else {
-    current_elevator_position_ -= kElevatorMmPerPulse_;
-  }
-}
-
-void TMicroRos::ExtenderStepPulse(Direction direction) {
-  const int pd = 500; // Pulse Delay period
-  if ((direction == kUp) && ExtenderAtOutLimit()) {
-    return;
-  }
-
-  if ((direction == kDown) && ExtenderAtInLimit()) {
-    return;
-  }
-
-  digitalWrite(kExtenderStepDirectionPin, direction == kUp);
-  digitalWrite(kExtenderStepPulsePin, HIGH);
-  delayMicroseconds(pd);
-  digitalWrite(kExtenderStepPulsePin, LOW);
-  delayMicroseconds(pd);
-  if (direction == kUp) {
-    current_extender_position_ += kExtenderMmPerPulse_;
-  } else {
-    current_extender_position_ -= kExtenderMmPerPulse_;
-  }
-}
-
-// Implementation example:
-rcl_ret_t TMicroRos::HandleGripperGoal(rclc_action_goal_handle_t *goal_handle,
-                                       void *context) {
-  (void)context;
-
-  sigyn_interfaces__action__MoveElevator_SendGoal_Request *req =
-      (sigyn_interfaces__action__MoveElevator_SendGoal_Request *)
-          goal_handle->ros_goal_request;
-
-  // Activate here the goal processing task
-  float goal_position = req->goal.goal_position;
-  char diagnostic_message[256];
-  snprintf(diagnostic_message, sizeof(diagnostic_message),
-           "INFO [TMicroRos::HandleGripperGoal(] goal_position: %4.3f",
-           goal_position);
-  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-
-  if (TMicroRos::singleton().current_elevator_position_ != goal_position) {
-    TMicroRos::singleton().elevator_remaining_pulses_ =
-        (goal_position - TMicroRos::singleton().current_elevator_position_) /
-        kElevatorMmPerPulse_;
-    TMicroRos::singleton().elevator_has_command_ = true;
-
-    char diagnostic_message[256];
-    snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos::HandleGripperGoal] goal_position: %7.6f, "
-             "current_position: %7.6f, remaining_pulses: %ld",
-             goal_position, TMicroRos::singleton().current_elevator_position_,
-             TMicroRos::singleton().elevator_remaining_pulses_);
-    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-
-    gripper_goal_handle_ = goal_handle;
-    executing_gripper_goal_ = true;
-  }
-
-  return RCL_RET_ACTION_GOAL_ACCEPTED;
-}
-
-bool TMicroRos::HandleGripperCancel(rclc_action_goal_handle_t *goal_handle,
-                                    void *context) {
-  char diagnostic_message[256];
-  snprintf(diagnostic_message, sizeof(diagnostic_message),
-           "INFO [TMicroRos::HandleGripperCancel]");
-  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-  return true;
 }
 
 TMicroRos::TMicroRos() : TModule(TModule::kMicroRos) {
@@ -740,64 +381,63 @@ bool TMicroRos::CreateEntities() {
   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 #endif
 
-  rclc_result = rclc_executor_add_subscription(
+  rclc_result = rclc_executor_add_subscription_with_context(
       &executor_, &elevator_command_subscriber_, &elevator_command_msg_,
-      &ElevatorCommandCallback, ON_NEW_DATA);
+      &TMotorClass::HandleMoveTopicCallback, elevator_, ON_NEW_DATA);
 #if DEBUG
   snprintf(diagnostic_message, sizeof(diagnostic_message),
-           "INFO [TMicroRos::createEntities] rclc_executor_add_subscription "
-           "elevator "
+           "INFO [TMicroRos::createEntities] "
+           "rclc_executor_add_subscription_with_context elevator "
            "result: %ld",
            rclc_result);
   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 #endif
 
-  rclc_result = rclc_executor_add_subscription(
+  rclc_result = rclc_executor_add_subscription_with_context(
       &executor_, &extender_command_subscriber_, &extender_command_msg_,
-      &ExtenderCommandCallback, ON_NEW_DATA);
+      &TMotorClass::HandleMoveTopicCallback, extender_, ON_NEW_DATA);
 #if DEBUG
   snprintf(diagnostic_message, sizeof(diagnostic_message),
-           "INFO [TMicroRos::createEntities] rclc_executor_add_subscription "
-           "extender "
+           "INFO [TMicroRos::createEntities] "
+           "rclc_executor_add_subscription_with_context extender "
            "result: %ld",
            rclc_result);
   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 #endif
 
-  // Create action handler.
-  const char *action_name = "move_gripper";
-  const rosidl_action_type_support_t *type_support =
-      ROSIDL_GET_ACTION_TYPE_SUPPORT(sigyn_interfaces, MoveElevator);
-  rclc_result = rclc_action_server_init_default(
-      &gripper_action_server_, &node_, &support_, type_support, action_name);
-#if DEBUG
-  snprintf(diagnostic_message, sizeof(diagnostic_message),
-           "INFO [TMicroRos::createEntities] rclc_action_server_init_default "
-           "result: %ld",
-           rclc_result);
-  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-#endif
+  //   // Create action handler.
+  //   const char *action_name = "move_elevator";
+  //   const rosidl_action_type_support_t *type_support =
+  //       ROSIDL_GET_ACTION_TYPE_SUPPORT(sigyn_interfaces, MoveElevator);
+  //   rclc_result = rclc_action_server_init_default(
+  //       &gripper_action_server_, &node_, &support_, type_support,
+  //       action_name);
+  // #if DEBUG
+  //   snprintf(diagnostic_message, sizeof(diagnostic_message),
+  //            "INFO [TMicroRos::createEntities]
+  //            rclc_action_server_init_default " "result: %ld", rclc_result);
+  //   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+  // #endif
 
-#define NUMBER_OF_SIMULTANEOUS_GRIPPER_HANDLES 10
-  // Goal request storage
-  sigyn_interfaces__action__MoveElevator_SendGoal_Request
-      ros_goal_request[NUMBER_OF_SIMULTANEOUS_GRIPPER_HANDLES];
+  // #define NUMBER_OF_SIMULTANEOUS_GRIPPER_HANDLES 10
+  //   // Goal request storage
+  //   sigyn_interfaces__action__MoveElevator_SendGoal_Request
+  //       ros_goal_request[NUMBER_OF_SIMULTANEOUS_GRIPPER_HANDLES];
 
-  rclc_result = rclc_executor_add_action_server(
-      &executor_, &gripper_action_server_,
-      NUMBER_OF_SIMULTANEOUS_GRIPPER_HANDLES, ros_goal_request,
-      sizeof(sigyn_interfaces__action__MoveElevator_SendGoal_Request),
-      HandleGripperGoal,              // Goal request callback
-      HandleGripperCancel,            // Goal cancel callback
-      (void *)&gripper_action_server_ // Context
-  );
-#if DEBUG
-  snprintf(diagnostic_message, sizeof(diagnostic_message),
-           "INFO [TMicroRos::createEntities] rclc_executor_add_action_server "
-           "result: %ld",
-           rclc_result);
-  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-#endif
+  //   rclc_result = rclc_executor_add_action_server(
+  //       &executor_, &gripper_action_server_,
+  //       NUMBER_OF_SIMULTANEOUS_GRIPPER_HANDLES, ros_goal_request,
+  //       sizeof(sigyn_interfaces__action__MoveElevator_SendGoal_Request),
+  //       HandleGripperGoal,              // Goal request callback
+  //       HandleGripperCancel,            // Goal cancel callback
+  //       (void *)elevator_ // Context
+  //   );
+  // #if DEBUG
+  //   snprintf(diagnostic_message, sizeof(diagnostic_message),
+  //            "INFO [TMicroRos::createEntities]
+  //            rclc_executor_add_action_server " "result: %ld", rclc_result);
+  //   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+  // #endif
 
   return true;
 }
@@ -819,6 +459,16 @@ void TMicroRos::DestroyEntities() {
 
 TMicroRos &TMicroRos::singleton() {
   if (!g_singleton_) {
+    elevator_ = new TMotorClass(TMotorClass::kElevatorBottomLimitSwitchPin,
+                                TMotorClass::kElevatorStepDirectionPin,
+                                TMotorClass::kElevatorStepPulsePin,
+                                TMotorClass::kElevatorTopLimitSwitchPin, 0.9,
+                                0.0, 0.000180369, false);
+    extender_ = new TMotorClass(TMotorClass::kExtenderInLimitSwitchPin,
+                                TMotorClass::kExtenderStepDirectionPin,
+                                TMotorClass::kExtenderStepPulsePin,
+                                TMotorClass::kExtenderOutLimitSwitchPin, 0.342,
+                                0.0, 0.000149626, true);
     g_singleton_ = new TMicroRos();
   }
 
@@ -826,15 +476,7 @@ TMicroRos &TMicroRos::singleton() {
 }
 
 TMicroRos *TMicroRos::g_singleton_ = nullptr;
-const float TMicroRos::kElevatorMmPerPulse_ = 0.000180369;
-const float TMicroRos::kExtenderMmPerPulse_ = 0.000149626;
-float TMicroRos::current_elevator_position_ = 0.0;
-float TMicroRos::current_extender_position_ = 0.0;
 volatile int64_t TMicroRos::ros_sync_time_ = 0;
 
-int32_t TMicroRos::elevator_remaining_pulses_ = 0.0;
-int32_t TMicroRos::extender_remaining_pulses_ = 0.0;
-bool TMicroRos::elevator_has_command_ = false;
-bool TMicroRos::extender_has_command_ = false;
-rclc_action_goal_handle_t *TMicroRos::gripper_goal_handle_ = nullptr;
-bool TMicroRos::executing_gripper_goal_ = false;
+TMotorClass *TMicroRos::elevator_ = nullptr;
+TMotorClass *TMicroRos::extender_ = nullptr;
