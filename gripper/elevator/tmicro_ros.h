@@ -18,6 +18,8 @@
 #include "sigyn_interfaces/action/move_elevator.h"
 #include "tmodule.h"
 
+class TMotorClass;
+
 class TMicroRos : TModule {
 public:
   // Check if ROS time appears to be correct and, if not, fix it.
@@ -33,18 +35,6 @@ public:
 protected:
   enum Direction { kUp, kDown };
 
-  // Check if the elevator is at the bottom limit.
-  static bool ElevatorAtBottomLimit();
-
-  // Check if the elevator is at the top limit.
-  static bool ElevatorAtTopLimit();
-
-  // Check if the extender is at the most extended limit.
-  static bool ExtenderAtOutLimit();
-
-  // Check if the extender is at the least extended limit.
-  static bool ExtenderAtInLimit();
-
   // From TModule.
   void loop();
 
@@ -54,10 +44,7 @@ protected:
   // From TModule
   void setup();
 
-  // Step one pulse.
-  static void ElevatorStepPulse(Direction upwdirectionrds);
-  static void ExtenderStepPulse(Direction upwdirectionrds);
-
+static TMotorClass* foo;
 private:
   enum State {
     kWaitingAgent,
@@ -66,18 +53,6 @@ private:
     kAgentDisconnected
   } state_;
 
-  enum {
-    // For limit switches, 0 => interrupted, 1 => not interrupted.
-    kExtenderInLimitSwitchPin = 35,     // Echo 3
-    kExtenderOutLimitSwitchPin = 34,    // Trigger 3
-    kExtenderStepPulsePin = 37,         // Echo 2
-    kExtenderStepDirectionPin = 36,     // Trigger 2
-    kElevatorBottomLimitSwitchPin = 41, // Echo 1
-    kElevatorTopLimitSwitchPin = 40,    // Trigger 1
-    kElevatorStepPulsePin = 15,         // Echo 0
-    kElevatorStepDirectionPin = 14      // Trigger 0
-  };
-
   // Private constructor.
   TMicroRos();
 
@@ -85,31 +60,14 @@ private:
 
   void DestroyEntities();
 
-  static void doElevatorCommand();
-  static void doExtenderCommand();
-  static void markElevatorSucceeded();
-  static void sendElevatorFeedback();
-
   // Sync ROS time.
   static void SyncTime(const char *caller, uint32_t fixed_time_call_count);
 
   // Regular maintenance, publish stats, etc.
   static void TimerCallback(rcl_timer_t *timer, int64_t last_call_time);
 
-  // Handler for elevator_cmd messages.
-  static void ElevatorCommandCallback(const void *msg);
-
-  // Handler for elevator_cmd messages.
-  static void ExtenderCommandCallback(const void *msg);
-
-  static bool HandleGripperCancel(rclc_action_goal_handle_t *goal_handle,
-                                  void *context);
-
-  static rcl_ret_t HandleGripperGoal(rclc_action_goal_handle_t *goal_handle,
-                                     void *context);
-
-      // For checking for a reasonable ROS time.
-      static volatile int64_t ros_sync_time_;
+  // For checking for a reasonable ROS time.
+  static volatile int64_t ros_sync_time_;
 
   // Micro-ROS variables
   rcl_allocator_t allocator_;
@@ -131,20 +89,8 @@ private:
   std_msgs__msg__Float32 extender_command_msg_;
   std_msgs__msg__String string_msg_;
 
-  // Elevator position;
-  static float current_elevator_position_; // In meters.
-  static float current_extender_position_; // In meters.
-
-  // Mm per pulse.
-  static const float kElevatorMmPerPulse_;
-  static const float kExtenderMmPerPulse_;
-
-  static int32_t elevator_remaining_pulses_;
-  static int32_t extender_remaining_pulses_;
-  static bool elevator_has_command_;
-  static bool extender_has_command_;
-  static rclc_action_goal_handle_t *gripper_goal_handle_;
-  static bool executing_gripper_goal_;
+  static TMotorClass *elevator_;
+  static TMotorClass *extender_;
 
   // Singleton instance.
   static TMicroRos *g_singleton_;
