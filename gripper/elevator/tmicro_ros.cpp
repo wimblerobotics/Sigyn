@@ -308,10 +308,53 @@ void TMicroRos::ElevatorCommandCallback(const void *msg) {
   }
 }
 
-void TMicroRos::doElevatorCommand() {
-  Direction direction_to_travel = elevator_remaining_pulses_ > 0 ? kUp : kDown;
+void TMicroRos::sendElevatorFeedback() {
+  if (executing_gripper_goal_) {
+    sigyn_interfaces__action__MoveElevator_FeedbackMessage feedback;
+    feedback.goal_id = gripper_goal_handle_->goal_id;
+    feedback.feedback.current_position = current_elevator_position_;
+    rclc_action_publish_feedback(gripper_goal_handle_, &feedback);
+  }
+}
+
+void TMicroRos::markElevatorSucceeded() {
+  sigyn_interfaces__action__MoveElevator_GetResult_Response result = {0};
+  result.result.final_position = current_elevator_position_;
+  rcl_ret_t rclc_result = rclc_action_send_result(
+      gripper_goal_handle_, GOAL_STATE_SUCCEEDED, &result);
+
   char diagnostic_message[256];
+  snprintf(
+      diagnostic_message, sizeof(diagnostic_message),
+      "INFO [TMicroRos::markElevatorSucceeded] rclc_action_send_result: %ld",
+      rclc_result);
+  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+}
+
+void TMicroRos::doElevatorCommand() {
   if (elevator_has_command_) {
+    if (executing_gripper_goal_ && gripper_goal_handle_->goal_cancelled) {
+      sigyn_interfaces__action__MoveElevator_GetResult_Response result = {0};
+      result.result.final_position = current_elevator_position_;
+      // ### Note: Possibly repeat after small delay until return code ==
+      // RCL_RET_OK. Also other send places.
+      rcl_ret_t rclc_result = rclc_action_send_result(
+          gripper_goal_handle_, GOAL_STATE_CANCELED, &result);
+
+      char diagnostic_message[256];
+      snprintf(diagnostic_message, sizeof(diagnostic_message),
+               "INFO [TMicroRos::doElevatorCommand] "
+               "goal canceled, rclc_action_send_result: %ld",
+               rclc_result);
+      TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+      executing_gripper_goal_ = false;
+      return;
+    }
+
+    Direction direction_to_travel =
+        elevator_remaining_pulses_ > 0 ? kUp : kDown;
+    char diagnostic_message[256];
+
     if ((direction_to_travel == kUp) && ElevatorAtTopLimit()) {
       snprintf(diagnostic_message, sizeof(diagnostic_message),
                "INFO [TMicroRos::doElevatorCommand] Already at top limit, "
@@ -343,11 +386,17 @@ void TMicroRos::doElevatorCommand() {
       elevator_has_command_ = false;
     }
 
+    sendElevatorFeedback();
     snprintf(diagnostic_message, sizeof(diagnostic_message),
              "INFO [TMicroRos::doElevatorCommand] remaining_pulses: %ld, "
              "current_position: %7.6f",
              elevator_remaining_pulses_, current_elevator_position_);
     TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+  } else {
+    if (executing_gripper_goal_) {
+      markElevatorSucceeded();
+      executing_gripper_goal_ = false;
+    }
   }
 }
 
@@ -559,6 +608,9 @@ rcl_ret_t TMicroRos::HandleGripperGoal(rclc_action_goal_handle_t *goal_handle,
              goal_position, TMicroRos::singleton().current_elevator_position_,
              TMicroRos::singleton().elevator_remaining_pulses_);
     TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+
+    gripper_goal_handle_ = goal_handle;
+    executing_gripper_goal_ = true;
   }
 
   return RCL_RET_ACTION_GOAL_ACCEPTED;
@@ -784,3 +836,5 @@ int32_t TMicroRos::elevator_remaining_pulses_ = 0.0;
 int32_t TMicroRos::extender_remaining_pulses_ = 0.0;
 bool TMicroRos::elevator_has_command_ = false;
 bool TMicroRos::extender_has_command_ = false;
+rclc_action_goal_handle_t *TMicroRos::gripper_goal_handle_ = nullptr;
+bool TMicroRos::executing_gripper_goal_ = false;
