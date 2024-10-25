@@ -15,6 +15,7 @@
 #include <stdio.h>
 
 #include "sigyn_interfaces/action/move_elevator.h"
+#include "sigyn_interfaces/action/move_extender.h"
 #include "tconfiguration.h"
 #include "tmodule.h"
 #if USE_TSD
@@ -405,39 +406,75 @@ bool TMicroRos::CreateEntities() {
   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 #endif
 
-  //   // Create action handler.
-  //   const char *action_name = "move_elevator";
-  //   const rosidl_action_type_support_t *type_support =
-  //       ROSIDL_GET_ACTION_TYPE_SUPPORT(sigyn_interfaces, MoveElevator);
-  //   rclc_result = rclc_action_server_init_default(
-  //       &gripper_action_server_, &node_, &support_, type_support,
-  //       action_name);
-  // #if DEBUG
-  //   snprintf(diagnostic_message, sizeof(diagnostic_message),
-  //            "INFO [TMicroRos::createEntities]
-  //            rclc_action_server_init_default " "result: %ld", rclc_result);
-  //   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-  // #endif
+  // Create action handler.
+  const rosidl_action_type_support_t *elevator_type_support =
+      ROSIDL_GET_ACTION_TYPE_SUPPORT(sigyn_interfaces, MoveElevator);
+  rclc_result = rclc_action_server_init_default(
+      &elevator_action_server_, &node_, &support_, elevator_type_support,
+      "move_elevator");
+#if DEBUG
+  snprintf(diagnostic_message, sizeof(diagnostic_message),
+           "INFO [TMicroRos::createEntities] rclc_action_server_init_default "
+           "elevator result: %ld",
+           rclc_result);
+  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+#endif
 
-  // #define NUMBER_OF_SIMULTANEOUS_GRIPPER_HANDLES 10
-  //   // Goal request storage
-  //   sigyn_interfaces__action__MoveElevator_SendGoal_Request
-  //       ros_goal_request[NUMBER_OF_SIMULTANEOUS_GRIPPER_HANDLES];
+#define NUMBER_OF_SIMULTANEOUS_ELEVATOR_HANDLES 10
+  // Goal request storage
+  sigyn_interfaces__action__MoveElevator_SendGoal_Request
+      elevator_requests[NUMBER_OF_SIMULTANEOUS_ELEVATOR_HANDLES];
 
-  //   rclc_result = rclc_executor_add_action_server(
-  //       &executor_, &gripper_action_server_,
-  //       NUMBER_OF_SIMULTANEOUS_GRIPPER_HANDLES, ros_goal_request,
-  //       sizeof(sigyn_interfaces__action__MoveElevator_SendGoal_Request),
-  //       HandleGripperGoal,              // Goal request callback
-  //       HandleGripperCancel,            // Goal cancel callback
-  //       (void *)elevator_ // Context
-  //   );
-  // #if DEBUG
-  //   snprintf(diagnostic_message, sizeof(diagnostic_message),
-  //            "INFO [TMicroRos::createEntities]
-  //            rclc_executor_add_action_server " "result: %ld", rclc_result);
-  //   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-  // #endif
+  rclc_result = rclc_executor_add_action_server(
+      &executor_, &elevator_action_server_,
+      NUMBER_OF_SIMULTANEOUS_ELEVATOR_HANDLES, elevator_requests,
+      sizeof(sigyn_interfaces__action__MoveElevator_SendGoal_Request),
+      TMotorClass::HandleActionRequest, // Goal request callback
+      TMotorClass::HandleActionCancel,  // Goal cancel callback
+      (void *)elevator_                 // Context
+  );
+#if DEBUG
+  snprintf(diagnostic_message, sizeof(diagnostic_message),
+           "INFO [TMicroRos::createEntities] rclc_executor_add_action_server "
+           "elevator result: %ld",
+           rclc_result);
+  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+#endif
+
+  // Create action handler.
+  const rosidl_action_type_support_t *extender_type_support =
+      ROSIDL_GET_ACTION_TYPE_SUPPORT(sigyn_interfaces, MoveExtender);
+  rclc_result = rclc_action_server_init_default(
+      &extender_action_server_, &node_, &support_, extender_type_support,
+      "move_extender");
+#if DEBUG
+  snprintf(diagnostic_message, sizeof(diagnostic_message),
+           "INFO [TMicroRos::createEntities] rclc_action_server_init_default "
+           "extender result: %ld",
+           rclc_result);
+  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+#endif
+
+#define NUMBER_OF_SIMULTANEOUS_EXTENDER_HANDLES 10
+  // Goal request storage
+  sigyn_interfaces__action__MoveExtender_SendGoal_Request
+      extender_requests[NUMBER_OF_SIMULTANEOUS_EXTENDER_HANDLES];
+
+  rclc_result = rclc_executor_add_action_server(
+      &executor_, &extender_action_server_,
+      NUMBER_OF_SIMULTANEOUS_EXTENDER_HANDLES, extender_requests,
+      sizeof(sigyn_interfaces__action__MoveExtender_SendGoal_Request),
+      TMotorClass::HandleActionRequest, // Goal request callback
+      TMotorClass::HandleActionCancel,  // Goal cancel callback
+      (void *)extender_                 // Context
+  );
+#if DEBUG
+  snprintf(diagnostic_message, sizeof(diagnostic_message),
+           "INFO [TMicroRos::createEntities] rclc_executor_add_action_server "
+           "extender result: %ld",
+           rclc_result);
+  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+#endif
 
   return true;
 }

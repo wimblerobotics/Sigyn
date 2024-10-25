@@ -21,11 +21,14 @@ public:
   TMotorClass(int8_t pin_down_limit_switch, uint8_t pin_step_direction,
               uint8_t pin_step_pulse, uint8_t pin_up_limit_switch,
               float position_max_up, float position_min_down,
-              float travel_mm_per_pulse,
-              bool reverse_travel);
+              float travel_mm_per_pulse, bool reverse_travel);
 
   // Execute the movement request.
   void DoMovementRequest();
+
+  // Cancel the goal.
+  static bool HandleActionCancel(rclc_action_goal_handle_t *ros_cancel_request,
+                                 void *context);
 
   // Handle an action request.
   static rcl_ret_t HandleActionRequest(rclc_action_goal_handle_t *goal_handle,
@@ -45,9 +48,6 @@ protected:
 
   // Is the motor at the up limit?
   bool AtUpLimit();
-
-  // Cancel the goal.
-  void CancelGoal();
 
   // Send action feedback.
   void SendFeedback();
