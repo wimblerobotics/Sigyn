@@ -5,6 +5,22 @@
 #include <Wire.h>
 #include <stdio.h>
 
+TMotorClass *TMotorClass::CreateMotor(TMotorType motor_type) {
+  if (motor_type == Elevator) {
+    return new TMotorClass(TMotorClass::kElevatorBottomLimitSwitchPin,
+                           TMotorClass::kElevatorStepDirectionPin,
+                           TMotorClass::kElevatorStepPulsePin,
+                           TMotorClass::kElevatorTopLimitSwitchPin, 0.9, 0.0,
+                           0.000180369, false);
+  } else {
+    return new TMotorClass(TMotorClass::kExtenderInLimitSwitchPin,
+                           TMotorClass::kExtenderStepDirectionPin,
+                           TMotorClass::kExtenderStepPulsePin,
+                           TMotorClass::kExtenderOutLimitSwitchPin, 0.342, 0.0,
+                           0.000149626, true);
+  }
+}
+
 TMotorClass::TMotorClass(int8_t pin_down_limit_switch,
                          uint8_t pin_step_direction, uint8_t pin_step_pulse,
                          uint8_t pin_up_limit_switch, float position_max_up,
@@ -61,7 +77,7 @@ bool TMotorClass::AtUpLimit() {
   return at_top;
 }
 
-void TMotorClass::DoMovementRequest() {
+void TMotorClass::ContinueOutstandingMovementRequests() {
   if (pending_movement_command_) {
     if (pending_action_ && action_goal_handle_->goal_cancelled) {
       // HandleActionCancel();
@@ -117,8 +133,8 @@ void TMotorClass::DoMovementRequest() {
   }
 }
 
-bool TMotorClass::HandleActionCancel(rclc_action_goal_handle_t *ros_cancel_request,
-                                 void *context) {
+bool TMotorClass::HandleActionCancel(
+    rclc_action_goal_handle_t *ros_cancel_request, void *context) {
   TMotorClass *motor = (TMotorClass *)context;
   sigyn_interfaces__action__MoveElevator_GetResult_Response result = {0};
   result.result.final_position = motor->current_position_;

@@ -166,23 +166,9 @@ void TMicroRos::loop() {
       last_time = uxr_millis();
     }
 
-    elevator_->DoMovementRequest();
-    extender_->DoMovementRequest();
-    // {
-    //   char msg[256];
-    //   snprintf(msg, sizeof(msg),
-    //            "INFO [TMicroRos::loop] current_elevator_position_: %4.3f"
-    //            ", at top: %s"
-    //            ", at bottom: %s"
-    //            ", extended: %s"
-    //            ", retracted: %s",
-    //             current_elevator_position_,
-    //            ElevatorAtTopLimit() ? "true" : "false",
-    //            ElevatorAtBottomLimit() ? "true" : "false",
-    //            ExtenderAtOutLimit() ? "true" : "false",
-    //            ExtenderAtInLimit() ? "true" : "false");
-    //   TMicroRos::singleton().PublishDiagnostic(msg);
-    // }
+    elevator_->ContinueOutstandingMovementRequests();
+    extender_->ContinueOutstandingMovementRequests();
+
     if (TMicroRos::singleton().state_ == kAgentConnected) {
       rclc_executor_spin_some(&executor_, RCL_MS_TO_NS(1));
     }
@@ -484,11 +470,13 @@ void TMicroRos::DestroyEntities() {
   ignore_result(
       rmw_uros_set_context_entity_destroy_session_timeout(rmw_context, 0));
 
+  ignore_result(rclc_action_server_fini(&elevator_action_server_, &node_));
+  ignore_result(rclc_action_server_fini(&extender_action_server_, &node_));
   ignore_result(rcl_publisher_fini(&diagnostics_publisher_, &node_));
   ignore_result(rcl_publisher_fini(&stats_publisher_, &node_));
-  ignore_result(rcl_timer_fini(&timer_));
   ignore_result(rcl_subscription_fini(&elevator_command_subscriber_, &node_));
   ignore_result(rcl_subscription_fini(&extender_command_subscriber_, &node_));
+  ignore_result(rcl_timer_fini(&timer_));
   ignore_result(rclc_executor_fini(&executor_));
   ignore_result(rcl_node_fini(&node_));
   ignore_result(rclc_support_fini(&support_));
@@ -496,16 +484,8 @@ void TMicroRos::DestroyEntities() {
 
 TMicroRos &TMicroRos::singleton() {
   if (!g_singleton_) {
-    elevator_ = new TMotorClass(TMotorClass::kElevatorBottomLimitSwitchPin,
-                                TMotorClass::kElevatorStepDirectionPin,
-                                TMotorClass::kElevatorStepPulsePin,
-                                TMotorClass::kElevatorTopLimitSwitchPin, 0.9,
-                                0.0, 0.000180369, false);
-    extender_ = new TMotorClass(TMotorClass::kExtenderInLimitSwitchPin,
-                                TMotorClass::kExtenderStepDirectionPin,
-                                TMotorClass::kExtenderStepPulsePin,
-                                TMotorClass::kExtenderOutLimitSwitchPin, 0.342,
-                                0.0, 0.000149626, true);
+    elevator_ = TMotorClass::CreateMotor(TMotorClass::Elevator);
+    extender_ = TMotorClass::CreateMotor(TMotorClass::Extender);
     g_singleton_ = new TMicroRos();
   }
 

@@ -6,6 +6,32 @@
 
 class TMotorClass {
 public:
+  enum TMotorType {
+    Elevator,
+    Extender
+  };
+
+  // Create a motor.
+  static TMotorClass* CreateMotor(TMotorType motor_type);
+
+  // Execute the movement request.
+  void ContinueOutstandingMovementRequests();
+
+  // Cancel the goal.
+  static bool HandleActionCancel(rclc_action_goal_handle_t *ros_cancel_request,
+                                 void *context);
+
+  // Handle an action request.
+  static rcl_ret_t HandleActionRequest(rclc_action_goal_handle_t *goal_handle,
+                                       void *context);
+
+  // Handle a move topic callback.
+  static void HandleMoveTopicCallback(const void *msg, void *context);
+
+  // Home the motor.
+  void Home();
+
+protected:
   enum {
     // For limit switches, 0 => interrupted, 1 => not interrupted.
     kExtenderInLimitSwitchPin = 35,     // Echo 3
@@ -23,24 +49,6 @@ public:
               float position_max_up, float position_min_down,
               float travel_mm_per_pulse, bool reverse_travel);
 
-  // Execute the movement request.
-  void DoMovementRequest();
-
-  // Cancel the goal.
-  static bool HandleActionCancel(rclc_action_goal_handle_t *ros_cancel_request,
-                                 void *context);
-
-  // Handle an action request.
-  static rcl_ret_t HandleActionRequest(rclc_action_goal_handle_t *goal_handle,
-                                       void *context);
-
-  // Handle a move topic callback.
-  static void HandleMoveTopicCallback(const void *msg, void *context);
-
-  // Home the motor.
-  void Home();
-
-protected:
   enum Direction { kUp, kDown };
 
   // Is the motor at the down limit?
