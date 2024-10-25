@@ -8,6 +8,7 @@
 #include <micro_ros_utilities/string_utilities.h>
 #include <rcl/error_handling.h>
 #include <rcl/rcl.h>
+#include <rcl/service.h>
 #include <rclc/executor.h>
 #include <rclc/rclc.h>
 #include <rmw_microros/rmw_microros.h>
@@ -16,6 +17,7 @@
 
 #include "sigyn_interfaces/action/move_elevator.h"
 #include "sigyn_interfaces/action/move_extender.h"
+#include "sigyn_interfaces/srv/gripper_position.h"
 #include "tconfiguration.h"
 #include "tmodule.h"
 #if USE_TSD
@@ -462,6 +464,43 @@ bool TMicroRos::CreateEntities() {
   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 #endif
 
+  // Create elevator gripper service.
+  elevator_gripper_service_ = rcl_get_zero_initialized_service();
+  rcl_service_options_t service_ops = rcl_service_get_default_options();
+  rclc_result = rcl_service_init(
+      &elevator_gripper_service_, &node_,
+      ROSIDL_GET_SRV_TYPE_SUPPORT(sigyn_interfaces, srv, GripperPosition),
+      "elevator_position", &service_ops);
+#if DEBUG
+  snprintf(diagnostic_message, sizeof(diagnostic_message),
+           "INFO [TMicroRos::createEntities] rcl_service_init "
+           "elevator_gripper_service_ result: %ld",
+           rclc_result);
+  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+#endif
+  rclc_result = rclc_executor_add_service_with_context(
+      &executor_, &elevator_gripper_service_, &elevator_request_msg_,
+      &elevator_response_msg_, &TMotorClass::HandleGripperServiceCallback,
+      (void *)elevator_);
+
+  // Create extender gripper service.
+  extender_gripper_service_ = rcl_get_zero_initialized_service();
+  rclc_result = rcl_service_init(
+      &extender_gripper_service_, &node_,
+      ROSIDL_GET_SRV_TYPE_SUPPORT(sigyn_interfaces, srv, GripperPosition),
+      "extender_position", &service_ops);
+#if DEBUG
+  snprintf(diagnostic_message, sizeof(diagnostic_message),
+           "INFO [TMicroRos::createEntities] rcl_service_init "
+           "extender_gripper_service_ result: %ld",
+           rclc_result);
+  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+#endif
+  rclc_result = rclc_executor_add_service_with_context(
+      &executor_, &extender_gripper_service_, &extender_request_msg_,
+      &extender_response_msg_, &TMotorClass::HandleGripperServiceCallback,
+      (void *)extender_);
+
   return true;
 }
 
@@ -470,6 +509,8 @@ void TMicroRos::DestroyEntities() {
   ignore_result(
       rmw_uros_set_context_entity_destroy_session_timeout(rmw_context, 0));
 
+  ignore_result(rcl_service_fini(&extender_gripper_service_, &node_));
+  ignore_result(rcl_service_fini(&elevator_gripper_service_, &node_));
   ignore_result(rclc_action_server_fini(&elevator_action_server_, &node_));
   ignore_result(rclc_action_server_fini(&extender_action_server_, &node_));
   ignore_result(rcl_publisher_fini(&diagnostics_publisher_, &node_));
