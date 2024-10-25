@@ -6,13 +6,10 @@
 
 class TMotorClass {
 public:
-  enum TMotorType {
-    Elevator,
-    Extender
-  };
+  enum TMotorType { Elevator, Extender };
 
   // Create a motor.
-  static TMotorClass* CreateMotor(TMotorType motor_type);
+  static TMotorClass *CreateMotor(TMotorType motor_type);
 
   // Execute the movement request.
   void ContinueOutstandingMovementRequests();
@@ -24,6 +21,10 @@ public:
   // Handle an action request.
   static rcl_ret_t HandleActionRequest(rclc_action_goal_handle_t *goal_handle,
                                        void *context);
+
+  // Handle a gripper service callback.
+  static void HandleGripperServiceCallback(const void *request_msg,
+                                           void *response_msg, void *context);
 
   // Handle a move topic callback.
   static void HandleMoveTopicCallback(const void *msg, void *context);

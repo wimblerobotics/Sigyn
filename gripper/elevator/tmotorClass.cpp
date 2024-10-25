@@ -187,6 +187,18 @@ TMotorClass::HandleActionRequest(rclc_action_goal_handle_t *goal_handle,
   return RCL_RET_ACTION_GOAL_ACCEPTED;
 }
 
+void TMotorClass::HandleGripperServiceCallback(const void *request_msg,
+                                               void *response_msg,
+                                               void *context) {
+  // Cast messages to expected types
+  TMotorClass *motor = (TMotorClass *)context;
+  sigyn_interfaces__srv__GripperPosition_Response *res_in =
+      (sigyn_interfaces__srv__GripperPosition_Response *)response_msg;
+
+  // Handle request message and set the response message values
+  res_in->position = motor->current_position_;
+}
+
 void TMotorClass::HandleMoveTopicCallback(const void *msg, void *context) {
   TMotorClass *motor = (TMotorClass *)context;
   const std_msgs__msg__Float32 *command = (const std_msgs__msg__Float32 *)msg;
