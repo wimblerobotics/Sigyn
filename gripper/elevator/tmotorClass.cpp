@@ -61,26 +61,10 @@ bool TMotorClass::AtUpLimit() {
   return at_top;
 }
 
-void TMotorClass::CancelGoal() {
-  sigyn_interfaces__action__MoveElevator_GetResult_Response result = {0};
-  result.result.final_position = current_position_;
-  // ### Note: Possibly repeat after small delay until return code ==
-  // RCL_RET_OK. Also other send places.
-  rcl_ret_t rclc_result = rclc_action_send_result(action_goal_handle_,
-                                                  GOAL_STATE_CANCELED, &result);
-
-  char diagnostic_message[256];
-  snprintf(diagnostic_message, sizeof(diagnostic_message),
-           "INFO [TTMotorClass::CancelGoal] "
-           "goal canceled, rclc_action_send_result: %ld",
-           rclc_result);
-  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-}
-
 void TMotorClass::DoMovementRequest() {
   if (pending_movement_command_) {
     if (pending_action_ && action_goal_handle_->goal_cancelled) {
-      CancelGoal();
+      // HandleActionCancel();
       pending_action_ = false;
       return;
     }
@@ -133,17 +117,36 @@ void TMotorClass::DoMovementRequest() {
   }
 }
 
+bool TMotorClass::HandleActionCancel(rclc_action_goal_handle_t *ros_cancel_request,
+                                 void *context) {
+  TMotorClass *motor = (TMotorClass *)context;
+  sigyn_interfaces__action__MoveElevator_GetResult_Response result = {0};
+  result.result.final_position = motor->current_position_;
+  // ### Note: Possibly repeat after small delay until return code ==
+  // RCL_RET_OK. Also other send places.
+  rcl_ret_t rclc_result = rclc_action_send_result(motor->action_goal_handle_,
+                                                  GOAL_STATE_CANCELED, &result);
+
+  char diagnostic_message[256];
+  snprintf(diagnostic_message, sizeof(diagnostic_message),
+           "INFO [TMotorClass::CancelGoal] "
+           "goal canceled, rclc_action_send_result: %ld",
+           rclc_result);
+  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+  return true;
+}
+
 rcl_ret_t
 TMotorClass::HandleActionRequest(rclc_action_goal_handle_t *goal_handle,
                                  void *context) {
+  char diagnostic_message[256];
   TMotorClass *motor = (TMotorClass *)context;
 
   sigyn_interfaces__action__MoveElevator_SendGoal_Request *req =
       (sigyn_interfaces__action__MoveElevator_SendGoal_Request *)
-          motor->action_goal_handle_->ros_goal_request;
+          goal_handle->ros_goal_request;
 
   float goal_position = req->goal.goal_position;
-  char diagnostic_message[256];
   snprintf(diagnostic_message, sizeof(diagnostic_message),
            "INFO [TMotorClass::HandleActionRequest] goal_position: %4.3f",
            goal_position);

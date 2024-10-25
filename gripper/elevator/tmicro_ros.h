@@ -1,6 +1,8 @@
 /*
   ros2 topic pub -1 /extender_cmd std_msgs/msg/Float32 data:\ 0.2\
   ros2 topic pub -1 /elevator_cmd std_msgs/msg/Float32 data:\ 0.2\
+  ros2 action send_goal /move_elevator sigyn_interfaces/action/MoveElevator "{goal_position: 0.02}" --feedback
+  ros2 action send_goal /move_extender sigyn_interfaces/action/MoveExtender "{goal_position: 0.02}" --feedback
 */
 
 #pragma once
@@ -74,7 +76,8 @@ private:
   rcl_subscription_t elevator_command_subscriber_;
   rcl_subscription_t extender_command_subscriber_;
   rclc_executor_t executor_;
-  rclc_action_server_t gripper_action_server_;
+  rclc_action_server_t elevator_action_server_;
+  rclc_action_server_t extender_action_server_;
   bool micro_ros_init_successful_;
   rcl_node_t node_;
   rclc_support_t support_;
