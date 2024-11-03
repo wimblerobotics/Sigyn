@@ -23,8 +23,6 @@ void watchdogTimeout() {
 }
 
 void setup() {
-  Wire.begin();
-  pinMode(13, OUTPUT);
   // Serial.begin(9600);
   // while (!Serial) {  }
   // Serial.println("setup()");
