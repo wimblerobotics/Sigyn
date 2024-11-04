@@ -426,6 +426,34 @@ void TRoboClaw::PublishOdometry() {
   static float y_pos = 0.0;
   static float heading = 0.0;
 
+  static bool initialized = false;
+  if (!initialized) {
+    // Code is here because static initialization of x_pos and y_pos didn't work.
+    // heading = 0.0;
+    // last_checked_encoder_time_microseconds = micros();
+    // last_m1_encoder = g_encoder_m1_;
+    // last_m2_encoder = g_encoder_m2_;
+    x_pos = 0.0;
+    y_pos = 0.0;
+    initialized = true;
+  {
+    char m[256];
+    snprintf(m, sizeof(m),
+             " starting x_pos: %3.4f"
+             ", y_pos: %3.4f",
+             x_pos, y_pos);
+    TMicroRos::singleton().PublishDiagnostic(m);
+  }
+  }
+  // {
+  //   char m[256];
+  //   snprintf(m, sizeof(m),
+  //            " starting x_pos: %3.4f"
+  //            ", y_pos: %3.4f",
+  //            x_pos, y_pos);
+  //   TMicroRos::singleton().PublishDiagnostic(m);
+  // }
+
   // {
   //   char m[256];
   //   snprintf(m, sizeof(m),
@@ -463,6 +491,14 @@ void TRoboClaw::PublishOdometry() {
   float anglular_velocity_z_rps =
       (average_rps_angle * wheel_circumference) / (inter_wheel_distance / 2.0);
 
+  // {
+  //   char m[256];
+  //   snprintf(m, sizeof(m),
+  //            " #5 x_pos: %3.4f"
+  //            ", y_pos: %3.4f",
+  //            x_pos, y_pos);
+  //   TMicroRos::singleton().PublishDiagnostic(m);
+  // }
   float delta_heading = anglular_velocity_z_rps * delta_time_secs;
   float cos_h = cos(heading);
   float sin_h = sin(heading);
