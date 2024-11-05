@@ -2,6 +2,7 @@
 #include <rcutils/logging_macros.h>
 #include <yaml-cpp/yaml.h>
 
+#include <cstdint>
 #include <rclcpp/rclcpp.hpp>
 
 // #include <exception>
@@ -12,7 +13,13 @@
 #include <fstream>
 #include <geometry_msgs/msg/twist.hpp>
 #include <nav_msgs/msg/odometry.hpp>
+#include <rclcpp/time.hpp>
+#include <std_msgs/msg/string.hpp>
+#include <vector>
 
+#include "std_msgs/msg/string.hpp"
+
+uint32_t count_wheel_odometry_callbacks = 0;
 double last_x = 0.0;
 double last_y = 0.0;
 double last_orientation_w = 0.0;
@@ -21,9 +28,19 @@ double last_orientation_y = 0.0;
 double last_orientation_z = 0.0;
 rclcpp::Time last_timestamp = rclcpp::Time(0, 0);
 double loop_rate_hz;
+double max_skew = 0.0;
+rclcpp::Time previous_timestamp = rclcpp::Time(0, 0);
 rclcpp::QoS qos(rclcpp::QoSInitialization(RMW_QOS_POLICY_HISTORY_KEEP_LAST, 10));
 rclcpp::Node::SharedPtr ros_node;
+const uint8_t kNumberSkews = 20;
+uint32_t skews_by_10ms[kNumberSkews] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+rclcpp::Subscription<std_msgs::msg::String>::SharedPtr teensy_diagnostics_subscriber;
+rclcpp::Subscription<std_msgs::msg::String>::SharedPtr teensy_stats_subscriber;
 rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr wheel_odometry_subscriber;
+
+std::vector<std::string> diagnostic_messages;
+std::vector<std::string> stats_messages;
+bool new_max_skew = false;
 
 // template <typename T>
 // T getTopicElementValue(YAML::Node topics, int sequence, std::string elementName) {
@@ -113,8 +130,18 @@ void processConfiguration(int argc, char *argv[]) {
   // }
 }
 
+void teensyDiagnosticsCallback(const std_msgs::msg::String::SharedPtr msg) {
+  // RCUTILS_LOG_INFO("[teensyDiagnosticsCallback] called");
+  diagnostic_messages.push_back(msg->data);
+}
+
+void teensyStatsCallback(const std_msgs::msg::String::SharedPtr msg) {
+  // RCUTILS_LOG_INFO("[teensyStatsCallback] called");
+  stats_messages.push_back(msg->data);
+}
+
 void wheelOdometryCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
-  RCUTILS_LOG_INFO("[wheelOdometryCallback] called");
+  // RCUTILS_LOG_INFO("[wheelOdometryCallback] called");
   last_x = msg->pose.pose.position.x;
   last_y = msg->pose.pose.position.y;
   last_orientation_w = msg->pose.pose.orientation.w;
@@ -126,17 +153,31 @@ void wheelOdometryCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
   last_timestamp = msg->header.stamp;
-  RCUTILS_LOG_INFO("[wheelOdometryCallback] timestamp: %3.4f", last_timestamp.seconds());
-  RCUTILS_LOG_INFO("[wheelOdometryCallback] roll: %f, pitch: %f, yaw: %f", roll, pitch, yaw);
-  RCUTILS_LOG_INFO("[wheelOdometryCallback] x: %f, y: %f, w: %f, x: %f, y: %f, z: %f", last_x,
-                   last_y, last_orientation_w, last_orientation_x, last_orientation_y,
-                   last_orientation_z);
+  double delta_time = (last_timestamp - previous_timestamp).seconds();
+  if (delta_time > max_skew) {
+    max_skew = delta_time;
+    new_max_skew = true;
+  }
+
+  previous_timestamp = last_timestamp;
+  uint8_t skew_index = (uint8_t)(delta_time * 100);
+  if (skew_index >= kNumberSkews) {
+    skew_index = kNumberSkews - 1;
+  }
+
+  skews_by_10ms[skew_index]++;  // increment the skew index
+
+  // RCUTILS_LOG_INFO("[wheelOdometryCallback] timestamp: %3.4f", last_timestamp.seconds());
+  // RCUTILS_LOG_INFO("[wheelOdometryCallback] roll: %f, pitch: %f, yaw: %f", roll, pitch, yaw);
+  // RCUTILS_LOG_INFO("[wheelOdometryCallback] x: %f, y: %f, w: %f, x: %f, y: %f, z: %f", last_x,
+  //                  last_y, last_orientation_w, last_orientation_x, last_orientation_y,
+  //                  last_orientation_z);
+  count_wheel_odometry_callbacks++;
 }
 
 int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);
   ros_node = rclcpp::Node::make_shared("motor_characterization");
-  RCUTILS_LOG_INFO("[motor_characterization] Hello world");
 
   processConfiguration(argc, argv);
 
@@ -144,11 +185,16 @@ int main(int argc, char *argv[]) {
   qos.durability(RMW_QOS_POLICY_DURABILITY_VOLATILE);
   qos.avoid_ros_namespace_conventions(false);
 
-  RCUTILS_LOG_INFO("[motor_characterization] about to create publisher");
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr twist_publisher =
       ros_node->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
 
-  RCUTILS_LOG_INFO("[motor_characterization] about to create subscriber");
+  teensy_diagnostics_subscriber = ros_node->create_subscription<std_msgs::msg::String>(
+      "/teensy_diagnostics", qos, teensyDiagnosticsCallback);
+
+  teensy_stats_subscriber = ros_node->create_subscription<std_msgs::msg::String>(
+      "/teensy_stats", qos, teensyStatsCallback);
+
+  previous_timestamp = ros_node->now();
   wheel_odometry_subscriber = ros_node->create_subscription<nav_msgs::msg::Odometry>(
       "/wheel_odom", qos, wheelOdometryCallback);
 
@@ -166,6 +212,33 @@ int main(int argc, char *argv[]) {
   //     loopRate.sleep();
   // }
 
+  auto timer_callback = []() -> void {
+    RCUTILS_LOG_INFO("[timer_callback] Timer triggered");
+    for (uint8_t i = 0; i < kNumberSkews; i++) {
+      RCUTILS_LOG_INFO("[timer_callback] skew %d: %d", i, skews_by_10ms[i]);
+    }
+    RCUTILS_LOG_INFO("[timer_callback] count_wheel_odometry_callbacks: %d, max_skew(ms): %3.4f",
+                     count_wheel_odometry_callbacks, max_skew * 1000);
+    count_wheel_odometry_callbacks = 0;
+    if (new_max_skew) {
+      for (auto &msg : diagnostic_messages) {
+        RCUTILS_LOG_INFO("[timer_callback] diagnostic message: %s", msg.c_str());
+      }
+      for (auto &msg : stats_messages) {
+        RCUTILS_LOG_INFO("[timer_callback] stats message: %s", msg.c_str());
+      }
+      new_max_skew = false;
+      // max_skew = 0.0;
+      for (uint8_t i = 0; i < kNumberSkews; i++) {
+        skews_by_10ms[i] = 0;
+      }
+    }
+
+    diagnostic_messages.clear();
+    stats_messages.clear();
+  };
+
+  auto timer = ros_node->create_wall_timer(std::chrono::seconds(1), timer_callback);
   rclcpp::Rate loop_rate(loop_rate_hz);
   while (rclcpp::ok()) {
     rclcpp::spin_some(ros_node);
