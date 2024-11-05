@@ -1,5 +1,6 @@
 #include "tmicro_ros.h"
 
+#include <Arduino.h>
 #include <Wire.h>
 #include <geometry_msgs/msg/twist.h>
 #include <micro_ros_arduino.h>
@@ -9,12 +10,12 @@
 #include <rclc/executor.h>
 #include <rclc/rclc.h>
 #include <rmw_microros/rmw_microros.h>
+#include <rmw_microros/time_sync.h>
 #include <stdint.h>
 #include <stdio.h>
 
 #include "tconfiguration.h"
 #include "tmodule.h"
-#include "trelay.h"
 #include "troboclaw.h"
 #if USE_TSD
 #include "tsd.h"
@@ -32,38 +33,43 @@
     }                              \
   }
 
-void TMicroRos::SyncTime(const char *caller, uint32_t fixed_time_call_count) {
-  static const int timeout_ms = 1000;
-  static uint32_t call_count = 0;
-  static uint32_t time_at_last_sync = micros();
-  TMicroRos::singleton().await_time_sync_ = true;  // Disable motor commands except for stop.
+void TMicroRos::SyncTime(const char *caller, uint32_t fixed_time_call_count, int64_t skew) {
+  // ### This function is not used in the current implementation.
+  // ### It is left here for reference.
+  // ### It is not used because I measured the skew and found it to be zero over a fairly long
+  // ### period of time.
+  
+  // static const int timeout_ms = 1000;
+  // static uint32_t call_count = 0;
+  // static uint32_t time_at_last_sync = micros();
+  // TMicroRos::singleton().await_time_sync_ = true;  // Disable motor commands except for stop.
 
-  call_count++;
-  uint32_t start = micros();
-  rmw_ret_t sync_result = rmw_uros_sync_session(timeout_ms);  // Atttempt synchronization.
-  int32_t now = micros();
-  float sync_duration_ms = (now - start) / 1000.0;
-  float duration_since_last_sync_ms = (now - time_at_last_sync) / 1000.0;
-  time_at_last_sync = now;
-  if (sync_result == RMW_RET_OK) {
-    ros_sync_time_ = rmw_uros_epoch_nanos();  // Capture the current ROS time
-                                              // after attempted synchronization.
-  }
+  // call_count++;
+  // uint32_t start = micros();
+  // rmw_ret_t sync_result = rmw_uros_sync_session(timeout_ms);  // Atttempt synchronization.
+  // int32_t now = micros();
+  // float sync_duration_ms = (now - start) / 1000.0;
+  // float duration_since_last_sync_ms = (now - time_at_last_sync) / 1000.0;
+  // time_at_last_sync = now;
+  // if (sync_result == RMW_RET_OK) {
+  //   ros_sync_time_ = rmw_uros_epoch_nanos();  // Capture the current ROS time
+  //                                             // after attempted synchronization.
+  // }
 
-  char diagnostic_message[256];
-  snprintf(diagnostic_message, sizeof(diagnostic_message),
-           "[TMicroRos(teensy)::SyncTime] rmw_uros_sync_session(), caller: %s"
-           ", call_count: %ld, "
-           ", fixed_time_call_count: %ld"
-           ", call result: %ld"
-           ", sync_duration_ms: %f"
-           ", duration_since_last_sync_ms: %f, new time: %lld.%lld",
-           caller, call_count, fixed_time_call_count, sync_result, sync_duration_ms,
-           duration_since_last_sync_ms, ros_sync_time_ / 1'000'000'000,
-           ros_sync_time_ % 1'000'000'000);
-  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+  // char diagnostic_message[256];
+  // snprintf(diagnostic_message, sizeof(diagnostic_message),
+  //          "[TMicroRos(teensy)::SyncTime] rmw_uros_sync_session(), caller: %s"
+  //          ", calls: %u, "
+  //          ", fixed_time_calls: %u"
+  //          ", call result: %d"
+  //          ", sync_dur_ms: %4.3f"
+  //          ", dur_since_last_sync_ms: %4.3f, now: %ld.%ld, skew: %ld",
+  //          caller, call_count, fixed_time_call_count, sync_result, sync_duration_ms,
+  //          duration_since_last_sync_ms, ros_sync_time_ / 1'000'000'000,
+  //          ros_sync_time_ % 1'000'000'000, skew);
+  // TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 
-  TMicroRos::singleton().await_time_sync_ = false;  // Renable motor commands.
+  // TMicroRos::singleton().await_time_sync_ = false;  // Renable motor commands.
 }
 
 int64_t TMicroRos::FixedTime(const char *caller) {
@@ -73,12 +79,12 @@ int64_t TMicroRos::FixedTime(const char *caller) {
   fixed_time_call_count++;
   if (skew < 0) {
     // Time has gone backwards !
-    TMicroRos::singleton().SyncTime(caller, fixed_time_call_count);
+    TMicroRos::singleton().SyncTime(caller, fixed_time_call_count,  skew);
     ros_time = ros_sync_time_;
   } else if (skew > 30'000'000) {
     // The current time appears to be 30ms or more out of whack from
     // previously synced time
-    TMicroRos::singleton().SyncTime(caller, fixed_time_call_count);
+    TMicroRos::singleton().SyncTime(caller, fixed_time_call_count, skew);
     ros_time = ros_sync_time_;
   } else if (skew <= 5'000'000) {
     // If the current time is within 5ms of the last synced time,
