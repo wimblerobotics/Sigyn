@@ -15,6 +15,7 @@
 
 
 #include <stdio.h>
+#include <cstdint>
 // #include <tf2_ros/transform_broadcaster.h>
 
 #include "tmodule.h"
@@ -66,7 +67,7 @@ class TMicroRos : TModule {
 
 
   // Sync ROS time.
-  static void SyncTime(const char* caller, uint32_t fixed_time_call_count);
+  static void SyncTime(const char* caller, uint32_t fixed_time_call_count, int64_t skew);
 
   // Regular maintenance, publish stats, etc.
   static void TimerCallback(rcl_timer_t* timer, int64_t last_call_time);
