@@ -20,15 +20,9 @@
 #include "std_msgs/msg/string.hpp"
 
 uint32_t count_wheel_odometry_callbacks = 0;
-double last_x = 0.0;
-double last_y = 0.0;
-double last_orientation_w = 0.0;
-double last_orientation_x = 0.0;
-double last_orientation_y = 0.0;
-double last_orientation_z = 0.0;
-rclcpp::Time last_timestamp = rclcpp::Time(0, 0);
 double loop_rate_hz;
 double max_skew = 0.0;
+nav_msgs::msg::Odometry last_cmd_vel_msg;
 rclcpp::Time previous_timestamp = rclcpp::Time(0, 0);
 rclcpp::QoS qos(rclcpp::QoSInitialization(RMW_QOS_POLICY_HISTORY_KEEP_LAST, 10));
 rclcpp::Node::SharedPtr ros_node;
@@ -39,6 +33,7 @@ rclcpp::Subscription<std_msgs::msg::String>::SharedPtr teensy_stats_subscriber;
 rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr wheel_odometry_subscriber;
 
 std::vector<std::string> diagnostic_messages;
+std::vector<nav_msgs::msg::Odometry> odometry_messages;
 std::vector<std::string> stats_messages;
 bool new_max_skew = false;
 
@@ -132,35 +127,37 @@ void processConfiguration(int argc, char *argv[]) {
 
 void teensyDiagnosticsCallback(const std_msgs::msg::String::SharedPtr msg) {
   // RCUTILS_LOG_INFO("[teensyDiagnosticsCallback] called");
-  diagnostic_messages.push_back(msg->data);
+  // diagnostic_messages.push_back(msg->data);
 }
 
 void teensyStatsCallback(const std_msgs::msg::String::SharedPtr msg) {
   // RCUTILS_LOG_INFO("[teensyStatsCallback] called");
-  stats_messages.push_back(msg->data);
+  // stats_messages.push_back(msg->data);
 }
 
 void wheelOdometryCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
   // RCUTILS_LOG_INFO("[wheelOdometryCallback] called");
-  static nav_msgs::msg::Odometry prev_msg;
-  last_x = msg->pose.pose.position.x;
-  last_y = msg->pose.pose.position.y;
-  last_orientation_w = msg->pose.pose.orientation.w;
-  last_orientation_x = msg->pose.pose.orientation.x;
-  last_orientation_y = msg->pose.pose.orientation.y;
-  last_orientation_z = msg->pose.pose.orientation.z;
-  tf2::Quaternion q(last_orientation_x, last_orientation_y, last_orientation_z, last_orientation_w);
-  tf2::Matrix3x3 m(q);
-  double roll, pitch, yaw;
-  m.getRPY(roll, pitch, yaw);
-  last_timestamp = msg->header.stamp;
-  double delta_time = (last_timestamp - previous_timestamp).seconds();
+  // odometry_messages.push_back(*msg);
+  
+  // double last_orientation_w = 0.0;
+  // double last_orientation_x = 0.0;
+  // double last_orientation_y = 0.0;
+  // double last_orientation_z = 0.0;
+  // last_orientation_w = msg->pose.pose.orientation.w;
+  // last_orientation_x = msg->pose.pose.orientation.x;
+  // last_orientation_y = msg->pose.pose.orientation.y;
+  // last_orientation_z = msg->pose.pose.orientation.z;
+  // tf2::Quaternion q(last_orientation_x, last_orientation_y, last_orientation_z,
+  // last_orientation_w); tf2::Matrix3x3 m(q); double roll, pitch, yaw; m.getRPY(roll, pitch, yaw);
+  
+  rclcpp::Time header_timestamp = msg->header.stamp;
+  double delta_time = (header_timestamp - previous_timestamp).seconds();
   if (delta_time > max_skew) {
     max_skew = delta_time;
     new_max_skew = true;
   }
 
-  previous_timestamp = last_timestamp;
+  previous_timestamp = msg->header.stamp;
   uint8_t skew_index = (uint8_t)(delta_time * 100);
   if (skew_index >= kNumberSkews) {
     skew_index = kNumberSkews - 1;
@@ -168,19 +165,16 @@ void wheelOdometryCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
         "[wheelOdometryCallback] skew_index is greater than or equal to %u, skew_index: %u"
         ", prev header.stamp.secs: %d, prev header.stamp.nanosecs: %u, current header.stamp.secs: "
         "%d, curret header.stamp.nanosecs: %u, delta_time: %3.4f",
-        kNumberSkews, skew_index, prev_msg.header.stamp.sec, prev_msg.header.stamp.nanosec,
-        msg->header.stamp.sec, msg->header.stamp.nanosec, delta_time);
+        kNumberSkews, skew_index, last_cmd_vel_msg.header.stamp.sec,
+        last_cmd_vel_msg.header.stamp.nanosec, msg->header.stamp.sec, msg->header.stamp.nanosec,
+        delta_time);
   }
 
   skews_by_10ms[skew_index]++;  // increment the skew index
 
-  // RCUTILS_LOG_INFO("[wheelOdometryCallback] timestamp: %3.4f", last_timestamp.seconds());
-  // RCUTILS_LOG_INFO("[wheelOdometryCallback] roll: %f, pitch: %f, yaw: %f", roll, pitch, yaw);
-  // RCUTILS_LOG_INFO("[wheelOdometryCallback] x: %f, y: %f, w: %f, x: %f, y: %f, z: %f", last_x,
-  //                  last_y, last_orientation_w, last_orientation_x, last_orientation_y,
-  //                  last_orientation_z);
   count_wheel_odometry_callbacks++;
-  prev_msg = *msg;
+  last_cmd_vel_msg = *msg;
+  // RCUTILS_LOG_INFO("[wheelOdometryCallback] end");
 }
 
 int main(int argc, char *argv[]) {
@@ -236,21 +230,27 @@ int main(int argc, char *argv[]) {
         RCUTILS_LOG_INFO("[timer_callback] stats message: %s", msg.c_str());
       }
       new_max_skew = false;
+      diagnostic_messages.clear();
+      stats_messages.clear();
       // max_skew = 0.0;
-      for (uint8_t i = 0; i < kNumberSkews; i++) {
-        skews_by_10ms[i] = 0;
-      }
+      // for (uint8_t i = 0; i < kNumberSkews; i++) {
+      //   skews_by_10ms[i] = 0;
+      // }
     }
-
-    diagnostic_messages.clear();
-    stats_messages.clear();
   };
 
   auto timer = ros_node->create_wall_timer(std::chrono::seconds(1), timer_callback);
   rclcpp::Rate loop_rate(loop_rate_hz);
+
+  rclcpp::Time start_time = ros_node->now();
+  RCUTILS_LOG_INFO("[main] Starting motor_characterization node");
   while (rclcpp::ok()) {
     rclcpp::spin_some(ros_node);
+    // while ((ros_node->now() - start_time).seconds() < 2.0) {
+    //   loop_rate.sleep();
+    // }
     loop_rate.sleep();
+    // break;
   }
 
   rclcpp::shutdown();
