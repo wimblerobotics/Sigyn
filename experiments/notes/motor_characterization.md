@@ -1,1 +1,17 @@
 # Misc notes here.
+My Sigyn robot uses a Teensy 4.1 micro processor and runs micro-ROS code with the jazzy release of ROS, to send odometry data to the main computer. The Teensy 4.1 runs at about 600MHz clock speed and can execute 2 instructions per clock, has hardware support for 32 and 64 bit floating point, and runs a USB connection at 480 Mbit/sec. My code takes roughly 1.0 ms on average (max 9.6 ms) in micro-ROS overhead per "loop" to maintain all the micro-ROS activity and send an odometry message, and 6.9 ms on average (max 7.9 ms) in overhead communication between the Teensy 4.1 and the RoboClaw  motor controller for all communication per loop, yielding about 63.4 messages/second on average for wheel odometry from the Teensy to the main computer.
+
+As part of a module I'm writing that will slam the motors at maximum acceleration to see what are the real maximum acceleration and velocity limits of Sigyn as it is currently configured, I also wrote code to measure the timestamp skew between the received odometry messages and the ROS clock on the main computer. The code in this experiment re-syncs the Teensy clock to the main computer clock every  second, though I noted in passing that the drift between the clocks was less than a millisecond over each second. Eventually, I'll remove the one-second re-sync code and see what the resulting drift is. I need my robot to operate for days without a reset, so any uncorrected, cumulative clock drift between my various computers will be a problem.
+
+As you know, ROS requires that sensor data for navigation (LIDAR, odometry, etc.) be fairly frequent and have low skew in the timestamp. The higher the skew, the larger the potential "lie" in pose position between what the sensor measured and where the robot is likely actually positioned by the time the navigation modules use the data. There are configuration parameters in the navigation.yaml file (or your equivalent) that specify what is the maximum acceptable timestamp skew before sensor data is ignored. As a result, sensor timestamp skew indirectly limits how fast your robot can move.
+
+Below are the readings from measuring this on Sigyn over about two and a half hours. The scale of the chart below makes the small counts from skews larger than 30 milliseconds not show in the graph, but they are listed in the spread sheet that follows. Note that, in particular, there are a few skews longer than 200 ms, the largest I observed was 367 ms.
+
+Sigyn requires that motor commands from cmd_vel occur at least 20 times per second for smooth motion. If commands come less frequently than that, the safety systems built into the Teensy code (and partially built in the the shaped velocity/acceleration commands the Teensy sends to the RoboClaw) will shut the motors down. I was observing this behavior--Sigyn occasionally would do a jerking motion in the middle of an otherwise smooth movement, and I'm trying to track down the reason. So far, it appears to be a hiccup in the micro-ROS agent running on the main computer. I'm speculating that this is part of the usual thread scheduling behavior from Linux. I have not, as of yet, attempted to use any of the Linux tools to give the micro-ROS agent package better scheduling behavior.
+
+For your amusement, then, here is the data. X-axis ranges are in groups of ten milliseconds. There are no skews for 100 to 199 milliseconds so that range was excised from the report.
+![alt text](<Odometry Skew Report from 2024-11-06 13-31-36.png>)
+
+start 14:37
+19 337
+20 3461
