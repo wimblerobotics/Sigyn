@@ -22,7 +22,7 @@ def generate_launch_description():
         executable='motor_characterization',
         package='experiments',
         arguments=['--config', configFilePath],
-        #prefix=['xterm -e gdb -ex run --args'],
+        # prefix=['gdbserver localhost:3000'],
         respawn=False,
         output='screen')
     ld.add_action(node)

@@ -142,6 +142,7 @@ void teensyStatsCallback(const std_msgs::msg::String::SharedPtr msg) {
 
 void wheelOdometryCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
   // RCUTILS_LOG_INFO("[wheelOdometryCallback] called");
+  static nav_msgs::msg::Odometry prev_msg;
   last_x = msg->pose.pose.position.x;
   last_y = msg->pose.pose.position.y;
   last_orientation_w = msg->pose.pose.orientation.w;
@@ -163,6 +164,12 @@ void wheelOdometryCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
   uint8_t skew_index = (uint8_t)(delta_time * 100);
   if (skew_index >= kNumberSkews) {
     skew_index = kNumberSkews - 1;
+    RCUTILS_LOG_ERROR(
+        "[wheelOdometryCallback] skew_index is greater than or equal to %u, skew_index: %u"
+        ", prev header.stamp.secs: %d, prev header.stamp.nanosecs: %u, current header.stamp.secs: "
+        "%d, curret header.stamp.nanosecs: %u, delta_time: %3.4f",
+        kNumberSkews, skew_index, prev_msg.header.stamp.sec, prev_msg.header.stamp.nanosec,
+        msg->header.stamp.sec, msg->header.stamp.nanosec, delta_time);
   }
 
   skews_by_10ms[skew_index]++;  // increment the skew index
@@ -173,6 +180,7 @@ void wheelOdometryCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
   //                  last_y, last_orientation_w, last_orientation_x, last_orientation_y,
   //                  last_orientation_z);
   count_wheel_odometry_callbacks++;
+  prev_msg = *msg;
 }
 
 int main(int argc, char *argv[]) {
