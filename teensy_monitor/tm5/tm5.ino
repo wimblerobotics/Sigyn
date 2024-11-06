@@ -1,6 +1,4 @@
 #include <micro_ros_arduino.h>
-
-#include <micro_ros_arduino.h>
 #include <stdint.h>
 
 #include "tbattery.h"
@@ -35,10 +33,10 @@ void setup() {
   //  feed() calls. config.callback = watchdogTimeout;
 
 #if USE_TSD
-TSd& sd = TSd::singleton();
+  TSd& sd = TSd::singleton();
+  (void)sd;  // Suppress unused variable warning.
 #endif
   TModule::DoSetup();
-
   //  wdt.begin(config);
 }
 

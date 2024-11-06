@@ -13,19 +13,14 @@
 #include <sensor_msgs/msg/temperature.h>
 #include <std_msgs/msg/string.h>
 
-
-#include <stdio.h>
 #include <cstdint>
+#include <ctime>
 // #include <tf2_ros/transform_broadcaster.h>
 
 #include "tmodule.h"
 
 class TMicroRos : TModule {
  public:
-  // Check if ROS time appears to be correct and, if not, fix it.
-  // Returns a reasonable ROS time.
-  static int64_t FixedTime(const char* caller);
-
   // Called by Temperature module handler to publish a reading.
   static void PublishBattery(const char* frame_id, float voltage);
 
@@ -33,9 +28,8 @@ class TMicroRos : TModule {
   static void PublishDiagnostic(const char* msg);
 
   // Publish the odom transform and topic.
-  static void PublishOdometry(double x, double y, double x_velocity,
-                              double y_velocity, double z_velocity,
-                              float* quaternion);
+  static void PublishOdometry(double x, double y, double x_velocity, double y_velocity,
+                              double z_velocity, float* quaternion);
 
   // Singleton constructor.
   static TMicroRos& singleton();
@@ -51,12 +45,7 @@ class TMicroRos : TModule {
   void setup();
 
  private:
-  enum State {
-    kWaitingAgent,
-    kAgentAvailable,
-    kAgentConnected,
-    kAgentDisconnected
-  } state_;
+  enum State { kWaitingAgent, kAgentAvailable, kAgentConnected, kAgentDisconnected } state_;
 
   // Private constructor.
   TMicroRos();
@@ -65,9 +54,10 @@ class TMicroRos : TModule {
 
   void DestroyEntities();
 
+  static unsigned long long GetTimeMs();
 
   // Sync ROS time.
-  static void SyncTime(const char* caller, uint32_t fixed_time_call_count, int64_t skew);
+  static void SyncTime();
 
   // Regular maintenance, publish stats, etc.
   static void TimerCallback(rcl_timer_t* timer, int64_t last_call_time);
@@ -83,10 +73,7 @@ class TMicroRos : TModule {
   // say, the navigation system from moving the robot while
   // the sensors are reporting invalid times, which would cause
   // the sensors to be ignored.
-  bool await_time_sync_;
-
-  // For checking for a reasonable ROS time.
-  static volatile int64_t ros_sync_time_;
+  static volatile bool await_time_sync_;
 
   // Micro-ROS variables
   rcl_allocator_t allocator_;
@@ -96,6 +83,7 @@ class TMicroRos : TModule {
   rcl_node_t node_;
   rclc_support_t support_;
   rcl_timer_t timer_;
+  static volatile unsigned long long time_offset_;
 
   // ROS publishers.
   rcl_publisher_t battery_publisher_;
