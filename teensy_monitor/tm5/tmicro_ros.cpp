@@ -249,7 +249,7 @@ void TMicroRos::TimerCallback(rcl_timer_t *timer, int64_t last_call_time) {
 #if USE_TSD
   TSd::singleton().flush();
 #endif
-  SyncTime();
+  // SyncTime();
 
   (void)last_call_time;
   if (TMicroRos::singleton().state_ == kAgentConnected) {
