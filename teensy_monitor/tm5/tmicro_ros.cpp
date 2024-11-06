@@ -25,24 +25,11 @@
   if (x) {               \
   }
 
-#define RCCHECK(fn)                \
-  {                                \
-    rcl_ret_t temp_rc = fn;        \
-    if ((temp_rc != RCL_RET_OK)) { \
-      return false;                \
-    }                              \
-  }
-
-void TMicroRos::SyncTime(const char *caller, uint32_t fixed_time_call_count, int64_t skew) {
-  // ### This function is not used in the current implementation.
-  // ### It is left here for reference.
-  // ### It is not used because I measured the skew and found it to be zero over a fairly long
-  // ### period of time.
-  
-  // static const int timeout_ms = 1000;
-  // static uint32_t call_count = 0;
-  // static uint32_t time_at_last_sync = micros();
-  // TMicroRos::singleton().await_time_sync_ = true;  // Disable motor commands except for stop.
+void TMicroRos::SyncTime() {
+  await_time_sync_ = true;  // Disable motor commands except for stop.
+  unsigned long long ros_time_ms = 0;
+  float sync_duration_ms = 0;
+  bool unexpected_sync_duration = false;
 
   // call_count++;
   // uint32_t start = micros();
@@ -50,51 +37,47 @@ void TMicroRos::SyncTime(const char *caller, uint32_t fixed_time_call_count, int
   // int32_t now = micros();
   // float sync_duration_ms = (now - start) / 1000.0;
   // float duration_since_last_sync_ms = (now - time_at_last_sync) / 1000.0;
-  // time_at_last_sync = now;
-  // if (sync_result == RMW_RET_OK) {
-  //   ros_sync_time_ = rmw_uros_epoch_nanos();  // Capture the current ROS time
-  //                                             // after attempted synchronization.
-  // }
 
-  // char diagnostic_message[256];
-  // snprintf(diagnostic_message, sizeof(diagnostic_message),
-  //          "[TMicroRos(teensy)::SyncTime] rmw_uros_sync_session(), caller: %s"
-  //          ", calls: %u, "
-  //          ", fixed_time_calls: %u"
-  //          ", call result: %d"
-  //          ", sync_dur_ms: %4.3f"
-  //          ", dur_since_last_sync_ms: %4.3f, now: %ld.%ld, skew: %ld",
-  //          caller, call_count, fixed_time_call_count, sync_result, sync_duration_ms,
-  //          duration_since_last_sync_ms, ros_sync_time_ / 1'000'000'000,
-  //          ros_sync_time_ % 1'000'000'000, skew);
-  // TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+  // Get the current time from the agent.
+  unsigned long millis_val = millis();
+  rmw_ret_t sync_result = rmw_uros_sync_session(10);  // Atttempt synchronization.
+  if (sync_result == RMW_RET_OK) {
+    ros_time_ms = rmw_uros_epoch_millis();
+    unsigned long now_ms = millis();
+    sync_duration_ms = now_ms - millis_val;
+    unexpected_sync_duration = (sync_duration_ms > 100);
 
-  // TMicroRos::singleton().await_time_sync_ = false;  // Renable motor commands.
-}
-
-int64_t TMicroRos::FixedTime(const char *caller) {
-  static uint32_t fixed_time_call_count = 0;
-  int64_t ros_time = rmw_uros_epoch_nanos();
-  int64_t skew = ros_time - ros_sync_time_;
-  fixed_time_call_count++;
-  if (skew < 0) {
-    // Time has gone backwards !
-    TMicroRos::singleton().SyncTime(caller, fixed_time_call_count,  skew);
-    ros_time = ros_sync_time_;
-  } else if (skew > 30'000'000) {
-    // The current time appears to be 30ms or more out of whack from
-    // previously synced time
-    TMicroRos::singleton().SyncTime(caller, fixed_time_call_count, skew);
-    ros_time = ros_sync_time_;
-  } else if (skew <= 5'000'000) {
-    // If the current time is within 5ms of the last synced time,
-    // assume that the current time is probably good.
-    // The 5 ms is because the loop rate of this monitor is expected
-    // to be more than 20 frames per second.
-    ros_sync_time_ = ros_time;
+    // Now we can find the difference between ROS time and uC time.
+    time_offset_ = ros_time_ms - millis_val;
+  } else {
+    char diagnostic_message[256];
+    snprintf(diagnostic_message, sizeof(diagnostic_message),
+             "[TMicroRos(teensy)::SyncTime] rmw_uros_sync_session FAILED sync_result: %ld",
+             sync_result);
+    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
   }
 
-  return ros_time;
+  await_time_sync_ = false;  // Renable motor commands.
+
+  char diagnostic_message[256];
+  snprintf(diagnostic_message, sizeof(diagnostic_message),
+           "INFO [TMicroRos(teensy)::SyncTime] ros_time_ms: %lld, millis_val: %lu, time_offset: "
+           "%lld, ms to sync: %f %s",
+           ros_time_ms, millis_val, time_offset_, sync_duration_ms, unexpected_sync_duration ? "###" : "");
+  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+}
+
+unsigned long long TMicroRos::GetTimeMs() {
+  // Add time difference between uC time and ROS time to synchronize time with ROS
+  unsigned long millis_val = millis();
+  unsigned long long now = millis_val + time_offset_;
+  // char diagnostic_message[256];
+  // snprintf(diagnostic_message, sizeof(diagnostic_message),
+  //          "INFO [TMicroRos(teensy)::GetTime] millis_val: %lu, time_offset: %llu, now: %llu",
+  //          millis_val, time_offset_, now);
+  // TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+
+  return now;
 }
 
 void TMicroRos::loop() {
@@ -106,9 +89,9 @@ void TMicroRos::loop() {
 #if USE_TSD
       if (!showedWaitingAgent) {
         TSd::singleton().log("INFO [TMicroRos(teensy)::loop] kWaitingAgent");
-        showedWaitingAgent = true;
       }
 #endif
+      showedWaitingAgent = true;
       static int64_t last_time = uxr_millis();
       if ((uxr_millis() - last_time) > 500) {
         state_ = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? kAgentAvailable : kWaitingAgent;
@@ -121,10 +104,10 @@ void TMicroRos::loop() {
 #if USE_TSD
       if (!showedAgentAvailable) {
         TSd::singleton().log("INFO [TMicroRos(teensy)::loop] kAgentAvailable");
-        showedWaitingAgent = false;
-        showedAgentAvailable = true;
       }
 #endif
+      showedWaitingAgent = false;
+      showedAgentAvailable = true;
       if (CreateEntities()) {
 #if USE_TSD
         TSd::singleton().log(
@@ -146,11 +129,13 @@ void TMicroRos::loop() {
 
     case kAgentConnected: {
 #if USE_TSD
-      TSd::singleton().log("INFO [TMicroRos(teensy)::loop] kAgentConnected");
+      if (!showedAgentConnected) {
+        TSd::singleton().log("INFO [TMicroRos(teensy)::loop] kAgentConnected");
+      }
+#endif
       showedWaitingAgent = false;
       showedAgentAvailable = false;
       showedAgentConnected = true;
-#endif
       static int64_t last_time = uxr_millis();
       if ((uxr_millis() - last_time) > 10) {
         state_ = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? kAgentConnected : kAgentDisconnected;
@@ -165,10 +150,10 @@ void TMicroRos::loop() {
     case kAgentDisconnected: {
 #if USE_TSD
       TSd::singleton().log("INFO [TMicroRos(teensy)::loop] kAgentDisconnected");
+#endif
       showedWaitingAgent = false;
       showedAgentAvailable = false;
       showedAgentConnected = false;
-#endif
       DestroyEntities();
       state_ = kWaitingAgent;
       break;
@@ -205,9 +190,14 @@ void TMicroRos::PublishOdometry(double x, double y, double x_velocity, double y_
   if (TMicroRos::singleton().state_ == kAgentConnected) {
     char caller[32];
     snprintf(caller, sizeof(caller), "PublishOdometry");
-    int64_t timestamp = TMicroRos::singleton().FixedTime(caller);
-    g_singleton_->odom_msg_.header.stamp.nanosec = (int32_t)(timestamp % 1'000'000'000);
-    g_singleton_->odom_msg_.header.stamp.sec = (int32_t)(timestamp / 1'000'000'000);
+
+    unsigned long long time_stamp = GetTimeMs();
+    if (time_stamp == 0) {
+      return;
+    }
+
+    g_singleton_->odom_msg_.header.stamp.sec = (time_stamp / 1000LL);
+    g_singleton_->odom_msg_.header.stamp.nanosec = (time_stamp % 1000LL) * 1'000'000L;
 
     g_singleton_->odom_msg_.pose.pose.position.x = x;
     g_singleton_->odom_msg_.pose.pose.position.y = y;
@@ -259,6 +249,7 @@ void TMicroRos::TimerCallback(rcl_timer_t *timer, int64_t last_call_time) {
 #if USE_TSD
   TSd::singleton().flush();
 #endif
+  SyncTime();
 
   (void)last_call_time;
   if (TMicroRos::singleton().state_ == kAgentConnected) {
@@ -345,7 +336,6 @@ void TMicroRos::TwistCallback(const void *twist_msg) {
 
 TMicroRos::TMicroRos()
     : TModule(TModule::kMicroRos),
-      await_time_sync_(true),
       accel_quad_pulses_per_second_(1000),
       max_angular_velocity_(0.07),
       max_linear_velocity_(0.3),
@@ -508,7 +498,7 @@ bool TMicroRos::CreateEntities() {
 
   // Create timer,
   const unsigned int timer_timeout_ns = 1'000'000'000;
-  rclc_result = rclc_timer_init_default(&timer_, &support_, timer_timeout_ns, TimerCallback);
+  rclc_result = rclc_timer_init_default2(&timer_, &support_, timer_timeout_ns, TimerCallback, true);
 #if DEBUG
   snprintf(diagnostic_message, sizeof(diagnostic_message),
            "INFO [TMicroRos(teensy)::createEntities] rclc_timer_init_default result: %ld",
@@ -535,6 +525,8 @@ bool TMicroRos::CreateEntities() {
            rclc_result);
   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 #endif
+
+  SyncTime();
 
   rclc_result = rclc_executor_add_subscription(&executor_, &cmd_vel_subscriber_, &twist_msg_,
                                                &TwistCallback, ON_NEW_DATA);
@@ -574,5 +566,6 @@ TMicroRos &TMicroRos::singleton() {
   return *g_singleton_;
 }
 
+volatile bool TMicroRos::await_time_sync_ = false;
 TMicroRos *TMicroRos::g_singleton_ = nullptr;
-volatile int64_t TMicroRos::ros_sync_time_ = 0;
+volatile unsigned long long TMicroRos::time_offset_ = 0;
