@@ -12,6 +12,4 @@ Sigyn requires that motor commands from cmd_vel occur at least 20 times per seco
 For your amusement, then, here is the data. X-axis ranges are in groups of ten milliseconds. There are no skews for 100 to 199 milliseconds so that range was excised from the report.
 ![alt text](<Odometry Skew Report from 2024-11-06 13-31-36.png>)
 
-start 14:37
-19 337
-20 3461
+Note, after more than 7 hours, the skew when from 19ms to 27 ms. This is a drift of 8 ms over 7 hours, or about 1.1 ms per hour. This is well within the 100 ms limit I have set in the navigation.yaml file. 
