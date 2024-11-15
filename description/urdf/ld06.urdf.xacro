@@ -126,7 +126,7 @@
     <gazebo reference="lidar_frame_${lidar_prefix}">
       <material>Gazebo/Black</material>
 
-      <sensor name="sensor_ray_${lidar_prefix}" type="ray">
+      <sensor name="sensor_ray_${lidar_prefix}" type="gpu_lidar">
         <pose> 0 0 0 0 0 0 </pose>
         <visualize>true</visualize>
         <update_rate>10</update_rate>
