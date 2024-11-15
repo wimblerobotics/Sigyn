@@ -74,20 +74,16 @@
     mass_kg="0.4"
   />
 
-  <link name="scan" />
+  <!-- <link name="scan" />
   <joint name="base_to_scan" type="fixed">
     <parent link="base_link" />
     <child link="scan" />
     <origin xyz="0.155 0 0.305" rpy="0 0 -${M_PI / 2}" />
-  </joint>
+  </joint> -->
   <xacro:ld06 lidar_prefix="top_lidar">
-    <origin xyz="0 0 0" rpy="0 0 0" />
+    <!-- <origin xyz="0 0 0" rpy="0 0 0" /> -->
+    <origin xyz="0.155 0 0.305" rpy="0 0 -${M_PI / 2}" />
   </xacro:ld06>
-  <joint name="base_to_lidar_frame_top_lidar" type="fixed">
-    <parent link="scan" />
-    <child link="lidar_frame_top_lidar" />
-    <origin xyz="0 0 0" rpy="0 0 -${M_PI / 2}" />
-  </joint>
 
   <xacro:diff_drive_controller
     wheel_separation="${wheel_pos_y * 2}"
