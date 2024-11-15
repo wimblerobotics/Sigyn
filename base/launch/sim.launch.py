@@ -35,7 +35,7 @@ def generate_launch_description():
   default_world = os.path.join(
     description_pkg,
     'worlds',
-    'empty.world'
+    'obstacles.world'
     )    
 
   world = LaunchConfiguration('world')

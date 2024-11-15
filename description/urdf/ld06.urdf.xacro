@@ -118,15 +118,20 @@
       <axis xyz="0 0 0" />
     </joint>
     <!-- <joint name="base_to_lidar_frame_${lidar_prefix}" type="fixed">
+      <parent link="scan" />
+      <child link="lidar_frame_${lidar_prefix}" />
+      <origin xyz="0 0 0" rpy="0 0 -${M_PI / 2}" />
+    </joint> -->
+    <joint name="base_to_lidar_frame_${lidar_prefix}" type="fixed">
       <parent link="base_link" />
       <child link="lidar_frame_${lidar_prefix}" />
       <xacro:insert_block name="joint_pose" />
-    </joint> -->
+    </joint>
 
     <gazebo reference="lidar_frame_${lidar_prefix}">
       <material>Gazebo/Black</material>
 
-      <sensor name="sensor_ray_${lidar_prefix}" type="gpu_lidar">
+      <sensor name="laser" type="gpu_lidar">
         <pose> 0 0 0 0 0 0 </pose>
         <visualize>true</visualize>
         <update_rate>10</update_rate>
@@ -143,7 +148,7 @@
             <max>10.0</max>
           </range>
         </lidar>
-        <topic>/scan_${lidar_prefix}</topic>
+        <topic>/scan</topic>
         <gz_frame_id>lidar_frame_${lidar_prefix}</gz_frame_id>
       </sensor>
     </gazebo>
