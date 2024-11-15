@@ -124,16 +124,16 @@
     </joint> -->
 
     <gazebo reference="lidar_frame_${lidar_prefix}">
+      <material>Gazebo/Black</material>
+
       <sensor name="sensor_ray_${lidar_prefix}" type="ray">
-        <always_on>true</always_on>
-        <update_rate>10</update_rate>
-        <pose>0 0 0 0 0 0</pose>
+        <pose> 0 0 0 0 0 0 </pose>
         <visualize>true</visualize>
-        <ray>
+        <update_rate>10</update_rate>
+        <lidar>
           <scan>
             <horizontal>
               <samples>450</samples>
-              <resolution>1.0</resolution>
               <min_angle>0</min_angle>
               <max_angle>6.28</max_angle>
             </horizontal>
@@ -141,33 +141,16 @@
           <range>
             <min>0.05</min>
             <max>10.0</max>
-            <resolution>0.01</resolution>
           </range>
-          <!-- <noise>
-            <type>gaussian</type>
-            <mean>0.0</mean>
-            <stddev>0.02</stddev>
-          </noise> -->
-        </ray>
-
-        <plugin name="laserscan_${lidar_prefix}" filename="libgazebo_ros_ray_sensor.so">
-          <ros>
-            <remapping>~/out:=/scan_${lidar_prefix}</remapping>
-          </ros>
-          <always_on>true</always_on>
-          <frame_name>lidar_frame_${lidar_prefix}</frame_name>
-          <output_type>sensor_msgs/LaserScan</output_type>
-          <topic_name>/scan_${lidar_prefix}</topic_name>
-          <update_rate>10.0</update_rate>
-        </plugin>
+        </lidar>
+        <topic>/scan_${lidar_prefix}</topic>
+        <gz_frame_id>lidar_frame_${lidar_prefix}</gz_frame_id>
       </sensor>
-      <material>
-        Gazebo/Black
-      </material>
     </gazebo>
+
   </xacro:macro>
 
-<!--
+  <!--
 Copyright (c) 2024 Michael Wimble
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
