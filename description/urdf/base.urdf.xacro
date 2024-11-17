@@ -10,6 +10,8 @@
   <xacro:include filename="$(find description)/urdf/wheel.urdf.xacro" />
   <xacro:include filename="$(find description)/urdf/oakd.urdf.xacro" />
 
+  <xacro:include filename="$(find description)/urdf/lidar.xacro" />
+
   <xacro:arg name="use_ros2_control" default="true" />
   <xacro:arg name="sim_mode" default="false" />
 
@@ -20,7 +22,14 @@
     <xacro:include filename="gazebo_control.xacro" />
   </xacro:unless>
 
-  <link name="base_link">
+  <link name="base_link" />
+  <joint name="chassis_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <child link="chassis" />
+    <parent link="base_link" />
+  </joint>
+
+  <link name="chassis">
     <collision>
       <geometry>
         <cylinder radius="${body_radius}" length="${body_height}" />
@@ -37,7 +46,7 @@
     <xacro:solid_cylinder_inertial rpy="0 0 0" xyz="-0.05 0 0.05" mass_kg="${mass}"
       radius="${body_radius}" length="${body_height}" />
   </link>
-  <gazebo reference="base_link">
+  <gazebo reference="chassis">
     <material>
       Gazebo/Grey
     </material>
@@ -47,8 +56,8 @@
 
   <joint name="base_footprint_joint" type="fixed">
     <origin xyz="0 0 ${base_to_floor_z_offset}" rpy="0 0 0" />
-    <parent link="base_footprint" />
-    <child link="base_link" />
+    <child link="base_footprint" />
+    <parent link="base_link" />
   </joint>
 
   <xacro:wheel
@@ -74,16 +83,9 @@
     mass_kg="0.4"
   />
 
-  <!-- <link name="scan" />
-  <joint name="base_to_scan" type="fixed">
-    <parent link="base_link" />
-    <child link="scan" />
+  <!-- <xacro:ld06 lidar_prefix="top_lidar">
     <origin xyz="0.155 0 0.305" rpy="0 0 -${M_PI / 2}" />
-  </joint> -->
-  <xacro:ld06 lidar_prefix="top_lidar">
-    <!-- <origin xyz="0 0 0" rpy="0 0 0" /> -->
-    <origin xyz="0.155 0 0.305" rpy="0 0 -${M_PI / 2}" />
-  </xacro:ld06>
+  </xacro:ld06> -->
 
   <xacro:diff_drive_controller
     wheel_separation="${wheel_pos_y * 2}"
