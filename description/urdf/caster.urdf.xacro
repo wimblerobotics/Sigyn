@@ -36,7 +36,7 @@
     </gazebo>
 
     <joint name="caster_wheel_joint" type="fixed">
-      <parent link="base_link" />
+      <parent link="chassis" />
       <child link="caster_wheel_link" />
       <origin
         xyz="${caster_wheel_x} 0 -${wheel_radius + gear_box_center_height - caster_radius + 0.007}"

@@ -14,7 +14,7 @@ diff_cont:
 
     publish_rate: 50.0
 
-    base_frame_id: base_footprint
+    base_frame_id: base_link
 
     left_wheel_names: ['left_wheel_joint']
     right_wheel_names: ['right_wheel_joint']
