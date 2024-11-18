@@ -6,7 +6,7 @@ amcl: # See: https://assets.researchsquare.com/files/rs-225880/v1_covered.pdf?c=
     alpha3: 0.20 #0.2  # Expected process noise in odometry’s translation estimate from translation.
     alpha4: 0.20 #0.2  # Expected process noise in odometry’s translation estimate from rotation.
     alpha5: 0.20       # For Omni models only: translation noise.
-    base_frame_id: "base_footprint"
+    base_frame_id: "base_link"
     beam_skip_distance: 0.5 # Ignore beams that most particles disagree with in Likelihood field model. Maximum distance to consider skipping for (m).
     beam_skip_error_threshold: 0.9  # Percentage of beams after not matching map to force full update due to bad convergance.
     beam_skip_threshold: 0.3  # Percentage of beams required to skip.
@@ -14,7 +14,7 @@ amcl: # See: https://assets.researchsquare.com/files/rs-225880/v1_covered.pdf?c=
     global_frame_id: "map"  # The name of the coordinate frame published by the localization system.
     lambda_short: 0.1   # Exponential decay parameter for z_short part of model.
     laser_likelihood_max_dist: 2.0 # Maximum distance to do obstacle inflation on map, for use in likelihood_field model.
-    laser_max_range: -1.0   # Maximum scan range to be considered, -1.0 will cause the laser’s reported maximum range to be used.
+    laser_max_range: 100.0   # Maximum scan range to be considered, -1.0 will cause the laser’s reported maximum range to be used.
     laser_min_range: -1.0   # Minimum scan range to be considered, -1.0 will cause the laser’s reported minimum range to be used.
     laser_model_type: "likelihood_field" # Which model to use, either beam, likelihood_field, or likelihood_field_prob.
     max_beams: 450          # How many evenly-spaced beams in each scan to be used when updating the filter.
@@ -23,21 +23,21 @@ amcl: # See: https://assets.researchsquare.com/files/rs-225880/v1_covered.pdf?c=
     odom_frame_id: "odom"   # Which frame to use for odometry.
     pf_err: 0.05            # Particle Filter population error.  
     pf_z: 0.99              # Particle filter population density.
-    recovery_alpha_fast: 0.01  # Exponential decay rate for the fast average weight filter, used in deciding when to recover by adding random poses.
-    recovery_alpha_slow: 0.001 # Exponential decay rate for the slow average weight filter, used in deciding when to recover by adding random poses. A good value might be 0.001.
+    recovery_alpha_fast: 0.0 ###0.01  # Exponential decay rate for the fast average weight filter, used in deciding when to recover by adding random poses.
+    recovery_alpha_slow: 0.0 ###0.001 # Exponential decay rate for the slow average weight filter, used in deciding when to recover by adding random poses. A good value might be 0.001.
     resample_interval: 1    # Number of filter updates required before resampling.
     robot_model_type: "nav2_amcl::DifferentialMotionModel" # The fully-qualified type of the plugin class.
     save_pose_rate: 0.5     # Maximum rate (Hz) at which to store the last estimated pose and covariance to the parameter server.
     sigma_hit: 0.2          # Standard deviation for Gaussian model used in z_hit part of the model.
     tf_broadcast: true      # Set this to false to prevent amcl from publishing the transform between the global frame and the odometry frame.
-    transform_tolerance: 0.3 # Time with which to post-date the transform that is published, to indicate that this transform is valid into the future.
+    transform_tolerance: 1.0 # Time with which to post-date the transform that is published, to indicate that this transform is valid into the future.
     # One degree = 0.017453278 radians
     update_min_a: 0.01745   # Rotational movement required before performing a filter update.
     update_min_d: 0.05      # Translational movement required before performing a filter update.
-    z_hit: 0.95             # Mixture weight for z_hit part of model, sum of all used z weight must be 1. 
-    z_max: 0.001            # Mixture weight for z_max part of model, sum of all used z weight must be 1. Beam uses all 4, likelihood model uses z_hit and z_rand.
-    z_rand: 0.05            # Mixture weight for z_rand part of model, sum of all used z weight must be 1.
-    z_short: 0.001          # Mixture weight for z_short part of model, sum of all used z weight must be 1.
+    z_hit: 0.5 ###0.95             # Mixture weight for z_hit part of model, sum of all used z weight must be 1. 
+    z_max: 0.05 ###0.001            # Mixture weight for z_max part of model, sum of all used z weight must be 1. Beam uses all 4, likelihood model uses z_hit and z_rand.
+    z_rand: 0.5 ###0.05            # Mixture weight for z_rand part of model, sum of all used z weight must be 1.
+    z_short: 0.05 ###0.001          # Mixture weight for z_short part of model, sum of all used z weight must be 1.
     scan_topic: scan
     set_initial_pose: true # Causes AMCL to set initial pose from the initial_pose* parameters instead of waiting for the initial_pose message.
     initial_pose:
@@ -74,125 +74,338 @@ bt_navigator:
 
 controller_server:
   ros__parameters:
-    controller_frequency: 20.0
-    min_x_velocity_threshold: 0.001
-    min_y_velocity_threshold: 0.5
-    min_theta_velocity_threshold: 0.001
-    failure_tolerance: 0.3
-    progress_checker_plugins: ["progress_checker"]
-    goal_checker_plugins: ["general_goal_checker"] # "precise_goal_checker"
-    controller_plugins: ["FollowPath"]
-    use_realtime_priority: false
+    controller_frequency: 20.0          # Frequency to run controller (Hz). cmd_vel will be published at the frequency.
+    controller_plugins: ["FollowPath"]  # List of mapped names for controller plugins for processing requests and parameters.
+    failure_tolerance: 0.3              # Max duration controller plugin can fail before FollowPath action fails.
+    goal_checker_plugins: ["general_goal_checker"] # Mapped name for goal checker plugin for checking goal is reached. 
+    min_theta_velocity_threshold: 0.001 # Set cmd_vel theta-velocity to zero if less than this.
+    min_x_velocity_threshold: 0.001     # Set cmd_vel x-velocity to zero if less than this.
+    min_y_velocity_threshold: 0.0       # Set cmd_vel y-velocity to zero if less than this.
+    odom_topic: "odom"                  # Topic to get instantaneous measurement of speed from
+    progress_checker_plugins: ["progress_checker"] # Mapped name for progress checker plugin for checking progress made by robot.
+    speed_limit_topic: "speed_limit"     # Speed limiting topic name to subscribe.
+    use_realtime_priority: False        # Note, requires edit of /etc/security/limits.conf
+    use_sim_time: False
 
     # Progress checker parameters
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
-      required_movement_radius: 0.5
-      movement_time_allowance: 10.0
+      movement_time_allowance: 3.0  # Maximum amount of time a robot has to move the minimum radius (s).
+      required_movement_radius: 0.2 # Minimum amount a robot must move to be progressing to goal (m).
+
     # Goal checker parameters
-    #precise_goal_checker:
-    #  plugin: "nav2_controller::SimpleGoalChecker"
-    #  xy_goal_tolerance: 0.25
-    #  yaw_goal_tolerance: 0.25
-    #  stateful: True
     general_goal_checker:
-      stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.25
-      yaw_goal_tolerance: 0.25
+      stateful: True                  # True => goal checker will not check if the xy position matches again once it is found to be true.
+      xy_goal_tolerance: 0.0508       # Tolerance to meet goal completion criteria (m).
+      yaw_goal_tolerance: 0.08726639  # Tolerance to meet goal completion criteria (rad).
+
+    # MPPI Controller parameters
     FollowPath:
+      batch_size: 2000            # Count of randomly sampled candidate trajectories from 
+                                  # current optimal control sequence in a given iteration.
+      gamma: 0.015                # A trade-off between smoothness (high) and low energy (low).
+      iteration_count: 1          # Iteration count in the MPPI algorithm. 
+                                  # Recommended to remain as 1 and instead prefer larger batch sizes.
+      model_dt: 0.05              # Length of each time step’s dt timestep, in seconds.
+      motion_model: "DiffDrive"   # The desired motion model to use for trajectory planning. 
       plugin: "nav2_mppi_controller::MPPIController"
-      time_steps: 56
-      model_dt: 0.05
-      batch_size: 2000
-      ax_max: 3.0
-      ax_min: -3.0
-      ay_max: 3.0
-      az_max: 3.5
-      vx_std: 0.2
-      vy_std: 0.2
-      wz_std: 0.4
-      vx_max: 0.5
-      vx_min: -0.35
-      vy_max: 0.5
-      wz_max: 1.9
-      iteration_count: 1
-      prune_distance: 1.7
-      transform_tolerance: 0.1
-      temperature: 0.3
-      gamma: 0.015
-      motion_model: "DiffDrive"
-      visualize: true
-      regenerate_noises: true
+      prune_distance: 1.7         # Distance ahead of nearest point on path to robot to prune path to.
+      reset_period: 1.0           # Required time of inactivity to reset optimizer (only in Humble).
+      retry_attempt_limit: 1      # Number of attempts to find feasible trajectory.
+      temperature: 0.3            # Selectiveness of trajectories by their costs.
+      time_steps: 56              # Number of time steps (points) in candidate trajectories.
+      transform_tolerance: 0.3    # Time tolerance for data transformations with TF (s).
+      visualize: false            # Whether to publish debugging trajectories for visualization.
+
+      vx_max: 0.5                 # Target maximum forward velocity (m/s).
+      vx_min: -0.35               # Maximum reverse velocity (m/s).Maximum reverse velocity (m/s).
+      vx_std: 0.2                 # Sampling standard deviation for Vx.
+      vy_max: 0.5                 # Target maximum lateral velocity (m/s) if using Omni model.
+      vy_std: 0.2                 # Sampling standard deviation for Vy.
+      wz_max: 1.9                 # Maximum rotational velocity (rad/s).
+      wz_std: 0.4                 # Sampling standard deviation for Wz (angular velocity).
+
       TrajectoryVisualizer:
-        trajectory_step: 5
-        time_step: 3
-      AckermannConstraints:
-        min_turning_r: 0.2
-      critics: [
-        "ConstraintCritic", "CostCritic", "GoalCritic",
-        "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic",
-        "PathAngleCritic", "PreferForwardCritic"]
+        trajectory_step: 5        # The step between trajectories to visualize to downsample candidate trajectory pool.
+        time_step: 3              # The step between points on trajectories to visualize to downsample trajectory density.
+
+      # AckermannConstrains:
+      #   min_turning_r: 0.2
+      
+      critics:
+        [
+        "ConstraintCritic", 
+        "ObstaclesCritic", 
+        "GoalCritic", 
+        "GoalAngleCritic", 
+        "PathAlignCritic", 
+        "PathFollowCritic", 
+        "PathAngleCritic", 
+        "PreferForwardCritic"
+        ]
       ConstraintCritic:
-        enabled: true
+        enabled: True
         cost_power: 1
         cost_weight: 4.0
       GoalCritic:
-        enabled: true
+        enabled: True
         cost_power: 1
         cost_weight: 5.0
-        threshold_to_consider: 1.4
+        threshold_to_consider: 1.0
       GoalAngleCritic:
-        enabled: true
+        enabled: True
         cost_power: 1
         cost_weight: 3.0
-        threshold_to_consider: 0.5
+        threshold_to_consider: 0.4
       PreferForwardCritic:
-        enabled: true
+        enabled: True
         cost_power: 1
         cost_weight: 5.0
-        threshold_to_consider: 0.5
-      CostCritic:
-        enabled: true
+        threshold_to_consider: 0.4
+      ObstaclesCritic:
+        enabled: True
         cost_power: 1
-        cost_weight: 3.81
-        critical_cost: 300.0
-        consider_footprint: true
-        collision_cost: 1000000.0
-        near_goal_distance: 1.0
-        trajectory_point_step: 2
+        repulsion_weight: 1.5
+        critical_weight: 20.0
+        consider_footprint: false
+        collision_cost: 10000.0
+        collision_margin_distance: 0.1
+        near_goal_distance: 0.5
+        inflation_radius: 0.55 # (only in Humble)
+        cost_scaling_factor: 10.0 # (only in Humble)
       PathAlignCritic:
-        enabled: true
+        enabled: True
         cost_power: 1
         cost_weight: 14.0
         max_path_occupancy_ratio: 0.05
-        trajectory_point_step: 4
-        threshold_to_consider: 0.5
+        trajectory_point_step: 3
+        threshold_to_consider: 0.40
         offset_from_furthest: 20
-        use_path_orientations: false
       PathFollowCritic:
-        enabled: true
+        enabled: True
         cost_power: 1
         cost_weight: 5.0
         offset_from_furthest: 5
-        threshold_to_consider: 1.4
+        threshold_to_consider: 0.6
       PathAngleCritic:
-        enabled: true
+        enabled: True
         cost_power: 1
         cost_weight: 2.0
         offset_from_furthest: 4
-        threshold_to_consider: 0.5
+        threshold_to_consider: 0.40
         max_angle_to_furthest: 1.0
-        mode: 0
       # TwirlingCritic:
-      #   enabled: true
+      #   enabled: True
       #   twirling_cost_power: 1
       #   twirling_cost_weight: 10.0
+
+# controller_server:
+#   ros__parameters:
+#     # See "Notes to Users" in https://index.ros.org/p/nav2_mppi_controller/github-ros-planning-navigation2/
+#     # Note, time_steps * vx_max * model_dt determines what local costmap size should be.
+#     # E.g. 241800 * 0.25 * 0.033 = 1.485 costmap radius.
+#     # current_goal_checker: ["general_goal_checker"]
+#     controller_frequency: 30.0 # Frequency to run controller (Hz).
+#     controller_plugins: ["FollowPath"] # List of mapped names for controller plugins for processing requests and parameters.
+#     failure_tolerance: 0.3 # Max duration controller plugin can fail before FollowPath action fails.
+#     goal_checker_plugins: ["general_goal_checker"] # Mapped name for goal checker plugin for checking goal is reached. 
+#     min_theta_velocity_threshold: 0.001 # Set z-vel to zero if less than this.
+#     min_x_velocity_threshold: 0.001 # Set x-vel to zero if less than this.
+#     min_y_velocity_threshold: 0.0 # Set y-vel to zero if less than this.
+#     progress_checker_plugin: "progress_checker" # Mapped name for progress checker plugin for checking progress made by robot.
+#     use_realtime_priority: False # Note, requires edit of /etc/security/limits.conf
+#     use_sim_time: False
+
+#     # Progress checker parameters
+#     progress_checker:
+#       plugin: "nav2_controller::SimpleProgressChecker"
+#       required_movement_radius: 0.5 # Minimum amount a robot must move to be progressing to goal (m).
+#       movement_time_allowance: 10.0 # Maximum amount of time a robot has to move the minimum radius (s).
+
+#     # General goal checker parameters
+#     general_goal_checker:
+#       stateful: False # Whether to check for XY position tolerance after rotating to goal orientation
+#           # in case of minor localization changes.
+#       plugin: "nav2_controller::SimpleGoalChecker"
+#       xy_goal_tolerance: 0.15
+#       yaw_goal_tolerance: 0.2
+#     # DWB parameters
+#     FollowPath:
+#       plugin: "dwb_core::DWBLocalPlanner"
+#       debug_trajectory_details: False
+#       min_vel_x: -0.01 # 0.0
+#       min_vel_y: 0.0
+#       max_vel_x: 0.2 # 0.26
+#       max_vel_y: 0.0
+#       max_vel_theta: 0.3
+#       min_speed_xy: 0.0
+#       max_speed_xy: 0.26
+#       min_speed_theta: -0.3
+#       # Add high threshold velocity for turtlebot 3 issue.
+#       # https://github.com/ROBOTIS-GIT/turtlebot3_simulations/issues/75
+#       acc_lim_x: 1.0
+#       acc_lim_y: 0.0
+#       acc_lim_theta: 0.8
+#       decel_lim_x: -1.0
+#       decel_lim_y: 0.0
+#       decel_lim_theta: -0.8
+#       vx_samples: 50 # 20
+#       vy_samples: 5
+#       vtheta_samples: 50 # 20
+#       sim_time: 2.0 # 1.7
+#       linear_granularity: 0.05
+#       angular_granularity: 0.025
+#       transform_tolerance: 0.2
+#       xy_goal_tolerance: 0.05
+#       trans_stopped_velocity: 0.05
+#       short_circuit_trajectory_evaluation: True
+#       stateful: True
+#       critics: [
+#         "RotateToGoal", 
+#         "Oscillation", 
+#         "BaseObstacle", 
+#         "GoalAlign", 
+#         "PathAlign", 
+#         "PathDist", 
+#         "GoalDist"]
+#       BaseObstacle:
+#         scale: 20.0 # 0.02
+#       GoalAlign:
+#         scale: 15.0 # 24.0
+#         forward_point_distance: 0.3
+#       GoalDist:
+#         scale: 20.0  # 24.0
+#       PathAlign:
+#         forward_point_distance: 0.4 # 0.0508
+#         scale: 32.0 # 32.0
+#       PathDist:
+#         scale: 32.0 # 32.0
+#       RotateToGoal:
+#         lookahead_time: 0.5 # -1.0
+#         scale: 8.0
+#         slowing_factor: 5.0
+
+# controller_server:
+#   ros__parameters:
+#     controller_frequency: 30.0
+#     min_x_velocity_threshold: 0.001
+#     min_y_velocity_threshold: 0.5
+#     min_theta_velocity_threshold: 0.001
+#     failure_tolerance: 0.3
+#     progress_checker_plugins: ["progress_checker"]
+#     goal_checker_plugins: ["general_goal_checker"] # "precise_goal_checker"
+#     controller_plugins: ["FollowPath"]
+#     use_realtime_priority: false
+
+#     # Progress checker parameters
+#     progress_checker:
+#       plugin: "nav2_controller::SimpleProgressChecker"
+#       required_movement_radius: 0.5
+#       movement_time_allowance: 10.0
+#     # Goal checker parameters
+#     #precise_goal_checker:
+#     #  plugin: "nav2_controller::SimpleGoalChecker"
+#     #  xy_goal_tolerance: 0.25
+#     #  yaw_goal_tolerance: 0.25
+#     #  stateful: True
+#     general_goal_checker:
+#       stateful: True
+#       plugin: "nav2_controller::SimpleGoalChecker"
+#       xy_goal_tolerance: 0.15 ###0.25
+#       yaw_goal_tolerance: 0.2 ###0.25
+#     FollowPath:
+#       plugin: "nav2_mppi_controller::MPPIController"
+#       time_steps: 56
+#       model_dt: 0.05
+#       batch_size: 2000
+#       ax_max: 1.0 ###3.0
+#       ax_min: -1.0 ###-3.0
+#       ay_max: 3.0
+#       az_max: 0.8 ###3.5
+#       vx_std: 0.2
+#       vy_std: 0.2
+#       wz_std: 0.2 ###0.4
+#       vx_max: 0.2 ###0.5
+#       vx_min: -0.2 ###-0.35
+#       vy_max: 0.5
+#       wz_max: 0.3 ###1.9
+#       iteration_count: 1
+#       prune_distance: 1.7
+#       transform_tolerance: 0.3 ####0.1
+#       temperature: 0.3
+#       gamma: 0.015
+#       motion_model: "DiffDrive"
+#       visualize: false ###true
+#       regenerate_noises: false ###true
+#       TrajectoryVisualizer:
+#         trajectory_step: 5
+#         time_step: 3
+#       AckermannConstraints:
+#         min_turning_r: 0.2
+#       critics: [
+#         "ConstraintCritic", "CostCritic", "GoalCritic",
+#         "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic",
+#         "PathAngleCritic", "PreferForwardCritic"]
+#       ConstraintCritic:
+#         enabled: true
+#         cost_power: 1
+#         cost_weight: 4.0
+#       GoalCritic:
+#         enabled: true
+#         cost_power: 1
+#         cost_weight: 5.0
+#         threshold_to_consider: 0.5 ###1.4
+#       GoalAngleCritic:
+#         enabled: true
+#         cost_power: 1
+#         cost_weight: 3.0
+#         threshold_to_consider: 0.5
+#       PreferForwardCritic:
+#         enabled: true
+#         cost_power: 1
+#         cost_weight: 5.0
+#         threshold_to_consider: 0.5
+#       CostCritic:
+#         enabled: true
+#         cost_power: 1
+#         cost_weight: 3.81
+#         critical_cost: 300.0
+#         consider_footprint: false ###true
+#         collision_cost: 1000000.0
+#         near_goal_distance: 0.5 ###1.0
+#         trajectory_point_step: 2
+#       PathAlignCritic:
+#         enabled: true
+#         cost_power: 1
+#         cost_weight: 10.0 ###14.0
+#         max_path_occupancy_ratio: 0.07 ###0.05
+#         trajectory_point_step: 4
+#         threshold_to_consider: 0.5
+#         offset_from_furthest: 20
+#         use_path_orientations: false
+#       PathFollowCritic:
+#         enabled: true
+#         cost_power: 1
+#         cost_weight: 5.0
+#         offset_from_furthest: 5
+#         threshold_to_consider: 0.5 ###
+#       PathAngleCritic:
+#         enabled: true
+#         cost_power: 1
+#         cost_weight: 2.2 ###2.0
+#         offset_from_furthest: 20 ###4
+#         threshold_to_consider: 0.5
+#         max_angle_to_furthest: 0.37 ###1.0
+#         mode: 0
+#       # TwirlingCritic:
+#       #   enabled: true
+#       #   twirling_cost_power: 1
+#       #   twirling_cost_weight: 10.0
 
 local_costmap:
   local_costmap:
     ros__parameters:
-      use_sim_time: True
       # always_send_full_costmap: True # Whether to send full costmap every update, rather than updates.
       global_frame: odom
       height: 3 # Height of costmap (m).
@@ -217,13 +430,34 @@ local_costmap:
         # "sonar_layer",
         "lidar_layer",
         # "oakd_layer",
+        # "voxel_layer",
         "inflation_layer"]
 
+      voxel_layer:
+        plugin: "nav2_costmap_2d::VoxelLayer"
+        enabled: True
+        publish_voxel_map: True
+        origin_z: 0.0
+        z_resolution: 0.05
+        z_voxels: 16
+        max_obstacle_height: 2.0
+        mark_threshold: 0
+        observation_sources: scan
+        scan:
+          topic: /scan
+          max_obstacle_height: 2.0
+          clearing: True
+          marking: True
+          data_type: "LaserScan"
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
+          obstacle_max_range: 2.5
+          obstacle_min_range: 0.0
       inflation_layer:
         enabled: True
-        cost_scaling_factor: 2.0 # Exponential decay factor across inflation radius.
-        inflate_around_unknown: True # Whether to inflate unknown cells.
-        inflate_unknown: False # Whether to inflate unknown space.
+        cost_scaling_factor: 3.0 ###2.0 # Exponential decay factor across inflation radius.
+        ###inflate_around_unknown: True # Whether to inflate unknown cells.
+        ###inflate_unknown: False # Whether to inflate unknown space.
         inflation_radius: 0.3 # Radius to inflate costmap around lethal obstacles.
         plugin: "nav2_costmap_2d::InflationLayer"
 
@@ -305,7 +539,6 @@ global_costmap:
       track_unknown_space: True # If false, treats unknown space as free space, else as unknown space.
       transform_tolerance: 0.3
       update_frequency: 1.0 # Costmap update frequency.
-      use_sim_time: True
 
       plugins: [
         "static_layer", 
@@ -334,10 +567,10 @@ global_costmap:
           inf_is_valid: True # Are infinite returns from laser scanners valid measurements to raycast.
           marking: True # Whether source should mark in costmap.
           max_obstacle_height: 2.0 # Maximum height to add return to occupancy grid.
-          min_obstacle_height: 0.0 # Minimum height to add return to occupancy grid.
-          obstacle_max_range: 8.0 # Maximum range to mark obstacles in costmap.
+          ###min_obstacle_height: 0.0 # Minimum height to add return to occupancy grid.
+          obstacle_max_range: 2.5 ###8.0 # Maximum range to mark obstacles in costmap.
           obstacle_min_range: 0.0 # Minimum range to mark obstacles in costmap.
-          raytrace_max_range: 8.0 # Maximum range to raytrace clear obstacles from costmap.
+          raytrace_max_range: 3.0 ###8.0 # Maximum range to raytrace clear obstacles from costmap.
           raytrace_min_range: 0.0 # Minimum range to raytrace clear obstacles from costmap.
           topic: /scan # Topic of data.
 
@@ -410,7 +643,7 @@ behavior_server:
     local_frame: odom
     global_frame: map
     robot_base_frame: base_link
-    transform_tolerance: 0.1
+    transform_tolerance: 0.3 #####0.1
     simulate_ahead_time: 2.0
     max_rotational_vel: 1.0
     min_rotational_vel: 0.4
@@ -443,12 +676,12 @@ velocity_smoother:
 
 collision_monitor:
   ros__parameters:
-    base_frame_id: "base_footprint"
+    base_frame_id: "base_link"
     odom_frame_id: "odom"
     cmd_vel_in_topic: "cmd_vel_smoothed"
     cmd_vel_out_topic: "cmd_vel"
     state_topic: "collision_monitor_state"
-    transform_tolerance: 0.2
+    transform_tolerance: 0.3 #####0.2
     source_timeout: 1.0
     base_shift_correction: True
     stop_pub_timeout: 2.0
@@ -520,7 +753,7 @@ docking_server:
 
 loopback_simulator:
   ros__parameters:
-    base_frame_id: "base_footprint"
+    base_frame_id: "base_link"
     odom_frame_id: "odom"
     map_frame_id: "map"
     scan_frame_id: "base_scan"  # tb4_loopback_simulator.launch.py remaps to 'rplidar_link'
