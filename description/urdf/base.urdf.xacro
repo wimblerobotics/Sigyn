@@ -10,8 +10,6 @@
   <xacro:include filename="$(find description)/urdf/wheel.urdf.xacro" />
   <xacro:include filename="$(find description)/urdf/oakd.urdf.xacro" />
 
-  <xacro:include filename="$(find description)/urdf/lidar.xacro" />
-
   <xacro:arg name="use_ros2_control" default="true" />
   <xacro:arg name="sim_mode" default="false" />
 
@@ -83,9 +81,9 @@
     mass_kg="0.4"
   />
 
-  <!-- <xacro:ld06 lidar_prefix="top_lidar">
-    <origin xyz="0.155 0 0.305" rpy="0 0 -${M_PI / 2}" />
-  </xacro:ld06> -->
+  <xacro:ld06 lidar_prefix="top_lidar">
+    <origin xyz="0.155 0 0.300" rpy="0 0 -${M_PI / 2}" />
+  </xacro:ld06>
 
   <xacro:diff_drive_controller
     wheel_separation="${wheel_pos_y * 2}"
