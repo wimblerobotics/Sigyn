@@ -26,7 +26,7 @@ def generate_launch_description():
             parameters=[
                 {'serial_port': LaunchConfiguration("serial_port")},
                 {'topic_name': "scan"},
-                {'lidar_frame': "scan"},
+                {'lidar_frame': "lidar_frame_top_lidar"},
                 {'range_threshold': LaunchConfiguration("range_threshold")}
             ],
             remappings=[('scan', 'raw_scan')]
