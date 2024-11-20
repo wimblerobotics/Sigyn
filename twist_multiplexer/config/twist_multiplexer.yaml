@@ -1,0 +1,20 @@
+twist_multiplexer_node:
+  ros__parameters:
+    loop_rate: 100.0
+    topics:
+      -
+        name: "joystick"
+        topic: "cmd_vel_joystick"
+        timeout: 0.5
+        priority: 30
+      -
+        name: "keyboard"
+        topic: "cmd_vel_keyboard"
+        timeout: 0.5
+        priority: 20
+      -
+        name: "navigation"
+        topic: "cmd_vel_nav"
+        timeout: 0.5
+        priority: 10
+    

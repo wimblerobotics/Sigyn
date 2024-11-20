@@ -1,5 +1,5 @@
 {
-  "python.autoComplete.extraPaths": [
+   "python.autoComplete.extraPaths": [
     "/home/ros/s_ws/install/rviz_2d_overlay_msgs/local/lib/python3.10/dist-packages",
     "/home/ros/s_ws/build/py_scripts",
     "/home/ros/s_ws/install/py_scripts/lib/python3.10/site-packages",
@@ -14,5 +14,5 @@
     "/home/ros/s_ws/install/msgs/local/lib/python3.10/dist-packages",
     "/opt/ros/humble/lib/python3.10/site-packages",
     "/opt/ros/humble/local/lib/python3.10/dist-packages"
-  ]
+  ],
 }

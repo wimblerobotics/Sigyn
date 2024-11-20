@@ -1,0 +1,8 @@
+# Requested movement
+float32 goal_position
+---
+# Result
+float32 final_position
+---
+# Feedback
+float32 current_position
