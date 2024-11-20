@@ -53,7 +53,7 @@
   <link name="base_footprint" />
 
   <joint name="base_footprint_joint" type="fixed">
-    <origin xyz="0 0 ${base_to_floor_z_offset}" rpy="0 0 0" />
+    <origin xyz="0 0 -${base_to_floor_z_offset}" rpy="0 0 0" />
     <child link="base_footprint" />
     <parent link="base_link" />
   </joint>
