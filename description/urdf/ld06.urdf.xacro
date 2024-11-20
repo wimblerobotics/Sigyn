@@ -50,7 +50,9 @@
       </visual>
 
       <visual> <!-- cylinder -->
-        <origin xyz="0 0.017 ${(ld06_base_box_height + ld06_box_height) +(ld06_cylinder_height / 2)}" rpy="0 0 0" />
+        <origin
+          xyz="0 0.017 ${(ld06_base_box_height + ld06_box_height) +(ld06_cylinder_height / 2)}"
+          rpy="0 0 0" />
         <geometry>
           <cylinder radius="${ld06_cylinder_radius}" length="${ld06_cylinder_height}" />
         </geometry>
@@ -64,16 +66,24 @@
         <material name="ld06_${lidar_prefix}_grey" />
         <origin xyz="0 ${ld06_base_box_width / 4} ${(ld06_base_box_height / 2)}" rpy="0 0 0" />
       </visual>
- 
-     <xacro:solid_cuboid_inertial rpy="0 0 0" xyz="0 0 0" mass_kg="0.001" x="${ld06_base_box_width}" y="${ld06_base_box_width / 2}" z="${ld06_base_box_height}" />  
+
+      <xacro:solid_cuboid_inertial rpy="0 0 0" xyz="0 0 0" mass_kg="0.001"
+        x="${ld06_base_box_width}" y="${ld06_base_box_width / 2}" z="${ld06_base_box_height}" />
     </link>
+
+    <link name="lidar_beam_${lidar_prefix}"></link>
+    <joint name="laser_beam_joint" type="fixed">
+      <parent link="lidar_frame_${lidar_prefix}" />
+      <child link="lidar_beam_${lidar_prefix}" />
+      <origin xyz="0 0 0.04" rpy="0 0 0" />
+    </joint>
 
     <gazebo reference="lidar_frame_${lidar_prefix}">
       <material>Gazebo/Black</material>
 
       <sensor name="laser" type="gpu_lidar">
         <pose> 0 0 0 0 0 0 </pose>
-        <visualize>false</visualize>
+        <visualize>true</visualize>
         <update_rate>10</update_rate>
         <lidar>
           <scan>
@@ -89,8 +99,16 @@
           </range>
         </lidar>
         <topic>scan</topic>
-        <gz_frame_id>lidar_frame_${lidar_prefix}</gz_frame_id>
+        <gz_frame_id>lidar_beam_${lidar_prefix}</gz_frame_id>
       </sensor>
+
+      <!-- Add the gazebo_ros plugin -->
+      <plugin name="gazebo_ros_laser_controller" filename="libgazebo_ros_gpu_laser.so">
+        <alwaysOn>true</alwaysOn>
+        <updateRate>10</updateRate>
+        <topicName>/scan</topicName>
+        <frameName>lidar_beam_${lidar_prefix}</frameName>
+      </plugin>
     </gazebo>
   </xacro:macro>
 
