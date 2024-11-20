@@ -115,51 +115,20 @@ if ! shopt -oq posix; then
     . /etc/bash_completion
   fi
 fi
-
-alias arduino='/home/ros/arduino-1.8.19/arduino&'
 alias cb='colcon build --symlink-install'
+alias cgcm='ros2 service call /global_costmap/clear_entirely_global_costmap nav2_msgs/srv/ClearEntireCostmap'
+alias clcm='ros2 service call /local_costmap/clear_entirely_local_costmap nav2_msgs/srv/ClearEntireCostmap'
 alias fr='ros2 run tf2_tools view_frames'
+alias gripper='ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/teensy_gripper'
 alias nav='clear;ros2 launch base navigation.launch.py'
-alias pm='ros2 topic pub --rate 10 /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.2}}"'
-#alias record='/home/ros/raven_ws/src/raven/raven_base/scripts/rosbag_record.sh'
 alias rd='rosdep install --from-paths src --ignore-src -r -y'
-#alias record='rm -r ~/bag;sh /home/ros/raven_ws/install/raven_base/share/raven_base/scripts/rosbag_record.sh'
-#alias roam='DO_RVIZ=true DO_JOYSTICK=false DO_NAV2=true ros2 launch raven_base roam.launch.py'
-#alias roam_nrviz='DO_RVIZ=false DO_JOYSTICK=false DO_NAV2=true ros2 launch raven_base roam.launch.py'
-#alias roam_joy='DO_RVIZ=true DO_JOYSTICK=true DO_NAV2=true ros2 launch raven_base roam_launch.py'
+alias redoudev='sudo service udev restart;sudo udevadm control --reload-rules;sudo udevadm trigger'
+alias rms='ros2 launch nav2_map_server map_saver_server.launch.py'
 alias rvs='rviz2 -d ~/sigyn_ws/src/Sigyn/rviz/config/config.rviz'
-alias save_map='ros2 run nav2_map_server map_saver_cli -f ~/map_`date +"%Y_%m_%d_%H%M"`'
-#alias save_map='ros2 service call /map_saver/save_map nav2_msgs/srv/SaveMap "{map_topic: map, map_url: src/s/base/maps/mapx, image_format: pgm, map_mode: trinary, free_thresh: 0.25, occupied_thresh: 0.65}"'
-#alias s2='source /home/ros/setupRos2.sh'
-alias sim='clear;ros2 launch base sim.launch.py'
+alias sr='ssh -YC sigyn7900'
 alias teensy='ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/teensy_sensor'
 alias tele='ros2 run teleop_twist_keyboard teleop_twist_keyboard'
-alias toggle='ros2 service call /rosbag2_player/toggle_paused rosbag2_interfaces/srv/TogglePaused'
-alias redoudev='sudo service udev restart;sudo udevadm control --reload-rules;sudo udevadm trigger'
-alias dla="ros2 run --prefix 'gdbserver localhost:3000' line_finder laser_accumulator"
 
-# Entry point for Depthai demo app, enables to run <depthai_launcher> in terminal
-export PATH=$PATH:/home/ros/Luxonis/depthai/entrypoint
-export LINOROBOT2_BASE=2wd
-export LINOROBOT2_LASER_SENSOR=ldlidar
-export LINOROBOT2_DEPTH_SENSOR=realsense
-#export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-
-source /opt/ros/humble/setup.bash
-source ~/microros_humble_ws/install/setup.bash
-source /usr/share/gazebo/setup.bash
+source /opt/ros/jazzy/setup.bash
 source ~/sigyn_ws/install/setup.bash
-
-export CYCLONEDDS_URI="
-<CycloneDDS>
-   <Domain>
-     <General>
-        <Interfaces>
-          <NetworkInterface name='wlp8s0' />
-        </Interfaces>
-    </General>
-   </Domain>
-</CycloneDDS>"
-export ROS_DOMAIN_ID=0
-export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+source ~/sigyn_microros_ws/install/setup.bash

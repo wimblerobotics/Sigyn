@@ -21,7 +21,7 @@ find_package(urdf REQUIRED)
 
 # Install files.
 install(DIRECTORY
-  launch meshes models urdf worlds
+  config launch meshes models urdf worlds
   DESTINATION share/${PROJECT_NAME}/
 )
 

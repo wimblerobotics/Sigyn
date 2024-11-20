@@ -1,24 +1,26 @@
 {
   "configurations": [
-    {
-      "browse": {
-        "databaseFilename": "${default}",
-        "limitSymbolsToIncludedHeaders": false
-      },
-      "includePath": [
-        "/home/ros/s_ws/install/rviz_2d_overlay_plugins/include/**",
-        "/home/ros/s_ws/install/rviz_2d_overlay_msgs/include/**",
-        "/home/ros/s_ws/install/msgs/include/**",
-        "/home/ros/s_ws/install/ira_laser_tools/include/**",
-        "/opt/ros/humble/include/**",
-        "/usr/include/**"
-      ],
-      "name": "ROS",
-      "intelliSenseMode": "gcc-x64",
-      "compilerPath": "/usr/bin/gcc",
-      "cStandard": "gnu11",
-      "cppStandard": "c++14"
-    }
+      {
+          "name": "Linux",
+          "includePath": [
+              "/opt/ros/jazzy/include/**",
+              "/home/ros/Arduino/libraries/**",
+              "/home/ros/Arduino/libraries/micro_ros_arduino/**",
+              "/home/ros/micro_ros_arduino/src/**",
+              "${workspaceFolder}/**",
+              "/usr/include",
+              "/usr/local/include",
+              "/home/ros/sigyn_ws/install/msgs/include/**",
+              "/home/ros/sigyn_ws/install/ira_laser_tools/include/**",
+              "/usr/include/**",
+              "/home/ros/.arduino15/packages/teensy/hardware/avr/1.59.0/libraries/**"
+                ],
+          "defines": [],
+          "compilerPath": "/usr/bin/gcc",
+          "cStandard": "c11",
+          "cppStandard": "c++17",
+          "intelliSenseMode": "linux-gcc-x64"
+      }
   ],
   "version": 4
 }

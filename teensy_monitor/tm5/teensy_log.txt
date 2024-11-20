@@ -1,0 +1,52 @@
+teensy_log.txt
+ros@raven:~$ teensy
+[1724524746.803453] info     | TermiosAgentLinux.cpp | init                     | running...             | fd: 3
+[1724524746.803645] info     | Root.cpp           | set_verbose_level        | logger setup           | verbose_level: 4
+[1724524746.817618] info     | Root.cpp           | create_client            | create                 | client_key: 0x3CF043A3, session_id: 0x81
+[1724524746.817642] info     | SessionManager.hpp | establish_session        | session established    | client_key: 0x3CF043A3, address: 0
+[1724524746.827399] info     | ProxyClient.cpp    | create_participant       | participant created    | client_key: 0x3CF043A3, participant_id: 0x000(1)
+[1724524746.827670] info     | ProxyClient.cpp    | create_topic             | topic created          | client_key: 0x3CF043A3, topic_id: 0x000(2), participant_id: 0x000(1)
+[1724524746.827884] info     | ProxyClient.cpp    | create_publisher         | publisher created      | client_key: 0x3CF043A3, publisher_id: 0x000(3), participant_id: 0x000(1)
+[1724524746.828172] info     | ProxyClient.cpp    | create_datawriter        | datawriter created     | client_key: 0x3CF043A3, datawriter_id: 0x000(5), publisher_id: 0x000(3)
+[1724524746.828364] info     | ProxyClient.cpp    | create_topic             | topic created          | client_key: 0x3CF043A3, topic_id: 0x001(2), participant_id: 0x000(1)
+[1724524746.828523] info     | ProxyClient.cpp    | create_publisher         | publisher created      | client_key: 0x3CF043A3, publisher_id: 0x001(3), participant_id: 0x000(1)
+[1724524746.828777] info     | ProxyClient.cpp    | create_datawriter        | datawriter created     | client_key: 0x3CF043A3, datawriter_id: 0x001(5), publisher_id: 0x001(3)
+[1724524746.828957] info     | ProxyClient.cpp    | create_topic             | topic created          | client_key: 0x3CF043A3, topic_id: 0x002(2), participant_id: 0x000(1)
+[1724524746.829116] info     | ProxyClient.cpp    | create_publisher         | publisher created      | client_key: 0x3CF043A3, publisher_id: 0x002(3), participant_id: 0x000(1)
+[1724524746.829351] info     | ProxyClient.cpp    | create_datawriter        | datawriter created     | client_key: 0x3CF043A3, datawriter_id: 0x002(5), publisher_id: 0x002(3)
+[1724524746.829541] info     | ProxyClient.cpp    | create_topic             | topic created          | client_key: 0x3CF043A3, topic_id: 0x003(2), participant_id: 0x000(1)
+[1724524746.829698] info     | ProxyClient.cpp    | create_publisher         | publisher created      | client_key: 0x3CF043A3, publisher_id: 0x003(3), participant_id: 0x000(1)
+[1724524746.829927] info     | ProxyClient.cpp    | create_datawriter        | datawriter created     | client_key: 0x3CF043A3, datawriter_id: 0x003(5), publisher_id: 0x003(3)
+[1724524746.830113] info     | ProxyClient.cpp    | create_topic             | topic created          | client_key: 0x3CF043A3, topic_id: 0x004(2), participant_id: 0x000(1)
+[1724524746.830271] info     | ProxyClient.cpp    | create_publisher         | publisher created      | client_key: 0x3CF043A3, publisher_id: 0x004(3), participant_id: 0x000(1)
+[1724524746.830496] info     | ProxyClient.cpp    | create_datawriter        | datawriter created     | client_key: 0x3CF043A3, datawriter_id: 0x004(5), publisher_id: 0x004(3)
+[1724524746.830693] info     | ProxyClient.cpp    | create_topic             | topic created          | client_key: 0x3CF043A3, topic_id: 0x005(2), participant_id: 0x000(1)
+[1724524746.830860] info     | ProxyClient.cpp    | create_publisher         | publisher created      | client_key: 0x3CF043A3, publisher_id: 0x005(3), participant_id: 0x000(1)
+[1724524746.831114] info     | ProxyClient.cpp    | create_datawriter        | datawriter created     | client_key: 0x3CF043A3, datawriter_id: 0x005(5), publisher_id: 0x005(3)
+[1724524746.831308] info     | ProxyClient.cpp    | create_topic             | topic created          | client_key: 0x3CF043A3, topic_id: 0x006(2), participant_id: 0x000(1)
+[1724524746.831473] info     | ProxyClient.cpp    | create_publisher         | publisher created      | client_key: 0x3CF043A3, publisher_id: 0x006(3), participant_id: 0x000(1)
+[1724524746.831715] info     | ProxyClient.cpp    | create_datawriter        | datawriter created     | client_key: 0x3CF043A3, datawriter_id: 0x006(5), publisher_id: 0x006(3)
+[1724524746.831902] info     | ProxyClient.cpp    | create_topic             | topic created          | client_key: 0x3CF043A3, topic_id: 0x007(2), participant_id: 0x000(1)
+[1724524746.832075] info     | ProxyClient.cpp    | create_publisher         | publisher created      | client_key: 0x3CF043A3, publisher_id: 0x007(3), participant_id: 0x000(1)
+[1724524746.832311] info     | ProxyClient.cpp    | create_datawriter        | datawriter created     | client_key: 0x3CF043A3, datawriter_id: 0x007(5), publisher_id: 0x007(3)
+[1724524746.832509] info     | ProxyClient.cpp    | create_topic             | topic created          | client_key: 0x3CF043A3, topic_id: 0x008(2), participant_id: 0x000(1)
+[1724524746.832671] info     | ProxyClient.cpp    | create_publisher         | publisher created      | client_key: 0x3CF043A3, publisher_id: 0x008(3), participant_id: 0x000(1)
+[1724524746.832946] info     | ProxyClient.cpp    | create_datawriter        | datawriter created     | client_key: 0x3CF043A3, datawriter_id: 0x008(5), publisher_id: 0x008(3)
+[1724524746.833151] info     | ProxyClient.cpp    | create_topic             | topic created          | client_key: 0x3CF043A3, topic_id: 0x009(2), participant_id: 0x000(1)
+[1724524746.833329] info     | ProxyClient.cpp    | create_subscriber        | subscriber created     | client_key: 0x3CF043A3, subscriber_id: 0x000(4), participant_id: 0x000(1)
+[1724524746.833582] info     | ProxyClient.cpp    | create_datareader        | datareader created     | client_key: 0x3CF043A3, datareader_id: 0x000(6), subscriber_id: 0x000(4)
+
+
+ros2 topic list
+/cmd_vel
+/main_battery
+/parameter_events
+/roboclaw_status
+/rosout
+/sonar0Sensor
+/sonar1Sensor
+/sonar2Sensor
+/sonar3Sensor
+/teensy_diagnostics
+/teensy_stats
+/wheel_odom
