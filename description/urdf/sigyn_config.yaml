@@ -3,6 +3,11 @@ body:
   height: 0.3
   radius: 0.2286
   mass: 22.0
+caster:
+  mass: 0.4
+  radius: 0.025
+  width: 0.023
+  x_offset: 0.035
 wheels:
   center_offset: 0.025
   gear_box_height: 0.03
