@@ -1,0 +1,18 @@
+name: "Sigyn"
+body:
+  height: 0.3
+  radius: 0.2286
+  mass: 22.0
+wheels:
+  center_offset: 0.025
+  gear_box_height: 0.03
+  gear_box_spacing_from_base: 0.007
+  mass: 0.1
+  offset_to_base: 0.05
+  radius: 0.05
+  width: 0.0254
+  instances:
+    - name: "wheel_left"
+      y_position_multiplier: 1.0
+    - name: "wheel_right"
+      y_position_multiplier: -1.0

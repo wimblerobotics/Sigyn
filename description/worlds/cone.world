@@ -2605,7 +2605,7 @@
           <geometry>
             <mesh>
               <scale>1 1 1</scale>
-              <uri>file:///home/ros/s_ws/install/description/share/description/meshes/OAK-D.dae</uri>
+              <uri>file:///home/ros/sigyn_ws/install/description/share/description/meshes/OAK-D.dae</uri>
             </mesh>
           </geometry>
           <material>
@@ -2711,7 +2711,7 @@
           <geometry>
             <mesh>
               <scale>1 1 1</scale>
-              <uri>file:///home/ros/s_ws/install/description/share/description/meshes/OAK-D.dae</uri>
+              <uri>file:///home/ros/sigyn_ws/install/description/share/description/meshes/OAK-D.dae</uri>
             </mesh>
           </geometry>
           <material>
