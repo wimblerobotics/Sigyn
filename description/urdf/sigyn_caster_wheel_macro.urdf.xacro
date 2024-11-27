@@ -1,8 +1,10 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
   <xacro:macro name="caster_wheel_upright" params="config name y_offset_multiplier">
+    <xacro:property name="pi" value="3.14159265359" />
     <xacro:property name="chassis_bottom" value="${config.wheels.radius + (config.wheels.gear_box_height / 2) + config.wheels.gear_box_spacing_from_base}" />
     <xacro:property name="upright_width" value="0.01" />
+    <xacro:property name="cf_color" value="0.7 0.7 0.72 1.0" />
     <link name="caster_frame_${name}">
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0" />
@@ -10,7 +12,7 @@
           <box size="${chassis_bottom - config.caster.radius} ${upright_width} 0.005" />
         </geometry>
         <material name="caster_upright_color">
-          <color rgba="0.7 0.7 0.72 1.0" />
+          <color rgba="${cf_color}" />
         </material>
       </visual>
     </link>
@@ -18,9 +20,9 @@
     <gazebo reference="caster_frame_${name}">
       <visual>
         <material>
-          <ambient>0.7 0.7 0.72 1.0</ambient>
-          <diffuse>0.7 0.7 0.72 1.0</diffuse>
-          <specular>0.7 0.7 0.72 1.0</specular>
+          <ambient>${cf_color}</ambient>
+          <diffuse>${cf_color}</diffuse>
+          <specular>${cf_color}</specular>
           <emissive>0.0 0.0 0.0 0.0</emissive>
         </material>
       </visual>
@@ -34,11 +36,8 @@
   </xacro:macro>
 
   <xacro:macro name="caster_wheel" params="config">
-    <xacro:property name="caster_radius" value="0.025" />
-    <xacro:property name="caster_width" value="0.023" />
-    <xacro:property name="caster_offset" value="0.035" />
-    <xacro:property name="caster_wheel_x" value="${-(body_radius-caster_offset)}" />
-
+    <xacro:property name="pi" value="3.14159265359" />
+    <xacro:property name="cw_color" value="0.416 0.051 0.047 1.0" />
     <link name="caster_wheel_link">
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0" />
@@ -46,7 +45,7 @@
           <cylinder radius="${config.caster.radius}" length="${config.caster.width}" />
         </geometry>
         <material name="red">
-          <color rgba="0.416 0.051 0.047 1.0" />
+          <color rgba="${cw_color}" />
         </material>
       </visual>
 
@@ -65,9 +64,9 @@
       <mu2>0.01</mu2>
       <visual>
         <material>
-          <ambient>0.416 0.051 0.047  1.0</ambient>
-          <diffuse>0.416 0.051 0.047  1.0</diffuse>
-          <specular>0.416 0.051 0.047  1.0</specular>
+          <ambient>${cw_color}</ambient>
+          <diffuse>${cw_color}</diffuse>
+          <specular>${cw_color}</specular>
           <emissive>0.0 0.0 0.0 0.0</emissive>
         </material>
       </visual>
