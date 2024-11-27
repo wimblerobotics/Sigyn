@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="Sigyn">
+  <xacro:include filename="$(find description)/urdf/inertials.xacro" />
+  <xacro:property name="props" value="${xacro.load_yaml('sigyn_config.yaml')}" />
+  <xacro:include filename="$(find description)/urdf/sigyn_base_macro.urdf.xacro" />
+  <xacro:include filename="$(find description)/urdf/sigyn_wheels_macro.urdf.xacro" />
+
+  <!-- Make the body-->
+  <xacro:sigyn_base body_props="${props.body}" wheels_props="${props.wheels}" />
+
+  <!-- Make the wheels-->
+  <xacro:wheels config="${props}" instances="${props.wheels.instances}" />
+</robot>
