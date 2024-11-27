@@ -73,11 +73,11 @@ def generate_launch_description():
         description='Launch RViz if true'))
     ld.add_action(DeclareLaunchArgument(
         name='gui',
-        default_value='True',
+        default_value='False',
         description='Flag to enable joint_state_publisher_gui'))
     ld.add_action(DeclareLaunchArgument(
         name='publish_joints',
-        default_value='true',
+        default_value='True',
         description='Launch joint_states_publisher if true'))
 
     ld.add_action(DeclareLaunchArgument(

@@ -3,6 +3,7 @@
   <xacro:include filename="$(find description)/urdf/inertials.xacro" />
   <xacro:property name="props" value="${xacro.load_yaml('sigyn_config.yaml')}" />
   <xacro:include filename="$(find description)/urdf/sigyn_base_macro.urdf.xacro" />
+  <xacro:include filename="$(find description)/urdf/sigyn_caster_wheel_macro.urdf.xacro" />
   <xacro:include filename="$(find description)/urdf/sigyn_wheels_macro.urdf.xacro" />
 
   <!-- Make the body-->
@@ -10,4 +11,7 @@
 
   <!-- Make the wheels-->
   <xacro:wheels config="${props}" instances="${props.wheels.instances}" />
+
+  <!-- Make the caster wheel -->
+  <xacro:caster_wheel config="${props}" />
 </robot>
