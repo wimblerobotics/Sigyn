@@ -17,7 +17,7 @@ wheels:
   radius: 0.05
   width: 0.0254
   instances:
-    - name: "wheel_left"
+    - name: "left"
       y_position_multiplier: 1.0
-    - name: "wheel_right"
+    - name: "right"
       y_position_multiplier: -1.0
