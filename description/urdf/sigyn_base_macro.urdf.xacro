@@ -30,8 +30,8 @@
     <link name="base_footprint" />
     <joint name="base_footprint_to_base_link" type="fixed">
       <origin xyz="0 0 -${wheels_props.radius + (wheels_props.gear_box_height / 2) + wheels_props.gear_box_spacing_from_base}" rpy="0 0 0" />
-      <child link="base_footprint" />
-      <parent link="base_link" />
+      <parent link="base_footprint" />
+      <child link="base_link" />
     </joint>
 
     <material name="body_aluminum">
