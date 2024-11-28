@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro" name="Sigyn">
+  <xacro:include filename="$(find description)/urdf/common_macros.xacro" />
   <xacro:include filename="$(find description)/urdf/inertials.xacro" />
   <xacro:property name="props" value="${xacro.load_yaml('sigyn_config.yaml')}" />
   <xacro:include filename="$(find description)/urdf/sigyn_base_macro.urdf.xacro" />
