@@ -15,4 +15,11 @@
 
   <!-- Make the caster wheel -->
   <xacro:caster_wheel config="${props}" />
+
+  <xacro:include filename="$(find description)/urdf/properties.urdf.xacro" />
+  <xacro:ld06 lidar_prefix="top_lidar">
+    <origin xyz="0.155 0 0.300" rpy="0 0 -${pi / 2}" />
+  </xacro:ld06>
+
+  <xacro:diff_drive_controller wheel_separation="${wheel_pos_y * 2}" wheel_radius="${wheel_radius}" />
 </robot>
