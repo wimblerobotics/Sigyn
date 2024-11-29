@@ -33,7 +33,7 @@ def generate_launch_description():
     # Bring up the robot description (URDF).
     description_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
-            description_directory_path, '/launch/d.launch.py'
+            description_directory_path, '/launch/description.launch.py'
         ]),
         launch_arguments={
             'use_sim_time': str(use_sim_time),

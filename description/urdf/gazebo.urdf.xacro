@@ -1,43 +1,4 @@
-<robot xmlns:xacro="http://ros.org/wiki/xacro">
-  <xacro:macro name="diff_drive_controller" params="wheel_separation wheel_radius">
-    <gazebo>
-      <plugin name="gz::sim::systems::DiffDrive" filename="gz-sim-diff-drive-system">
-
-        <!-- Wheel Information -->
-        <left_joint>left_wheel_joint</left_joint>
-        <right_joint>right_wheel_joint</right_joint>
-        <wheel_separation>${wheel_separation}</wheel_separation>
-        <wheel_radius>${wheel_radius}</wheel_radius>
-
-        <!-- Limits -->
-        <!-- <max_wheel_torque>200</max_wheel_torque> -->
-        <max_linear_acceleration>1.0</max_linear_acceleration>
-
-        <!-- Input -->
-        <topic>cmd_vel</topic>
-
-
-        <!-- Output -->
-        <frame_id>odom</frame_id>
-        <child_frame_id>base_link</child_frame_id>
-        <odom_topic>odom</odom_topic>
-        <odom_publisher_frequency>30</odom_publisher_frequency>
-
-        <tf_topic>/tf</tf_topic>
-
-      </plugin>
-
-
-      <plugin filename="gz-sim-joint-state-publisher-system"
-        name="gz::sim::systems::JointStatePublisher">
-        <topic>joint_states</topic>
-        <joint_name>left_wheel_joint</joint_name>
-        <joint_name>right_wheel_joint</joint_name>
-      </plugin>
-    </gazebo>
-  </xacro:macro>
-
-  <!--
+<!--
 Copyright (c) 2024 Michael Wimble
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -55,5 +16,54 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 -->
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:macro name="gazebo_wheels" params="instances:=^*">
+    <xacro:if value="${instances}">
+      <xacro:property name="instance" value="${instances.pop(0)}"/>
+      <xacro:element xacro:name="${instance['name']}_joint">${instance['name']}_wheel_joint</xacro:element>
+      <xacro:gazebo_wheels instances="${instances}"/>
+    </xacro:if>
+  </xacro:macro>
+  <xacro:macro name="gazebo_joints" params="instances:=^*">
+    <xacro:if value="${instances}">
+      <xacro:property name="instance" value="${instances.pop(0)}"/>
+      <joint_name>${instance['name']}wheel__joint</joint_name>
+      <xacro:gazebo_joints instances="${instances}"/>
+    </xacro:if>
+  </xacro:macro>
 
+  <xacro:macro name="diff_drive_controller" params="config instances1 instances2">
+    <gazebo>
+      <plugin name="gz::sim::systems::DiffDrive" filename="gz-sim-diff-drive-system">
+
+        <!-- Wheel Information -->
+        <xacro:gazebo_wheels instances="${instances1}"/>
+        <wheel_separation>${(config.body.radius - config.wheels.center_offset) * 2}</wheel_separation>
+        <wheel_radius>${config.wheels.radius}</wheel_radius>
+
+        <!-- Limits -->
+        <!-- <max_wheel_torque>200</max_wheel_torque> -->
+        <max_linear_acceleration>1.0</max_linear_acceleration>
+
+        <!-- Input -->
+        <topic>cmd_vel</topic>
+
+
+        <!-- Output -->
+        <frame_id>odom</frame_id>
+        <child_frame_id>base_footprint</child_frame_id>
+        <odom_topic>odom</odom_topic>
+        <odom_publisher_frequency>30</odom_publisher_frequency>
+
+        <tf_topic>/tf</tf_topic>
+
+      </plugin>
+
+
+      <plugin filename="gz-sim-joint-state-publisher-system" name="gz::sim::systems::JointStatePublisher">
+        <topic>joint_states</topic>
+        <xacro:gazebo_joints instances="${instances2}"/>
+      </plugin>
+    </gazebo>
+  </xacro:macro>
 </robot>
