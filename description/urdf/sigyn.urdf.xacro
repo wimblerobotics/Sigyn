@@ -10,13 +10,6 @@
   <xacro:arg name="use_ros2_control" default="true" />
   <xacro:arg name="sim_mode" default="false" />
 
-  <xacro:if value="$(arg use_ros2_control)">
-    <xacro:include filename="ros2_control.xacro" />
-  </xacro:if>
-  <xacro:unless value="$(arg use_ros2_control)">
-    <xacro:include filename="gazebo_control.xacro" />
-  </xacro:unless>
-
   <!-- Make the body-->
   <xacro:sigyn_base body_props="${props.body}" wheels_props="${props.wheels}" />
 
@@ -26,12 +19,11 @@
   <!-- Make the caster wheel -->
   <xacro:caster_wheel config="${props}" />
 
-  <xacro:include filename="$(find description)/urdf/properties.urdf.xacro" />
   <xacro:include filename="$(find description)/urdf/ld06.urdf.xacro" />
   <xacro:include filename="$(find description)/urdf/gazebo.urdf.xacro" />
   <xacro:ld06 lidar_prefix="top_lidar">
     <origin xyz="0.155 0 0.300" rpy="0 0 -${pi / 2}" />
   </xacro:ld06>
 
-  <xacro:diff_drive_controller wheel_separation="${wheel_pos_y * 2}" wheel_radius="${wheel_radius}" />
+  <xacro:diff_drive_controller config="${props}" instances1="${props.wheels.instances}" instances2="${props.wheels.instances}" />
 </robot>
