@@ -30,9 +30,9 @@ SOFTWARE.
           <material name="${side}_wheel_link"/>
         </visual>
         <collision>
-          <origin xyz="0 0 0" rpy="${pi/2} 0 0" />
+          <origin xyz="0 0 0" rpy="0 0 0" />
           <geometry>
-            <cylinder radius="${radius}" length="${width}" />
+            <cylinder radius="${radius}" length="${width - 0.004}" />
           </geometry>
         </collision>
         <xacro:solid_cylinder_inertial rpy="${pi/2} 0 0" xyz="0 0 0" mass_kg="${mass_kg}" radius="${radius}" length="${width}" />
