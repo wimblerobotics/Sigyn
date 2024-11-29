@@ -177,7 +177,8 @@ void TMicroRos::loop() {
       showedWaitingAgent = false;
       showedAgentAvailable = false;
       showedAgentConnected = false;
-      endif DestroyEntities();
+#endif 
+      DestroyEntities();
       state_ = kWaitingAgent;
       break;
     }
