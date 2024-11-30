@@ -13,6 +13,8 @@ Worldwide, the number of elderly people (65 years and older) surpassed the numbe
 The various directories contain:
 * Designs<br/>
     Holds various design documents. E.g. Fusion 360, LightBurn.
+* Docker<br/>
+    For creating docker images to run the code.
 * Documentation<br/>
     Documentation artifacts, such as notes, ***wireviz*** documentation.
 * Media<br/>
@@ -21,10 +23,25 @@ The various directories contain:
     ROS 2 package containing the main lunch files, configuration, maps and such.
 * description<br/>
     ROS 2 package containing the URDF and Gazebo worlds.
+* experiments<br/>
+    Ongoing, vague experiements. Just a repository for trying out things that
+    might become real code eventually, or gather data to guide development.
+* gripper<br/>
+    Teensy 4.1 code that manages the gripper elevator and extender.
+* lidar<br/>
+    Forked from elsewhere, contains fixes and customizations.
+* msgs<br/>
+    Contains messages for internal usage, not external API.
+* micro_ros<br/>
+    For creating a custom micro_ros with bigger message sizes and more of each resource kind.
 * rviz<br/>
     rviz2 configuration files.
 * scripts<br/>
     Utility scripts.
+* sigyn_interfaces.<br/>
+    Contains message, action and service definitions for ROS 2.
+* twist_multiplexer<br/>
+    Forked from elsewhere, contains fixes and customizations.
 * udev<br/>
     Various rules to be placed in ***/etc/udev/rules*** to deal with the hardware. Mostly creates symbolic links to various devices, such as the ***teensy 4.1*** and ***LIDAR*** devices.
 
