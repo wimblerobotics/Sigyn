@@ -27,7 +27,7 @@ SOFTWARE.
   <xacro:macro name="gazebo_joints" params="instances:=^*">
     <xacro:if value="${instances}">
       <xacro:property name="instance" value="${instances.pop(0)}"/>
-      <joint_name>${instance['name']}wheel__joint</joint_name>
+      <joint_name>${instance['name']}_wheel_joint</joint_name>
       <xacro:gazebo_joints instances="${instances}"/>
     </xacro:if>
   </xacro:macro>
