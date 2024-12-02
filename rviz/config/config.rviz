@@ -15,9 +15,9 @@ Panels:
         - /Map1
         - /Map1/Topic1
         - /Map1/Update Topic1
-        - /Amcl Particle Swarm1/Topic1
         - /Odometry1/Topic1
         - /Odometry1/Shape1
+        - /Cost cloud1/Status1
         - /Cost cloud1/Topic1
         - /Marker1/Topic1
         - /PoseWithCovariance1/Topic1
@@ -333,7 +333,7 @@ Visualization Manager:
       Axes Radius: 0.009999999776482582
       Class: rviz_default_plugins/PoseArray
       Color: 0; 180; 0
-      Enabled: false
+      Enabled: true
       Head Length: 0.07000000029802322
       Head Radius: 0.029999999329447746
       Name: Amcl Particle Swarm
@@ -347,7 +347,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Best Effort
         Value: /particlecloud
-      Value: false
+      Value: true
     - Class: rviz_common/Group
       Displays:
         - Alpha: 0.699999988079071
