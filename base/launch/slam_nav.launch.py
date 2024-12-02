@@ -19,7 +19,7 @@ from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
 import launch
-from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, SetEnvironmentVariable
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, LogInfo, SetEnvironmentVariable
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -90,6 +90,10 @@ def generate_launch_description():
             param_rewrites=param_substitutions,
             convert_types=True),
         allow_substs=True)
+
+    log_param_file = LogInfo(
+        msg=['params_file: [', params_file, ']']     
+    )
 
     stdout_linebuf_envvar = SetEnvironmentVariable(
         'RCUTILS_LOGGING_BUFFERED_STREAM', '1')
@@ -253,11 +257,13 @@ def generate_launch_description():
         ],
     )
 
+    
+
     # Bring up the slam_toolbox.
     start_async_slam_toolbox_node = Node(
         parameters=[
           configured_params,
-          {'use_sim_time': 'false'}
+          {'use_sim_time': use_sim_time}
         ],
         package='slam_toolbox',
         executable='async_slam_toolbox_node',
@@ -274,7 +280,8 @@ def generate_launch_description():
     common.ld.add_action(declare_use_composition_cmd)
     common.ld.add_action(declare_use_respawn_cmd)
     common.ld.add_action(declare_log_level_cmd)
-    # Add the actions to launch all of the navigation nodes
+    common.ld.add_action(log_param_file)
+  # Add the actions to launch all of the navigation nodes
     common.ld.add_action(load_nodes)
     common.ld.add_action(load_composable_nodes)
 

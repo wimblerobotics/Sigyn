@@ -39,7 +39,8 @@ def generate_launch_description():
     slam_toolbox = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
             get_package_share_directory('slam_toolbox'), 'launch', 'online_async_launch.py')]),
-        launch_arguments={'use_sim_time': use_sim_time}.items()
+        launch_arguments={'use_sim_time': use_sim_time, 
+                          'params_file': '/opt/ros/jazzy/share/slam_toolbox/config/mapper_params_online_async.yaml'}.items()
     )
     world_arg = DeclareLaunchArgument(
         'world',
@@ -129,9 +130,9 @@ def generate_launch_description():
             description='Use sim time if true'),
         world_arg,
         gazebo,
-        nav2_launch,
+        # nav2_launch,
         robot_state_publisher_node,
-        # slam_toolbox_mapper,
+        slam_toolbox,
         spawn_entity,
         diff_drive_spawner,
         joint_broad_spawner,
