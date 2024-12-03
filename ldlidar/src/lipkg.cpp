@@ -241,7 +241,7 @@ void LiPkg::ToLaserscan(std::vector<PointData> src)
   output.angle_max = angle_max;
   output.range_min = range_min;
   output.range_max = range_max;
-  output.time_increment =  / 450.0;
+  output.time_increment =  1.0 / 450.0;
   output.scan_time = 0.0;
   
   /*First fill all the data with Nan*/

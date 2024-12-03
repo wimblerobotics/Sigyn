@@ -7,8 +7,6 @@ Panels:
         - /Global Options1
         - /Status1
         - /RobotModel1
-        - /RobotModel1/Links1
-        - /RobotModel1/Links1/caster_frame_left1
         - /TF1
         - /TF1/Frames1
         - /TF1/Tree1
@@ -17,7 +15,6 @@ Panels:
         - /Map1/Update Topic1
         - /Odometry1/Topic1
         - /Odometry1/Shape1
-        - /Cost cloud1/Status1
         - /Cost cloud1/Topic1
         - /Marker1/Topic1
         - /PoseWithCovariance1/Topic1
@@ -76,7 +73,7 @@ Visualization Manager:
         Value: /robot_description
       Enabled: true
       Links:
-        All Links Enabled: false
+        All Links Enabled: true
         Expand Joint Details: false
         Expand Link Details: false
         Expand Tree: false
@@ -94,6 +91,11 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        caster_frame_right:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         caster_wheel_link:
           Alpha: 1
           Show Axes: false
@@ -103,37 +105,46 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-          Value: false
-        wheel_left_wheel_hub:
+          Value: true
+        left_wheel_hub:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-          Value: false
-        wheel_left_wheel_link:
+          Value: true
+        left_wheel_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-          Value: false
-        wheel_left_wheel_marker:
+          Value: true
+        left_wheel_marker:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-          Value: false
-        wheel_right_wheel_hub:
+          Value: true
+        lidar_beam_top_lidar:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-          Value: false
-        wheel_right_wheel_link:
+        lidar_frame_top_lidar:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-          Value: false
-        wheel_right_wheel_marker:
+          Value: true
+        right_wheel_hub:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-          Value: false
+          Value: true
+        right_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_wheel_marker:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
       Mass Properties:
         Inertia: false
         Mass: false
@@ -879,7 +890,7 @@ Visualization Manager:
   Enabled: true
   Global Options:
     Background Color: 136; 138; 133
-    Fixed Frame: base_footprint
+    Fixed Frame: map
     Frame Rate: 30
   Name: root
   Tools:
@@ -914,25 +925,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 1.6234700679779053
+      Distance: 8.79222583770752
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.29641973972320557
-        Y: -0.038651157170534134
-        Z: 0.09575611352920532
+        X: 8.336638450622559
+        Y: 8.728189468383789
+        Z: 12.904378890991211
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: -0.11520369350910187
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz_default_plugins)
-      Yaw: 4.8224310874938965
+      Yaw: 4.707652568817139
     Saved: ~
 Window Geometry:
   Displays:
@@ -958,5 +969,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1765
-  X: -50
-  Y: 137
+  X: 701
+  Y: 190
