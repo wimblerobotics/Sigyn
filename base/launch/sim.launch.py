@@ -74,7 +74,8 @@ def generate_launch_description():
         condition=IfCondition(make_map),
         launch_arguments={
             "use_sim_time": use_sim_time,
-            "params_file": "/opt/ros/jazzy/share/slam_toolbox/config/mapper_params_online_async.yaml",
+            "params_file": os.path.join(base_pgk, "config", "mapper_params_online_async.yaml")
+            # "params_file": "/opt/ros/jazzy/share/slam_toolbox/config/mapper_params_online_async.yaml",
         }.items(),
     )
     ld.add_action(slam_toolbox)
