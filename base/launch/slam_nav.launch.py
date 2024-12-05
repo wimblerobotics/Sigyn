@@ -61,6 +61,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(base_launch_path),
         launch_arguments={
             'publish_joints': 'true',
+            'use_sim_time': use_sim_time,
         }.items()
     )
     common.ld.add_action(base_launch)
