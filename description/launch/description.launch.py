@@ -19,7 +19,7 @@ import os
 import xacro
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, LogInfo
 from launch.conditions import IfCondition, UnlessCondition
 from launch_ros.actions import Node
 from launch.substitutions import LaunchConfiguration
@@ -28,7 +28,7 @@ from launch import LaunchContext
 from launch.actions import OpaqueFunction
 
 
-def launch_robot_state_publisher(context, file_name_var):
+def launch_robot_state_publisher(context, file_name_var, use_sim_time):
     description_directory_path = get_package_share_directory('description')
     file_name = context.perform_substitution(file_name_var)
     print(F"file_name: {file_name}")
@@ -44,7 +44,7 @@ def launch_robot_state_publisher(context, file_name_var):
                 'frame_prefix': '',
                 'ignore_timestamp': False,
                 'publish_frequency': 30.0,
-                # processed_urdf,
+                'use_sim_time': use_sim_time,
                 'robot_description':  urdf_as_xml
             }
         ]
@@ -54,7 +54,7 @@ def launch_robot_state_publisher(context, file_name_var):
 
 def generate_launch_description():
     launch_args = [DeclareLaunchArgument(
-        'urdf_file_name', default_value='xxx.urdf', description='URDF file name')]
+        'urdf_file_name', default_value='sigyn.urdf.xacro', description='URDF file name')]
 
     do_rviz = LaunchConfiguration('do_rviz')
     gui = LaunchConfiguration('gui')
@@ -93,7 +93,7 @@ def generate_launch_description():
     # Publish joints.
     joint_state_publisher_node = Node(
         package='joint_state_publisher',
-        condition=UnlessCondition(gui),
+        condition=UnlessCondition(use_sim_time),
         executable='joint_state_publisher',
         name='joint_state_publisher',
         ### condition=IfCondition(LaunchConfiguration("publish_joints")),
@@ -111,14 +111,14 @@ def generate_launch_description():
     )
     ld.add_action(joint_state_publisher_node)
 
-    ld.add_action(Node(
-        condition=IfCondition(gui),
-        package='joint_state_publisher_gui',
-        executable='joint_state_publisher_gui',
-        name='joint_state_publisher_gui'))
+    # ld.add_action(Node(
+    #     condition=IfCondition(gui),
+    #     package='joint_state_publisher_gui',
+    #     executable='joint_state_publisher_gui',
+    #     name='joint_state_publisher_gui'))
 
     ld.add_action(OpaqueFunction(function=launch_robot_state_publisher, args=[
-        LaunchConfiguration('urdf_file_name')]))
+        LaunchConfiguration('urdf_file_name'), LaunchConfiguration('use_sim_time')]))
     
     echo_action = ExecuteProcess(
         cmd=['echo', 'Rviz config file path: ' +
@@ -135,5 +135,8 @@ def generate_launch_description():
             '-d', os.path.join(rviz_directory_path, 'config', 'config.rviz')],
     )
     ld.add_action(rviz_node)
+    
+    ld.add_action(LogInfo(
+      msg=["[description] URDF file name: ", LaunchConfiguration('urdf_file_name'), " use_sim_time: ", LaunchConfiguration('use_sim_time')]))
 
     return ld

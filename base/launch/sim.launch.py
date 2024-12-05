@@ -3,7 +3,7 @@ import xacro
 
 import launch_ros.actions
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, LogInfo
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, Command, PathJoinSubstitution, PythonExpression
@@ -23,7 +23,16 @@ def generate_launch_description():
         "home.world",
         # 'obstacles.world'
     )
+    rviz_directory_path = get_package_share_directory('rviz')
+    rviz_config_path = os.path.join(rviz_directory_path, 'config', 'config.rviz')
+
     
+    do_rviz = LaunchConfiguration('do_rviz')
+    ld.add_action(DeclareLaunchArgument(
+      name='do_rviz',
+      default_value='true',
+      description='Launch RViz if true'))
+
     make_map = LaunchConfiguration("make_map")
     make_map_arg = DeclareLaunchArgument(
         "make_map", default_value="False", description="Make a map vs navigate"
@@ -144,12 +153,12 @@ def generate_launch_description():
     )
     ld.add_action(ros_gz_bridge)
 
-    ros_gz_image_bridge = Node(
-        package="ros_gz_image",
-        executable="image_bridge",
-        arguments=["/camera/image_raw"],
-    )
-    ld.add_action(ros_gz_image_bridge)
+    # ros_gz_image_bridge = Node(
+    #     package="ros_gz_image",
+    #     executable="image_bridge",
+    #     arguments=["/camera/image_raw"],
+    # )
+    # ld.add_action(ros_gz_image_bridge)
 
     # slam_toolbox_mapper = IncludeLaunchDescription(
     #           PythonLaunchDescriptionSource([os.path.join(
@@ -181,4 +190,19 @@ def generate_launch_description():
     )
     ld.add_action(nav2_launch)
 
+    echo_action = ExecuteProcess(
+        cmd=['echo', '[sim] Rviz config file path: ' + rviz_config_path],
+        output='screen'
+    )
+    ld.add_action(echo_action)
+    rviz_node = Node(
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2',
+        condition=IfCondition(LaunchConfiguration("do_rviz")),
+        arguments=[
+            '-d', rviz_config_path],
+    )
+    ld.add_action(rviz_node)
+    
     return ld
