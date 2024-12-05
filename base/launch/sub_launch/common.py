@@ -7,7 +7,7 @@ import os
 multiplexer_directory_path = get_package_share_directory('twist_multiplexer');
 base_directory_path = get_package_share_directory('base')
 description_directory_path = get_package_share_directory('description')
-urdf_path = os.path.join(description_directory_path, 'urdf/base.urdf.xacro')
+urdf_path = os.path.join(description_directory_path, 'urdf/sigyn.urdf.xacro')
 use_sim_time = LaunchConfiguration('use_sim_time')
 ekf_config_path = os.path.join(base_directory_path, 'config/ekf.yaml')
 

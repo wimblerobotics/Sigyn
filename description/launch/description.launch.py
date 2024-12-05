@@ -53,16 +53,13 @@ def launch_robot_state_publisher(context, file_name_var, use_sim_time):
 
 
 def generate_launch_description():
-    launch_args = [DeclareLaunchArgument(
-        'urdf_file_name', default_value='sigyn.urdf.xacro', description='URDF file name')]
-
     do_rviz = LaunchConfiguration('do_rviz')
     gui = LaunchConfiguration('gui')
     publish_joints = LaunchConfiguration('publish_joints')
     urdf_file_name = LaunchConfiguration('urdf_file_name')
     use_sim_time = LaunchConfiguration('use_sim_time')
 
-    ld = LaunchDescription(launch_args)
+    ld = LaunchDescription()
 
     description_directory_path = get_package_share_directory('description')
     rviz_directory_path = get_package_share_directory('rviz')
@@ -82,7 +79,7 @@ def generate_launch_description():
 
     ld.add_action(DeclareLaunchArgument(
         name='urdf_file_name',
-        default_value='base.urdf.xacro',
+        default_value='sigyn.urdf.xacro',
         description='URDF file name'))
 
     ld.add_action(DeclareLaunchArgument(
