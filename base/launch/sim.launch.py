@@ -172,7 +172,7 @@ def generate_launch_description():
     )
 
     base_directory_path = get_package_share_directory("base")
-    map_path = os.path.join(base_directory_path, "maps", "my_map_mbr.yaml")
+    map_path = os.path.join(base_directory_path, "maps", "my_map_lr.yaml")
     nav2_config_path = os.path.join(base_directory_path, "config", "navigation_sim.yaml")
 
     nav2_launch = IncludeLaunchDescription(
