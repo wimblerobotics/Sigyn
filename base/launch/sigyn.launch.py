@@ -1,3 +1,12 @@
+# Options:
+# make_map (false) - Make a map vs navigate
+# do_joint_state_gui (false) - Flag to enable joint_state_publisher_gui
+# do_rviz (true) - Launch RViz if true
+# use_sim_time (true) - Use simulation vs a real robot
+#
+# world (home.world) - World to load if simulating
+# urdf_file_name (sigyn.urdf.xacro) - URDF file name
+
 import os
 import xacro
 
@@ -103,7 +112,7 @@ def generate_launch_description():
 
     use_sim_time = LaunchConfiguration("use_sim_time")
     use_sim_time_arg = DeclareLaunchArgument(
-        "use_sim_time", default_value="true", description="Use sim time if true"
+        "use_sim_time", default_value="false", description="Simulation mode vs real robot"
     )
     ld.add_action(use_sim_time_arg)
 
@@ -185,6 +194,7 @@ def generate_launch_description():
                 )
             ]
         ),
+        condition=IfCondition(use_sim_time),
         launch_arguments={
             "gz_args": ["-r -v4 ", world],
             "on_exit_shutdown": "true",
@@ -196,6 +206,7 @@ def generate_launch_description():
     spawn_entity = Node(
         package="ros_gz_sim",
         executable="create",
+        condition=IfCondition(use_sim_time),
         arguments=[
             "-topic",
             "robot_description",
@@ -215,6 +226,7 @@ def generate_launch_description():
     diff_drive_spawner = Node(
         package="controller_manager",
         executable="spawner",
+        condition=IfCondition(use_sim_time),
         arguments=["diff_cont"],
     )
     ld.add_action(diff_drive_spawner)
@@ -222,6 +234,7 @@ def generate_launch_description():
     joint_broad_spawner = Node(
         package="controller_manager",
         executable="spawner",
+        condition=IfCondition(use_sim_time),
         arguments=["joint_broad"],
     )
     ld.add_action(joint_broad_spawner)
@@ -230,6 +243,7 @@ def generate_launch_description():
     ros_gz_bridge = Node(
         package="ros_gz_bridge",
         executable="parameter_bridge",
+        condition=IfCondition(use_sim_time),
         arguments=[
             "--ros-args",
             "-p",
@@ -241,6 +255,7 @@ def generate_launch_description():
     ros_gz_image_bridge = Node(
         package="ros_gz_image",
         executable="image_bridge",
+        condition=IfCondition(use_sim_time),
         arguments=["/camera/image_raw"],
     )
     ld.add_action(ros_gz_image_bridge)
@@ -249,7 +264,9 @@ def generate_launch_description():
               PythonLaunchDescriptionSource([os.path.join(
                   get_package_share_directory('base'), 'launch', 'lifelong.launch.py')]),
                   # launch_arguments={'gz_args': ['-r -v4 ', world], 'on_exit_shutdown': 'true'}.items()
+              condition=IfCondition(make_map)
             )
+    ld.add_action(slam_toolbox_mapper)
 
     # Bring up the navigation stack.
     navigation_launch_path = PathJoinSubstitution(
@@ -283,6 +300,39 @@ def generate_launch_description():
     )
     ld.add_action(echo_action)
     
+    # Bring up the twist multiplexer.
+    multiplexer_directory_path = get_package_share_directory('twist_multiplexer')
+    multiplexer_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            [multiplexer_directory_path, '/launch/twist_multiplexer.launch.py']),
+        condition=UnlessCondition(use_sim_time),
+    )
+    ld.add_action(multiplexer_launch)
+
+    # Bring up the LIDAR.
+    lidars_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            [base_directory_path, '/launch/sub_launch/lidar.launch.py']),
+        condition=UnlessCondition(use_sim_time),
+    )
+    ld.add_action(lidars_launch)
+    
+    # Bring of the EKF node.
+    ekf_config_path = os.path.join(get_package_share_directory('base'), 'config/ekf.yaml')
+    start_robot_localization_cmd = launch_ros.actions.Node(
+        package='robot_localization',
+        executable='ekf_node',
+        condition=UnlessCondition(use_sim_time),
+        name='ekf_filter_node',
+        output='screen',
+        parameters=[ 
+            {'use_sim_time': use_sim_time},
+            ekf_config_path,
+        ],
+        remappings=[('/odometry/filtered', 'odom'), ('/odom/unfiltered', 'wheel_odom')]
+    )
+    ld.add_action(start_robot_localization_cmd)
+
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
