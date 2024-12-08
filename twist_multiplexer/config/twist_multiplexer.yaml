@@ -14,7 +14,8 @@ twist_multiplexer_node:
         priority: 20
       -
         name: "navigation"
-        topic: "cmd_vel_nav"
+        # topic: "cmd_vel_nav"
+        topic: "cmd_vel_smoothed"
         timeout: 0.5
         priority: 10
     
