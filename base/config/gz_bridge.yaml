@@ -47,7 +47,7 @@
   direction: GZ_TO_ROS
 
 # gz topic subscribed to by DiffDrive plugin
-- ros_topic_name: "cmd_vel"
+- ros_topic_name: "cmd_vel_smoothed"
   gz_topic_name: "cmd_vel"
   ros_type_name: "geometry_msgs/msg/Twist"
   gz_type_name: "gz.msgs.Twist"
