@@ -270,7 +270,7 @@ def generate_launch_description():
 
     # Bring up the navigation stack.
     navigation_launch_path = PathJoinSubstitution(
-        [FindPackageShare("nav2_bringup"), "launch", "bringup_launch.py"]
+        [base_pgk, "launch", "nav2_bringup.launch.py"]
     )
 
     base_directory_path = get_package_share_directory("base")
@@ -332,6 +332,27 @@ def generate_launch_description():
         remappings=[('/odometry/filtered', 'odom'), ('/odom/unfiltered', 'wheel_odom')]
     )
     ld.add_action(start_robot_localization_cmd)
+
+    # Publish joints.
+    joint_state_publisher_node = Node(
+        package='joint_state_publisher',
+        condition=UnlessCondition(use_sim_time),
+        executable='joint_state_publisher',
+        name='joint_state_publisher',
+        ### condition=IfCondition(LaunchConfiguration("publish_joints")),
+        # parameters=[
+        #     {
+        #         'delta': 0.0,
+        #         'publish_default_efforts': False,
+        #         'publish_default_positions': True,
+        #         'publish_default_velocities': False,
+        #         'rate': 30.0,
+        #         'use_mimic_tag': True,
+        #         'use_smallest_joint_limits': True
+        #     }
+        # ]
+    )
+    ld.add_action(joint_state_publisher_node)
 
     rviz_node = Node(
         package="rviz2",
