@@ -120,6 +120,7 @@ alias cgcm='ros2 service call /global_costmap/clear_entirely_global_costmap nav2
 alias clcm='ros2 service call /local_costmap/clear_entirely_local_costmap nav2_msgs/srv/ClearEntireCostmap'
 alias fr='ros2 run tf2_tools view_frames'
 alias gripper='ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/teensy_gripper'
+alias map='clear;ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=true make_map:=true'
 alias nav='clear;ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=false'
 alias rd='rosdep install --from-paths src --ignore-src -r -y'
 alias redoudev='sudo service udev restart;sudo udevadm control --reload-rules;sudo udevadm trigger'
