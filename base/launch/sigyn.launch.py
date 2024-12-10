@@ -1,11 +1,10 @@
 # Options:
-# make_map (false) - Make a map vs navigate
 # do_joint_state_gui (false) - Flag to enable joint_state_publisher_gui
 # do_rviz (true) - Launch RViz if true
-# use_sim_time (true) - Use simulation vs a real robot
-#
-# world (home.world) - World to load if simulating
+# make_map (false) - Make a map vs navigate
 # urdf_file_name (sigyn.urdf.xacro) - URDF file name
+# use_sim_time (true) - Use simulation vs a real robot
+# world (home.world) - World to load if simulating
 
 import os
 import xacro
@@ -66,9 +65,7 @@ def launch_robot_state_publisher(
 
 def generate_launch_description():
     ld = LaunchDescription()
-
     base_pgk = get_package_share_directory("base")
-
     description_pkg = get_package_share_directory("description")
     default_world = os.path.join(
         description_pkg,
@@ -130,6 +127,8 @@ def generate_launch_description():
             do_rviz,
             "], make_map: [",
             make_map,
+            "], urdf_file_name: [",
+            urdf_file_name,
             "], use_sim_time: [",
             use_sim_time,
             "], world: [",
@@ -174,8 +173,9 @@ def generate_launch_description():
         ),
         condition=IfCondition(make_map),
         launch_arguments={
+            "use_lifecycle_manager": "False",
             "use_sim_time": use_sim_time,
-            "params_file": os.path.join(
+            "slam_params_file": os.path.join(
                 base_pgk, "config", "mapper_params_online_async.yaml"
             ),
             # "params_file": "/opt/ros/jazzy/share/slam_toolbox/config/mapper_params_online_async.yaml",
@@ -259,14 +259,6 @@ def generate_launch_description():
         arguments=["/camera/image_raw"],
     )
     ld.add_action(ros_gz_image_bridge)
-
-    slam_toolbox_mapper = IncludeLaunchDescription(
-              PythonLaunchDescriptionSource([os.path.join(
-                  get_package_share_directory('base'), 'launch', 'lifelong.launch.py')]),
-                  # launch_arguments={'gz_args': ['-r -v4 ', world], 'on_exit_shutdown': 'true'}.items()
-              condition=IfCondition(make_map)
-            )
-    ld.add_action(slam_toolbox_mapper)
 
     # Bring up the navigation stack.
     navigation_launch_path = PathJoinSubstitution(
