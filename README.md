@@ -56,7 +56,7 @@ Note that this relies on udev rules to create a symbolic link to the teensy 4.1 
 
 In another window, run the nav2 stack, which also launches the other needed components.
 ``` bash
-ros2 launch base navigation.launch.py
+ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=true
 ```
 
 To visualize the system, run ***rviz2***. There is a configuration file which shows things the way I like.
@@ -69,4 +69,10 @@ I usually begin by using the ***rviz2*** interface to set the 2D Pose Estimate, 
 If you don't have your own way of running teleoperation, here's what I use:
 ``` bash
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
+```
+
+## Running the Robot in Simulation
+The robot can be run in simulation by running the following command:
+``` bash
+ros2 launch base sigyn.launch.py use_sim_time:=true
 ```
