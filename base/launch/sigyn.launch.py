@@ -8,6 +8,7 @@
 
 import os
 import xacro
+import platform
 
 import launch_ros.actions
 from launch import LaunchDescription
@@ -119,6 +120,16 @@ def generate_launch_description():
     )
     ld.add_action(world_arg)
 
+    # processor_name = subprocess.run(["uname", "-p"], capture_output=True, text=True)
+    on_a_mac = platform.machine() == "aarch64"
+
+    log_processor_action = LogInfo(
+        msg=[
+            f"on_a_mac: {on_a_mac}",
+        ]
+    )
+    ld.add_action(log_processor_action)
+
     log_info_action = LogInfo(
         msg=[
             "do_joint_state_gui: [",
@@ -184,6 +195,7 @@ def generate_launch_description():
     ld.add_action(slam_toolbox)
 
     # Include the Gazebo launch file, provided by the ros_gz_sim package
+    gz_args = "-r -v4 --render-engine ogre " if on_a_mac else "-r -v4 "
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             [
@@ -196,7 +208,7 @@ def generate_launch_description():
         ),
         condition=IfCondition(use_sim_time),
         launch_arguments={
-            "gz_args": ["-r -v4 ", world],
+            "gz_args": [gz_args, world],
             "on_exit_shutdown": "true",
         }.items(),
     )
