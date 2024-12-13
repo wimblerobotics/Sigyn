@@ -1,38 +1,36 @@
 <robot xmlns:xacro="http://ros.org/wiki/xacro" name="marker">
-    <xacro:macro name="wall" params="name length_in height_in=96 width_in=4 x_in y_in rot_deg=0">
+  <xacro:macro name="wall" params="name length_in height_in=96 width_in=4 x_in y_in rot_deg=0">
 
-        <xacro:property name="x_m" value="${x_in * 0.0254}" />
-        <xacro:property name="y_m" value="${y_in * 0.0254}" />
-        <xacro:property name="h_m" value="${height_in * 0.0254}" />
-        <xacro:property name="l_m" value="${length_in * 0.0254}" />
-        <xacro:property name="w_m" value="${width_in * 0.0254}" />
-        <xacro:property name="x_pos_m" value="${x_m + (l_m / 2)}" />
-        <xacro:property name="y_pos_m" value="${y_m + (w_m / 2)}" />
-        <xacro:property name="z_pos_m" value="${(h_m / 2)}" />
-       <link name="${name}">
-            <pose> ${x_pos_m } ${y_pos_m } ${z_pos_m} 0 0 ${rot_deg}</pose>
-            <collision name="collision">
-                <geometry>
-                    <box>
-                        <size>${l_m} ${w_m} ${h_m}</size>
-                    </box>
-                </geometry>
-            </collision>
-            <visual name="visual">
-                <cast_shadows>false</cast_shadows>
-                <geometry>
-                    <box>
-                        <size>${l_m} ${w_m} ${h_m}</size>
-                    </box>
-                </geometry>
-                <material>
-                    <script>
-                        <uri>model://grey_wall/materials/scripts</uri>
-                        <uri>model://grey_wall/materials/textures</uri>
-                        <name>vrc/grey_wall</name>
-                    </script>
-                </material>
-            </visual>
-        </link>
-    </xacro:macro>
+    <xacro:property name="x_m" value="${x_in * 0.0254}" />
+    <xacro:property name="y_m" value="${y_in * 0.0254}" />
+    <xacro:property name="h_m" value="${height_in * 0.0254}" />
+    <xacro:property name="l_m" value="${length_in * 0.0254}" />
+    <xacro:property name="w_m" value="${width_in * 0.0254}" />
+    <xacro:property name="x_pos_m" value="${x_m + (l_m / 2)}" />
+    <xacro:property name="y_pos_m" value="${y_m + (w_m / 2)}" />
+    <xacro:property name="z_pos_m" value="${(h_m / 2)}" />
+    <link name="${name}">
+      <pose> ${x_pos_m } ${y_pos_m } ${z_pos_m} 0 0 ${rot_deg}</pose>
+      <collision name="collision">
+        <geometry>
+          <box>
+            <size>${l_m} ${w_m} ${h_m}</size>
+          </box>
+        </geometry>
+      </collision>
+      <visual name="visual">
+        <cast_shadows>false</cast_shadows>
+        <geometry>
+          <box>
+            <size>${l_m} ${w_m} ${h_m}</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.7451 0.4353 1</ambient>
+          <diffuse>1.0 0.7451 0.4353 1</diffuse>
+          <specular>1 1 1 1</specular>
+        </material>
+      </visual>
+    </link>
+  </xacro:macro>
 </robot>
