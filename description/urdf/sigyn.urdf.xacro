@@ -1,5 +1,8 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro" name="Sigyn">
+  <self_collide>false</self_collide>
+  <pose>0 0 0.2 0 0 0</pose>
+  <static>false</static>
   <xacro:arg name="use_ros2_control" default="true" />
   <xacro:arg name="sim_mode" default="false" />
 

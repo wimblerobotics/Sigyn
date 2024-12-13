@@ -50,9 +50,7 @@
       </visual>
 
       <visual>
-        <origin
-          xyz="0 0.017 ${(ld06_base_box_height + ld06_box_height) +(ld06_cylinder_height / 2)}"
-          rpy="0 0 0" />
+        <origin xyz="0 0.017 ${(ld06_base_box_height + ld06_box_height) +(ld06_cylinder_height / 2)}" rpy="0 0 0" />
         <geometry>
           <cylinder radius="${ld06_cylinder_radius}" length="${ld06_cylinder_height}" />
         </geometry>
@@ -67,8 +65,7 @@
         <origin xyz="0 ${ld06_base_box_width / 4} ${(ld06_base_box_height / 2)}" rpy="0 0 0" />
       </visual>
 
-      <xacro:solid_cuboid_inertial rpy="0 0 0" xyz="0 0 0" mass_kg="0.001"
-        x="${ld06_base_box_width}" y="${ld06_base_box_width / 2}" z="${ld06_base_box_height}" />
+      <xacro:solid_cuboid_inertial rpy="0 0 0" xyz="0 0 0" mass_kg="0.001" x="${ld06_base_box_width}" y="${ld06_base_box_width / 2}" z="${ld06_base_box_height}" />
     </link>
 
     <link name="lidar_beam_${lidar_prefix}"></link>
@@ -88,13 +85,20 @@
           <scan>
             <horizontal>
               <samples>450</samples>
+              <resolution>1</resolution>
               <min_angle>-3.14</min_angle>
               <max_angle>3.14</max_angle>
             </horizontal>
+            <vertical>
+              <samples>1</samples>
+              <resolution>1</resolution>
+              <min_angle>0</min_angle>
+              <max_angle>0</max_angle>
+            </vertical>
           </scan>
           <range>
             <min>0.3</min>
-            <max>12</max>
+            <max>12.0</max>
           </range>
         </lidar>
         <topic>scan</topic>
