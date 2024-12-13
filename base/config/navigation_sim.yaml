@@ -558,7 +558,7 @@ local_costmap:
         cost_scaling_factor: 3.0 ###2.0 # Exponential decay factor across inflation radius.
         ###inflate_around_unknown: True # Whether to inflate unknown cells.
         ###inflate_unknown: False # Whether to inflate unknown space.
-        inflation_radius: 0.20 # Radius to inflate costmap around lethal obstacles.
+        inflation_radius: 0.235 # Radius to inflate costmap around lethal obstacles.
         plugin: "nav2_costmap_2d::InflationLayer"
 
       lidar_layer:
