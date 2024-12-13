@@ -120,7 +120,6 @@ def generate_launch_description():
     )
     ld.add_action(world_arg)
 
-    # processor_name = subprocess.run(["uname", "-p"], capture_output=True, text=True)
     on_a_mac = platform.machine() == "aarch64"
 
     log_processor_action = LogInfo(
