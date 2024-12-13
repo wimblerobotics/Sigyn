@@ -64,6 +64,16 @@ SOFTWARE.
         <topic>joint_states</topic>
         <xacro:gazebo_joints instances="${instances2}"/>
       </plugin>
+
+        <!-- GROUND ODOMETRY POSITION STATE PUBLISHER (FAKE LOCALIZATION) -->
+        <plugin filename="ignition-gazebo-pose-publisher-system" name="ignition::gazebo::systems::PosePublisher">
+            <publish_link_pose>true</publish_link_pose>
+            <publish_collision_pose>false</publish_collision_pose>
+            <publish_visual_pose>false</publish_visual_pose>
+            <publish_sensor_pose>false</publish_sensor_pose>
+            <publish_nested_model_pose>true</publish_nested_model_pose>
+            <update_frequency>20</update_frequency>
+        </plugin>
     </gazebo>
   </xacro:macro>
 </robot>
