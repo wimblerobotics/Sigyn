@@ -41,7 +41,7 @@
         <material name="ld06_${lidar_prefix}_grey" />
       </visual>
 
-      <visual> <!-- box-->
+      <visual>
         <origin xyz="0 0.017 ${ld06_base_box_height + (ld06_box_height / 2)}" rpy="0 0 0" />
         <geometry>
           <box size="${ld06_box_width} ${ld06_box_width} ${ld06_box_height}" />
@@ -49,7 +49,7 @@
         <material name="ld06_${lidar_prefix}_blackish" />
       </visual>
 
-      <visual> <!-- cylinder -->
+      <visual>
         <origin
           xyz="0 0.017 ${(ld06_base_box_height + ld06_box_height) +(ld06_cylinder_height / 2)}"
           rpy="0 0 0" />
@@ -59,7 +59,7 @@
         <material name="ld06_${lidar_prefix}_cylinder" />
       </visual>
 
-      <visual> <!-- base_cylinder -->
+      <visual>
         <geometry>
           <cylinder radius="${ld06_base_box_width / 2}" length="${ld06_base_box_height}" />
         </geometry>
@@ -81,8 +81,7 @@
     <gazebo reference="lidar_frame_${lidar_prefix}">
       <material>Gazebo/Black</material>
 
-      <sensor name="laser" type="gpu_lidar">
-        <pose> 0 0 0 0 0 0 </pose>
+      <sensor name="lidar_frame_${lidar_prefix}" type="gpu_lidar">
         <visualize>true</visualize>
         <update_rate>10</update_rate>
         <lidar>
