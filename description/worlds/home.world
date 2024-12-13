@@ -159,7 +159,7 @@
           <property key="height" type="double">900</property>
           <property key="state" type="string">docked</property>
         </ignition-gui>
-        <topic>/model/tugbot/cmd_vel</topic>
+        <topic>/cmd_vel</topic>
       </plugin>
     </gui>
     <scene>
