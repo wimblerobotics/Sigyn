@@ -1,5 +1,5 @@
 {
-   "python.autoComplete.extraPaths": [
+  "python.autoComplete.extraPaths": [
     "/home/ros/sigyn_ws/install/rviz_2d_overlay_msgs/local/lib/python3.10/dist-packages",
     "/home/ros/sigyn_ws/build/py_scripts",
     "/home/ros/sigyn_ws/install/py_scripts/lib/python3.10/site-packages",
@@ -16,4 +16,10 @@
     "/opt/ros/humble/local/lib/python3.10/dist-packages"
   ],
   "cmake.sourceDirectory": "/home/ros/sigyn_ws/src/Sigyn/base",
+  "[python]": {
+    "editor.tabSize": 2
+  },
+  "python.formatting.autopep8Args": [
+    "--indent-size=2"
+  ]
 }
