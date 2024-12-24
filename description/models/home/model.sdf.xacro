@@ -1,12 +1,12 @@
 <robot xmlns:xacro="http://ros.org/wiki/xacro" name="foo3">
-  <xacro:include filename="marker.xacro" />
+  <!-- <xacro:include filename="marker.xacro" /> -->
   <xacro:include filename="wall.xacro" />
   <sdf version="1.4">
     <model name="robot_home">
       <static>true</static>
       <xacro:property name="wall_width" value="4" />
 
-      <xacro:marker name="x_origin_marker" x="0.2" y="0.3" />
+      <!-- <xacro:marker name="x_origin_marker" x="0.2" y="0.3" /> -->
 
       <!-- big outer walls-->
       <xacro:property name="house_ew_length" value="${(50*12)+7}" />
