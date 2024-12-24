@@ -154,15 +154,15 @@ controller_server:
     general_goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
       stateful: True                  # True => goal checker will not check if the xy position matches again once it is found to be true.
-      xy_goal_tolerance: 0.25 ### 0.0508       # Tolerance to meet goal completion criteria (m).
-      yaw_goal_tolerance: 0.25 ### 0.08726639  # Tolerance to meet goal completion criteria (rad).
+      xy_goal_tolerance: 0.1 ### 0.0508       # Tolerance to meet goal completion criteria (m).
+      yaw_goal_tolerance: 0.1 ### 0.08726639  # Tolerance to meet goal completion criteria (rad).
 
     FollowPath:
       plugin: "dwb_core::DWBLocalPlanner"
       debug_trajectory_details: True
       min_vel_x: 0.0
       min_vel_y: 0.0
-      max_vel_x: 0.26
+      max_vel_x: 0.5
       max_vel_y: 0.0
       max_vel_theta: 1.0
       min_speed_xy: 0.0
@@ -555,10 +555,10 @@ local_costmap:
           obstacle_min_range: 0.0
       inflation_layer:
         enabled: True
-        cost_scaling_factor: 3.0 ###2.0 # Exponential decay factor across inflation radius.
+        cost_scaling_factor: 1.0 ###2.0 # Exponential decay factor across inflation radius.
         ###inflate_around_unknown: True # Whether to inflate unknown cells.
         ###inflate_unknown: False # Whether to inflate unknown space.
-        inflation_radius: 0.235 # Radius to inflate costmap around lethal obstacles.
+        inflation_radius: 0.40 # Radius to inflate costmap around lethal obstacles.
         plugin: "nav2_costmap_2d::InflationLayer"
 
       lidar_layer:

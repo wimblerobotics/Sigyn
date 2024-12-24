@@ -22,12 +22,15 @@ from launch.actions import (
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
-    LaunchConfiguration,
+    AndSubstitution,
     Command,
+    LaunchConfiguration,
+    NotSubstitution,
     PathJoinSubstitution,
     PythonExpression,
 )
 from launch_ros.actions import Node
+from launch_ros.descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 from ament_index_python.packages import get_package_share_directory
 
@@ -277,17 +280,28 @@ def generate_launch_description():
     )
 
     base_directory_path = get_package_share_directory("base")
-    map_path = os.path.join(base_directory_path, "maps", "20241210l.yaml")
+    map_path_sim = os.path.join(base_directory_path, "maps", "map2.yaml")
+    map_path_real = os.path.join(base_directory_path, "maps", "20241210l.yaml")
     nav2_config_path = os.path.join(
         base_directory_path, "config", "navigation_sim.yaml"
     )
 
-    nav2_launch = IncludeLaunchDescription(
+    # nav_sim= IfCondition(AndSubstitution(make_map, use_sim_time))
+    # nav_real = IfCondition(AndSubstitution(make_map, NotSubstitution(use_sim_time)))
+   
+    # log_nav_params = LogInfo(
+    #     msg=[
+    #         f"map_path_sim: {map_path_sim}, map_path_real: {map_path_real}, nav_sim: {nav_sim}, nav_real: {nav_real}",
+    #     ]
+    # )
+    # ld.add_action(log_nav_params)
+
+    nav2_launch_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(navigation_launch_path),
-        condition=UnlessCondition(make_map),
+        condition=IfCondition(AndSubstitution(NotSubstitution(make_map), use_sim_time)),
         launch_arguments={
             "autostart": "True",
-            "map": map_path,
+            "map": map_path_sim,
             "params_file": nav2_config_path,
             "slam": "False",
             "use_composition": "True",
@@ -295,7 +309,22 @@ def generate_launch_description():
             "use_sim_time": use_sim_time,
         }.items(),
     )
-    ld.add_action(nav2_launch)
+    ld.add_action(nav2_launch_sim)
+
+    nav2_launch_real = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(navigation_launch_path),
+        condition=IfCondition(AndSubstitution(NotSubstitution(make_map), NotSubstitution(use_sim_time))),
+        launch_arguments={
+            "autostart": "True",
+            "map": map_path_real,
+            "params_file": nav2_config_path,
+            "slam": "False",
+            "use_composition": "True",
+            "use_respawn": "True",
+            "use_sim_time": use_sim_time,
+        }.items(),
+    )
+    ld.add_action(nav2_launch_real)
 
     echo_action = ExecuteProcess(
         cmd=["echo", "[sim] Rviz config file path: " + rviz_config_path],
