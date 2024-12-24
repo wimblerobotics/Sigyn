@@ -1,1226 +1,692 @@
-<sdf version='1.7'>
-  <world name='Home'>
+<?xml version="1.0" ?>
+<sdf version="1.8">
+  <world name="home">
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics">
+    </plugin>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands">
+    </plugin>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster">
+    </plugin>
+    <plugin
+      filename="gz-sim-sensors-system"
+      name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    
     <light type="directional" name="sun">
-      <cast_shadows>0</cast_shadows>
-      <pose>-5 -3 10 0 0 0</pose>
-      <diffuse>1 1 1 1</diffuse>
-      <specular>1 1 1 1</specular>
-      <direction>0 0 -1</direction>
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.5 0.1 -0.9</direction>
     </light>
-    <model name='ground_plane'>
+
+    <model name="ground_plane">
       <static>true</static>
-      <link name='link'>
-        <collision name='collision'>
+      <link name="link">
+        <collision name="collision">
           <geometry>
             <plane>
-              <normal>0.0 0.0 1</normal>
-              <size>1 1</size>
+              <normal>0 0 1</normal>
             </plane>
           </geometry>
         </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>0.8 0.8 0.8 1</ambient>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+            <specular>0.8 0.8 0.8 1</specular>
+          </material>
+        </visual>
       </link>
-      <pose>0 0 0 0 0 0</pose>
     </model>
 
-    <gravity>0 0 -9.8</gravity>
-    <magnetic_field>6e-06 2.3e-05 -4.2e-05</magnetic_field>
-    <atmosphere type='adiabatic'/>
-    <physics type='ode'>
-      <max_step_size>0.01</max_step_size>
-      <real_time_factor>1</real_time_factor>
-      <max_contacts>10</max_contacts>
-    </physics>
-    <plugin name='ignition::gazebo::systems::Physics' filename='libignition-gazebo-physics-system.so'/>
-    <plugin name='ignition::gazebo::systems::UserCommands' filename='libignition-gazebo-user-commands-system.so'/>
-    <plugin name='ignition::gazebo::systems::SceneBroadcaster' filename='libignition-gazebo-scene-broadcaster-system.so'/>
-    <plugin name='ignition::gazebo::systems::Imu' filename='ignition-gazebo-imu-system'/>
-    <plugin name='ignition::gazebo::systems::Sensors' filename='ignition-gazebo-sensors-system'>
-      <render_engine>ogre2</render_engine>
-    </plugin>
-    <gui fullscreen="0">
-
-      <!-- 3D scene -->
-      <plugin filename="GzScene3D" name="3D View">
-        <ignition-gui>
-          <title>3D View</title>
-          <property type="bool" key="showTitleBar">false</property>
-          <property type="string" key="state">docked</property>
-        </ignition-gui>
-
-        <engine>ogre2</engine>
-        <scene>scene</scene>
-        <ambient_light>0.4 0.4 0.4</ambient_light>
-        <background_color>0.8 0.8 0.8</background_color>
-        <camera_pose>13.4 -6.1 2.23 0 0.4 -1.83</camera_pose>
-      </plugin>
-
-      <!-- World control -->
-      <plugin filename="WorldControl" name="World control">
-        <ignition-gui>
-          <title>World control</title>
-          <property type="bool" key="showTitleBar">false</property>
-          <property type="bool" key="resizable">false</property>
-          <property type="double" key="height">72</property>
-          <property type="double" key="width">121</property>
-          <property type="double" key="z">1</property>
-
-          <property type="string" key="state">floating</property>
-          <anchors target="3D View">
-            <line own="left" target="left"/>
-            <line own="bottom" target="bottom"/>
-          </anchors>
-        </ignition-gui>
-
-        <play_pause>true</play_pause>
-        <step>true</step>
-        <start_paused>true</start_paused>
-
-      </plugin>
-
-      <!-- World statistics -->
-      <plugin filename="WorldStats" name="World stats">
-        <ignition-gui>
-          <title>World stats</title>
-          <property type="bool" key="showTitleBar">false</property>
-          <property type="bool" key="resizable">false</property>
-          <property type="double" key="height">110</property>
-          <property type="double" key="width">290</property>
-          <property type="double" key="z">1</property>
-
-          <property type="string" key="state">floating</property>
-          <anchors target="3D View">
-            <line own="right" target="right"/>
-            <line own="bottom" target="bottom"/>
-          </anchors>
-        </ignition-gui>
-
-        <sim_time>true</sim_time>
-        <real_time>true</real_time>
-        <real_time_factor>true</real_time_factor>
-        <iterations>true</iterations>
-      </plugin>
-
-      <plugin filename="TransformControl" name="Transform control">
-        <ignition-gui>
-          <property type="bool" key="showTitleBar">false</property>
-          <property key="x" type="double">0</property>
-          <property key="y" type="double">0</property>
-          <property key="width" type="double">250</property>
-          <property key="height" type="double">50</property>
-          <property key="state" type="string">floating</property>
-          <property key="cardBackground" type="string">#666666</property>
-        </ignition-gui>
-      </plugin>
-      <plugin filename="Shapes" name="Shapes">
-        <ignition-gui>
-          <property type="bool" key="showTitleBar">false</property>
-          <property key="x" type="double">250</property>
-          <property key="y" type="double">0</property>
-          <property key="width" type="double">150</property>
-          <property key="height" type="double">50</property>
-          <property key="state" type="string">floating</property>
-          <property key="cardBackground" type="string">#666666</property>
-        </ignition-gui>
-      </plugin>
-      <plugin filename="Screenshot" name="Screenshot">
-        <ignition-gui>
-          <property type="bool" key="showTitleBar">false</property>
-          <property key="x" type="double">400</property>
-          <property key="y" type="double">0</property>
-          <property key="width" type="double">50</property>
-          <property key="height" type="double">50</property>
-          <property key="state" type="string">floating</property>
-          <property key="cardBackground" type="string">#666666</property>
-        </ignition-gui>
-      </plugin>
-      <plugin filename="ComponentInspector" name="Component inspector">
-        <ignition-gui>
-          <property key="x" type="double">0</property>
-          <property key="y" type="double">0</property>
-          <property key="width" type="double">400</property>
-          <property key="height" type="double">375</property>
-          <property key="state" type="string">docked_collapsed</property>
-        </ignition-gui>
-      </plugin>
-      <plugin filename="EntityTree" name="Entity tree">
-        <ignition-gui>
-          <property key="x" type="double">0</property>
-          <property key="y" type="double">0</property>
-          <property key="width" type="double">400</property>
-          <property key="height" type="double">375</property>
-          <property key="state" type="string">docked_collapsed</property>
-        </ignition-gui>
-      </plugin>
-      <plugin filename="Teleop" name="Teleop">
-        <ignition-gui>
-          <property key="x" type="double">0</property>
-          <property key="y" type="double">0</property>
-          <property key="width" type="double">400</property>
-          <property key="height" type="double">900</property>
-          <property key="state" type="string">docked</property>
-        </ignition-gui>
-        <topic>/cmd_vel</topic>
-      </plugin>
-    </gui>
-    <scene>
-      <ambient>1 1 1 1</ambient>
-      <background>0.3 0.7 0.9 1</background>
-      <shadows>0</shadows>
-      <grid>false</grid>
-    </scene>
-    <audio>
-      <device>default</device>
-    </audio>
-    <wind/>
-    <spherical_coordinates>
-      <surface_model>EARTH_WGS84</surface_model>
-      <latitude_deg>0</latitude_deg>
-      <longitude_deg>0</longitude_deg>
-      <elevation>0</elevation>
-      <heading_deg>0</heading_deg>
-    </spherical_coordinates>
-    <model name='robot_home'>
-      <static>1</static>
-      <link name='x_origin_marker'>
-        <pose>0.3 0.35 2 0 -0 0</pose>
-        <visual name='part1'>
-          <cast_shadows>0</cast_shadows>
-          <pose>0 0 0 0 -0 0</pose>
+    <model name="robot_home">
+      <static>true</static>
+      <!-- <xacro:marker name="x_origin_marker" x="0.2" y="0.3" /> -->
+      <link name="north_wall">
+        <pose> -0.0508 7.7089 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
           <geometry>
             <box>
-              <size>0.2 0.1 4</size>
+              <size>0.1016 15.4178 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.1016 15.4178 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="south_wall">
+        <pose> 14.8082 7.7089 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.1016 15.4178 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.1016 15.4178 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="east_wall">
+        <pose> 7.378699999999999 15.367 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>14.757399999999999 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>14.757399999999999 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="north_atrium_wall">
+        <pose> 5.867399999999999 4.7625 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.1016 9.525 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.1016 9.525 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="hobby_east_wall_1">
+        <pose> 2.0955 9.4742 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>4.191 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>4.191 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="hobby_east_wall_2">
+        <pose> 5.4102 9.4742 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.8128 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.8128 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="hobby_west_wall">
+        <pose> 2.9082999999999997 6.324599999999999 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>5.816599999999999 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>5.816599999999999 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="kitchen_lr_divider">
+        <pose> 4.1148 12.992099999999999 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.1016 4.6482 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.1016 4.6482 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="master_br_kitchen_divider">
+        <pose> 10.414 12.9794 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.1016 4.6735999999999995 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.1016 4.6735999999999995 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="master_br_closet_ew_long">
+        <pose> 11.43 10.6426 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.1016 2.032 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.1016 2.032 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="master_br_closet_ns_east">
+        <pose> 12.2428 11.607800000000001 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.524 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.524 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="master_br_closet_ns_west">
+        <pose> 12.2428 9.6774 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.524 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.524 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="master_br_closet_ew_short_east">
+        <pose> 13.0556 11.3411 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.1016 0.635 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.1016 0.635 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="master_br_closet_ew_short_west">
+        <pose> 13.0556 9.9949 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.1016 0.7365999999999999 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.1016 0.7365999999999999 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="master_br_closet_ns_west_to_door">
+        <pose> 13.284199999999998 10.3124 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.35559999999999997 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.35559999999999997 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="master_br_vanity_wall_east">
+        <pose> 14.4526 11.607800000000001 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.6095999999999999 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.6095999999999999 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="master_br_vanity_wall_west">
+        <pose> 14.4526 10.287 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.6095999999999999 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.6095999999999999 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="master_br_vanity">
+        <pose>
+          14.5034
+          10.9474
+          0.4064
+          0
+          0
+          0
+        </pose>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>
+                0.508 
+                1.2191999999999998
+                0.8128</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <cast_shadows>false</cast_shadows>
+          <geometry>
+            <box>
+              <size>0.508 
+                1.2191999999999998
+                0.8128</size>
             </box>
           </geometry>
           <material>
-            <ambient>1 0 0 1</ambient>
+            <ambient>1.0 0.0 0.0 1</ambient>
             <diffuse>0.1 0.1 0.2 1</diffuse>
             <specular>0 0 0 0</specular>
             <emissive>0 0 0 1</emissive>
           </material>
         </visual>
-        <visual name='part2'>
-          <cast_shadows>0</cast_shadows>
-          <pose>0.15 0 -1.95 0 -0 0</pose>
+      </link>
+      <link name="master_br_guest_shower_divider">
+        <pose> 13.4874 8.737599999999999 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
           <geometry>
-            <sphere>
-              <radius>0.05</radius>
-            </sphere>
+            <box>
+              <size>2.54 0.2032 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>2.54 0.2032 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="guest_bath_north_wall">
+        <pose> 12.1666 8.7884 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.1016 1.6764 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.1016 1.6764 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="guest_bath_closet_east_wall">
+        <pose> 11.7983 8.001 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.8382 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.8382 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="guest_bath_west_wall1">
+        <pose> 12.37615 7.035799999999999 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.7907 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.7907 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="guest_bath_west_wall2">
+        <pose> 14.01445 6.35 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.4859 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.4859 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="guest_bathtub_end_wall">
+        <pose> 13.2207 6.7183 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.1016 0.8382 2.4383999999999997</size>
+            </box>
+          </geometry>
+          <!--let's add color to our link-->
+          <material>
+            <ambient>1.0 0.7451 0.4353 1</ambient>
+            <diffuse>1.0 0.7451 0.4353 1</diffuse>
+            <specular>1 1 1 1</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.1016 0.8382 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+      <link name="guest_bath_vanity">
+        <pose>
+          12.953999999999999
+          8.3566
+          0.4064
+          0
+          0
+          0
+        </pose>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>
+                1.6764 
+                0.5588
+                0.8128</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <cast_shadows>false</cast_shadows>
+          <geometry>
+            <box>
+              <size>1.6764 
+                0.5588
+                0.8128</size>
+            </box>
           </geometry>
           <material>
-            <ambient>0 0.5 0 1</ambient>
+            <ambient>0.0 0.0 0. 1</ambient>
             <diffuse>0.1 0.1 0.2 1</diffuse>
             <specular>0 0 0 0</specular>
             <emissive>0 0 0 1</emissive>
           </material>
         </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
       </link>
-      <link name='north_wall'>
-        <pose>-0.0508 7.7089 1.2192 0 -0 0</pose>
-        <collision name='collision'>
+      <link name="guest_bathtub">
+        <pose>
+          14.01445
+          6.6674999999999995
+          0.30479999999999996
+          0
+          0
+          0
+        </pose>
+        <collision name="collision">
           <geometry>
             <box>
-              <size>0.1016 15.4178 2.4384</size>
+              <size>
+                1.4859 
+                0.7365999999999999
+                0.6095999999999999</size>
             </box>
           </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
         </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
+        <visual name="visual">
+          <cast_shadows>false</cast_shadows>
           <geometry>
             <box>
-              <size>0.1016 15.4178 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='south_wall'>
-        <pose>14.8082 7.7089 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>0.1016 15.4178 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>0.1016 15.4178 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='east_wall'>
-        <pose>7.3787 15.367 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>14.7574 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>14.7574 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='north_atrium_wall'>
-        <pose>5.8674 4.7625 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>0.1016 9.525 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>0.1016 9.525 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='hobby_east_wall_1'>
-        <pose>2.0955 9.4742 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>4.191 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>4.191 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='hobby_east_wall_2'>
-        <pose>5.4102 9.4742 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>0.8128 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>0.8128 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='hobby_west_wall'>
-        <pose>2.9083 6.3246 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>5.8166 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>5.8166 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='kitchen_lr_divider'>
-        <pose>4.1148 12.9921 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>0.1016 4.6482 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>0.1016 4.6482 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='master_br_kitchen_divider'>
-        <pose>10.414 12.9794 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>0.1016 4.6736 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>0.1016 4.6736 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='master_br_closet_ew_long'>
-        <pose>11.43 10.6426 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>0.1016 2.032 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>0.1016 2.032 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='master_br_closet_ns_east'>
-        <pose>12.2428 11.6078 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1.524 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>1.524 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='master_br_closet_ns_west'>
-        <pose>12.2428 9.6774 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1.524 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>1.524 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='master_br_closet_ew_short_east'>
-        <pose>13.0556 11.3411 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>0.1016 0.635 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>0.1016 0.635 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='master_br_closet_ew_short_west'>
-        <pose>13.0556 9.9949 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>0.1016 0.7366 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>0.1016 0.7366 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='master_br_closet_ns_west_to_door'>
-        <pose>13.2842 10.3124 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>0.3556 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>0.3556 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='master_br_vanity_wall_east'>
-        <pose>14.4526 11.6078 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>0.6096 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>0.6096 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='master_br_vanity_wall_west'>
-        <pose>14.4526 10.287 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>0.6096 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>0.6096 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='master_br_vanity'>
-        <pose>14.5034 10.9474 0.4064 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>0.508 1.2192 0.8128</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>0.508 1.2192 0.8128</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1 0 0 1</ambient>
-            <diffuse>0.1 0.1 0.2 1</diffuse>
-            <specular>0 0 0 0</specular>
-            <emissive>0 0 0 1</emissive>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='master_br_guest_shower_divider'>
-        <pose>13.4874 8.7376 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>2.54 0.2032 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>2.54 0.2032 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='guest_bath_north_wall'>
-        <pose>12.1666 8.7884 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>0.1016 1.6764 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>0.1016 1.6764 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='guest_bath_closet_east_wall'>
-        <pose>11.7983 8.001 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>0.8382 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>0.8382 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='guest_bath_west_wall1'>
-        <pose>12.3762 7.0358 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1.7907 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>1.7907 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='guest_bath_west_wall2'>
-        <pose>14.0145 6.35 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1.4859 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>1.4859 0.1016 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='guest_bathtub_end_wall'>
-        <pose>13.2207 6.7183 1.2192 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>0.1016 0.8382 2.4384</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>0.1016 0.8382 2.4384</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1.0 0.7451 0.4353 1</ambient>
-            <diffuse>1.0 0.7451 0.4353 1</diffuse>
-            <specular>1 1 1 1</specular>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='guest_bath_vanity'>
-        <pose>12.954 8.3566 0.4064 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1.6764 0.5588 0.8128</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>1.6764 0.5588 0.8128</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>0 0 0 1</ambient>
-            <diffuse>0.1 0.1 0.2 1</diffuse>
-            <specular>0 0 0 0</specular>
-            <emissive>0 0 0 1</emissive>
-          </material>
-        </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='guest_bathtub'>
-        <pose>14.0145 6.6675 0.3048 0 -0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1.4859 0.7366 0.6096</size>
-            </box>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>1.4859 0.7366 0.6096</size>
+              <size>1.4859 
+                0.7365999999999999
+                0.6095999999999999</size>
             </box>
           </geometry>
           <material>
@@ -1230,753 +696,284 @@
             <emissive>0 0 0 1</emissive>
           </material>
         </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
       </link>
-      <link name='music_west_wall'>
-        <pose>13.1191 3.2004 1.2192 0 -0 0</pose>
-        <collision name='collision'>
+      <link name="music_west_wall">
+        <pose> 13.1191 3.2004 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
           <geometry>
             <box>
-              <size>3.2766 0.1016 2.4384</size>
+              <size>3.2765999999999997 0.1016 2.4383999999999997</size>
             </box>
           </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
-          <geometry>
-            <box>
-              <size>3.2766 0.1016 2.4384</size>
-            </box>
-          </geometry>
+          <!--let's add color to our link-->
           <material>
             <ambient>1.0 0.7451 0.4353 1</ambient>
             <diffuse>1.0 0.7451 0.4353 1</diffuse>
             <specular>1 1 1 1</specular>
           </material>
         </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='music_north_ew_1'>
-        <pose>11.43 6.6294 1.2192 0 -0 0</pose>
-        <collision name='collision'>
+        <collision name="collision">
           <geometry>
             <box>
-              <size>0.1016 0.9144 2.4384</size>
+              <size>3.2765999999999997 0.1016 2.4383999999999997</size>
             </box>
           </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
         </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
+      </link>
+      <link name="music_north_ew_1">
+        <pose> 11.43 6.6294 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
           <geometry>
             <box>
-              <size>0.1016 0.9144 2.4384</size>
+              <size>0.1016 0.9144 2.4383999999999997</size>
             </box>
           </geometry>
+          <!--let's add color to our link-->
           <material>
             <ambient>1.0 0.7451 0.4353 1</ambient>
             <diffuse>1.0 0.7451 0.4353 1</diffuse>
             <specular>1 1 1 1</specular>
           </material>
         </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='music_north_ew_2'>
-        <pose>11.43 4.2799 1.2192 0 -0 0</pose>
-        <collision name='collision'>
+        <collision name="collision">
           <geometry>
             <box>
-              <size>0.1016 2.2606 2.4384</size>
+              <size>0.1016 0.9144 2.4383999999999997</size>
             </box>
           </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
         </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
+      </link>
+      <link name="music_north_ew_2">
+        <pose> 11.43 4.2799 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
           <geometry>
             <box>
-              <size>0.1016 2.2606 2.4384</size>
+              <size>0.1016 2.2605999999999997 2.4383999999999997</size>
             </box>
           </geometry>
+          <!--let's add color to our link-->
           <material>
             <ambient>1.0 0.7451 0.4353 1</ambient>
             <diffuse>1.0 0.7451 0.4353 1</diffuse>
             <specular>1 1 1 1</specular>
           </material>
         </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='cat_computer_west_wall'>
-        <pose>11.049 0.0508 1.2192 0 -0 0</pose>
-        <collision name='collision'>
+        <collision name="collision">
           <geometry>
             <box>
-              <size>7.4168 0.1016 2.4384</size>
+              <size>0.1016 2.2605999999999997 2.4383999999999997</size>
             </box>
           </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
         </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
+      </link>
+      <link name="cat_computer_west_wall">
+        <pose> 11.049 0.0508 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
           <geometry>
             <box>
-              <size>7.4168 0.1016 2.4384</size>
+              <size>7.416799999999999 0.1016 2.4383999999999997</size>
             </box>
           </geometry>
+          <!--let's add color to our link-->
           <material>
             <ambient>1.0 0.7451 0.4353 1</ambient>
             <diffuse>1.0 0.7451 0.4353 1</diffuse>
             <specular>1 1 1 1</specular>
           </material>
         </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='cat_north_ns'>
-        <pose>11.176 0.8382 1.2192 0 -0 0</pose>
-        <collision name='collision'>
+        <collision name="collision">
           <geometry>
             <box>
-              <size>0.1016 1.4732 2.4384</size>
+              <size>7.416799999999999 0.1016 2.4383999999999997</size>
             </box>
           </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
         </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
+      </link>
+      <link name="cat_north_ns">
+        <pose> 11.176 0.8382 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
           <geometry>
             <box>
-              <size>0.1016 1.4732 2.4384</size>
+              <size>0.1016 1.4731999999999998 2.4383999999999997</size>
             </box>
           </geometry>
+          <!--let's add color to our link-->
           <material>
             <ambient>1.0 0.7451 0.4353 1</ambient>
             <diffuse>1.0 0.7451 0.4353 1</diffuse>
             <specular>1 1 1 1</specular>
           </material>
         </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='closet_west_hall_back'>
-        <pose>11.176 1.6256 1.2192 0 -0 0</pose>
-        <collision name='collision'>
+        <collision name="collision">
           <geometry>
             <box>
-              <size>1.3716 0.1016 2.4384</size>
+              <size>0.1016 1.4731999999999998 2.4383999999999997</size>
             </box>
           </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
         </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
+      </link>
+      <link name="closet_west_hall_back">
+        <pose> 11.176 1.6256 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
           <geometry>
             <box>
-              <size>1.3716 0.1016 2.4384</size>
+              <size>1.3716 0.1016 2.4383999999999997</size>
             </box>
           </geometry>
+          <!--let's add color to our link-->
           <material>
             <ambient>1.0 0.7451 0.4353 1</ambient>
             <diffuse>1.0 0.7451 0.4353 1</diffuse>
             <specular>1 1 1 1</specular>
           </material>
         </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='closet_east_wall_north'>
-        <pose>11.9126 1.9431 1.2192 0 -0 0</pose>
-        <collision name='collision'>
+        <collision name="collision">
           <geometry>
             <box>
-              <size>0.1016 0.7366 2.4384</size>
+              <size>1.3716 0.1016 2.4383999999999997</size>
             </box>
           </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
         </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
+      </link>
+      <link name="closet_east_wall_north">
+        <pose> 11.9126 1.9430999999999998 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
           <geometry>
             <box>
-              <size>0.1016 0.7366 2.4384</size>
+              <size>0.1016 0.7365999999999999 2.4383999999999997</size>
             </box>
           </geometry>
+          <!--let's add color to our link-->
           <material>
             <ambient>1.0 0.7451 0.4353 1</ambient>
             <diffuse>1.0 0.7451 0.4353 1</diffuse>
             <specular>1 1 1 1</specular>
           </material>
         </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='closet_west_hall_north'>
-        <pose>10.4394 2.1336 1.2192 0 -0 0</pose>
-        <collision name='collision'>
+        <collision name="collision">
           <geometry>
             <box>
-              <size>0.1016 1.1176 2.4384</size>
+              <size>0.1016 0.7365999999999999 2.4383999999999997</size>
             </box>
           </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
         </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
+      </link>
+      <link name="closet_west_hall_north">
+        <pose> 10.439400000000001 2.1336 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
           <geometry>
             <box>
-              <size>0.1016 1.1176 2.4384</size>
+              <size>0.1016 1.1176 2.4383999999999997</size>
             </box>
           </geometry>
+          <!--let's add color to our link-->
           <material>
             <ambient>1.0 0.7451 0.4353 1</ambient>
             <diffuse>1.0 0.7451 0.4353 1</diffuse>
             <specular>1 1 1 1</specular>
           </material>
         </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='computer_north'>
-        <pose>7.2898 1.8288 1.2192 0 -0 0</pose>
-        <collision name='collision'>
+        <collision name="collision">
           <geometry>
             <box>
-              <size>0.1016 3.6576 2.4384</size>
+              <size>0.1016 1.1176 2.4383999999999997</size>
             </box>
           </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
         </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
+      </link>
+      <link name="computer_north">
+        <pose> 7.2898 1.8288 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
           <geometry>
             <box>
-              <size>0.1016 3.6576 2.4384</size>
+              <size>0.1016 3.6576 2.4383999999999997</size>
             </box>
           </geometry>
+          <!--let's add color to our link-->
           <material>
             <ambient>1.0 0.7451 0.4353 1</ambient>
             <diffuse>1.0 0.7451 0.4353 1</diffuse>
             <specular>1 1 1 1</specular>
           </material>
         </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='computer_east_wall'>
-        <pose>8.8646 3.6068 1.2192 0 -0 0</pose>
-        <collision name='collision'>
+        <collision name="collision">
           <geometry>
             <box>
-              <size>3.048 0.1016 2.4384</size>
+              <size>0.1016 3.6576 2.4383999999999997</size>
             </box>
           </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
         </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
+      </link>
+      <link name="computer_east_wall">
+        <pose> 8.8646 3.6068000000000002 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
           <geometry>
             <box>
-              <size>3.048 0.1016 2.4384</size>
+              <size>3.048 0.1016 2.4383999999999997</size>
             </box>
           </geometry>
+          <!--let's add color to our link-->
           <material>
             <ambient>1.0 0.7451 0.4353 1</ambient>
             <diffuse>1.0 0.7451 0.4353 1</diffuse>
             <specular>1 1 1 1</specular>
           </material>
         </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='long_hall_north'>
-        <pose>10.414 6.5405 1.2192 0 -0 0</pose>
-        <collision name='collision'>
+        <collision name="collision">
           <geometry>
             <box>
-              <size>0.1016 5.969 2.4384</size>
+              <size>3.048 0.1016 2.4383999999999997</size>
             </box>
           </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
         </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
+      </link>
+      <link name="long_hall_north">
+        <pose> 10.414 6.5405 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
           <geometry>
             <box>
-              <size>0.1016 5.969 2.4384</size>
+              <size>0.1016 5.968999999999999 2.4383999999999997</size>
             </box>
           </geometry>
+          <!--let's add color to our link-->
           <material>
             <ambient>1.0 0.7451 0.4353 1</ambient>
             <diffuse>1.0 0.7451 0.4353 1</diffuse>
             <specular>1 1 1 1</specular>
           </material>
         </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <link name='atrium_east_wall'>
-        <pose>8.1407 9.4742 1.2192 0 -0 0</pose>
-        <collision name='collision'>
+        <collision name="collision">
           <geometry>
             <box>
-              <size>4.445 0.1016 2.4384</size>
+              <size>0.1016 5.968999999999999 2.4383999999999997</size>
             </box>
           </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <contact>
-              <ode/>
-            </contact>
-            <bounce/>
-            <friction>
-              <torsional>
-                <ode/>
-              </torsional>
-              <ode/>
-            </friction>
-          </surface>
         </collision>
-        <visual name='visual'>
-          <cast_shadows>0</cast_shadows>
+      </link>
+      <link name="atrium_east_wall">
+        <pose> 8.140699999999999 9.4742 1.2191999999999998 0 0 0</pose>
+        <visual name="visual">
           <geometry>
             <box>
-              <size>4.445 0.1016 2.4384</size>
+              <size>4.444999999999999 0.1016 2.4383999999999997</size>
             </box>
           </geometry>
+          <!--let's add color to our link-->
           <material>
             <ambient>1.0 0.7451 0.4353 1</ambient>
             <diffuse>1.0 0.7451 0.4353 1</diffuse>
             <specular>1 1 1 1</specular>
           </material>
         </visual>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>4.444999999999999 0.1016 2.4383999999999997</size>
+            </box>
+          </geometry>
+        </collision>
       </link>
-      <pose>-1.49113 -2.52418 0 0 -0 0</pose>
     </model>
-    <state world_name='default'>
-      <sim_time>184 290000000</sim_time>
-      <real_time>93 5992539</real_time>
-      <wall_time>1707848571 630633779</wall_time>
-      <iterations>92958</iterations>
-      <model name='ground_plane'>
-        <pose>0 0 0 0 -0 0</pose>
-        <scale>1 1 1</scale>
-        <link name='link'>
-          <pose>0 0 0 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-      </model>
-      <model name='robot_home'>
-        <pose>0 0 0 0 -0 0</pose>
-        <scale>1 1 1</scale>
-        <link name='atrium_east_wall'>
-          <pose>8.1407 9.4742 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='cat_computer_west_wall'>
-          <pose>11.049 0.0508 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='cat_north_ns'>
-          <pose>11.176 0.8382 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='closet_east_wall_north'>
-          <pose>11.9126 1.9431 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='closet_west_hall_back'>
-          <pose>11.176 1.6256 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='closet_west_hall_north'>
-          <pose>10.4394 2.1336 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='computer_east_wall'>
-          <pose>8.8646 3.6068 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='computer_north'>
-          <pose>7.2898 1.8288 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='east_wall'>
-          <pose>7.3787 15.367 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='guest_bath_closet_east_wall'>
-          <pose>11.7983 8.001 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='guest_bath_north_wall'>
-          <pose>12.1666 8.7884 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='guest_bath_vanity'>
-          <pose>12.954 8.3566 0.4064 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='guest_bath_west_wall1'>
-          <pose>12.3762 7.0358 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='guest_bath_west_wall2'>
-          <pose>14.0145 6.35 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='guest_bathtub'>
-          <pose>14.0145 6.6675 0.3048 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='guest_bathtub_end_wall'>
-          <pose>13.2207 6.7183 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='hobby_east_wall_1'>
-          <pose>2.0955 9.4742 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='hobby_east_wall_2'>
-          <pose>5.4102 9.4742 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='hobby_west_wall'>
-          <pose>2.9083 6.3246 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='kitchen_lr_divider'>
-          <pose>4.1148 12.9921 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='long_hall_north'>
-          <pose>10.414 6.5405 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='master_br_closet_ew_long'>
-          <pose>11.43 10.6426 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='master_br_closet_ew_short_east'>
-          <pose>13.0556 11.3411 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='master_br_closet_ew_short_west'>
-          <pose>13.0556 9.9949 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='master_br_closet_ns_east'>
-          <pose>12.2428 11.6078 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='master_br_closet_ns_west'>
-          <pose>12.2428 9.6774 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='master_br_closet_ns_west_to_door'>
-          <pose>13.2842 10.3124 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='master_br_guest_shower_divider'>
-          <pose>13.4874 8.7376 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='master_br_kitchen_divider'>
-          <pose>10.414 12.9794 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='master_br_vanity'>
-          <pose>14.5034 10.9474 0.4064 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='master_br_vanity_wall_east'>
-          <pose>14.4526 11.6078 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='master_br_vanity_wall_west'>
-          <pose>14.4526 10.287 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='music_north_ew_1'>
-          <pose>11.43 6.6294 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='music_north_ew_2'>
-          <pose>11.43 4.2799 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='music_west_wall'>
-          <pose>13.1191 3.2004 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='north_atrium_wall'>
-          <pose>5.8674 4.7625 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='north_wall'>
-          <pose>-0.0508 7.7089 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='south_wall'>
-          <pose>14.8082 7.7089 1.2192 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='x_origin_marker'>
-          <pose>0.3 0.35 2 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-      </model>
-      <light type="directional" name="sun">
-        <cast_shadows>true</cast_shadows>
-        <pose>0 0 10 0 0 0</pose>
-        <diffuse>0.8 0.8 0.8 1</diffuse>
-        <specular>0.2 0.2 0.2 1</specular>
-        <attenuation>
-          <range>1000</range>
-          <constant>0.9</constant>
-          <linear>0.01</linear>
-          <quadratic>0.001</quadratic>
-        </attenuation>
-        <direction>-0.5 0.1 -0.9</direction>
-      </light>
-    </state>
-    <gui fullscreen='0'>
-      <camera name='user_camera'>
-        <pose>8.62706 -9.00983 22.1095 0 1.05164 1.5962</pose>
-        <view_controller>orbit</view_controller>
-        <projection_type>perspective</projection_type>
-      </camera>
-    </gui>
+
   </world>
 </sdf>
