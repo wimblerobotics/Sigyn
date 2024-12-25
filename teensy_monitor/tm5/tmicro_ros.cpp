@@ -380,7 +380,7 @@ TMicroRos::TMicroRos()
   odom_msg_.header.frame_id.size = strlen(odom_msg_.header.frame_id.data);
   odom_msg_.child_frame_id.capacity = 32;
   odom_msg_.child_frame_id.data = (char *)malloc(odom_msg_.child_frame_id.capacity * sizeof(char));
-  snprintf(odom_msg_.child_frame_id.data, odom_msg_.header.frame_id.capacity, "base_footprint");
+  snprintf(odom_msg_.child_frame_id.data, odom_msg_.header.frame_id.capacity, "base_link");
   odom_msg_.child_frame_id.size = strlen(odom_msg_.child_frame_id.data);
 
   odom_msg_.header.frame_id.size = 0;
