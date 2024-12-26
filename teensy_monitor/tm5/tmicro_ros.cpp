@@ -342,7 +342,7 @@ TMicroRos::TMicroRos()
       max_seconds_uncommanded_travel_(0.25),
       quad_pulses_per_meter_(1566),
       wheel_radius_(0.05),
-      wheel_separation_(0.395) {
+      wheel_separation_(0.3579) {
   battery_msg_.header.frame_id = micro_ros_string_utilities_init("main_battery");
   battery_msg_.voltage = 0.0;
   battery_msg_.current = NAN;
