@@ -1,0 +1,20 @@
+#pragma once
+#include <stdint.h>
+
+// Motor specs, deviced from the manufacturer's datasheet and the hardware specs of the robot.
+typedef struct MotorSpecs {
+  int16_t max_rpm;                // Motor's max RPM.
+  float motor_operating_voltage;  // Motor's operating voltage (used to calculate max RPM).
+  float motor_power_max_voltage;  // Max voltage of the motor's power source(used to calculate max
+                                  // RPM).
+} MotorSpecs;
+
+typedef struct RobotSpecs {
+  float wheel_diameter;     // Wheel's diameter in meters.
+  float wheels_separation;  // Distance between left and right wheels in meters.
+} RobotSpecs;
+
+static const MotorSpecs SuperDroid_1831 = {
+    .max_rpm = 122, .motor_operating_voltage = 24, .motor_power_max_voltage = 24};
+
+static const RobotSpecs Sigyn_specs = {.wheel_diameter = 0.100, .wheels_separation = 0.380};

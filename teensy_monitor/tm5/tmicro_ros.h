@@ -28,8 +28,7 @@ class TMicroRos : TModule {
   static void PublishDiagnostic(const char* msg);
 
   // Publish the odom transform and topic.
-  static void PublishOdometry(double x, double y, double x_velocity, double y_velocity,
-                              double z_velocity, float* quaternion);
+  static void PublishOdometry(float vel_dt, float linear_vel_x, float linear_vel_y, float angular_vel_z);
 
   // Singleton constructor.
   static TMicroRos& singleton();
@@ -56,6 +55,9 @@ class TMicroRos : TModule {
 
   static unsigned long long GetTimeMs();
 
+  // Motor control, odom publication, etc.
+  static void MotorTimerCallback(rcl_timer_t* timer, int64_t last_call_time);
+
   // Sync ROS time.
   static void SyncTime();
 
@@ -75,11 +77,14 @@ class TMicroRos : TModule {
   // the sensors to be ignored.
   static volatile bool await_time_sync_;
 
+  unsigned long prev_cmd_time_ms_;
+
   // Micro-ROS variables
   rcl_allocator_t allocator_;
   rcl_subscription_t cmd_vel_subscriber_;
   rclc_executor_t executor_;
   bool micro_ros_init_successful_;
+  rcl_timer_t motor_timer_;  // For motor control and odom.
   rcl_node_t node_;
   rclc_support_t support_;
   rcl_timer_t timer_;
