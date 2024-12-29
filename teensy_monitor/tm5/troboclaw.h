@@ -38,6 +38,9 @@ class TRoboClaw : TModule {
                              int32_t m2_quad_pulses_per_second,
                              uint32_t m2_max_distance);
 
+  // Convert roll, pitch, yaw angles to a quaternion
+  const void EulerToQuaternion(float roll, float pitch, float yaw, float* q);
+
   // Get the logic battery voltage.
   float GetBatteryLogic();
 
@@ -113,9 +116,6 @@ class TRoboClaw : TModule {
   // Check for motor stall.
   void CheckForMotorStall();
 
-  // Convert roll, pitch, yaw angles to a quaternion
-  const void EulerToQuaternion(float roll, float pitch, float yaw, float* q);
-
   // Get current for motor 1 and 2;
   bool GetCurrents();
 
@@ -139,9 +139,6 @@ class TRoboClaw : TModule {
 
   // Get device version string;
   bool GetVersion();
-
-  // Publish odometry;
-  void PublishOdometry();
 
   // Reestablish connection to device.
   void Reconnect();
