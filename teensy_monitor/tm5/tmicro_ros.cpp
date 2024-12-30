@@ -195,9 +195,26 @@ void TMicroRos::PublishDiagnostic(const char *msg) {
 
 void TMicroRos::PublishOdometry(float vel_dt, float linear_vel_x, float linear_vel_y,
                                 float angular_vel_z) {
+  static bool first_time = true;
+
   static float x_pos_(0.0);
   static float y_pos_(0.0);
   static float heading_(0.0);
+  static uint32_t call_count = 0;
+
+  call_count++;
+  if (first_time) {
+    first_time = false;
+    x_pos_ = 0.0;
+    y_pos_ = 0.0;
+    heading_ = 0.0;
+    char diagnostic_message[256];
+    snprintf(diagnostic_message, sizeof(diagnostic_message),
+             "INFO [TMicroRos(teensy)::PublishOdometry] first_time: %d, x_pos_: %4.3f, y_pos_: "
+              "%4.3f, heading_: %4.3f, call_count: %ul",
+              first_time, x_pos_, y_pos_, heading_, call_count);
+    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+  }
 
   if (TMicroRos::singleton().state_ == kAgentConnected) {
     unsigned long long time_stamp = GetTimeMs();
@@ -216,11 +233,11 @@ void TMicroRos::PublishOdometry(float vel_dt, float linear_vel_x, float linear_v
 
     char diagnostic_message[256];
     snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos(teensy)::PublishOdometry] vel_dt: %4.3f, linear_vel_x: %4.3f, "
+             "INFO [TMicroRos(teensy)::PublishOdometry] call_count: %ul, vel_dt: %4.3f, linear_vel_x: %4.3f, "
              "linear_vel_y: %4.3f"
              ", angular_vel_z: %4.3f, delta_x: %4.3f, delta_y: %4.3f, heading_: %4.3f, "
              "delta_heading: %4.3f",
-             vel_dt, linear_vel_x, linear_vel_y, angular_vel_z, delta_x, delta_y, heading_,
+             call_count, vel_dt, linear_vel_x, linear_vel_y, angular_vel_z, delta_x, delta_y, heading_,
              delta_heading);
     TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 
@@ -311,8 +328,10 @@ void TMicroRos::MotorTimerCallback(rcl_timer_t *timer, int64_t last_call_time) {
                                             TMicroRos::singleton().twist_msg_.linear.y,
                                             TMicroRos::singleton().twist_msg_.angular.z);
 
-    const int32_t m1_quad_pulses_per_second = rpm.motor1 * SuperDroid_1831.quad_pulses_per_revolution / 60.0;
-    const int32_t m2_quad_pulses_per_second = rpm.motor2 * SuperDroid_1831.quad_pulses_per_revolution / 60.0;
+    const int32_t m1_quad_pulses_per_second =
+        rpm.motor1 * SuperDroid_1831.quad_pulses_per_revolution / 60.0;
+    const int32_t m2_quad_pulses_per_second =
+        rpm.motor2 * SuperDroid_1831.quad_pulses_per_revolution / 60.0;
     const int32_t m1_max_distance =
         fabs(m1_quad_pulses_per_second * g_singleton_->max_seconds_uncommanded_travel_);
     const int32_t m2_max_distance =
@@ -324,7 +343,7 @@ void TMicroRos::MotorTimerCallback(rcl_timer_t *timer, int64_t last_call_time) {
              "max d: %ld, m2 qpps: %ld, m2 max d: %ld",
              g_singleton_->accel_quad_pulses_per_second_, m1_quad_pulses_per_second,
              m1_max_distance, m2_quad_pulses_per_second, m2_max_distance);
-    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);//###
+    // TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 #if USE_TSD
     TSd::singleton().log(diagnostic_message);
 #endif
@@ -339,31 +358,39 @@ void TMicroRos::MotorTimerCallback(rcl_timer_t *timer, int64_t last_call_time) {
     static unsigned long prev_m2_ticks = TRoboClaw::singleton().GetM2Encoder();
     unsigned long current_time = micros();
     unsigned long delta_time_us = current_time - prev_update_time;
-    double delta_time_minutes = ((double) delta_time_us) / 60'000'000;
+    double delta_time_minutes = ((double)delta_time_us) / 60'000'000;
     int32_t current_m1_ticks = TRoboClaw::singleton().GetM1Encoder();
     int32_t current_m2_ticks = TRoboClaw::singleton().GetM2Encoder();
     int32_t delta_ticks_m1 = current_m1_ticks - prev_m1_ticks;
-    int32_t delta_ticks_m2 = current_m1_ticks - prev_m2_ticks;
+    int32_t delta_ticks_m2 = current_m2_ticks - prev_m2_ticks;
     prev_update_time = current_time;
-    float current_rpm1 = (((float) delta_ticks_m1 / SuperDroid_1831.quad_pulses_per_revolution) / delta_time_minutes);
-    float current_rpm2 = (((float) delta_ticks_m2 / SuperDroid_1831.quad_pulses_per_revolution) / delta_time_minutes);
+    if (delta_time_minutes == 0) {
+      return;
+    }
+
+    float current_rpm1 =
+        (((float)delta_ticks_m1 / (float)SuperDroid_1831.quad_pulses_per_revolution) / delta_time_minutes);
+    float current_rpm2 =
+        (((float)delta_ticks_m2 / (float)SuperDroid_1831.quad_pulses_per_revolution) / delta_time_minutes);
     Kinematics::velocities current_vel =
         kinematics.getVelocities(current_rpm1, current_rpm2, 0.0, 0.0);
-    snprintf(diagnostic_message, sizeof(diagnostic_message),
-  "now: %lu, vel_dt_ms: %lu, rpm.motor1: %4.3f, rpm.motor2: %4.3f, quad_pulses_per_meter_: %d, "
-  "m1_quad_pulses_per_second: %d, m2_quad_pulses_per_second: %d, m1_max_distance: %d, "
-  "prev_m1_ticks: %lu, prev_m2_ticks: %lu, delta_time_us: %lu, delta_time_minutes: %4.6f, "
-  "delta_ticks_m1: %4.3f, delta_ticks_m2: %4.3f, current_rpm1: %4.3f, current_rpm2: %4.3f, ",
-  now, vel_dt_ms, rpm.motor1, rpm.motor2, g_singleton_->quad_pulses_per_meter_,
-  m1_quad_pulses_per_second, m2_quad_pulses_per_second, m1_max_distance,
-  prev_m1_ticks, prev_m2_ticks, delta_time_us, delta_time_minutes, delta_ticks_m1,
-  delta_ticks_m2, current_rpm1, current_rpm2);
+    snprintf(
+        diagnostic_message, sizeof(diagnostic_message),
+        "now: %lu, vel_dt_ms: %lu, rpm.motor1: %4.3f, rpm.motor2: %4.3f, quad_pulses_per_meter_: "
+        "%d, "
+        "prev_m1_ticks: %lu, current_m1_ticks: %lu, delta_ticks_m1: %ld, prev_m2_ticks: %lu, "
+        "current_m2_ticks, %lu, delta_ticks_m2: %ld, delta_time_us: %lu, delta_time_minutes: %4.6f, "
+        "current_rpm1: %4.3f, current_rpm2: %4.3f, ",
+        now, vel_dt_ms, rpm.motor1, rpm.motor2, g_singleton_->quad_pulses_per_meter_, prev_m1_ticks,
+        current_m1_ticks, delta_ticks_m1, prev_m2_ticks, current_m2_ticks, delta_ticks_m2,
+        delta_time_us, delta_time_minutes, current_rpm1, current_rpm2);
     TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 
-snprintf(diagnostic_message, sizeof(diagnostic_message),
-"current_vel.linear_x: %4.3f, current_vel.linear_y: %4.3f, current_vel.angular_z: %4.3f",
-current_vel.linear_x, current_vel.linear_y, current_vel.angular_z);
-TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+    snprintf(
+        diagnostic_message, sizeof(diagnostic_message),
+        "current_vel.linear_x: %4.3f, current_vel.linear_y: %4.3f, current_vel.angular_z: %4.3f",
+        current_vel.linear_x, current_vel.linear_y, current_vel.angular_z);
+    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 
     prev_m1_ticks = current_m1_ticks;
     prev_m2_ticks = current_m2_ticks;
@@ -639,7 +666,7 @@ bool TMicroRos::CreateEntities() {
   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 #endif
 
-  rclc_result = rclc_timer_init_default2(&motor_timer_, &support_, RCL_MS_TO_NS(20),
+  rclc_result = rclc_timer_init_default2(&motor_timer_, &support_, RCL_MS_TO_NS(100),
                                          MotorTimerCallback, true);
 #if DEBUG
   snprintf(diagnostic_message, sizeof(diagnostic_message),
