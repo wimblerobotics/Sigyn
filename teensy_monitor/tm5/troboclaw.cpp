@@ -185,7 +185,7 @@ bool TRoboClaw::GetSpeedM1() {
   uint8_t status;
   uint32_t speed = g_roboclaw_.ReadSpeedM1(kDeviceAddress, &status, &valid);
   if (!valid) {
-    TMicroRos::singleton().PublishDiagnostic("ERROR [TRoboClaw::GetSpeedM1a] fail");
+    TMicroRos::singleton().PublishDiagnostic("ERROR [TRoboClaw::GetSpeedM1] fail");
     g_speed_m1_ = std::numeric_limits<uint32_t>::min();
     return false;
   } else {
@@ -199,7 +199,7 @@ bool TRoboClaw::GetSpeedM2() {
   uint8_t status;
   int32_t speed = g_roboclaw_.ReadSpeedM2(kDeviceAddress, &status, &valid);
   if (!valid) {
-    TMicroRos::singleton().PublishDiagnostic("ERROR [TRoboClaw::GetSpeedM2b] fail");
+    TMicroRos::singleton().PublishDiagnostic("ERROR [TRoboClaw::GetSpeedM2] fail");
     g_speed_m2_ = std::numeric_limits<uint32_t>::min();
     return false;
   } else {
