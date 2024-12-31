@@ -77,8 +77,6 @@ class TMicroRos : TModule {
   // the sensors to be ignored.
   static volatile bool await_time_sync_;
 
-  unsigned long prev_cmd_time_ms_;
-
   // Micro-ROS variables
   rcl_allocator_t allocator_;
   rcl_subscription_t cmd_vel_subscriber_;

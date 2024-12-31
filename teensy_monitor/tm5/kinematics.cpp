@@ -129,17 +129,9 @@ Kinematics::velocities Kinematics::getVelocities(float rpm1, float rpm2, float r
 
     //convert average revolutions per minute to revolutions per second
     // average_rps_a = ((float)(-rpm1 + rpm2 - rpm3 + rpm4) / total_wheels_) / 60.0;
-    average_rps_a = ((float)(-rpm1 + rpm2) / 2.0) / 60.0;
-    vel.angular_z =  (average_rps_a * wheel_circumference_) / (wheels_y_distance_ / 2.0); //  rad/s
-char diagnostic_message[512];
-snprintf(diagnostic_message, sizeof(diagnostic_message),
-         "INFO [Kinematics::getVelocities] rpm1: %4.3f, rpm2: %4.3f, rpm3: %4.3f, rpm4: %4.3f, "
-          "average_rps_x: %4.3f, average_rps_y: %4.3f, average_rps_a: %4.3f, "
-          "vel.linear_x: %4.3f, vel.linear_y: %4.3f, vel.angular_z: %4.3f"
-          ", wheel_circumference_: %4.3f, wheels_y_distance_: %4.3f",
-          rpm1, rpm2, rpm3, rpm4, average_rps_x, average_rps_y, average_rps_a, vel.linear_x, vel.linear_y, vel.angular_z
-          , wheel_circumference_, wheels_y_distance_);
-TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+    // average_rps_a = ((float)(-rpm1 + rpm2) / 2.0) / 60.0;
+    // vel.angular_z =  (average_rps_a * wheel_circumference_) / (wheels_y_distance_ / 2.0); //  rad/s
+    vel.angular_z = (wheel_circumference_ * (rpm2 - rpm1)) / (wheels_y_distance_ * 60.0); // rad/s
     return vel;
 }
 

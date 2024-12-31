@@ -211,8 +211,8 @@ void TMicroRos::PublishOdometry(float vel_dt, float linear_vel_x, float linear_v
     char diagnostic_message[256];
     snprintf(diagnostic_message, sizeof(diagnostic_message),
              "INFO [TMicroRos(teensy)::PublishOdometry] first_time: %d, x_pos_: %4.3f, y_pos_: "
-              "%4.3f, heading_: %4.3f, call_count: %ul",
-              first_time, x_pos_, y_pos_, heading_, call_count);
+             "%4.3f, heading_: %4.3f, call_count: %ul",
+             first_time, x_pos_, y_pos_, heading_, call_count);
     TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
   }
 
@@ -233,12 +233,13 @@ void TMicroRos::PublishOdometry(float vel_dt, float linear_vel_x, float linear_v
 
     char diagnostic_message[256];
     snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos(teensy)::PublishOdometry] call_count: %ul, vel_dt: %4.3f, linear_vel_x: %4.3f, "
+             "INFO [TMicroRos(teensy)::PublishOdometry] call_count: %ul, vel_dt: %4.3f, "
+             "linear_vel_x: %4.3f, "
              "linear_vel_y: %4.3f"
              ", angular_vel_z: %4.3f, delta_x: %4.3f, delta_y: %4.3f, heading_: %4.3f, "
              "delta_heading: %4.3f",
-             call_count, vel_dt, linear_vel_x, linear_vel_y, angular_vel_z, delta_x, delta_y, heading_,
-             delta_heading);
+             call_count, vel_dt, linear_vel_x, linear_vel_y, angular_vel_z, delta_x, delta_y,
+             heading_, delta_heading);
     TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 
     // calculate current position of the robot
@@ -306,18 +307,24 @@ void TMicroRos::setup() {
 }
 
 void TMicroRos::MotorTimerCallback(rcl_timer_t *timer, int64_t last_call_time) {
+  (void)last_call_time;
+
   // NOTE !!! When checked on 2024-12-28, the loop that gathered wheel encoder data
   // in troboclaw.cpp was called at  136/2 hz (68 hz).
   // This function is called at 50 hz and relies on the wheel encoder data being up to date.
 
-  (void)last_call_time;
+  static unsigned long prev_update_time = micros();
+  unsigned long current_time_us = micros();
+  unsigned long delta_time_us = current_time_us - prev_update_time;
+  double delta_time_minutes = ((double)delta_time_us) / 60'000'000;
+  prev_update_time = current_time_us;
+
+  if (delta_time_minutes == 0) {
+    return;
+  }
 
   if ((timer != NULL) && (TMicroRos::singleton().state_ == kAgentConnected)) {
-    unsigned long now = millis();
-    unsigned long vel_dt_ms = now - TMicroRos::singleton().prev_cmd_time_ms_;
-    TMicroRos::singleton().prev_cmd_time_ms_ = now;
-
-    if (vel_dt_ms > 200) {
+    if (delta_time_us > 200'000) {
       // No command in a while, or first command.
       TMicroRos::singleton().twist_msg_.linear.x = 0;
       TMicroRos::singleton().twist_msg_.linear.y = 0;
@@ -338,7 +345,8 @@ void TMicroRos::MotorTimerCallback(rcl_timer_t *timer, int64_t last_call_time) {
         fabs(m2_quad_pulses_per_second * g_singleton_->max_seconds_uncommanded_travel_);
     char diagnostic_message[512];
     snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos(teensy)::MotorTimerCallback] accel qpps: %ld, m1 qpps: "
+             "INFO [TMicroRos(teensy)::MotorTimerCallback] rpm.motor1: %4.3f, rpm.motor2: "
+             "%4.3f,accel qpps: %ld, m1 qpps: "
              "%ld, m1 "
              "max d: %ld, m2 qpps: %ld, m2 max d: %ld",
              g_singleton_->accel_quad_pulses_per_second_, m1_quad_pulses_per_second,
@@ -352,38 +360,34 @@ void TMicroRos::MotorTimerCallback(rcl_timer_t *timer, int64_t last_call_time) {
                                                  m1_quad_pulses_per_second, m1_max_distance,
                                                  m2_quad_pulses_per_second, m2_max_distance);
 
-    // Get the RPM values for each motor.
-    static unsigned long prev_update_time = micros();
+    // Get the actual  RPM values for each motor.
     static unsigned long prev_m1_ticks = TRoboClaw::singleton().GetM1Encoder();
     static unsigned long prev_m2_ticks = TRoboClaw::singleton().GetM2Encoder();
-    unsigned long current_time = micros();
-    unsigned long delta_time_us = current_time - prev_update_time;
-    double delta_time_minutes = ((double)delta_time_us) / 60'000'000;
     int32_t current_m1_ticks = TRoboClaw::singleton().GetM1Encoder();
     int32_t current_m2_ticks = TRoboClaw::singleton().GetM2Encoder();
     int32_t delta_ticks_m1 = current_m1_ticks - prev_m1_ticks;
     int32_t delta_ticks_m2 = current_m2_ticks - prev_m2_ticks;
-    prev_update_time = current_time;
-    if (delta_time_minutes == 0) {
-      return;
-    }
 
     float current_rpm1 =
-        (((float)delta_ticks_m1 / (float)SuperDroid_1831.quad_pulses_per_revolution) / delta_time_minutes);
+        (((float)delta_ticks_m1 / (float)SuperDroid_1831.quad_pulses_per_revolution) /
+         delta_time_minutes);
     float current_rpm2 =
-        (((float)delta_ticks_m2 / (float)SuperDroid_1831.quad_pulses_per_revolution) / delta_time_minutes);
+        (((float)delta_ticks_m2 / (float)SuperDroid_1831.quad_pulses_per_revolution) /
+         delta_time_minutes);
     Kinematics::velocities current_vel =
         kinematics.getVelocities(current_rpm1, current_rpm2, 0.0, 0.0);
-    snprintf(
-        diagnostic_message, sizeof(diagnostic_message),
-        "now: %lu, vel_dt_ms: %lu, rpm.motor1: %4.3f, rpm.motor2: %4.3f, quad_pulses_per_meter_: "
-        "%d, "
-        "prev_m1_ticks: %lu, current_m1_ticks: %lu, delta_ticks_m1: %ld, prev_m2_ticks: %lu, "
-        "current_m2_ticks, %lu, delta_ticks_m2: %ld, delta_time_us: %lu, delta_time_minutes: %4.6f, "
-        "current_rpm1: %4.3f, current_rpm2: %4.3f, ",
-        now, vel_dt_ms, rpm.motor1, rpm.motor2, g_singleton_->quad_pulses_per_meter_, prev_m1_ticks,
-        current_m1_ticks, delta_ticks_m1, prev_m2_ticks, current_m2_ticks, delta_ticks_m2,
-        delta_time_us, delta_time_minutes, current_rpm1, current_rpm2);
+    snprintf(diagnostic_message, sizeof(diagnostic_message),
+             "current_time_us: %lu, delta_time_us: %lu, rpm.motor1: %4.3f, rpm.motor2: %4.3f, "
+             "quad_pulses_per_meter_: "
+             "%d, "
+             "prev_m1_ticks: %lu, current_m1_ticks: %lu, delta_ticks_m1: %ld, prev_m2_ticks: %lu, "
+             "current_m2_ticks, %lu, delta_ticks_m2: %ld, delta_time_us: %lu, delta_time_minutes: "
+             "%4.6f, "
+             "current_rpm1: %4.3f, current_rpm2: %4.3f, ",
+             current_time_us, delta_time_us, rpm.motor1, rpm.motor2,
+             g_singleton_->quad_pulses_per_meter_, prev_m1_ticks, current_m1_ticks, delta_ticks_m1,
+             prev_m2_ticks, current_m2_ticks, delta_ticks_m2, delta_time_us, delta_time_minutes,
+             current_rpm1, current_rpm2);
     TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 
     snprintf(
@@ -394,8 +398,8 @@ void TMicroRos::MotorTimerCallback(rcl_timer_t *timer, int64_t last_call_time) {
 
     prev_m1_ticks = current_m1_ticks;
     prev_m2_ticks = current_m2_ticks;
-    g_singleton_->PublishOdometry(vel_dt_ms / 1000.0, current_vel.linear_x, current_vel.linear_y,
-                                  current_vel.angular_z);
+    g_singleton_->PublishOdometry(delta_time_us / 1'000'000.0, current_vel.linear_x,
+                                  current_vel.linear_y, current_vel.angular_z);
   }
 }
 
@@ -439,7 +443,6 @@ void TMicroRos::TimerCallback(rcl_timer_t *timer, int64_t last_call_time) {
 }
 
 void TMicroRos::TwistCallback(const void *twist_msg) {
-  TMicroRos::singleton().prev_cmd_time_ms_ = millis();
   //   if (TMicroRos::singleton().state_ == kAgentConnected) {
   //     const geometry_msgs__msg__Twist *msg = (const geometry_msgs__msg__Twist *)twist_msg;
 
@@ -540,7 +543,7 @@ TMicroRos::TMicroRos()
   odom_msg_.header.frame_id.size = strlen(odom_msg_.header.frame_id.data);
   odom_msg_.child_frame_id.capacity = 32;
   odom_msg_.child_frame_id.data = (char *)malloc(odom_msg_.child_frame_id.capacity * sizeof(char));
-  snprintf(odom_msg_.child_frame_id.data, odom_msg_.header.frame_id.capacity, "base_footprint");
+  snprintf(odom_msg_.child_frame_id.data, odom_msg_.header.frame_id.capacity, "base_link");
   odom_msg_.child_frame_id.size = strlen(odom_msg_.child_frame_id.data);
 
   odom_msg_.header.frame_id.size = 0;
