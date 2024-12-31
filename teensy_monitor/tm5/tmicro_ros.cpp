@@ -38,13 +38,6 @@ void TMicroRos::SyncTime() {
   float sync_duration_ms = 0;
   bool unexpected_sync_duration = false;
 
-  // call_count++;
-  // uint32_t start = micros();
-  // rmw_ret_t sync_result = rmw_uros_sync_session(timeout_ms);  // Atttempt synchronization.
-  // int32_t now = micros();
-  // float sync_duration_ms = (now - start) / 1000.0;
-  // float duration_since_last_sync_ms = (now - time_at_last_sync) / 1000.0;
-
   // Get the current time from the agent.
   unsigned long millis_val = millis();
   rmw_ret_t sync_result = rmw_uros_sync_session(10);  // Atttempt synchronization.
@@ -79,11 +72,6 @@ unsigned long long TMicroRos::GetTimeMs() {
   // Add time difference between uC time and ROS time to synchronize time with ROS
   unsigned long millis_val = millis();
   unsigned long long now = millis_val + time_offset_;
-  // char diagnostic_message[256];
-  // snprintf(diagnostic_message, sizeof(diagnostic_message),
-  //          "INFO [TMicroRos(teensy)::GetTime] millis_val: %lu, time_offset: %llu, now: %llu",
-  //          millis_val, time_offset_, now);
-  // TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 
   return now;
 }
@@ -203,17 +191,11 @@ void TMicroRos::PublishOdometry(float vel_dt, float linear_vel_x, float linear_v
   static uint32_t call_count = 0;
 
   call_count++;
-  if (first_time) {
+  if (first_time) { //###
     first_time = false;
     x_pos_ = 0.0;
     y_pos_ = 0.0;
     heading_ = 0.0;
-    char diagnostic_message[256];
-    snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos(teensy)::PublishOdometry] first_time: %d, x_pos_: %4.3f, y_pos_: "
-             "%4.3f, heading_: %4.3f, call_count: %ul",
-             first_time, x_pos_, y_pos_, heading_, call_count);
-    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
   }
 
   if (TMicroRos::singleton().state_ == kAgentConnected) {
@@ -230,17 +212,6 @@ void TMicroRos::PublishOdometry(float vel_dt, float linear_vel_x, float linear_v
     float sin_h = sin(heading_);
     float delta_x = (linear_vel_x * cos_h - linear_vel_y * sin_h) * vel_dt;  // m
     float delta_y = (linear_vel_x * sin_h + linear_vel_y * cos_h) * vel_dt;  // m
-
-    char diagnostic_message[256];
-    snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos(teensy)::PublishOdometry] call_count: %ul, vel_dt: %4.3f, "
-             "linear_vel_x: %4.3f, "
-             "linear_vel_y: %4.3f"
-             ", angular_vel_z: %4.3f, delta_x: %4.3f, delta_y: %4.3f, heading_: %4.3f, "
-             "delta_heading: %4.3f",
-             call_count, vel_dt, linear_vel_x, linear_vel_y, angular_vel_z, delta_x, delta_y,
-             heading_, delta_heading);
-    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 
     // calculate current position of the robot
     x_pos_ += delta_x;
@@ -343,18 +314,6 @@ void TMicroRos::MotorTimerCallback(rcl_timer_t *timer, int64_t last_call_time) {
         fabs(m1_quad_pulses_per_second * g_singleton_->max_seconds_uncommanded_travel_);
     const int32_t m2_max_distance =
         fabs(m2_quad_pulses_per_second * g_singleton_->max_seconds_uncommanded_travel_);
-    char diagnostic_message[512];
-    snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMicroRos(teensy)::MotorTimerCallback] rpm.motor1: %4.3f, rpm.motor2: "
-             "%4.3f,accel qpps: %ld, m1 qpps: "
-             "%ld, m1 "
-             "max d: %ld, m2 qpps: %ld, m2 max d: %ld",
-             g_singleton_->accel_quad_pulses_per_second_, m1_quad_pulses_per_second,
-             m1_max_distance, m2_quad_pulses_per_second, m2_max_distance);
-    // TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-#if USE_TSD
-    TSd::singleton().log(diagnostic_message);
-#endif
 
     TRoboClaw::singleton().DoMixedSpeedAccelDist(g_singleton_->accel_quad_pulses_per_second_,
                                                  m1_quad_pulses_per_second, m1_max_distance,
@@ -376,26 +335,6 @@ void TMicroRos::MotorTimerCallback(rcl_timer_t *timer, int64_t last_call_time) {
          delta_time_minutes);
     Kinematics::velocities current_vel =
         kinematics.getVelocities(current_rpm1, current_rpm2, 0.0, 0.0);
-    snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "current_time_us: %lu, delta_time_us: %lu, rpm.motor1: %4.3f, rpm.motor2: %4.3f, "
-             "quad_pulses_per_meter_: "
-             "%d, "
-             "prev_m1_ticks: %lu, current_m1_ticks: %lu, delta_ticks_m1: %ld, prev_m2_ticks: %lu, "
-             "current_m2_ticks, %lu, delta_ticks_m2: %ld, delta_time_us: %lu, delta_time_minutes: "
-             "%4.6f, "
-             "current_rpm1: %4.3f, current_rpm2: %4.3f, ",
-             current_time_us, delta_time_us, rpm.motor1, rpm.motor2,
-             g_singleton_->quad_pulses_per_meter_, prev_m1_ticks, current_m1_ticks, delta_ticks_m1,
-             prev_m2_ticks, current_m2_ticks, delta_ticks_m2, delta_time_us, delta_time_minutes,
-             current_rpm1, current_rpm2);
-    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-
-    snprintf(
-        diagnostic_message, sizeof(diagnostic_message),
-        "current_vel.linear_x: %4.3f, current_vel.linear_y: %4.3f, current_vel.angular_z: %4.3f",
-        current_vel.linear_x, current_vel.linear_y, current_vel.angular_z);
-    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-
     prev_m1_ticks = current_m1_ticks;
     prev_m2_ticks = current_m2_ticks;
     g_singleton_->PublishOdometry(delta_time_us / 1'000'000.0, current_vel.linear_x,
@@ -443,58 +382,8 @@ void TMicroRos::TimerCallback(rcl_timer_t *timer, int64_t last_call_time) {
 }
 
 void TMicroRos::TwistCallback(const void *twist_msg) {
-  //   if (TMicroRos::singleton().state_ == kAgentConnected) {
-  //     const geometry_msgs__msg__Twist *msg = (const geometry_msgs__msg__Twist *)twist_msg;
-
-  //     if (TMicroRos::singleton().await_time_sync_ &&
-  //         ((msg->linear.x != 0) || (msg->angular.z != 0))) {
-  //       // A potential sync to the system time is ongoing.
-  //       // Don't handle any motor commands except for stop (x==0, z==0).
-  //       return;
-  //     }
-
-  //     double x_velocity = min(max((float)msg->linear.x, -g_singleton_->max_linear_velocity_),
-  //                             g_singleton_->max_linear_velocity_);
-  //     double yaw_velocity = min(max((float)msg->angular.z,
-  //     -g_singleton_->max_angular_velocity_),
-  //                               g_singleton_->max_angular_velocity_);
-  //     if ((msg->linear.x == 0) && (msg->angular.z == 0)) {
-  //       TRoboClaw::singleton().DoMixedSpeedDist(0, 0, 0, 0);
-  //     } else if ((fabs(x_velocity) > 0.01) || (fabs(yaw_velocity) > 0.01)) {
-  //       const double m1_desired_velocity =
-  //           x_velocity -
-  //           (yaw_velocity * g_singleton_->wheel_separation_ / 2.0) /
-  //           g_singleton_->wheel_radius_;
-  //       const double m2_desired_velocity =
-  //           x_velocity +
-  //           (yaw_velocity * g_singleton_->wheel_separation_ / 2.0) /
-  //           g_singleton_->wheel_radius_;
-
-  //       const int32_t m1_quad_pulses_per_second =
-  //           m1_desired_velocity * g_singleton_->quad_pulses_per_meter_;
-  //       const int32_t m2_quad_pulses_per_second =
-  //           m2_desired_velocity * g_singleton_->quad_pulses_per_meter_;
-  //       const int32_t m1_max_distance =
-  //           fabs(m1_quad_pulses_per_second * g_singleton_->max_seconds_uncommanded_travel_);
-  //       const int32_t m2_max_distance =
-  //           fabs(m2_quad_pulses_per_second * g_singleton_->max_seconds_uncommanded_travel_);
-  //       char diagnostic_message[256];
-  //       snprintf(diagnostic_message, sizeof(diagnostic_message),
-  //                "INFO [TMicroRos(teensy)::TwistCallback(] accel qpps: %ld, m1 qpps: "
-  //                "%ld, m1 "
-  //                "max d: %ld, m2 qpps: %ld, m2 max d: %ld",
-  //                g_singleton_->accel_quad_pulses_per_second_, m1_quad_pulses_per_second,
-  //                m1_max_distance, m2_quad_pulses_per_second, m2_max_distance);
-  // #if USE_TSD
-  //       TSd::singleton().log(diagnostic_message);
-  // #endif
-  //       TRoboClaw::singleton().DoMixedSpeedAccelDist(g_singleton_->accel_quad_pulses_per_second_,
-  //                                                    m1_quad_pulses_per_second,
-  //                                                    m1_max_distance,
-  //                                                    m2_quad_pulses_per_second,
-  //                                                    m2_max_distance);
-  //     }
-  //   }
+  // Nothing needs to be done here. The twise_msg is captured in a global variable
+  // declared when subscribing, and that global varialbe is used in the motor timer callback.
 }
 
 TMicroRos::TMicroRos()
@@ -669,7 +558,7 @@ bool TMicroRos::CreateEntities() {
   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 #endif
 
-  rclc_result = rclc_timer_init_default2(&motor_timer_, &support_, RCL_MS_TO_NS(100),
+  rclc_result = rclc_timer_init_default2(&motor_timer_, &support_, RCL_MS_TO_NS(40),
                                          MotorTimerCallback, true);
 #if DEBUG
   snprintf(diagnostic_message, sizeof(diagnostic_message),
