@@ -118,19 +118,41 @@ fi
 alias cb='colcon build --symlink-install'
 alias cgcm='ros2 service call /global_costmap/clear_entirely_global_costmap nav2_msgs/srv/ClearEntireCostmap'
 alias clcm='ros2 service call /local_costmap/clear_entirely_local_costmap nav2_msgs/srv/ClearEntireCostmap'
+alias dla="ros2 run --prefix 'gdbserver localhost:3000' line_finder laser_accumulator"
 alias fr='ros2 run tf2_tools view_frames'
 alias gripper='ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/teensy_gripper'
 alias map='clear;ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=true make_map:=true'
 alias nav='clear;ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=true'
+alias pm='ros2 topic pub --rate 10 /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.2}}"'
 alias rd='rosdep install --from-paths src --ignore-src -r -y'
+alias record='/home/ros/sigyn_ws/src/Sigyn/scripts/bag_record_sim.sh'
 alias redoudev='sudo service udev restart;sudo udevadm control --reload-rules;sudo udevadm trigger'
 alias rms='ros2 launch nav2_map_server map_saver_server.launch.py'
 alias rvs='rviz2 -d ~/sigyn_ws/src/Sigyn/rviz/config/config.rviz'
+alias savem='ros2 run nav2_map_server map_saver_cli -f my_map'
 alias sim='clear;ros2 launch base sigyn.launch.py use_sim_time:=true do_rviz:=true'
 alias sr='ssh -YC sigyn7900'
 alias stele='ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=/cmd_vel_teleop'
 alias teensy='ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/teensy_sensor'
 alias tele='ros2 run teleop_twist_keyboard teleop_twist_keyboard'
+alias toggle='ros2 service call /rosbag2_player/toggle_paused rosbag2_interfaces/srv/TogglePaused'
+
+#export CYCLONEDDS_URI="
+#<CycloneDDS>
+#   <Domain>
+#     <General>
+#        <Interfaces>
+#          <NetworkInterface name='wlp38s0' />
+#        </Interfaces>
+#    </General>
+#   </Domain>
+#</CycloneDDS>"
+
+#export ROS_DOMAIN_ID=0
+#export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+#export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+
+export PATH=$PATH:~/.local/bin
 
 source /opt/ros/jazzy/setup.bash
 source ~/sigyn_ws/install/setup.bash
