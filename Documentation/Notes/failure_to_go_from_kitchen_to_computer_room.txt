@@ -1,0 +1,128 @@
+ros@amdc:~/Arduino/libraries$ ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose "pose: {header: {frame_id: map}, pose: {position: {x: 8.5, y: 2.0, z: 0.0}, orientation:{x: 0.0, y: 0.0, z: 0, w: 1.0000000}}}"
+Waiting for an action server to become available...
+Sending goal:
+     pose:
+  header:
+    stamp:
+      sec: 0
+      nanosec: 0
+    frame_id: map
+  pose:
+    position:
+      x: 8.5
+      y: 2.0
+      z: 0.0
+    orientation:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+      w: 1.0
+behavior_tree: ''
+
+Goal accepted with ID: f3747bd9ac604691a5710ae1b9121f82
+
+Result:
+    error_code: 103
+error_msg: ''
+
+Goal finished with status: ABORTED
+
+(Distance remaining 0.23m)
+
+[component_container_isolated-2] [INFO] [1735853963.698786704] [bt_navigator]: Begin navigating from current location (8.54, 10.40) to (8.50, 2.00)
+[component_container_isolated-2] [INFO] [1735853963.719210801] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [INFO] [1735853964.769333672] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853965.819334557] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853966.819346602] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853967.869344439] [controller_server]: Passing new path to controller.
+[rviz2-9] [INFO] [1735853968.664813524] [rviz2]: Waiting for the slam_toolbox node configuration.
+[component_container_isolated-2] [INFO] [1735853968.869331573] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853969.919333442] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853970.919333555] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853971.969335970] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853972.969332997] [controller_server]: Passing new path to controller.
+[rviz2-9] [INFO] [1735853973.665651125] [rviz2]: Waiting for the slam_toolbox node configuration.
+[component_container_isolated-2] [INFO] [1735853974.019332247] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853975.019334497] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [ERROR] [1735853975.169376648] [controller_server]: Failed to make progress
+[component_container_isolated-2] [WARN] [1735853975.169430559] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1735853975.189061803] [local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[component_container_isolated-2] [INFO] [1735853975.189289409] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [WARN] [1735853975.370875316] [controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 5.5095 Hz.
+[component_container_isolated-2] [INFO] [1735853976.037624066] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853977.064665084] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853978.120945933] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [ERROR] [1735853978.370970875] [controller_server]: Failed to make progress
+[component_container_isolated-2] [WARN] [1735853978.371021049] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1735853978.389097340] [local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[component_container_isolated-2] [INFO] [1735853978.389189142] [global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[component_container_isolated-2] [WARN] [1735853978.480609994] [planner_server]: Planner loop missed its desired rate of 20.0000 Hz. Current loop rate is 10.9751 Hz
+[component_container_isolated-2] [INFO] [1735853978.499216409] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [WARN] [1735853978.570711224] [controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 14.0064 Hz.
+[rviz2-9] [INFO] [1735853978.666293925] [rviz2]: Waiting for the slam_toolbox node configuration.
+[component_container_isolated-2] [INFO] [1735853979.549372307] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853980.549374970] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853981.599374269] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [ERROR] [1735853981.599513820] [controller_server]: Failed to make progress
+[component_container_isolated-2] [WARN] [1735853981.599543175] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1735853981.629060435] [local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[component_container_isolated-2] [INFO] [1735853981.629279966] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [WARN] [1735853981.770806701] [controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 7.0695 Hz.
+[component_container_isolated-2] [INFO] [1735853982.644166022] [controller_server]: Passing new path to controller.
+[rviz2-9] [INFO] [1735853983.666895926] [rviz2]: Waiting for the slam_toolbox node configuration.
+[component_container_isolated-2] [INFO] [1735853983.670135115] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853984.670864866] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [ERROR] [1735853984.770887724] [controller_server]: Failed to make progress
+[component_container_isolated-2] [WARN] [1735853984.770927398] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1735853984.789215377] [behavior_server]: Running spin
+[component_container_isolated-2] [INFO] [1735853984.789249571] [behavior_server]: Turning 1.57 for spin behavior.
+[component_container_isolated-2] [INFO] [1735853986.889351018] [behavior_server]: spin completed successfully
+[component_container_isolated-2] [INFO] [1735853986.929245295] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [INFO] [1735853987.979404445] [controller_server]: Passing new path to controller.
+[rviz2-9] [INFO] [1735853988.667507294] [rviz2]: Waiting for the slam_toolbox node configuration.
+[component_container_isolated-2] [INFO] [1735853989.029403588] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [ERROR] [1735853989.929423545] [controller_server]: Failed to make progress
+[component_container_isolated-2] [WARN] [1735853989.929468379] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1735853989.949113843] [local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[component_container_isolated-2] [INFO] [1735853989.949375844] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [INFO] [1735853990.049507611] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853991.049520877] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [ERROR] [1735853991.650798053] [DWBLocalPlanner]: No valid trajectories out of 209! 
+[component_container_isolated-2] [ERROR] [1735853991.650843779] [DWBLocalPlanner]: 1.00: BaseObstacle/Trajectory Hits Obstacle.
+[component_container_isolated-2] [WARN] [1735853991.650895245] [controller_server]: Could not find a legal trajectory: No valid trajectories out of 209! 
+[component_container_isolated-2] [INFO] [1735853992.099509684] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853993.099695295] [controller_server]: Passing new path to controller.
+[rviz2-9] [INFO] [1735853993.668141711] [rviz2]: Waiting for the slam_toolbox node configuration.
+[component_container_isolated-2] [INFO] [1735853994.149525046] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853995.149514130] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853996.199519033] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853997.199509280] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735853998.249509034] [controller_server]: Passing new path to controller.
+[rviz2-9] [INFO] [1735853998.668773573] [rviz2]: Waiting for the slam_toolbox node configuration.
+[component_container_isolated-2] [INFO] [1735853999.249510363] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735854000.299509518] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735854001.299523331] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735854002.349507679] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735854003.349509429] [controller_server]: Passing new path to controller.
+[rviz2-9] [INFO] [1735854003.669411810] [rviz2]: Waiting for the slam_toolbox node configuration.
+[component_container_isolated-2] [INFO] [1735854004.399508726] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735854005.399504927] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735854006.449494349] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735854007.449521267] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735854008.499518833] [controller_server]: Passing new path to controller.
+[rviz2-9] [INFO] [1735854008.670026900] [rviz2]: Waiting for the slam_toolbox node configuration.
+[component_container_isolated-2] [INFO] [1735854009.499520323] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [INFO] [1735854010.549513446] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [WARN] [1735854011.521005556] [planner_server]: GridBased plugin failed to plan from (11.04, 5.34) to (8.50, 2.00): "Failed to create plan with tolerance of: 0.500000"
+[component_container_isolated-2] [WARN] [1735854011.521039971] [planner_server]: [compute_path_to_pose] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1735854011.539133350] [global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[component_container_isolated-2] [INFO] [1735854011.549520967] [controller_server]: Passing new path to controller.
+[component_container_isolated-2] [ERROR] [1735854011.549620173] [controller_server]: Path is empty.
+[component_container_isolated-2] [WARN] [1735854011.549659737] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [ERROR] [1735854011.599273039] [bt_navigator_navigate_to_pose_rclcpp_node]: Failed to get result for compute_path_to_pose in node halt!
+[component_container_isolated-2] [ERROR] [1735854011.599405978] [bt_navigator]: Goal failed
+[component_container_isolated-2] [WARN] [1735854011.599420435] [bt_navigator]: [navigate_to_pose] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1735854012.479648115] [planner_server]: Goal was canceled. Canceling planning action.
+[component_container_isolated-2] [WARN] [1735854012.479672992] [planner_server]: [compute_path_to_pose] [ActionServer] Client requested to cancel the goal. Cancelling.
+[rviz2-9] [INFO] [1735854013.670683971] [rviz2]: Waiting for the slam_toolbox node configuration.
+[rviz2-9] [INFO] [1735854018.671355434] [rviz2]: Waiting for the slam_toolbox node configuration.
