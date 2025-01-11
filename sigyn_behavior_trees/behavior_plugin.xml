@@ -1,0 +1,7 @@
+<class_libraries>
+  <library path="sigyn_behavior_trees_plugin">
+    <class name="sigyn_behavior_trees/SaySomething" type="sigyn_behavior_trees::SaySomething" base_class_type="nav2_core::Behavior">
+      <description>Send a message to the log.</description>
+    </class>
+  </library>
+</class_libraries>

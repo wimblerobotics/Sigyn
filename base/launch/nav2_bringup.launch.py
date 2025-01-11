@@ -70,11 +70,17 @@ def generate_launch_description():
         condition=IfCondition(use_namespace),
     )
 
+    base_directory_path = get_package_share_directory("base")
+    bt_xml_path = os.path.join(base_directory_path, "config", "nav_through_poses.xmlx")
+    param_substitutions = {
+      'bt_navigator.ros__parameters.default_nav_through_poses_bt_xml': bt_xml_path
+    }
+
     configured_params = ParameterFile(
         RewrittenYaml(
             source_file=params_file,
             root_key=namespace,
-            param_rewrites={},
+            param_rewrites=param_substitutions,
             convert_types=True,
         ),
         allow_substs=True,

@@ -1,0 +1,21 @@
+<root BTCPP_format="4" main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <Sequence name="DummyTest">
+      <SaySomething message="I am going to navigate to the goal location."/>
+      <Wait wait_duration="-15.0"/>
+      <!-- <Wait name="wait_for_5_secs" wait_time="5.0"/> -->
+    </Sequence>
+  </BehaviorTree>
+  <TreeNodesModel>
+    <Action ID="SaySomething">
+      <input_port default="" name="message">
+                Print a message to the log
+      </input_port>
+    </Action>
+    <Wait ID="Wait">
+      <input_port default="5.0" name="wait_duration">
+                Wait for a specific time
+      </input_port>
+    </Wait>
+  </TreeNodesModel>
+</root>

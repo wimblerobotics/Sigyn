@@ -1,0 +1,8 @@
+# Goal
+string message
+---
+# Result
+builtin_interfaces/Duration total_elapsed_time
+uint16 error_code
+---
+# Feedback
