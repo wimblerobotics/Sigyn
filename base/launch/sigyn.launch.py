@@ -30,8 +30,9 @@ from launch.substitutions import (
     PythonExpression,
 )
 from launch_ros.actions import Node
-from launch_ros.descriptions import ParameterValue
+from launch_ros.descriptions import ParameterValue, ParameterFile
 from launch_ros.substitutions import FindPackageShare
+from nav2_common.launch import RewrittenYaml
 from ament_index_python.packages import get_package_share_directory
 
 
@@ -295,7 +296,7 @@ def generate_launch_description():
     #     ]
     # )
     # ld.add_action(log_nav_params)
-
+  
     nav2_launch_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(navigation_launch_path),
         condition=IfCondition(AndSubstitution(NotSubstitution(make_map), use_sim_time)),
@@ -303,6 +304,7 @@ def generate_launch_description():
             "autostart": "True",
             "map": map_path_sim,
             "params_file": nav2_config_path,
+            # "parameters": [configured_params],
             "slam": "False",
             "use_composition": "True",
             "use_respawn": "True",
@@ -310,7 +312,7 @@ def generate_launch_description():
         }.items(),
     )
     ld.add_action(nav2_launch_sim)
-
+    
     nav2_launch_real = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(navigation_launch_path),
         condition=IfCondition(AndSubstitution(NotSubstitution(make_map), NotSubstitution(use_sim_time))),
@@ -318,6 +320,7 @@ def generate_launch_description():
             "autostart": "True",
             "map": map_path_real,
             "params_file": nav2_config_path,
+            # "parameters": [configured_params],
             "slam": "False",
             "use_composition": "True",
             "use_respawn": "True",

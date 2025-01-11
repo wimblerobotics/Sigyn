@@ -4,7 +4,7 @@
           "name": "Linux",
           "includePath": [
               "/opt/ros/jazzy/include/**",
-                "/home/ros/Arduino/libraries/**",
+              "/home/ros/Arduino/libraries/**",
               "/home/ros/Arduino/libraries/micro_ros_arduino/**",
               "/home/ros/micro_ros_arduino/src/**",
               "${workspaceFolder}/**",
