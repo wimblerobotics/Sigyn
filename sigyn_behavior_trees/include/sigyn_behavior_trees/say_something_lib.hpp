@@ -1,48 +1,50 @@
-// Copyright (c) 2020 Samsung Research America
-// This code is licensed under MIT license (see LICENSE.txt for details)
+#pragma once
+#include <nav2_behavior_tree/bt_action_node.hpp>
 
-#ifndef NAV2_SMS_RECOVEY__SMS_RECOVERY_HPP_
-#define NAV2_SMS_RECOVEY__SMS_RECOVERY_HPP_
-
-// #include <chrono>
-// #include <string>
-// #include <memory>
-
-#include "nav2_behaviors/timed_behavior.hpp"
 #include "sigyn_behavior_trees/action/say_something.hpp"
 
-namespace sigyn_behavior_trees
-{
+namespace sigyn_behavior_trees {
 
-using namespace nav2_behaviors;  // NOLINT
-using Action = sigyn_behavior_trees::action::SaySomething;
-
-class SaySomething : public TimedBehavior<Action>
-{
-public:
-  SaySomething();
+class SaySomething : public nav2_behavior_tree::BtActionNode<sigyn_behavior_trees::action::SaySomething> {
+ public:
+  SaySomething(const std::string& xml_tag_name, const std::string& action_name,
+               const BT::NodeConfiguration& conf);
   ~SaySomething();
 
-  ResultStatus onRun(const std::shared_ptr<const Action::Goal> command) override;
-
-  ResultStatus onCycleUpdate() override;
-
-  void onConfigure() override;
+  /**
+   * @brief Function to perform some user-defined operation on tick
+   */
+  void on_tick() override;
 
   /**
-   * @brief Method to determine the required costmap info
-   * @return costmap resources needed
+   * @brief Function to perform some user-defined operation upon successful completion of the action
    */
-  nav2_core::CostmapInfoType getResourceInfo() override {return nav2_core::CostmapInfoType::NONE;}
+  BT::NodeStatus on_success() override;
 
-protected:
-  // std::string _account_sid;
-  // std::string _auth_token;
-  // std::string _from_number;
-  // std::string _to_number;
-  // std::shared_ptr<twilio::Twilio> _twilio;
+  /**
+   * @brief Function to perform some user-defined operation upon abortion of the action
+   */
+  BT::NodeStatus on_aborted() override;
+
+  /**
+   * @brief Function to perform some user-defined operation upon cancellation of the action
+   */
+  BT::NodeStatus on_cancelled() override;
+
+  /**
+   * \brief Override required by the a BT action. Cancel the action and set the path output
+   */
+  void halt() override;
+
+  /**
+   * @brief Creates list of BT ports
+   * @return BT::PortsList Containing basic ports along with node-specific ports
+   */
+  static BT::PortsList providedPorts() {
+    return providedBasicPorts({
+        BT::InputPort<std::string>("message", "Message to log"),
+    });
+  }
 };
 
 }  // namespace sigyn_behavior_trees
-
-#endif  // NAV2_SMS_RECOVEY__SMS_RECOVERY_HPP_
