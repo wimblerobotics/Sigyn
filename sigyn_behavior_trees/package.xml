@@ -8,7 +8,7 @@
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  <depend>behaviortree_cpp_v3</depend>
+  <depend>behaviortree_cpp</depend>
   <depend>nav2_behaviors</depend>
   <depend>nav2_costmap_2d</depend>
   <depend>nav2_util</depend>

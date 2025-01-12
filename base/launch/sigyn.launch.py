@@ -58,7 +58,7 @@ def launch_robot_state_publisher(
         parameters=[
             {
                 # 'frame_prefix': '',
-                'ignore_timestamp': False,
+                "ignore_timestamp": False,
                 # 'publish_frequency': 30.0,
                 "robot_description": urdf_as_xml,
                 "use_sim_time": use_sim_time,
@@ -114,7 +114,9 @@ def generate_launch_description():
 
     use_sim_time = LaunchConfiguration("use_sim_time")
     use_sim_time_arg = DeclareLaunchArgument(
-        "use_sim_time", default_value="false", description="Simulation mode vs real robot"
+        "use_sim_time",
+        default_value="false",
+        description="Simulation mode vs real robot",
     )
     ld.add_action(use_sim_time_arg)
 
@@ -289,14 +291,14 @@ def generate_launch_description():
 
     # nav_sim= IfCondition(AndSubstitution(make_map, use_sim_time))
     # nav_real = IfCondition(AndSubstitution(make_map, NotSubstitution(use_sim_time)))
-   
+
     # log_nav_params = LogInfo(
     #     msg=[
     #         f"map_path_sim: {map_path_sim}, map_path_real: {map_path_real}, nav_sim: {nav_sim}, nav_real: {nav_real}",
     #     ]
     # )
     # ld.add_action(log_nav_params)
-  
+
     nav2_launch_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(navigation_launch_path),
         condition=IfCondition(AndSubstitution(NotSubstitution(make_map), use_sim_time)),
@@ -312,10 +314,12 @@ def generate_launch_description():
         }.items(),
     )
     ld.add_action(nav2_launch_sim)
-    
+
     nav2_launch_real = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(navigation_launch_path),
-        condition=IfCondition(AndSubstitution(NotSubstitution(make_map), NotSubstitution(use_sim_time))),
+        condition=IfCondition(
+            AndSubstitution(NotSubstitution(make_map), NotSubstitution(use_sim_time))
+        ),
         launch_arguments={
             "autostart": "True",
             "map": map_path_real,
@@ -334,12 +338,13 @@ def generate_launch_description():
         output="screen",
     )
     ld.add_action(echo_action)
-    
+
     # Bring up the twist multiplexer.
-    multiplexer_directory_path = get_package_share_directory('twist_multiplexer')
+    multiplexer_directory_path = get_package_share_directory("twist_multiplexer")
     multiplexer_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            [multiplexer_directory_path, '/launch/twist_multiplexer.launch.py']),
+            [multiplexer_directory_path, "/launch/twist_multiplexer.launch.py"]
+        ),
         condition=UnlessCondition(use_sim_time),
     )
     ld.add_action(multiplexer_launch)
@@ -347,33 +352,36 @@ def generate_launch_description():
     # Bring up the LIDAR.
     lidars_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            [base_directory_path, '/launch/sub_launch/lidar.launch.py']),
+            [base_directory_path, "/launch/sub_launch/lidar.launch.py"]
+        ),
         condition=UnlessCondition(use_sim_time),
     )
     ld.add_action(lidars_launch)
-    
+
     # Bring of the EKF node.
-    ekf_config_path = os.path.join(get_package_share_directory('base'), 'config/ekf.yaml')
+    ekf_config_path = os.path.join(
+        get_package_share_directory("base"), "config/ekf.yaml"
+    )
     start_robot_localization_cmd = launch_ros.actions.Node(
-        package='robot_localization',
-        executable='ekf_node',
+        package="robot_localization",
+        executable="ekf_node",
         condition=UnlessCondition(use_sim_time),
-        name='ekf_filter_node',
-        output='screen',
-        parameters=[ 
-            {'use_sim_time': use_sim_time},
+        name="ekf_filter_node",
+        output="screen",
+        parameters=[
+            {"use_sim_time": use_sim_time},
             ekf_config_path,
         ],
-        remappings=[('/odometry/filtered', 'odom'), ('/odom/unfiltered', 'wheel_odom')]
+        remappings=[("/odometry/filtered", "odom"), ("/odom/unfiltered", "wheel_odom")],
     )
     ld.add_action(start_robot_localization_cmd)
 
     # Publish joints.
     joint_state_publisher_node = Node(
-        package='joint_state_publisher',
+        package="joint_state_publisher",
         condition=UnlessCondition(use_sim_time),
-        executable='joint_state_publisher',
-        name='joint_state_publisher',
+        executable="joint_state_publisher",
+        name="joint_state_publisher",
         ### condition=IfCondition(LaunchConfiguration("publish_joints")),
         # parameters=[
         #     {
@@ -388,6 +396,14 @@ def generate_launch_description():
         # ]
     )
     ld.add_action(joint_state_publisher_node)
+
+    sigyn_behavior_tree_action_server = Node(
+        package="sigyn_behavior_trees",
+        executable="say_something_action_server",
+        name="say_something_action_server",
+        # prefix=['xterm -e gdb -ex run --args'],
+    )
+    ld.add_action(sigyn_behavior_tree_action_server)
 
     rviz_node = Node(
         package="rviz2",
