@@ -1,14 +1,17 @@
 # Options:
-# do_joint_state_gui (false) - Flag to enable joint_state_publisher_gui
-# do_rviz (true) - Launch RViz if true
-# make_map (false) - Make a map vs navigate
-# urdf_file_name (sigyn.urdf.xacro) - URDF file name
-# use_sim_time (true) - Use simulation vs a real robot
-# world (home.world) - World to load if simulating
+# bt_xml = Full path to behavior tree overriding default_nav_to_pose_bt_xml in the navigation yaml file.
+# do_joint_state_gui (false) - Flag to enable joint_state_publisher_gui.
+# do_rviz (true) - Launch RViz if true.
+# make_map (false) - Make a map vs navigate.
+# urdf_file_name (sigyn.urdf.xacro) - URDF file name.
+# use_sim_time (true) - Use simulation vs a real robot.
+# world (home.world) - World to load if simulating.
 
 import os
-import xacro
 import platform
+import tempfile
+import xacro
+import yaml
 
 import launch_ros.actions
 from launch import LaunchDescription
@@ -23,19 +26,71 @@ from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
     AndSubstitution,
-    Command,
+    # Command,
     LaunchConfiguration,
     NotSubstitution,
     PathJoinSubstitution,
-    PythonExpression,
+    # PythonExpression,
 )
 from launch_ros.actions import Node
-from launch_ros.descriptions import ParameterValue, ParameterFile
-from launch_ros.substitutions import FindPackageShare
-from nav2_common.launch import RewrittenYaml
 from ament_index_python.packages import get_package_share_directory
 
+def launch_nav(context, ld, nav2_config_path, bt_xml, make_map, use_sim_time, map_path_sim, map_path_real, navigation_launch_path): 
+    # Create our own temporary YAML files that include substitutions
+    with open(nav2_config_path, "r") as f:
+        config_yaml = yaml.safe_load(f)
 
+    replacement_xml_path = context.perform_substitution(bt_xml)
+    xml_path = config_yaml["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"]
+    config_yaml["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"] = replacement_xml_path
+    nav_config_tempfile = tempfile.NamedTemporaryFile(mode='w+t', delete=False)
+    print(f"fp.name: {nav_config_tempfile.name}, replacement_xml_path: {replacement_xml_path}")
+    with open(nav_config_tempfile.name, 'w') as f:
+        yaml.dump(config_yaml, f)
+
+    nav_sim= IfCondition(AndSubstitution(make_map, use_sim_time))
+    nav_real = IfCondition(AndSubstitution(make_map, NotSubstitution(use_sim_time)))
+
+    log_nav_params = LogInfo(
+        msg=[
+            f"map_path_sim: {map_path_sim}, map_path_real: {map_path_real}, replacement_xml_path: {replacement_xml_path}",
+        ]
+    )
+    ld.add_action(log_nav_params)
+
+    nav2_launch_sim = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(navigation_launch_path),
+        condition=IfCondition(AndSubstitution(NotSubstitution(make_map), use_sim_time)),
+        launch_arguments={
+            "autostart": "True",
+            "map": map_path_sim,
+            "params_file": nav_config_tempfile.name,
+            "slam": "False",
+            "use_composition": "True",
+            "use_respawn": "True",
+            "use_sim_time": use_sim_time,
+        }.items(),
+    )
+    ld.add_action(nav2_launch_sim)
+
+    nav2_launch_real = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(navigation_launch_path),
+        condition=IfCondition(
+            AndSubstitution(NotSubstitution(make_map), NotSubstitution(use_sim_time))
+        ),
+        launch_arguments={
+            "autostart": "True",
+            "map": map_path_real,
+            "params_file": nav_config_tempfile.name,
+            # "parameters": [configured_params],
+            "slam": "False",
+            "use_composition": "True",
+            "use_respawn": "True",
+            "use_sim_time": use_sim_time,
+        }.items(),
+    )
+    ld.add_action(nav2_launch_real)
+    
 def launch_robot_state_publisher(
     context, file_name_var, use_ros2_control, use_sim_time
 ):
@@ -80,6 +135,14 @@ def generate_launch_description():
 
     rviz_directory_path = get_package_share_directory("rviz")
     rviz_config_path = os.path.join(rviz_directory_path, "config", "config.rviz")
+
+    bt_xml = LaunchConfiguration("bt_xml")
+    bt_xml_arg = DeclareLaunchArgument(
+        "bt_xml",
+        default_value="/opt/ros/jazzy/share/nav2_bt_navigator/behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml",
+        description="XML to use for nav_to_pose",
+    )
+    ld.add_action(bt_xml_arg)
 
     do_joint_state_gui = LaunchConfiguration("do_joint_state_gui")
     ld.add_action(
@@ -281,58 +344,30 @@ def generate_launch_description():
     navigation_launch_path = PathJoinSubstitution(
         [base_pgk, "launch", "nav2_bringup.launch.py"]
     )
-
-    base_directory_path = get_package_share_directory("base")
-    map_path_sim = os.path.join(base_directory_path, "maps", "map2.yaml")
-    map_path_real = os.path.join(base_directory_path, "maps", "20241210l.yaml")
+ 
+    map_path_sim = os.path.join(base_pgk, "maps", "map2.yaml")
+    map_path_real = os.path.join(base_pgk, "maps", "20241210l.yaml")
+    
     nav2_config_path = os.path.join(
-        base_directory_path, "config", "navigation_sim.yaml"
+        base_pgk, "config", "navigation_sim.yaml"
+    )         
+
+    ld.add_action(
+        OpaqueFunction(
+            function=launch_nav,
+            args=[
+                ld,
+                nav2_config_path,
+                LaunchConfiguration("bt_xml"),
+                LaunchConfiguration("make_map"),
+                LaunchConfiguration("use_sim_time"),
+                map_path_sim,
+                map_path_real,
+                navigation_launch_path,
+            ],
+        )
     )
-
-    # nav_sim= IfCondition(AndSubstitution(make_map, use_sim_time))
-    # nav_real = IfCondition(AndSubstitution(make_map, NotSubstitution(use_sim_time)))
-
-    # log_nav_params = LogInfo(
-    #     msg=[
-    #         f"map_path_sim: {map_path_sim}, map_path_real: {map_path_real}, nav_sim: {nav_sim}, nav_real: {nav_real}",
-    #     ]
-    # )
-    # ld.add_action(log_nav_params)
-
-    nav2_launch_sim = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(navigation_launch_path),
-        condition=IfCondition(AndSubstitution(NotSubstitution(make_map), use_sim_time)),
-        launch_arguments={
-            "autostart": "True",
-            "map": map_path_sim,
-            "params_file": nav2_config_path,
-            # "parameters": [configured_params],
-            "slam": "False",
-            "use_composition": "True",
-            "use_respawn": "True",
-            "use_sim_time": use_sim_time,
-        }.items(),
-    )
-    ld.add_action(nav2_launch_sim)
-
-    nav2_launch_real = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(navigation_launch_path),
-        condition=IfCondition(
-            AndSubstitution(NotSubstitution(make_map), NotSubstitution(use_sim_time))
-        ),
-        launch_arguments={
-            "autostart": "True",
-            "map": map_path_real,
-            "params_file": nav2_config_path,
-            # "parameters": [configured_params],
-            "slam": "False",
-            "use_composition": "True",
-            "use_respawn": "True",
-            "use_sim_time": use_sim_time,
-        }.items(),
-    )
-    ld.add_action(nav2_launch_real)
-
+    
     echo_action = ExecuteProcess(
         cmd=["echo", "[sim] Rviz config file path: " + rviz_config_path],
         output="screen",
@@ -352,7 +387,7 @@ def generate_launch_description():
     # Bring up the LIDAR.
     lidars_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            [base_directory_path, "/launch/sub_launch/lidar.launch.py"]
+            [base_pgk, "/launch/sub_launch/lidar.launch.py"]
         ),
         condition=UnlessCondition(use_sim_time),
     )
