@@ -3,15 +3,17 @@
     {
       "name": "Linux",
       "includePath": [
+        // "/home/ros/sigyn_ws/src/Sigyn/sigyn_behavior_trees/include/**",
         "/opt/ros/jazzy/include/**",
         "/home/ros/Arduino/libraries/**",
         "/home/ros/Arduino/libraries/micro_ros_arduino/**",
         "/home/ros/micro_ros_arduino/src/**",
         "${workspaceFolder}/**",
-        "/usr/include",
-        "/usr/local/include",
+        "/home/ros/sigyn_ws/install/**",
+        // "/usr/include",
+        // "/usr/local/include",
         "/home/ros/sigyn_ws/install/msgs/include/**",
-        "/home/ros/sigyn_ws/install/ira_laser_tools/include/**",
+        // "/home/ros/sigyn_ws/install/ira_laser_tools/include/**",
         "/usr/include/**",
         "/home/ros/.arduino15/packages/teensy/hardware/avr/1.59.0/libraries/**",
         "/home/ros/.arduino15/packages/**"
