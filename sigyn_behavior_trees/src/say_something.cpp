@@ -32,15 +32,10 @@ void SaySomething::on_tick() {
 }  // namespace sigyn_behavior_trees
 
 #include "behaviortree_cpp/bt_factory.h"
-BT_REGISTER_NODES(factory)
-{
-  BT::NodeBuilder builder =
-    [](const std::string & name, const BT::NodeConfiguration & config)
-    {
-      return std::make_unique<sigyn_behavior_trees::SaySomething>(
-        name, "say_something", config);
-    };
+BT_REGISTER_NODES(factory) {
+  BT::NodeBuilder builder = [](const std::string& name, const BT::NodeConfiguration& config) {
+    return std::make_unique<sigyn_behavior_trees::SaySomething>(name, "say_something", config);
+  };
 
-  factory.registerBuilder<sigyn_behavior_trees::SaySomething>(
-    "SaySomething", builder);
+  factory.registerBuilder<sigyn_behavior_trees::SaySomething>("SaySomething", builder);
 }

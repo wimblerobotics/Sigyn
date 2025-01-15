@@ -55,9 +55,7 @@ bt_navigator:
     # default_server_timeout: 20
     plugin_lib_names:
     - sigyn_say_something_plugin_node
-    # - sigyn_MoveAShortDistanceAheadActionServer
-    # - sigyn_SaySomethingActionServer
-    # - sigyn_move_a_short_distance_ahead_plugin_node
+    - sigyn_move_a_short_distance_ahead_plugin_node
     # - nav2_compute_path_to_pose_action_bt_node
     # - nav2_compute_path_through_poses_action_bt_node
     # - nav2_smooth_path_action_bt_node

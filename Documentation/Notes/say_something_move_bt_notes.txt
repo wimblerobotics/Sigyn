@@ -1,0 +1,56 @@
+clear;rm -rf build/sigyn_behavior_trees/ install/sigyn_behavior_trees/;cb
+clear;ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=true bt_xml:=/home/ros/sigyn_ws/install/base/share/base/config/bt1.xml
+
+The, in rviz2, select a nav goal
+
+[component_container_isolated-11] [INFO] [1736932389.096631293] [bt_navigator]: Begin navigating from current location (8.81, 2.59) to (8.84, 2.60)
+[SaySomethingActionServer-8] [INFO] [1736932389.096972667] [SaySomethingActionServer]: Received goal request with message I am going to navigate to the goal location.
+[SaySomethingActionServer-8] [INFO] [1736932389.097403647] [SaySomethingActionServer]: Executing goal
+[SaySomethingActionServer-8] [INFO] [1736932389.097489978] [SaySomethingActionServer]: [execute] Received goal request with message I am going to navigate to the goal location.
+[component_container_isolated-11] [INFO] [1736932389.116807743] [bt_navigator_navigate_to_pose_rclcpp_node]: MoveAShortDistanceAhead: distance 1.234000
+[MoveAShortDistanceAheadActionServer-9] [INFO] [1736932389.117040695] [MoveAShortDistanceAheadActionServer]: Received goal request with distance 1.234
+[MoveAShortDistanceAheadActionServer-9] [INFO] [1736932389.117441159] [MoveAShortDistanceAheadActionServer]: Executing goal
+[MoveAShortDistanceAheadActionServer-9] [INFO] [1736932389.117501310] [MoveAShortDistanceAheadActionServer]: [execute] Received goal request with distance 1.234
+[component_container_isolated-11] [WARN] [1736932389.136783971] [bt_navigator_navigate_to_pose_rclcpp_node]: Wait duration is negative or zero (-15.000000). Setting to positive.
+[component_container_isolated-11] [INFO] [1736932389.137041779] [behavior_server]: Running wait
+
+
+bt1.xml:
+<root BTCPP_format="4" main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <Sequence name="DummyTest">
+      <!-- <Action ID="SaySomething" message="I am going to navigate to the goal location."/> -->
+      <SaySomething name="first" message="I am going to navigate to the goal location."/>
+      <MoveAShortDistanceAhead name="move_a_short_distance_ahead" distance="1.234"/>
+      <Wait wait_duration="-15.0"/>
+      <!-- <Wait name="wait_for_5_secs" wait_time="5.0"/> -->
+    </Sequence>
+  </BehaviorTree>
+  <TreeNodesModel>
+    <Action ID="SaySomething">
+      <input_port default="A default message" name="message">
+                Print a message to the log
+      </input_port>
+    </Action>
+    <Wait ID="Wait">
+      <input_port default="5.0" name="wait_duration">
+                Wait for a specific time
+      </input_port>
+    </Wait>
+  </TreeNodesModel>
+</root>
+
+
+navigation_sim.yaml interesting changes (last 3 lines are new):
+bt_navigator:
+  ros__parameters:
+    use_sim_time: True
+    global_frame: map
+    robot_base_frame: base_link
+    odom_topic: /odom
+    bt_loop_duration: 10
+    # default_server_timeout: 20
+    plugin_lib_names:
+    - sigyn_say_something_plugin_node
+    - sigyn_move_a_short_distance_ahead_plugin_node
+ 

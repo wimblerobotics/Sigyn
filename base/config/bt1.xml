@@ -3,7 +3,7 @@
     <Sequence name="DummyTest">
       <!-- <Action ID="SaySomething" message="I am going to navigate to the goal location."/> -->
       <SaySomething name="first" message="I am going to navigate to the goal location."/>
-      <!-- <MoveAShortDistanceAhead name="move_a_short_distance_ahead" distance="1.234"/> -->
+      <MoveAShortDistanceAhead name="move_a_short_distance_ahead" distance="1.234"/>
       <Wait wait_duration="-15.0"/>
       <!-- <Wait name="wait_for_5_secs" wait_time="5.0"/> -->
     </Sequence>

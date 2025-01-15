@@ -8,14 +8,15 @@
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>action_msgs</depend>
   <depend>behaviortree_cpp</depend>
   <depend>nav2_behaviors</depend>
-  <depend>nav2_costmap_2d</depend>
-  <depend>nav2_util</depend>
+  <!-- <depend>nav2_costmap_2d</depend> -->
+  <!-- <depend>nav2_util</depend> -->
   <depend>rclcpp</depend>
   <depend>rclcpp_action</depend>
   <depend>rclcpp_components</depend>
-  <depend>tf2_ros</depend>
+  <!-- <depend>tf2_ros</depend> -->
 
   <exec_depend>rosidl_default_runtime</exec_depend>
   <build_depend>rosidl_default_generators</build_depend>

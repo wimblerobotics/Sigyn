@@ -60,22 +60,26 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 
 rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
-# rosidl_target_interfaces(sigyn_MoveAShortDistanceAheadActionServer ${PROJECT_NAME} "rosidl_typesupport_cpp")
-# rosidl_target_interfaces(sigyn_SaySomethingActionServer ${PROJECT_NAME} "rosidl_typesupport_cpp")
-
 add_library(sigyn_say_something_plugin_node SHARED
   src/say_something.cpp
 )
 
 list(APPEND plugin_libs sigyn_say_something_plugin_node)
 
+add_library(sigyn_move_a_short_distance_ahead_plugin_node SHARED
+  src/move_a_short_distance_ahead.cpp
+)
+
+list(APPEND plugin_libs sigyn_move_a_short_distance_ahead_plugin_node)
+
 foreach(bt_plugin ${plugin_libs})
   ament_target_dependencies(${bt_plugin} ${dependencies})
   target_compile_definitions(${bt_plugin} PRIVATE BT_PLUGIN_EXPORT)
-endforeach()
+  target_link_libraries(${bt_plugin} "${cpp_typesupport_target}")
+  endforeach()
 
 set(action_servers
-  # MoveAShortDistanceAheadActionServer
+  MoveAShortDistanceAheadActionServer
   SaySomethingActionServer
 )
 
@@ -84,8 +88,6 @@ foreach(action_server ${action_servers})
     src/${action_server}.cpp
   )
 
-  # target_compile_definitions(sigyn_${action_server}
-  #   PRIVATE "CUSTOM_ACTION_CPP_BUILDING_DLL")
   ament_target_dependencies(sigyn_${action_server}
     ${dependencies}
   )
@@ -106,26 +108,6 @@ foreach(action_server ${action_servers})
     RUNTIME DESTINATION bin
   )
 endforeach()
-# add_library(sigyn_behavior_tree_action_server SHARED
-#   src/say_something_server.cpp
-# )
-
-# target_compile_definitions(sigyn_behavior_tree_action_server
-#   PRIVATE "CUSTOM_ACTION_CPP_BUILDING_DLL")
-# ament_target_dependencies(sigyn_behavior_tree_action_server
-#   ${dependencies}
-# )
-# rosidl_target_interfaces(sigyn_behavior_tree_action_server ${PROJECT_NAME} "rosidl_typesupport_cpp")
-# rclcpp_components_register_node(sigyn_behavior_tree_action_server PLUGIN "sigyn_behavior_trees::SaySomethingActionServer" EXECUTABLE say_something_action_server)
-# install(TARGETS
-#   sigyn_behavior_tree_action_server
-#   ARCHIVE DESTINATION lib
-#   LIBRARY DESTINATION lib
-#   RUNTIME DESTINATION bin)
-
-target_link_libraries(sigyn_say_something_plugin_node "${cpp_typesupport_target}")
-
-# rosidl_target_interfaces(sigyn_behavior_tree_action_server ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
 install(TARGETS ${plugin_libs}
   ARCHIVE DESTINATION lib
