@@ -44,19 +44,19 @@ def launch_nav(context, ld, nav2_config_path, bt_xml, make_map, use_sim_time, ma
     xml_path = config_yaml["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"]
     config_yaml["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"] = replacement_xml_path
     nav_config_tempfile = tempfile.NamedTemporaryFile(mode='w+t', delete=False)
-    print(f"fp.name: {nav_config_tempfile.name}, replacement_xml_path: {replacement_xml_path}")
+    # print(f"[launch_nav] fp.name: {nav_config_tempfile.name}, replacement_xml_path: {replacement_xml_path}")
     with open(nav_config_tempfile.name, 'w') as f:
         yaml.dump(config_yaml, f)
 
     nav_sim= IfCondition(AndSubstitution(make_map, use_sim_time))
     nav_real = IfCondition(AndSubstitution(make_map, NotSubstitution(use_sim_time)))
 
-    log_nav_params = LogInfo(
-        msg=[
-            f"map_path_sim: {map_path_sim}, map_path_real: {map_path_real}, replacement_xml_path: {replacement_xml_path}",
-        ]
-    )
-    ld.add_action(log_nav_params)
+    # log_nav_params = LogInfo(
+    #     msg=[
+    #         f"[launch_nav] map_path_sim: {map_path_sim}, map_path_real: {map_path_real}, replacement_xml_path: {replacement_xml_path}, navigation_launch_path: {navigation_launch_path}",
+    #     ]
+    # )
+    # ld.add_action(log_nav_params)
 
     nav2_launch_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(navigation_launch_path),
@@ -82,7 +82,6 @@ def launch_nav(context, ld, nav2_config_path, bt_xml, make_map, use_sim_time, ma
             "autostart": "True",
             "map": map_path_real,
             "params_file": nav_config_tempfile.name,
-            # "parameters": [configured_params],
             "slam": "False",
             "use_composition": "True",
             "use_respawn": "True",
@@ -96,10 +95,10 @@ def launch_robot_state_publisher(
 ):
     description_directory_path = get_package_share_directory("description")
     file_name = context.perform_substitution(file_name_var)
-    print(f"[OpaqueFunction] file_name: {file_name}")
+    print(f"[launch_robot_state_publisher] file_name: {file_name}")
     xacro_file_path = os.path.join(description_directory_path, "urdf", file_name)
-    print(f"[OpaqueFunction] xacro_file_path: {xacro_file_path}")
-    print(f"[OpaqueFunction] use_sim_time: {use_sim_time.perform(context)}")
+    print(f"[launch_robot_state_publisher] xacro_file_path: {xacro_file_path}")
+    print(f"[launch_robot_state_publisher] use_sim_time: {use_sim_time.perform(context)}")
     # urdf_as_xml = Command(['xacro ', xacro_file_path, ' use_ros2_control:=', use_ros2_control, ' sim_mode:=', use_sim_time])
     # print(F"urdf_as_xml: {urdf_as_xml}")
 
@@ -350,6 +349,7 @@ def generate_launch_description():
     
     nav2_config_path = os.path.join(
         base_pgk, "config", "navigation_sim.yaml"
+        # "/opt/ros/jazzy/share/nav2_bringup/params/nav2_params.yaml"
     )         
 
     ld.add_action(
@@ -432,13 +432,21 @@ def generate_launch_description():
     )
     ld.add_action(joint_state_publisher_node)
 
-    sigyn_behavior_tree_action_server = Node(
+    SaySomethingActionServer = Node(
         package="sigyn_behavior_trees",
-        executable="say_something_action_server",
-        name="say_something_action_server",
+        executable="SaySomethingActionServer",
+        name="SaySomethingActionServer",
         # prefix=['xterm -e gdb -ex run --args'],
     )
-    ld.add_action(sigyn_behavior_tree_action_server)
+    ld.add_action(SaySomethingActionServer)
+    
+    # MoveAShortDistanceAheadActionServer = Node(
+    #     package="sigyn_behavior_trees",
+    #     executable="MoveAShortDistanceAheadActionServer",
+    #     name="MoveAShortDistanceAheadActionServer",
+    #     # prefix=['xterm -e gdb -ex run --args'],
+    # )
+    # ld.add_action(MoveAShortDistanceAheadActionServer)
 
     rviz_node = Node(
         package="rviz2",

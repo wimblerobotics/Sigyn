@@ -2,10 +2,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "slam_nav.launch.py",
+      "name": "sigyn",
       "type": "ros",
       "request": "launch",
-      "target": "/home/ros/sigyn_ws/install/base/share/base/launch/slam.launch.py"
+      "target": "/home/ros/sigyn_ws/install/base/share/base/launch/sigyn.launch.py"
     },
   ]
 }

@@ -52,9 +52,12 @@ bt_navigator:
     robot_base_frame: base_link
     odom_topic: /odom
     bt_loop_duration: 10
-    default_server_timeout: 20
+    # default_server_timeout: 20
     plugin_lib_names:
-    - sigyn_behavior_trees_plugin_node
+    - sigyn_say_something_plugin_node
+    # - sigyn_MoveAShortDistanceAheadActionServer
+    # - sigyn_SaySomethingActionServer
+    # - sigyn_move_a_short_distance_ahead_plugin_node
     # - nav2_compute_path_to_pose_action_bt_node
     # - nav2_compute_path_through_poses_action_bt_node
     # - nav2_smooth_path_action_bt_node
