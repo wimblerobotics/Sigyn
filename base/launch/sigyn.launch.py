@@ -440,13 +440,13 @@ def generate_launch_description():
     )
     ld.add_action(SaySomethingActionServer)
     
-    # MoveAShortDistanceAheadActionServer = Node(
-    #     package="sigyn_behavior_trees",
-    #     executable="MoveAShortDistanceAheadActionServer",
-    #     name="MoveAShortDistanceAheadActionServer",
-    #     # prefix=['xterm -e gdb -ex run --args'],
-    # )
-    # ld.add_action(MoveAShortDistanceAheadActionServer)
+    MoveAShortDistanceAheadActionServer = Node(
+        package="sigyn_behavior_trees",
+        executable="MoveAShortDistanceAheadActionServer",
+        name="MoveAShortDistanceAheadActionServer",
+        # prefix=['xterm -e gdb -ex run --args'],
+    )
+    ld.add_action(MoveAShortDistanceAheadActionServer)
 
     rviz_node = Node(
         package="rviz2",
