@@ -23,6 +23,7 @@ find_package(ament_cmake REQUIRED)
 find_package(behaviortree_cpp REQUIRED)
 find_package(nav2_behaviors REQUIRED)
 find_package(nav2_core REQUIRED)
+
 # find_package(nav2_costmap_2d REQUIRED)
 # find_package(nav2_util REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -33,6 +34,7 @@ include_directories(
   include
   ${behaviortree_cpp_INCLUDE_DIRS}
   ${nav2_core_INCLUDE_DIRS}
+
   # ${nav2_costmap_2d_INCLUDE_DIRS}
   # ${nav2_util_INCLUDE_DIRS}
   ${rclcpp_INCLUDE_DIRS}
@@ -47,6 +49,7 @@ set(dependencies
   builtin_interfaces
   nav2_behaviors
   nav2_core
+
   # nav2_costmap_2d
   rclcpp
   rclcpp_action
@@ -56,7 +59,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "action/MoveAShortDistanceAhead.action"
   "action/SaySomething.action"
 )
-
 
 rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
@@ -76,7 +78,7 @@ foreach(bt_plugin ${plugin_libs})
   ament_target_dependencies(${bt_plugin} ${dependencies})
   target_compile_definitions(${bt_plugin} PRIVATE BT_PLUGIN_EXPORT)
   target_link_libraries(${bt_plugin} "${cpp_typesupport_target}")
-  endforeach()
+endforeach()
 
 set(action_servers
   MoveAShortDistanceAheadActionServer
@@ -108,6 +110,34 @@ foreach(action_server ${action_servers})
     RUNTIME DESTINATION bin
   )
 endforeach()
+
+add_executable(bt_test1
+  src/bt_test1_main.cpp
+)
+ament_target_dependencies(bt_test1
+  ${dependencies}
+)
+target_link_libraries(bt_test1
+  "${cpp_typesupport_target}"
+  sigyn_say_something_plugin_node
+)
+
+install(TARGETS bt_test1
+  DESTINATION lib/${PROJECT_NAME})
+
+add_executable(bt_test2
+  src/bt_test2_main.cpp
+)
+ament_target_dependencies(bt_test2
+  ${dependencies}
+)
+target_link_libraries(bt_test2
+  "${cpp_typesupport_target}"
+  sigyn_say_something_plugin_node
+)
+
+install(TARGETS bt_test2
+  DESTINATION lib/${PROJECT_NAME})
 
 install(TARGETS ${plugin_libs}
   ARCHIVE DESTINATION lib
