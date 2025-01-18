@@ -10,6 +10,7 @@ class SaySomething
  public:
   SaySomething(const std::string& xml_tag_name, const std::string& action_name,
                const BT::NodeConfiguration& conf);
+  // SaySomething(const std::string& xml_tag_name, const BT::NodeConfig& conf);
   ~SaySomething();
 
   /**
