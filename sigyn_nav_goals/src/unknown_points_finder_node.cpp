@@ -49,7 +49,11 @@ private:
         int col = i % map_.info.width;
         float world_x = map_.info.origin.position.x + (col + 0.5f) * map_.info.resolution;
         float world_y = map_.info.origin.position.y + (row + 0.5f) * map_.info.resolution;
-        unknown_points.push_back({world_x, world_y});
+
+        // Check for obstacles between the robot and the point
+        if (!isObstacleBetween(robot_x_, robot_y_, world_x, world_y)) {
+          unknown_points.push_back({world_x, world_y});
+        }
       }
     }
 
@@ -62,10 +66,32 @@ private:
       });
 
     RCLCPP_INFO(this->get_logger(), "Unknown points (sorted by distance):");
+    uint32_t counter = 0;
     for (auto &pt: unknown_points) {
       float dist = std::hypot(pt.first - robot_x_, pt.second - robot_y_);
       RCLCPP_INFO(this->get_logger(), "  (%.2f, %.2f), dist=%.2f", pt.first, pt.second, dist);
+      if (++counter >= 5)
+        break;
     }
+  }
+
+  bool isObstacleBetween(float x1, float y1, float x2, float y2)
+  {
+    int steps = static_cast<int>(std::hypot(x2 - x1, y2 - y1) / map_.info.resolution);
+    for (int i = 0; i <= steps; ++i) {
+      float t = static_cast<float>(i) / steps;
+      float x = x1 + t * (x2 - x1);
+      float y = y1 + t * (y2 - y1);
+
+      int col = static_cast<int>((x - map_.info.origin.position.x) / map_.info.resolution);
+      int row = static_cast<int>((y - map_.info.origin.position.y) / map_.info.resolution);
+      int index = row * map_.info.width + col;
+
+      if (index >= 0 && index < static_cast<int>(map_.data.size()) && map_.data[index] == 100) {
+        return true; // Obstacle found
+      }
+    }
+    return false; // No obstacle found
   }
 
   rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_;
