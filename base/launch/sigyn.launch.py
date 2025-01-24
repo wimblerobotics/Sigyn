@@ -43,6 +43,7 @@ def launch_nav(context, ld, nav2_config_path, bt_xml, make_map, use_sim_time, ma
     replacement_xml_path = context.perform_substitution(bt_xml)
     xml_path = config_yaml["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"]
     config_yaml["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"] = replacement_xml_path
+    # config_yaml["map_server"]["ros__parameters"]["yaml_filename"] = map_path_sim ###
     nav_config_tempfile = tempfile.NamedTemporaryFile(mode='w+t', delete=False)
     # print(f"[launch_nav] fp.name: {nav_config_tempfile.name}, replacement_xml_path: {replacement_xml_path}")
     with open(nav_config_tempfile.name, 'w') as f:
@@ -51,12 +52,12 @@ def launch_nav(context, ld, nav2_config_path, bt_xml, make_map, use_sim_time, ma
     nav_sim= IfCondition(AndSubstitution(make_map, use_sim_time))
     nav_real = IfCondition(AndSubstitution(make_map, NotSubstitution(use_sim_time)))
 
-    # log_nav_params = LogInfo(
-    #     msg=[
-    #         f"[launch_nav] map_path_sim: {map_path_sim}, map_path_real: {map_path_real}, replacement_xml_path: {replacement_xml_path}, navigation_launch_path: {navigation_launch_path}",
-    #     ]
-    # )
-    # ld.add_action(log_nav_params)
+    log_nav_params = LogInfo(
+        msg=[
+            f"[launch_nav] map_path_sim: {map_path_sim}, map_path_real: {map_path_real}, replacement_xml_path: {replacement_xml_path}, navigation_launch_path: {navigation_launch_path}",
+        ]
+    )
+    ld.add_action(log_nav_params)
 
     nav2_launch_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(navigation_launch_path),
