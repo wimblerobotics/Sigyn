@@ -5,16 +5,22 @@
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <nav_msgs/msg/odometry.hpp>
+#include <nav2_msgs/action/compute_path_to_pose.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
 
 class UnknownPointsFinder : public rclcpp::Node
 {
 public:
   UnknownPointsFinder() : Node("unknown_points_finder_node")
   {
+    rclcpp::QoS qos(rclcpp::KeepLast(10));
+    qos.transient_local();
     map_sub_ = create_subscription<nav_msgs::msg::OccupancyGrid>(
-      "map", 10, std::bind(&UnknownPointsFinder::mapCallback, this, std::placeholders::_1));
+      "/map", qos, std::bind(&UnknownPointsFinder::mapCallback, this, std::placeholders::_1));
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
-      "odom", 10, std::bind(&UnknownPointsFinder::odomCallback, this, std::placeholders::_1));
+      "/odom", 10, std::bind(&UnknownPointsFinder::odomCallback, this, std::placeholders::_1));
+    action_client_ = rclcpp_action::create_client<nav2_msgs::action::ComputePathToPose>(
+      this, "/compute_path_to_pose");
   }
 
 private:
@@ -73,6 +79,13 @@ private:
       if (++counter >= 5)
         break;
     }
+
+    if (!unknown_points.empty()) {
+      RCLCPP_INFO(this->get_logger(), "Sending goal to the closest unknown point");
+      sendGoal(unknown_points.front());
+    } else {
+      RCLCPP_INFO(this->get_logger(), "No unknown points found");
+    }
   }
 
   bool isObstacleBetween(float x1, float y1, float x2, float y2)
@@ -94,11 +107,34 @@ private:
     return false; // No obstacle found
   }
 
+  void sendGoal(const std::pair<float, float>& target)
+  {
+    if (!action_client_->wait_for_action_server(std::chrono::seconds(10))) {
+      RCLCPP_ERROR(this->get_logger(), "Action server not available after waiting");
+      return;
+    }
+
+    auto goal_msg = nav2_msgs::action::ComputePathToPose::Goal();
+    goal_msg.goal.pose.position.x = target.first;
+    goal_msg.goal.pose.position.y = target.second;
+    goal_msg.goal.pose.orientation.w = 1.0; // Neutral orientation
+
+    RCLCPP_INFO(this->get_logger(), "Sending goal: (%.2f, %.2f)", target.first, target.second);
+
+    auto send_goal_options = rclcpp_action::Client<nav2_msgs::action::ComputePathToPose>::SendGoalOptions();
+    send_goal_options.result_callback = [this](auto) {
+      RCLCPP_INFO(this->get_logger(), "Goal result received");
+    };
+
+    action_client_->async_send_goal(goal_msg, send_goal_options);
+  }
+
   rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
   nav_msgs::msg::OccupancyGrid map_;
   float robot_x_{0.0f};
   float robot_y_{0.0f};
+  rclcpp_action::Client<nav2_msgs::action::ComputePathToPose>::SharedPtr action_client_;
 };
 
 int main(int argc, char * argv[])
