@@ -24,7 +24,8 @@ find_package(nav2_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(unique_identifier_msgs REQUIRED)
+# find_package(unique_identifier_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 include_directories(
   include
@@ -34,16 +35,18 @@ include_directories(
   ${rclcpp_INCLUDE_DIRS}
   ${rclcpp_action_INCLUDE_DIRS}
   ${std_msgs_INCLUDE_DIRS}
-  ${unique_identifier_msgs_INCLUDE_DIRS}
+  # ${unique_identifier_msgs_INCLUDE_DIRS}
+  ${visualization_msgs_INCLUDE_DIRS}
 )
 
 set(dependencies
-  rclcpp
-  rclcpp_action
   nav_msgs
   nav2_common
   nav2_msgs
+  rclcpp
+  rclcpp_action
   std_msgs
+  visualization_msgs
 )
 
 add_executable(unknown_points_finder_node

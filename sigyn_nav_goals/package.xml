@@ -8,10 +8,13 @@
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>nav_msgs</depend>
+  <depend>nav2_common</depend>
+  <depend>nav2_msgs</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>
-  <depend>nav_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>visualization_msgs</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
