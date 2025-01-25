@@ -7,6 +7,7 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav2_msgs/action/compute_path_to_pose.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
+#include <visualization_msgs/msg/marker.hpp>
 
 class UnknownPointsFinder : public rclcpp::Node
 {
@@ -19,6 +20,7 @@ public:
       "/map", qos, std::bind(&UnknownPointsFinder::mapCallback, this, std::placeholders::_1));
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
       "/odom", 10, std::bind(&UnknownPointsFinder::odomCallback, this, std::placeholders::_1));
+    marker_pub_ = create_publisher<visualization_msgs::msg::Marker>("close_point_marker", 10);
     action_client_ = rclcpp_action::create_client<nav2_msgs::action::ComputePathToPose>(
       this, "/compute_path_to_pose");
   }
@@ -80,12 +82,7 @@ private:
         break;
     }
 
-    if (!unknown_points.empty()) {
-      RCLCPP_INFO(this->get_logger(), "Sending goal to the closest unknown point");
-      sendGoal(unknown_points.front());
-    } else {
-      RCLCPP_INFO(this->get_logger(), "No unknown points found");
-    }
+    publishMarkers(unknown_points);
   }
 
   bool isObstacleBetween(float x1, float y1, float x2, float y2)
@@ -107,30 +104,37 @@ private:
     return false; // No obstacle found
   }
 
-  void sendGoal(const std::pair<float, float>& target)
+  void publishMarkers(const std::vector<std::pair<float, float>>& points)
   {
-    if (!action_client_->wait_for_action_server(std::chrono::seconds(10))) {
-      RCLCPP_ERROR(this->get_logger(), "Action server not available after waiting");
-      return;
+    visualization_msgs::msg::Marker marker;
+    marker.header.frame_id = "map";
+    marker.header.stamp = this->now();
+    marker.ns = "unknown_points";
+    marker.id = 0;
+    marker.type = visualization_msgs::msg::Marker::SPHERE_LIST;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.scale.x = 0.1;
+    marker.scale.y = 0.1;
+    marker.scale.z = 0.1;
+    marker.color.a = 1.0;
+    marker.color.r = 0.0;
+    marker.color.g = 1.0;
+    marker.color.b = 0.0;
+
+    for (size_t i = 0; i < points.size() && i < 5; ++i) {
+      geometry_msgs::msg::Point p;
+      p.x = points[i].first;
+      p.y = points[i].second;
+      p.z = 0.0;
+      marker.points.push_back(p);
     }
 
-    auto goal_msg = nav2_msgs::action::ComputePathToPose::Goal();
-    goal_msg.goal.pose.position.x = target.first;
-    goal_msg.goal.pose.position.y = target.second;
-    goal_msg.goal.pose.orientation.w = 1.0; // Neutral orientation
-
-    RCLCPP_INFO(this->get_logger(), "Sending goal: (%.2f, %.2f)", target.first, target.second);
-
-    auto send_goal_options = rclcpp_action::Client<nav2_msgs::action::ComputePathToPose>::SendGoalOptions();
-    send_goal_options.result_callback = [this](auto) {
-      RCLCPP_INFO(this->get_logger(), "Goal result received");
-    };
-
-    action_client_->async_send_goal(goal_msg, send_goal_options);
+    marker_pub_->publish(marker);
   }
 
   rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
   nav_msgs::msg::OccupancyGrid map_;
   float robot_x_{0.0f};
   float robot_y_{0.0f};
