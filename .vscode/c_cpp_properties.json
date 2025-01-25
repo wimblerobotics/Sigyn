@@ -1,24 +1,24 @@
 {
   "configurations": [
     {
-      "name": "Linux",
+      "name": "Sigyn_desktop",
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
       "includePath": [
-        "/opt/ros/jazzy/include/**",
-        "/home/ros/Arduino/libraries/**",
-        "/home/ros/Arduino/libraries/micro_ros_arduino/**",
-        "/home/ros/micro_ros_arduino/src/**",
-        "${workspaceFolder}/**",
-        "/home/ros/sigyn_ws/install/**",
-        "/home/ros/sigyn_ws/install/msgs/include/**",
         "/usr/include/**",
-        "/home/ros/.arduino15/packages/teensy/hardware/avr/1.59.0/libraries/**",
-        "/home/ros/.arduino15/packages/**"
+        "/opt/ros/jazzy/include/**", // Update "foxy" to your ROS 2 distribution
+        "/home/ros/sigyn_ws/install/include/**",
+        "${workspaceFolder}/**"
       ],
       "defines": [],
-      "compilerPath": "/usr/bin/clang++-18",
-      "cStandard": "c11",
-      "cppStandard": "c++17",
-      "intelliSenseMode": "linux-clang-x64"
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14",
+      "compileCommands": "${workspaceFolder}/build/compile_commands.json",
+      "configurationProvider": "ms-vscode.cmake-tools"
     }
   ],
   "version": 4

@@ -41,6 +41,7 @@ set(dependencies
   rclcpp
   rclcpp_action
   nav_msgs
+  nav2_common
   nav2_msgs
   std_msgs
 )
