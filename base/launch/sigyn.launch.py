@@ -49,18 +49,19 @@ def launch_nav(context, ld, nav2_config_path, bt_xml, make_map, use_sim_time, ma
     with open(nav_config_tempfile.name, 'w') as f:
         yaml.dump(config_yaml, f)
 
-    nav_sim= IfCondition(AndSubstitution(make_map, use_sim_time))
-    nav_real = IfCondition(AndSubstitution(make_map, NotSubstitution(use_sim_time)))
+    # nav_sim= IfCondition(AndSubstitution(make_map, use_sim_time))
+    # nav_real = IfCondition(AndSubstitution(make_map, NotSubstitution(use_sim_time)))
 
     log_nav_params = LogInfo(
         msg=[
-            f"[launch_nav] map_path_sim: {map_path_sim}, map_path_real: {map_path_real}, replacement_xml_path: {replacement_xml_path}, navigation_launch_path: {navigation_launch_path}",
+            f"[launch_nav] map_path_sim: {map_path_sim}, map_path_real: {map_path_real}, replacement_xml_path: {replacement_xml_path}, navigation_launch_path: {context.perform_substitution(navigation_launch_path)}",
         ]
     )
     ld.add_action(log_nav_params)
 
     nav2_launch_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(navigation_launch_path),
+        # condition=IfCondition(AndSubstitution(NotSubstitution(make_map), use_sim_time)),
         condition=IfCondition(AndSubstitution(NotSubstitution(make_map), use_sim_time)),
         launch_arguments={
             "autostart": "True",
@@ -368,6 +369,22 @@ def generate_launch_description():
             ],
         )
     )
+    # nav2_launch_sim = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(navigation_launch_path),
+    #     # condition=IfCondition(AndSubstitution(NotSubstitution(make_map), use_sim_time)),
+    #     # condition=IfCondition(AndSubstitution(NotSubstitution(make_map), use_sim_time)),
+    #     launch_arguments={
+    #         "autostart": "True",
+    #         "map": map_path_sim,
+    #         "params_file": nav2_config_path,
+    #         "slam": "False",
+    #         "use_composition": "True",
+    #         "use_respawn": "True",
+    #         "use_sim_time": use_sim_time,
+    #     }.items(),
+    # )
+    # ld.add_action(nav2_launch_sim)
+
     
     echo_action = ExecuteProcess(
         cmd=["echo", "[sim] Rviz config file path: " + rviz_config_path],
