@@ -1,0 +1,99 @@
+<!--
+  This Behavior Tree replans the global path periodically at 1 Hz and it also has
+  recovery actions specific to planning / control as well as general system issues.
+  This will be continuous if a kinematically valid planner is selected.
+-->
+<root BTCPP_format="4" main_tree_to_execute="MainTree">
+    <BehaviorTree ID="MainTree">
+        <Sequence name="PatrolSequence">
+            <ControllerSelector selected_controller="{selected_controller}"
+                default_controller="FollowPath"
+                topic_name="controller_selector" />
+            <PlannerSelector selected_planner="{selected_planner}" default_planner="GridBased"
+                topic_name="planner_selector" />
+            <Repeat num_cycles="4" name="Prime localization">
+                <Sequence name="DoASquare">
+                    <Spin spin_dist="1.57" error_code_id="{spin_error_code}" />
+                    <DriveOnHeading dist_to_travel="0.2" speed="0.1"
+                        error_code_id="{drive_on_heading_error_code}" />
+                </Sequence>
+            </Repeat>
+            <!-- <SetBlackboard output_key="goal" value="0.0;map;9.5;1.0;0.0;0.0;0.0;0.0;1.0" /> -->
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;9;1.0;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;13;1.0;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;14;5.0;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;14.3;7.5;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;14;9.4;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;12.5;10.5;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;13;13;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;9;11;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;9;14.5;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;5;14.5;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;5;10;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;3;7.5;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;1;11;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;1;14;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;3;14;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;3;11;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;11;10;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;11;3;0.0;0.0;0.0;0.0;1.0" />
+            <SubTree ID="GoToGoal" _autoremap="true" goal="0.0;map;9;2;0.0;0.0;0.0;0.0;1.0" />
+        </Sequence>
+    </BehaviorTree>
+    <BehaviorTree ID="GoToGoal">
+        <Sequence name="Move to a goal">
+            <ComputePathToPose goal="{goal}" path="{path}" planner_id="{selected_planner}"
+                error_code_id="{compute_path_error_code}" />
+            <FollowPath path="{path}" controller_id="{selected_controller}"
+                error_code_id="{follow_path_error_code}" />
+        </Sequence>
+    </BehaviorTree>
+    <!-- <RecoveryNode number_of_retries="6" name="NavigateRecovery">
+      <PipelineSequence name="NavigateWithReplanning">
+        <ControllerSelector selected_controller="{selected_controller}" default_controller="FollowPath"
+        topic_name="controller_selector"/>
+        <PlannerSelector selected_planner="{selected_planner}" default_planner="GridBased"
+        topic_name="planner_selector"/>
+        <RateController hz="1.0">
+          <RecoveryNode number_of_retries="1" name="ComputePathToPose">
+            <ComputePathToPose goal="{goal}" path="{path}" planner_id="{selected_planner}"
+        error_code_id="{compute_path_error_code}"/>
+            <Sequence>
+              <WouldAPlannerRecoveryHelp error_code="{compute_path_error_code}"/>
+              <ClearEntireCostmap name="ClearGlobalCostmap-Context"
+        service_name="global_costmap/clear_entirely_global_costmap"/>
+            </Sequence>
+          </RecoveryNode>
+        </RateController>
+        <RecoveryNode number_of_retries="1" name="FollowPath">
+          <FollowPath path="{path}" controller_id="{selected_controller}"
+        error_code_id="{follow_path_error_code}"/>
+          <Sequence>
+            <WouldAControllerRecoveryHelp error_code="{follow_path_error_code}"/>
+            <ClearEntireCostmap name="ClearLocalCostmap-Context"
+        service_name="local_costmap/clear_entirely_local_costmap"/>
+          </Sequence>
+        </RecoveryNode>
+      </PipelineSequence>
+      <Sequence>
+        <Fallback>
+          <WouldAControllerRecoveryHelp error_code="{follow_path_error_code}"/>
+          <WouldAPlannerRecoveryHelp error_code="{compute_path_error_code}"/>
+        </Fallback>
+        <ReactiveFallback name="RecoveryFallback">
+          <GoalUpdated/>
+          <RoundRobin name="RecoveryActions">
+            <Sequence name="ClearingActions">
+              <ClearEntireCostmap name="ClearLocalCostmap-Subtree"
+        service_name="local_costmap/clear_entirely_local_costmap"/>
+              <ClearEntireCostmap name="ClearGlobalCostmap-Subtree"
+        service_name="global_costmap/clear_entirely_global_costmap"/>
+            </Sequence>
+            <Spin spin_dist="1.57" error_code_id="{spin_error_code}"/>
+            <Wait wait_duration="5.0"/>
+            <BackUp backup_dist="0.30" backup_speed="0.05" error_code_id="{backup_code_id}"/>
+          </RoundRobin>
+        </ReactiveFallback>
+      </Sequence>
+    </RecoveryNode> -->
+</root>
