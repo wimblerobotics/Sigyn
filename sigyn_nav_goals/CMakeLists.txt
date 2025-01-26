@@ -17,6 +17,7 @@ endif()
 
 add_compile_options(-g)
 
+# find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(nav2_common REQUIRED)
@@ -24,8 +25,8 @@ find_package(nav2_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
-# find_package(unique_identifier_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(behaviortree_cpp_v3 REQUIRED)
 
 include_directories(
   include
@@ -35,7 +36,6 @@ include_directories(
   ${rclcpp_INCLUDE_DIRS}
   ${rclcpp_action_INCLUDE_DIRS}
   ${std_msgs_INCLUDE_DIRS}
-  # ${unique_identifier_msgs_INCLUDE_DIRS}
   ${visualization_msgs_INCLUDE_DIRS}
 )
 
@@ -47,6 +47,7 @@ set(dependencies
   rclcpp_action
   std_msgs
   visualization_msgs
+  behaviortree_cpp_v3
 )
 
 add_executable(unknown_points_finder_node
@@ -57,9 +58,37 @@ ament_target_dependencies(unknown_points_finder_node
   ${dependencies}
 )
 
+add_library(custom_nodes SHARED
+  src/custom_nodes.cpp
+)
+
+ament_target_dependencies(custom_nodes
+  behaviortree_cpp_v3
+  rclcpp
+)
+
+add_executable(main
+  src/main.cpp
+)
+
+ament_target_dependencies(main
+  behaviortree_cpp_v3
+  rclcpp
+)
+
+target_link_libraries(main
+  custom_nodes
+)
+
 install(TARGETS
   unknown_points_finder_node
   DESTINATION lib/${PROJECT_NAME}
+)
+
+install(TARGETS custom_nodes main
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
 )
 
 # Install includes.
@@ -69,10 +98,6 @@ install(DIRECTORY
 )
 
 # Install directories.
-install(DIRECTORY
-  config include launch
-  DESTINATION share/${PROJECT_NAME}/
-)
 install(DIRECTORY
   config include launch
   DESTINATION share/${PROJECT_NAME}/
