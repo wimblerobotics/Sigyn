@@ -85,7 +85,7 @@ controller_server:
     min_theta_velocity_threshold: 0.001
     failure_tolerance: 0.3
     progress_checker_plugins: ["progress_checker"]
-    goal_checker_plugins: ["general_goal_checker"] # "precise_goal_checker"
+    goal_checker_plugins: ["precise_goal_checker"]
     controller_plugins: ["FollowPath"]
     use_realtime_priority: false
 
@@ -95,16 +95,16 @@ controller_server:
       required_movement_radius: 0.5
       movement_time_allowance: 10.0
     # Goal checker parameters
-    #precise_goal_checker:
-    #  plugin: "nav2_controller::SimpleGoalChecker"
-    #  xy_goal_tolerance: 0.25
-    #  yaw_goal_tolerance: 0.25
-    #  stateful: True
-    general_goal_checker:
-      stateful: True
-      plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.25
-      yaw_goal_tolerance: 0.25
+    precise_goal_checker:
+     plugin: "nav2_controller::SimpleGoalChecker"
+     xy_goal_tolerance: 0.1
+     yaw_goal_tolerance: 0.05
+     stateful: True
+    # general_goal_checker:
+    #   stateful: True
+    #   plugin: "nav2_controller::SimpleGoalChecker"
+    #   xy_goal_tolerance: 0.2
+    #   yaw_goal_tolerance: 0.1
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
       time_steps: 56
@@ -386,13 +386,6 @@ global_costmap:
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: True
-
-map_saver:
-  ros__parameters:
-    save_map_timeout: 5.0
-    free_thresh_default: 0.25
-    occupied_thresh_default: 0.65
-    map_subscribe_transient_local: True
 
 map_saver:
   ros__parameters:
