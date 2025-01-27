@@ -2,6 +2,8 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
 #include "sigyn_behavior_trees/action/say_something.hpp"
+#include "tf2/LinearMath/Matrix3x3.h"
+#include "tf2/LinearMath/Quaternion.h"
 
 namespace sigyn_behavior_trees {
 /**
@@ -23,7 +25,9 @@ class SaySomethingActionServer : public rclcpp::Node {
 
     auto handle_goal = [this](const rclcpp_action::GoalUUID& uuid,
                               std::shared_ptr<const SaySomething::Goal> goal) {
-      RCLCPP_INFO(this->get_logger(), "Received goal request with message %s", goal->message.c_str());
+      // RCLCPP_INFO(this->get_logger(), "Received goal request with message %s",
+      // goal->message.c_str());
+      (void)goal;
       (void)uuid;
       return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
     };
@@ -54,9 +58,15 @@ class SaySomethingActionServer : public rclcpp::Node {
   rclcpp_action::Server<SaySomething>::SharedPtr action_server_;
 
   void execute(const std::shared_ptr<GoalHandleSaySomething> goal_handle) {
-    RCLCPP_INFO(this->get_logger(), "Executing goal");
-    const auto goal = goal_handle->get_goal();
-    RCLCPP_INFO(this->get_logger(), "[execute] Received goal request with message %s", goal->message.c_str());
+    const auto message = goal_handle->get_goal()->message;
+    const auto pose = goal_handle->get_goal()->pose;
+    tf2::Quaternion q(pose.pose.orientation.x, pose.pose.orientation.y, pose.pose.orientation.z,
+                      pose.pose.orientation.w);
+    tf2::Matrix3x3 m(q);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+    RCLCPP_INFO(this->get_logger(), "[SaySomething] [x: %4.3f, y: %4.3f, z-rad: %4.3f] %s",
+                pose.pose.position.x, pose.pose.position.y, yaw, message.c_str());
   }
 };
 

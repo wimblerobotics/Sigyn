@@ -21,6 +21,7 @@ add_compile_options(-g)
 find_package(action_msgs REQUIRED)
 find_package(ament_cmake REQUIRED)
 find_package(behaviortree_cpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(nav2_behaviors REQUIRED)
 find_package(nav2_core REQUIRED)
 
@@ -30,15 +31,15 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(tf2_ros REQUIRED)
 include_directories(
   include
   ${behaviortree_cpp_INCLUDE_DIRS}
+  ${geometry_msgs_INCLUDE_DIRS}
   ${nav2_core_INCLUDE_DIRS}
-
-  # ${nav2_costmap_2d_INCLUDE_DIRS}
-  # ${nav2_util_INCLUDE_DIRS}
   ${rclcpp_INCLUDE_DIRS}
   ${rclcpp_action_INCLUDE_DIRS}
+  ${tf2_ros_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_BINARY_DIR}/rosidl_generator_cpp
@@ -47,17 +48,18 @@ include_directories(
 set(dependencies
   behaviortree_cpp
   builtin_interfaces
+  geometry_msgs
   nav2_behaviors
   nav2_core
-
-  # nav2_costmap_2d
   rclcpp
   rclcpp_action
+  tf2_ros
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "action/MoveAShortDistanceAhead.action"
   "action/SaySomething.action"
+  DEPENDENCIES builtin_interfaces geometry_msgs
 )
 
 rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} "rosidl_typesupport_cpp")

@@ -13,9 +13,10 @@ void SaySomething::on_tick() {
   if (!msg) {
     throw BT::RuntimeError("missing required input [message]: ", msg.error());
   }
-  // use the method value() to extract the valid message.
-  // std::cout << "Robot says: " << msg.value() << std::endl;
+
+  auto pose = getInput<geometry_msgs::msg::PoseStamped>("pose");
   goal_.message = msg.value();
+  goal_.pose = pose.value();
   increment_recovery_count();
 }
 

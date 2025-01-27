@@ -26,7 +26,6 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
-find_package(behaviortree_cpp_v3 REQUIRED)
 
 include_directories(
   include
@@ -47,7 +46,6 @@ set(dependencies
   rclcpp_action
   std_msgs
   visualization_msgs
-  behaviortree_cpp_v3
 )
 
 add_executable(unknown_points_finder_node
@@ -58,37 +56,9 @@ ament_target_dependencies(unknown_points_finder_node
   ${dependencies}
 )
 
-add_library(custom_nodes SHARED
-  src/custom_nodes.cpp
-)
-
-ament_target_dependencies(custom_nodes
-  behaviortree_cpp_v3
-  rclcpp
-)
-
-add_executable(main
-  src/main.cpp
-)
-
-ament_target_dependencies(main
-  behaviortree_cpp_v3
-  rclcpp
-)
-
-target_link_libraries(main
-  custom_nodes
-)
-
 install(TARGETS
   unknown_points_finder_node
   DESTINATION lib/${PROJECT_NAME}
-)
-
-install(TARGETS custom_nodes main
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin
 )
 
 # Install includes.
