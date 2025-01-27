@@ -1,4 +1,5 @@
 #pragma once
+#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <nav2_behavior_tree/bt_action_node.hpp>
 
 #include "sigyn_behavior_trees/action/say_something.hpp"
@@ -39,6 +40,22 @@ class SaySomething
   //  */
   // void halt() override;
 
+  static geometry_msgs::msg::PoseStamped createInfinityPoseStamped(
+      double x = std::numeric_limits<float>::infinity(),
+      double y = std::numeric_limits<float>::infinity()) {
+    geometry_msgs::msg::PoseStamped pose;
+    pose.header.frame_id = "map";
+    pose.header.stamp = rclcpp::Time();
+    pose.pose.position.x = x;
+    pose.pose.position.y = y;
+    pose.pose.position.z = 0.0;
+    pose.pose.orientation.x = 0.0;
+    pose.pose.orientation.y = 0.0;
+    pose.pose.orientation.z = 0.0;
+    pose.pose.orientation.w = 1.0;
+    return pose;
+  }
+
   /**
    * @brief Creates list of BT ports
    * @return BT::PortsList Containing basic ports along with node-specific ports
@@ -46,6 +63,8 @@ class SaySomething
   static BT::PortsList providedPorts() {
     return providedBasicPorts({
         BT::InputPort<std::string>("message", "Message to log"),
+        BT::InputPort<geometry_msgs::msg::PoseStamped>("pose", createInfinityPoseStamped(),
+                                                       "Pose to print"),
     });
   }
 

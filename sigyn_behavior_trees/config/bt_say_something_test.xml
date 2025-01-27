@@ -1,0 +1,9 @@
+<root BTCPP_format="4" main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <Sequence name="DummyTest">
+      <SaySomething message="goal follows" pose="{goal}" />
+      <SaySomething message="No goal given here" />
+      <!-- <SaySomething message="{goal}"/> -->
+    </Sequence>
+  </BehaviorTree>
+</root>
