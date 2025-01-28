@@ -96,10 +96,6 @@ foreach(action_server ${action_servers})
     ${dependencies}
   )
 
-  ament_target_dependencies(sigyn_${action_server}
-    ${dependencies}
-  )
-
   target_link_libraries(sigyn_${action_server}
     ${plugin_libs}
   )
