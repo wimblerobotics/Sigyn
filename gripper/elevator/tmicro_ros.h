@@ -1,6 +1,6 @@
 /*
-  ros2 topic pub -1 /extender_cmd std_msgs/msg/Float32 data:\ 0.2\
-  ros2 topic pub -1 /elevator_cmd std_msgs/msg/Float32 data:\ 0.2\
+  ros2 topic pub -1 /extender_cmd std_msgs/msg/Float32 "data: 0.2"
+  ros2 topic pub -1 /elevator_cmd std_msgs/msg/Float32 "data: 0.2"
   ros2 action send_goal /move_elevator sigyn_interfaces/action/MoveElevator "{goal_position: 0.02}" --feedback 
   ros2 action send_goal /move_extender sigyn_interfaces/action/MoveExtender "{goal_position: 0.02}" --feedback
 */
