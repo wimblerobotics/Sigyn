@@ -1,13 +1,14 @@
 #ifndef PI_SERVO_HPP_
 #define PI_SERVO_HPP_
 
-#include "hardware_interface/actuator_interface.hpp"
+#include "hardware_interface/base_interface.hpp"
+#include "hardware_interface/system_interface.hpp"
+#include "hardware_interface/handle.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 namespace pi_servo
 {
-class PiServo : public hardware_interface::ActuatorInterface
-{
+class PiServo : public hardware_interface::BaseInterface<hardware_interface::SystemInterface>
 public:
   hardware_interface::return_type configure(const hardware_interface::HardwareInfo & info) override;
   std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
