@@ -1,0 +1,5 @@
+<library path="pi_servo ">
+  <class type="pi_servo::PiServo" base_class_type="hardware_interface::ActuatorInterface">
+    <description>Servo controller for Sigyn using a Raspberry Pi.</description>
+  </class>
+</library>
