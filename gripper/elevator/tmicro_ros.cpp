@@ -174,10 +174,10 @@ void TMicroRos::loop() {
     case kAgentDisconnected: {
 #if USE_TSD
       TSd::singleton().log("INFO [TMicroRos::loop] kAgentDisconnected");
+#endif 
       showedWaitingAgent = false;
       showedAgentAvailable = false;
       showedAgentConnected = false;
-#endif 
       DestroyEntities();
       state_ = kWaitingAgent;
       break;
@@ -256,7 +256,8 @@ TMicroRos::TMicroRos() : TModule(TModule::kMicroRos) {
 }
 
 bool TMicroRos::CreateEntities() {
-#define DEBUG USE_TSD && true
+// #define DEBUG USE_TSD && true
+#define DEBUG true
 #if DEBUG
   char diagnostic_message[256];
 #endif
