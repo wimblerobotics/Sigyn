@@ -209,7 +209,7 @@ void TMicroRos::PublishDiagnostic(const char *msg) {
         rcl_publish(&g_singleton_->diagnostics_publisher_, &g_singleton_->string_msg_, nullptr));
   }
 #if USE_TSD
-  TSd::singleton().log(msg);f
+  TSd::singleton().log(msg);
 #endif
 }
 
