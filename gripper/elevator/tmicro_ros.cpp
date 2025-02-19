@@ -148,6 +148,7 @@ void TMicroRos::loop() {
     }
 
     case kAgentConnected: {
+      static int32_t spin_some_count = 0;
 #if USE_TSD
       if (!showedAgentConnected) {
         TSd::singleton().log("INFO [TMicroRos::loop] kAgentConnected");
@@ -157,16 +158,18 @@ void TMicroRos::loop() {
       }
 #endif
       static int64_t last_time = uxr_millis();
-      if ((uxr_millis() - last_time) > 10) {
+      if ((uxr_millis() - last_time) > 100) {
         state_ = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? kAgentConnected : kAgentDisconnected;
         last_time = uxr_millis();
       }
 
       elevator_->ContinueOutstandingMovementRequests();
       extender_->ContinueOutstandingMovementRequests();
-
-      if (TMicroRos::singleton().state_ == kAgentConnected) {
-        rclc_executor_spin_some(&executor_, RCL_MS_TO_NS(1));
+      if (++spin_some_count > 10) {
+        if (TMicroRos::singleton().state_ == kAgentConnected) {
+          rclc_executor_spin_some(&executor_, RCL_MS_TO_NS(1));
+        }
+        spin_some_count = 0;
       }
       break;
     }
@@ -178,6 +181,7 @@ void TMicroRos::loop() {
       showedWaitingAgent = false;
       showedAgentAvailable = false;
       showedAgentConnected = false;
+#endif
       DestroyEntities();
       state_ = kWaitingAgent;
       break;

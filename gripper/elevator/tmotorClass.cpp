@@ -120,11 +120,11 @@ void TMotorClass::ContinueOutstandingMovementRequests() {
     }
 
     SendFeedback();
-    snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TMotorClass::doMovementRequest] remaining_pulses: %ld, "
-             "current_position: %7.6f",
-             remaining_pulses_, current_position_);
-    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+    // snprintf(diagnostic_message, sizeof(diagnostic_message),
+    //          "INFO [TMotorClass::doMovementRequest] remaining_pulses: %ld, "
+    //          "current_position: %7.6f",
+    //          remaining_pulses_, current_position_);
+    // TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
   } else {
     if (pending_action_) {
       sendSuccess();
@@ -254,6 +254,10 @@ void TMotorClass::sendSuccess() {
 
 void TMotorClass::StepPulse(Direction direction) {
   const int pd = 500; // Pulse Delay period
+  // 50 takes about 23 sec to travel 0.4m
+  // 20 takes about 21
+  // 10 takes about 22
+
   if ((direction == kUp) && AtUpLimit()) {
     return;
   }
