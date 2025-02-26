@@ -1,9 +1,0 @@
-<library path="sigynpi_gripper_end">
-  <class name="sigynpi_gripper_end/ServoMotorHardwareInterface"
-         type="sigynpi_gripper_end::ServoMotorHardwareInterface"
-         base_class_type="hardware_interface::ActuatorInterface">
-    <description>
-      The endpoint servo-controlled gripper.
-    </description>
-  </class>
-</library>
