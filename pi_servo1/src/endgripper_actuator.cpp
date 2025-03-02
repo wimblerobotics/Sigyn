@@ -158,23 +158,20 @@ hardware_interface::return_type EndGripperJoint::read(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
   // BEGIN: This part here is for exemplary purposes - Please do not copy to your production code
-  std::stringstream ss;
-  ss << "Reading states:";
+  // std::stringstream ss;
+  // ss << "Reading states:";
 
-  // Simulate RRBot's movement
-  ss << "Reading states:";
+  // for (const auto & [name, descr] : joint_state_interfaces_)
+  // {
+  //   // Simulate RRBot's movement
+  //   auto new_value = get_state(name) + (get_command(name) - get_state(name)) / hw_slowdown_;
+  //   set_state(name, new_value);
+  //   ss << std::fixed << std::setprecision(2) << std::endl
+  //      << "\t" << get_state(name) << " for joint '" << name << "'";
+  // }
 
-  for (const auto & [name, descr] : joint_state_interfaces_)
-  {
-    // Simulate RRBot's movement
-    auto new_value = get_state(name) + (get_command(name) - get_state(name)) / hw_slowdown_;
-    set_state(name, new_value);
-    ss << std::fixed << std::setprecision(2) << std::endl
-       << "\t" << get_state(name) << " for joint '" << name << "'";
-  }
-
-  RCLCPP_INFO(get_logger(), "%s", ss.str().c_str());
-  // END: This part here is for exemplary purposes - Please do not copy to your production code
+  // RCLCPP_INFO(get_logger(), "%s", ss.str().c_str());
+  // // END: This part here is for exemplary purposes - Please do not copy to your production code
 
   return hardware_interface::return_type::OK;
 }
@@ -183,17 +180,20 @@ hardware_interface::return_type pi_servo1::EndGripperJoint::write(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
   // BEGIN: This part here is for exemplary purposes - Please do not copy to your production code
-  std::stringstream ss;
-  ss << "Writing commands:";
+  
+  
+  // std::stringstream ss;
+  // ss << "Writing commands:";
 
-  for (const auto & [name, descr] : joint_command_interfaces_)
-  {
-    // Simulate sending commands to the hardware
-    ss << std::fixed << std::setprecision(2) << std::endl
-       << "\t" << get_command(name) << " for joint '" << name << "'";
-  }
-  RCLCPP_INFO(get_logger(), "%s", ss.str().c_str());
-  // END: This part here is for exemplary purposes - Please do not copy to your production code
+  // for (const auto & [name, descr] : joint_command_interfaces_)
+  // {
+  //   // Simulate sending commands to the hardware
+  //   ss << std::fixed << std::setprecision(2) << std::endl
+  //      << "\t" << get_command(name) << " for joint '" << name << "'";
+  // }
+  // RCLCPP_INFO(get_logger(), "%s", ss.str().c_str());
+  
+  // // END: This part here is for exemplary purposes - Please do not copy to your production code
 
   return hardware_interface::return_type::OK;
 }
