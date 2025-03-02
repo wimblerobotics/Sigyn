@@ -21,12 +21,15 @@ from launch.actions import (
     IncludeLaunchDescription,
     LogInfo,
     OpaqueFunction,
+    RegisterEventHandler,
+    TimerAction,
 )
 from launch.conditions import IfCondition, UnlessCondition
+from launch.event_handlers import OnProcessStart
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
     AndSubstitution,
-    # Command,
+    Command,
     LaunchConfiguration,
     NotSubstitution,
     PathJoinSubstitution,
@@ -303,6 +306,19 @@ def generate_launch_description():
         output="screen",
     )
     ld.add_action(spawn_entity)
+    
+
+    controller_params_file = PathJoinSubstitution(
+        [description_pkg, "config", "my_controllers.yaml"])
+    controller_manager = Node(
+        condition=UnlessCondition(use_sim_time),
+        package="controller_manager",
+        executable="ros2_control_node",
+        parameters=[controller_params_file],
+        output="both",
+        remappings=[("~/robot_description", "/robot_description")],
+    )
+    ld.add_action(controller_manager)
 
     diff_drive_spawner = Node(
         package="controller_manager",
@@ -319,6 +335,13 @@ def generate_launch_description():
         arguments=["joint_broad"],
     )
     ld.add_action(joint_broad_spawner)
+    
+    fwcommand_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["forward_position_controller", "--param-file", controller_params_file],
+    )
+    ld.add_action(fwcommand_spawner)
 
     bridge_params = os.path.join(base_pgk, "config", "gz_bridge.yaml")
     ros_gz_bridge = Node(

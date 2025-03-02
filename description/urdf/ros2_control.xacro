@@ -2,6 +2,22 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <xacro:unless value="$(arg sim_mode)">
+    <ros2_control name="endgripper_servo" type="actuator">
+      <hardware>
+        <plugin>pi_servo1/EndGripperJoint</plugin>
+        <param name="example_param_hw_start_duration_sec">2.0</param>
+        <param name="example_param_hw_stop_duration_sec">3.0</param>
+        <param name="example_param_hw_slowdown">1.23</param>
+      </hardware>
+      <joint name="servo1_joint">
+        <command_interface name="position">
+          <param name="min">-100</param>
+          <param name="max">100</param>
+        </command_interface>
+        <state_interface name="position"/>
+      </joint>
+    </ros2_control>
+
     <ros2_control name="RealRobot" type="system">
       <hardware>
         <plugin>diffdrive_arduino/DiffDriveArduinoHardware</plugin>
@@ -33,6 +49,22 @@
   </xacro:unless>
 
   <xacro:if value="$(arg sim_mode)">
+    <!-- <ros2_control name="endgripper_servo" type="actuator">
+      <hardware>
+        <plugin>pi_servo1/EndGripperJoint</plugin>
+        <param name="example_param_hw_start_duration_sec">2.0</param>
+        <param name="example_param_hw_stop_duration_sec">3.0</param>
+        <param name="example_param_hw_slowdown">1.23</param>
+      </hardware>
+      <joint name="servo1_joint">
+        <command_interface name="position">
+          <param name="min">-100</param>
+          <param name="max">100</param>
+        </command_interface>
+        <state_interface name="position"/>
+      </joint>
+    </ros2_control> -->
+
     <ros2_control name="GazeboSystem" type="system">
       <hardware>
         <plugin>gz_ros2_control/GazeboSimSystem</plugin>
@@ -53,6 +85,15 @@
         <state_interface name="velocity" />
         <state_interface name="position" />
       </joint>
+
+      <joint name="servo1_joint">
+        <command_interface name="position">
+          <param name="min">-100</param>
+          <param name="max">100</param>
+        </command_interface>
+        <state_interface name="position"/>
+      </joint>
+
     </ros2_control>
   </xacro:if>
 
