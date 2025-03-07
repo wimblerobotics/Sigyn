@@ -18,7 +18,7 @@
       </joint>
     </ros2_control>
 
-    <ros2_control name="RealRobot" type="system">
+    <!-- <ros2_control name="RealRobot" type="system">
       <hardware>
         <plugin>diffdrive_arduino/DiffDriveArduinoHardware</plugin>
         <param name="left_wheel_name">left_wheel_joint</param>
@@ -45,7 +45,7 @@
         <state_interface name="position" />
         <state_interface name="velocity" />
       </joint>
-    </ros2_control>
+    </ros2_control> -->
   </xacro:unless>
 
   <xacro:if value="$(arg sim_mode)">
