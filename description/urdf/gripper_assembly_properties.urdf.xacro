@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+    <xacro:property name="pi" value="3.14159" />
+
+    <xacro:property name="elevator_pole_length" value="0.045" />
+    <xacro:property name="elevator_pole_width" value="0.04" />
+    <xacro:property name="elevator_pole_height" value="1.43" />
+
+    <xacro:property name="elevator_connector_plate_length" value="0.075" />
+    <xacro:property name="elevator_connector_plate_width" value="0.095" />
+    <xacro:property name="elevator_connector_plate_height" value="0.02" />
+    <xacro:property name="elevator_connector_x_offset_from_end" value="0.037" />
+
+    <xacro:property name="gripper_elevator_plate_length" value="0.4" />
+    <xacro:property name="gripper_elevator_plate_width" value="0.075" />
+    <xacro:property name="gripper_elevator_plate_height" value="0.012" />
+
+    <xacro:property name="gripper_extender_length" value="0.4" />
+    <xacro:property name="gripper_extender_width" value="0.075" />
+    <xacro:property name="gripper_extender_height" value="0.075" />
+
+    <xacro:property name="gripper_wrist_length" value="0.04" />
+    <xacro:property name="gripper_wrist_width" value="0.04" />
+    <xacro:property name="gripper_wrist_depth" value="0.02" />
+
+    <xacro:property name="parallel_gripper_base_plate_length" value="0.1" />
+    <xacro:property name="parallel_gripper_base_plate_width" value="0.05" />
+    <xacro:property name="parallel_gripper_base_plate_depth" value="0.006" />
+
+    <xacro:property name="finger_length" value="0.05" />
+    <xacro:property name="finger_width" value="${parallel_gripper_base_plate_width}" />
+    <xacro:property name="finger_depth" value="0.006" />
+</robot>
