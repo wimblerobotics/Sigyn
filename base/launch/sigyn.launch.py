@@ -108,7 +108,7 @@ def launch_robot_state_publisher(
     # print(F"urdf_as_xml: {urdf_as_xml}")
 
     urdf_as_xml = xacro.process_file(
-        xacro_file_path, mappings={"use_ros2_control": "true", "sim_mode": "true"}
+        xacro_file_path, mappings={"use_ros2_control": "true", "sim_mode": use_sim_time.perform(context)}
     ).toxml()
     robot_state_publisher_node = Node(
         package="robot_state_publisher",
@@ -342,6 +342,14 @@ def generate_launch_description():
         arguments=["forward_position_controller", "--param-file", controller_params_file],
     )
     ld.add_action(fwcommand_spawner)
+
+    # joint_state_broadcaster_spawner = Node(
+    #     condition=UnlessCondition(use_sim_time),
+    #     package="controller_manager",
+    #     executable="spawner",
+    #     arguments=["joint_state_broadcaster"],
+    # )
+    # ld.add_action(joint_state_broadcaster_spawner)
 
     bridge_params = os.path.join(base_pgk, "config", "gz_bridge.yaml")
     ros_gz_bridge = Node(
