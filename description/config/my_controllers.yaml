@@ -26,7 +26,7 @@ forward_position_controller:
   ros__parameters:
     type: joint_trajectory_controller/JointTrajectoryController
     joints:
-      - servo1_joint
+      - elevator_pole_to_elevator_connector_plate
     command_interfaces:
       - position
     state_interfaces:
