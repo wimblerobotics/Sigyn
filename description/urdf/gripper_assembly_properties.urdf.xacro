@@ -1,7 +1,5 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
-    <xacro:property name="pi" value="3.14159" />
-
     <xacro:property name="elevator_pole_length" value="0.045" />
     <xacro:property name="elevator_pole_width" value="0.04" />
     <xacro:property name="elevator_pole_height" value="1.43" />

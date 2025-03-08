@@ -56,10 +56,10 @@
         <param name="example_param_hw_stop_duration_sec">3.0</param>
         <param name="example_param_hw_slowdown">1.23</param>
       </hardware>
-      <joint name="servo1_joint">
+      <joint name="elevator_pole_to_elevator_connector_plate">
         <command_interface name="position">
-          <param name="min">-100</param>
-          <param name="max">100</param>
+          <param name="min">0.15</param>
+          <param name="max">1.355</param>
         </command_interface>
         <state_interface name="position"/>
       </joint>
@@ -86,7 +86,7 @@
         <state_interface name="position" />
       </joint>
 
-      <joint name="servo1_joint">
+      <joint name="elevator_pole_to_elevator_connector_plate">
         <command_interface name="position">
           <param name="min">-100</param>
           <param name="max">100</param>
