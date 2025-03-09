@@ -94,6 +94,36 @@
         <state_interface name="position"/>
       </joint>
 
+      <joint name="gripper_elevator_plate_to_gripper_extender">
+        <command_interface name="position">
+          <param name="min">-100</param>
+          <param name="max">100</param>
+          <!-- <param name="min">0</param>
+          <param name="max">0.4</param> -->
+        </command_interface>
+        <state_interface name="position"/>
+      </joint>
+
+      <joint name="gripper_wrist_to_parallel_gripper_base_plate">
+        <command_interface name="position">
+          <param name="min">-100</param>
+          <param name="max">100</param>
+        </command_interface>
+        <state_interface name="position"/>
+      </joint>
+
+      <joint name="parallel_gripper_base_plate_to_left_finger">
+        <command_interface name="position">
+          <param name="min">-100</param>
+          <param name="max">100</param>
+        </command_interface>
+        <state_interface name="position"/>
+      </joint>
+
+      <!-- <joint name="parallel_gripper_base_plate_to_right_finger">
+        <state_interface name="position"/>
+      </joint> -->
+
     </ros2_control>
   </xacro:if>
 
