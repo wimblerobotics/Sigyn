@@ -49,9 +49,7 @@
                 <geometry>
                     <box size="${elevator_connector_plate_length} ${elevator_connector_plate_height} ${elevator_connector_plate_width}" />
                 </geometry>
-                <material name="elevator_connector_plate_color">
-                    <color rgba="0.1 0.1 0.2 1" />
-                </material>
+                <material name="elevator_connector_plate"/>
             </visual>
             <collision>
                 <geometry>
@@ -71,119 +69,161 @@
         <dynamics damping="0.7"/>
     </joint>
 
-    <!--
-        <joint name="elevator_connector_plate_to_gripper_elevator_plate" type="fixed">
-            <origin xyz="${(gripper_elevator_plate_length/2)-(elevator_connector_plate_length/2)-elevator_connector_x_offset_from_end} ${(gripper_elevator_plate_height/2)+(elevator_connector_plate_height/2)} 0.0" rpy="0 0 0" />
-            <parent link="elevator_connector_plate" />
-            <child link="gripper_extender_base_plate" />
-            <axis xyz="1 0 0" />
-        </joint>
+    <joint name="elevator_connector_plate_to_gripper_elevator_plate" type="fixed">
+        <origin xyz="${(gripper_elevator_plate_length/2)-(elevator_connector_plate_length/2)-elevator_connector_x_offset_from_end} ${(gripper_elevator_plate_height/2)+(elevator_connector_plate_height/2)} 0.0" rpy="0 0 0" />
+        <parent link="elevator_connector_plate" />
+        <child link="gripper_extender_base_plate" />
+        <axis xyz="1 0 0" />
+    </joint>
 
-        <link name="gripper_extender_base_plate">
+    <xacro:colorize_link color="0.2 0.3 0.2 1" name="gripper_extender_base_plate">
+        <foo>
             <visual>
                 <geometry>
                     <box size="${gripper_elevator_plate_length} ${gripper_elevator_plate_height} ${gripper_elevator_plate_width}" />
                 </geometry>
-                <material name="gripper_elevator_plate_color">
-                    <color rgba="0.2 0.3 0.2 1" />
-                </material>
+                <material name="gripper_extender_base_plate"/>
             </visual>
-        </link>
+            <collision>
+                <geometry>
+                    <box size="${gripper_elevator_plate_length} ${gripper_elevator_plate_height} ${gripper_elevator_plate_width}" />
+                </geometry>
+            </collision>
+            <xacro:solid_cuboid_inertial rpy="0 0 0" xyz="0 0 0" mass_kg="0.01" x="${gripper_elevator_plate_length}" y="${gripper_elevator_plate_height}" z="${gripper_elevator_plate_width}" />
+        </foo>
+    </xacro:colorize_link>
 
-        <joint name="gripper_elevator_plate_to_gripper_extender" type="prismatic">
-            <origin xyz="0.0 ${(gripper_extender_width/2) + (gripper_elevator_plate_height/2)} 0.0" rpy="0 0 0" />
-            <parent link="gripper_extender_base_plate" />
-            <child link="gripper_extender" />
-            <limit lower="0" upper="${gripper_elevator_plate_length}" effort="1" velocity="0.5" />
-            <axis xyz="1 0 0" />
-        </joint>
-
-        <link name="gripper_extender">
+    <xacro:colorize_link color="0.35 0.3 0.35 1" name="gripper_extender">
+        <foo>
             <visual>
                 <geometry>
                     <box size="${gripper_extender_length} ${gripper_extender_width} ${gripper_extender_height}" />
                 </geometry>
-                <material name="gripper_extender_color">
-                    <color rgba="0.35 0.3 0.35 1" />
-                </material>
+                <material name="gripper_extender"/>
             </visual>
-        </link>
+            <collision>
+                <geometry>
+                    <box size="${gripper_extender_length} ${gripper_extender_width} ${gripper_extender_height}" />
+                </geometry>
+            </collision>
+            <xacro:solid_cuboid_inertial rpy="0 0 0" xyz="0 0 0" mass_kg="0.01" x="${gripper_extender_length}" y="${gripper_extender_width}" z="${gripper_extender_height}" />
+        </foo>
+    </xacro:colorize_link>
 
-        <link name="gripper_wrist_servo">
+    <joint name="gripper_elevator_plate_to_gripper_extender" type="prismatic">
+        <origin xyz="0.0 ${(gripper_extender_width/2) + (gripper_elevator_plate_height/2)} 0.0" rpy="0 0 0" />
+        <parent link="gripper_extender_base_plate" />
+        <child link="gripper_extender" />
+        <limit lower="0" upper="${gripper_extender_length}" effort="1" velocity="0.5" />
+        <axis xyz="1 0 0" />
+        <dynamics damping="0.7"/>
+    </joint>
+
+    <xacro:colorize_link color="0.0 0.05 0.05 1.0" name="gripper_wrist_servo">
+        <foo>
             <visual>
                 <geometry>
                     <box size="${gripper_wrist_length} ${gripper_wrist_width} ${gripper_wrist_depth}" />
                 </geometry>
-                <material name="gripper_wrist_servo_color">
-                    <color rgba="0.0 0.05 0.05 1.0" />
-                </material>
+                <material name="gripper_wrist_servo"/>
             </visual>
-        </link>
+            <collision>
+                <geometry>
+                    <box size="${gripper_wrist_length} ${gripper_wrist_width} ${gripper_wrist_depth}" />
+                </geometry>
+            </collision>
+            <xacro:solid_cuboid_inertial rpy="0 0 0" xyz="0 0 0" mass_kg="0.01" x="${gripper_wrist_length}" y="${gripper_wrist_width}" z="${gripper_wrist_depth}" />
+        </foo>
+    </xacro:colorize_link>
 
-        <joint name="gripper_exender_to_gripper_wrist" type="fixed">
-            <origin xyz="${(gripper_extender_length/2)+(gripper_wrist_length/2)} 0.0 0.0" rpy="${pi/2} 0 0" />
-            <parent link="gripper_extender" />
-            <child link="gripper_wrist_servo" />
-            <axis xyz="0 0 1" />
-        </joint>
+    <joint name="gripper_exender_to_gripper_wrist" type="fixed">
+        <origin xyz="${(gripper_extender_length/2)+(gripper_wrist_length/2)} 0.0 0.0" rpy="${pi/2} 0 0" />
+        <parent link="gripper_extender" />
+        <child link="gripper_wrist_servo" />
+        <axis xyz="0 0 1" />
+        <dynamics damping="0.7"/>
+    </joint>
 
-        <joint name="gripper_wrist_to_parallel_gripper_base_plate" type="revolute">
-            <origin xyz="${(gripper_wrist_length/2)+(parallel_gripper_base_plate_depth/2)} 0.0 0.0" rpy="0 ${pi/2} 0" />
-            <parent link="gripper_wrist_servo" />
-            <child link="parallel_gripper_base_plate" />
-            <limit lower="-1.57" upper="1.57" effort="1" velocity="0.5" />
-            <axis xyz="0 0 1" />
-        </joint>
-
-        <link name="parallel_gripper_base_plate">
+    <xacro:colorize_link color="${66/255} ${55/255} ${7/255} 1.0" name="parallel_gripper_base_plate">
+        <foo>
             <visual>
                 <origin xyz="0 0 0" rpy="0 0 0" />
                 <geometry>
                     <box size="${parallel_gripper_base_plate_length} ${parallel_gripper_base_plate_width} ${parallel_gripper_base_plate_depth}"/>
                 </geometry>
-                <material name="parallel_gripper_base_plate_color">
-                    <color rgba="${66/255} ${55/255} ${7/255} 1.0" />
-                </material>
+                <material name="parallel_gripper_base_plate"/>
             </visual>
-        </link>
+            <collision>
+                <origin xyz="0 0 0" rpy="0 0 0" />
+                <geometry>
+                    <box size="${parallel_gripper_base_plate_length} ${parallel_gripper_base_plate_width} ${parallel_gripper_base_plate_depth}"/>
+                </geometry>
+            </collision>
+            <xacro:solid_cuboid_inertial rpy="0 0 0" xyz="0 0 0" mass_kg="0.001" x="${parallel_gripper_base_plate_length}" y="${parallel_gripper_base_plate_width}" z="${parallel_gripper_base_plate_depth}" />
+        </foo>
+    </xacro:colorize_link>
 
-        <link name="left_finger">
+    <joint name="gripper_wrist_to_parallel_gripper_base_plate" type="revolute">
+        <origin xyz="${(gripper_wrist_length/2)+(parallel_gripper_base_plate_depth/2)} 0.0 0.0" rpy="0 ${pi/2} 0" />
+        <parent link="gripper_wrist_servo" />
+        <child link="parallel_gripper_base_plate" />
+        <limit lower="-1.57" upper="1.57" effort="1" velocity="0.5" />
+        <axis xyz="0 0 1" />
+        <dynamics damping="0.7"/>
+    </joint>
+
+
+    <xacro:colorize_link color="${15/255} ${20/255} ${57/255} 1.0" name="left_finger">
+        <foo>
             <visual>
                 <geometry>
                     <box size="${finger_length} ${finger_width} ${finger_depth}" />
                 </geometry>
-                <material name="left_finger_color">
-                    <color rgba="${15/255} ${20/255} ${57/255} 1.0" />
-                </material>
+                <material name="left_finger"/>
             </visual>
-        </link>
+            <collision>
+                <geometry>
+                    <box size="${finger_length} ${finger_width} ${finger_depth}" />
+                </geometry>
+            </collision>
+            <xacro:solid_cuboid_inertial rpy="0 0 0" xyz="0 0 0" mass_kg="0.001" x="${finger_length}" y="${finger_width}" z="${finger_depth}" />
+        </foo>
+    </xacro:colorize_link>
 
-        <joint name="parallel_gripper_base_plate_to_left_finger" type="prismatic">
-            <origin xyz="${(parallel_gripper_base_plate_length/2) - (finger_depth/2)} 0 ${(parallel_gripper_base_plate_depth/2) + (finger_length/2)}" rpy="0 ${pi/2} 0" />
-            <parent link="parallel_gripper_base_plate" />
-            <child link="left_finger" />
-            <limit lower="-${(parallel_gripper_base_plate_length/2) - (finger_depth)}" upper="0" effort="1" velocity="0.5" />
-            <axis xyz="0 0 1" />
-        </joint>
+    <joint name="parallel_gripper_base_plate_to_left_finger" type="prismatic">
+        <origin xyz="${(parallel_gripper_base_plate_length/2) - (finger_depth/2)} 0 ${(parallel_gripper_base_plate_depth/2) + (finger_length/2)}" rpy="0 ${pi/2} 0" />
+        <parent link="parallel_gripper_base_plate" />
+        <child link="left_finger" />
+        <limit lower="-${(parallel_gripper_base_plate_length/2) - (finger_depth)}" upper="0" effort="1" velocity="0.5" />
+        <axis xyz="0 0 1" />
+        <dynamics damping="0.7"/>
+    </joint>
 
-        <link name="right_finger">
+    <xacro:colorize_link color="${69/255} ${16/255} ${29/255} 1.0" name="right_finger">
+        <foo>
             <visual>
                 <geometry>
                     <box size="${finger_length} ${finger_width} ${finger_depth}" />
                 </geometry>
-                <material name="right_finger_color">
-                    <color rgba="${69/255} ${16/255} ${29/255} 1.0" />
-                </material>
+                <material name="right_finger" />
             </visual>
-        </link>
+            <collision>
+                <geometry>
+                    <box size="${finger_length} ${finger_width} ${finger_depth}" />
+                </geometry>
+            </collision>
+            <xacro:solid_cuboid_inertial rpy="0 0 0" xyz="0 0 0" mass_kg="0.001" x="${finger_length}" y="${finger_width}" z="${finger_depth}" />
+        </foo>
+    </xacro:colorize_link>
 
-        <joint name="parallel_gripper_base_plate_to_right_finger" type="prismatic">
-            <origin xyz="${-(parallel_gripper_base_plate_length/2) + (finger_depth/2)} 0 ${(parallel_gripper_base_plate_depth/2) + (finger_length/2)}" rpy="0 ${pi/2} 0" />
-            <parent link="parallel_gripper_base_plate" />
-            <child link="right_finger" />
-            <limit lower="0" upper="${(parallel_gripper_base_plate_length/2) - (finger_depth)}" effort="1" velocity="0.5" />
-            <mimic joint="parallel_gripper_base_plate_to_left_finger" multiplier="-1" offset="0" />
-            <axis xyz="0 0 1" />
-        </joint> -->
+    <joint name="parallel_gripper_base_plate_to_right_finger" type="prismatic">
+        <origin xyz="${-(parallel_gripper_base_plate_length/2) + (finger_depth/2)} 0 ${(parallel_gripper_base_plate_depth/2) + (finger_length/2)}" rpy="0 ${pi/2} 0" />
+        <parent link="parallel_gripper_base_plate" />
+        <child link="right_finger" />
+        <limit lower="0" upper="${(parallel_gripper_base_plate_length/2) - (finger_depth)}" effort="1" velocity="0.5" />
+        <mimic joint="parallel_gripper_base_plate_to_left_finger" multiplier="-1" offset="0" />
+        <axis xyz="0 0 1" />
+        <dynamics damping="0.7"/>
+    </joint>
 
 </robot>
