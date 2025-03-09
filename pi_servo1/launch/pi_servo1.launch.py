@@ -54,10 +54,22 @@ def generate_launch_description():
     )
     ld.add_action(log_info_action)
     
+    rviz_node = Node(
+        package="rviz2",
+        executable="rviz2",
+        name="rviz2",
+        condition=IfCondition(LaunchConfiguration("do_rviz")),
+        arguments=["-d", rviz_config_path],
+    )
+    ld.add_action(rviz_node)
+
     ld.add_action(IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             [os.path.join(description_pkg, "launch", "description.launch.py")]
         ),
+        launch_arguments={
+            'do_rviz': "False",
+        }.items()
     ))
 
     # Launch the joint state publisher GUI
@@ -100,14 +112,5 @@ def generate_launch_description():
         executable="spawner",
         arguments=["joint_state_broadcaster"],
     )
-
-    rviz_node = Node(
-        package="rviz2",
-        executable="rviz2",
-        name="rviz2",
-        condition=IfCondition(LaunchConfiguration("do_rviz")),
-        arguments=["-d", rviz_config_path],
-    )
-    ld.add_action(rviz_node)
 
     return ld

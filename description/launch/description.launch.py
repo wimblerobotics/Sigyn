@@ -87,7 +87,19 @@ def generate_launch_description():
         default_value='false',
         description='Use simulation (Gazebo) clock if true'))
 
-    # Publish joints.
+    log_info_action = LogInfo(
+        msg=[
+            "description.launch.py, do_rviz: ",
+            do_rviz,
+            ", gui:", gui,
+            ", publish_joints: ", publish_joints,
+            ", urdf_file_name: ", urdf_file_name,
+            ", use_sim_time: ", use_sim_time
+        ]
+    )
+    ld.add_action(log_info_action)
+    
+     # Publish joints.
     joint_state_publisher_node = Node(
         package='joint_state_publisher',
         condition=UnlessCondition(use_sim_time),
