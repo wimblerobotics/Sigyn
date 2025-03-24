@@ -1,0 +1,44 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Displays
+        - /Displays/Map
+      Splitter Ratio: 0.5
+  - Class: rviz/Views
+    Name: Views
+    Property Tree Widget:
+      Splitter Ratio: 0.5
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 1
+      Cell Size: 0.1
+      Class: rviz/Map
+      Draw Behind: false
+      Enabled: true
+      Frame: map
+      Name: Map
+      Topic: /costmap
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: map
+  Name: root
+  Tools:
+    - Class: rviz/Interact
+    - Class: rviz/MoveCamera
+    - Class: rviz/Select
+    - Class: rviz/FocusCamera
+  Views:
+    Current:
+      Class: rviz/TopDownOrtho
+      Focal Point: 0; 0; 0
+      Height: 10
+      Name: TopDownOrtho
+      Near Clip Distance: 0.01
+      Position: 0; 0; 10
+      Scale: 1
+      Target Frame: map
+      Up: 0; 1; 0
