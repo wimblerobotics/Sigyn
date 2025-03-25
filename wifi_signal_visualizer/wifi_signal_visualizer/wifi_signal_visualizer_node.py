@@ -2,9 +2,10 @@
 import random
 import rclpy
 from rclpy.node import Node
-# from wifi_signal_visualizer.msg import LocationWifiSignal
 from nav_msgs.msg import OccupancyGrid
 import numpy as np
+import sqlite3
+from scipy.interpolate import griddata
 
 class WifiSignalVisualizerNode(Node):
     def __init__(self):
@@ -17,24 +18,26 @@ class WifiSignalVisualizerNode(Node):
         self.get_logger().info(f'topic {topic_name} is now available.')
 
         msg = self.wait_for_message(topic_type, topic_name)
-        print(f'msg: {msg}')
+        # print(f'msg: {msg}')
         self.costmap_resolution = msg.info.resolution
         self.costmap_width = msg.info.width
         self.costmap_height = msg.info.height
 
-        # self.get_logger().info(f'resolution: {self.costmap_resolution}, width: {self.costmap_width}, height: {self.costmap_height}')
-
         self.publisher = self.create_publisher(OccupancyGrid, 'wifi_signal_strength_costmap', 10)
         self.resolution = self.costmap_resolution
-        # self.costmap = np.zeros((costmap_width, self.costmap_height), dtype=np.int8)
         self.costmap = np.full((self.costmap_width, self.costmap_height), -1, dtype=np.int8)
+        self.db_path = '/home/ros/sigyn_ws/src/Sigyn/wifi_data.db'
+        self.create_table()
+        self.declare_parameter('max_interpolation_distance', 5.0)  # in meters
+        self.max_interpolation_distance = self.get_parameter('max_interpolation_distance').value
+
+        self.wifi_data = []  # List to store wifi data (x, y, signal_strength)
 
     def topic_is_available(self, topic_name: str) -> bool:
         """
         Check if a ROS topic is available.
         """
         topic_names_and_types = self.get_topic_names_and_types()
-        # print(f'topic_names_and_types: {topic_names_and_types}, found: {topic_name in topic_names_and_types}')
         return any(topic_name == name for name, _ in topic_names_and_types)
 
     def wait_for_message(self, message_type, topic_name, timeout_sec=20.0):
@@ -48,7 +51,6 @@ class WifiSignalVisualizerNode(Node):
             nonlocal msg, received
             msg = msg_data
             received = True
-            # print(f"Received message: {msg}")
 
         sub = self.create_subscription(message_type, topic_name, callback, 1)
 
@@ -65,32 +67,104 @@ class WifiSignalVisualizerNode(Node):
             return None
 
     def publish_costmap(self):
+        """
+        Publishes the costmap with interpolated WiFi signal strengths.
+        """
         occupancy_grid = OccupancyGrid()
         occupancy_grid.header.frame_id = 'map'
         occupancy_grid.info.resolution = self.costmap_resolution
         occupancy_grid.info.width = self.costmap_width
         occupancy_grid.info.height = self.costmap_height
-        occupancy_grid.data = self.costmap.flatten().tolist()
+
+        # Create grid coordinates
+        grid_x, grid_y = np.mgrid[0:self.costmap_width, 0:self.costmap_height]
+
+        # Extract data points
+        points = np.array([(x, y) for x, y, _ in self.wifi_data])
+        values = np.array([signal_strength for _, _, signal_strength in self.wifi_data])
+
+        # Interpolate the data
+        if len(self.wifi_data) > 0:
+            interpolated_values = griddata(points, values, (grid_x, grid_y), method='linear')
+
+            # Apply maximum distance threshold
+            for i in range(self.costmap_width):
+                for j in range(self.costmap_height):
+                    if np.isnan(interpolated_values[i, j]):  # No nearby data
+                        interpolated_values[i, j] = -1  # Set to unknown
+                    else:
+                        # Check distance to nearest data point
+                        distances = np.sqrt((points[:, 0] - i)**2 + (points[:, 1] - j)**2)
+                        min_distance = np.min(distances) * self.resolution  # Convert grid units to meters
+                        if min_distance > self.max_interpolation_distance:
+                            interpolated_values[i, j] = -1  # Too far, set to unknown
+
+            # Convert to int8 and flatten
+            occupancy_grid.data = interpolated_values.astype(np.int8).flatten().tolist()
+        else:
+            occupancy_grid.data = self.costmap.flatten().tolist()  # No wifi data, publish empty costmap
+
         self.publisher.publish(occupancy_grid)
+
+    def create_table(self):
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS wifi_data (
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    x REAL,
+                    y REAL,
+                    bit_rate REAL,
+                    link_quality REAL,
+                    signal_level REAL
+                )
+            """)
+            conn.commit()
+            conn.close()
+        except sqlite3.Error as e:
+            self.get_logger().error(f"Error creating table: {e}")
+
+    def insert_data(self, x, y, bit_rate, link_quality, signal_level):
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO wifi_data (x, y, bit_rate, link_quality, signal_level)
+                VALUES (?, ?, ?, ?, ?)
+            """, (x, y, bit_rate, link_quality, signal_level))
+            conn.commit()
+            conn.close()
+        except sqlite3.Error as e:
+            self.get_logger().error(f"Error inserting data: {e}")
+
+    def main_loop(self):
+        """
+        Main loop to generate random data and publish the costmap.
+        """
+        for i in range(20000):
+            x_index = int(random.randint(0, self.costmap_width - 1))
+            y_index = int(random.randint(0, self.costmap_height - 1))
+            signal_strength = random.randint(0, 100)
+            # print(f'node.costmap_width: {self.costmap_width}, node.costmap_height: {self.costmap_height}')
+            # print(f'x_index: {x_index}, y_index: {y_index}, signal_strength: {signal_strength}')
+            if 0 <= x_index < self.costmap_width and 0 <= y_index < self.costmap_height:
+                self.costmap[x_index, y_index] = signal_strength
+                self.insert_data(x_index, y_index, signal_strength, signal_strength, signal_strength)
+                self.wifi_data.append((x_index, y_index, signal_strength))  # Store wifi data
+            if (i % 1000) == 0:
+                print(f'wifi_signal_visualizer_node: published {i} rows of data')
+
+        rate = self.create_rate(5)  # 6 Hz
+        while rclpy.ok():
+            self.publish_costmap()
+            rclpy.spin_once(self)
+            rate.sleep()
 
 def main(args=None):
     rclpy.init(args=args)
     node = WifiSignalVisualizerNode()
-    for i in range(100):
-        x_index = int(random.randint(0, node.costmap_width - 1))
-        y_index = int(random.randint(0, node.costmap_height - 1))
-        signal_strength = random.randint(0, 100)
-        print(f'node.costmap_width: {node.costmap_width}, node.costmap_height: {node.costmap_height}')
-        print(f'x_index: {x_index}, y_index: {y_index}, signal_strength: {signal_strength}')
-        if 0 <= x_index < node.costmap_width and 0 <= y_index < node.costmap_height:
-            node.costmap[x_index, y_index] = signal_strength
-            
-    rate = node.create_rate(5)  # 6 Hz
-    while rclpy.ok():
-        node.publish_costmap()
-        rclpy.spin_once(node)
-        rate.sleep()
-
+    node.main_loop()
     node.destroy_node()
     rclpy.shutdown()
 
