@@ -27,11 +27,19 @@ class WifiSignalVisualizerNode(Node):
         self.resolution = self.costmap_resolution
         self.costmap = np.full((self.costmap_width, self.costmap_height), -1, dtype=np.int8)
         self.db_path = '/home/ros/sigyn_ws/src/Sigyn/wifi_data.db'
-        self.create_table()
         self.declare_parameter('max_interpolation_distance', 5.0)  # in meters
         self.max_interpolation_distance = self.get_parameter('max_interpolation_distance').value
+        self.declare_parameter('generate_new_data', False)
+        self.generate_new_data = self.get_parameter('generate_new_data').value
 
         self.wifi_data = []  # List to store wifi data (x, y, signal_strength)
+        self.create_table()
+
+        if self.generate_new_data:
+            self.clear_wifi_data()
+            self.generate_wifi_data()
+        else:
+            self.load_wifi_data()
 
     def topic_is_available(self, topic_name: str) -> bool:
         """
@@ -138,16 +146,25 @@ class WifiSignalVisualizerNode(Node):
         except sqlite3.Error as e:
             self.get_logger().error(f"Error inserting data: {e}")
 
-    def main_loop(self):
+    def clear_wifi_data(self):
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM wifi_data")
+            conn.commit()
+            conn.close()
+            self.get_logger().info("Cleared existing wifi data from database.")
+        except sqlite3.Error as e:
+            self.get_logger().error(f"Error clearing wifi data: {e}")
+
+    def generate_wifi_data(self):
         """
-        Main loop to generate random data and publish the costmap.
+        Generates random wifi data and stores it in the database.
         """
-        for i in range(20000):
+        for i in range(2000):
             x_index = int(random.randint(0, self.costmap_width - 1))
             y_index = int(random.randint(0, self.costmap_height - 1))
             signal_strength = random.randint(0, 100)
-            # print(f'node.costmap_width: {self.costmap_width}, node.costmap_height: {self.costmap_height}')
-            # print(f'x_index: {x_index}, y_index: {y_index}, signal_strength: {signal_strength}')
             if 0 <= x_index < self.costmap_width and 0 <= y_index < self.costmap_height:
                 self.costmap[x_index, y_index] = signal_strength
                 self.insert_data(x_index, y_index, signal_strength, signal_strength, signal_strength)
@@ -155,6 +172,29 @@ class WifiSignalVisualizerNode(Node):
             if (i % 1000) == 0:
                 print(f'wifi_signal_visualizer_node: published {i} rows of data')
 
+    def load_wifi_data(self):
+        """
+        Loads wifi data from the database.
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT x, y, signal_level FROM wifi_data")
+            rows = cursor.fetchall()
+            conn.close()
+
+            for row in rows:
+                x, y, signal_level = row
+                self.wifi_data.append((x, y, signal_level))
+            self.get_logger().info(f"Loaded {len(self.wifi_data)} wifi data points from database.")
+
+        except sqlite3.Error as e:
+            self.get_logger().error(f"Error loading wifi data: {e}")
+
+    def main_loop(self):
+        """
+        Main loop to generate random data and publish the costmap.
+        """
         rate = self.create_rate(5)  # 6 Hz
         while rclpy.ok():
             self.publish_costmap()
