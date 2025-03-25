@@ -161,16 +161,16 @@ class WifiSignalVisualizerNode(Node):
         """
         Generates random wifi data and stores it in the database.
         """
-        for i in range(2000):
-            x_index = int(random.randint(0, self.costmap_width - 1))
-            y_index = int(random.randint(0, self.costmap_height - 1))
-            signal_strength = random.randint(0, 100)
-            if 0 <= x_index < self.costmap_width and 0 <= y_index < self.costmap_height:
-                self.costmap[x_index, y_index] = signal_strength
-                self.insert_data(x_index, y_index, signal_strength, signal_strength, signal_strength)
-                self.wifi_data.append((x_index, y_index, signal_strength))  # Store wifi data
-            if (i % 1000) == 0:
-                print(f'wifi_signal_visualizer_node: published {i} rows of data')
+        for i in range(0, self.costmap_width, 10):
+            for j in range(0, self.costmap_height, 10):
+                distance = np.sqrt(i**2 + j**2)
+                signal_strength = int((np.sin(distance / self.costmap_width * 5 * np.pi) + 1) / 2 * 100)
+                if 0 <= i < self.costmap_width and 0 <= j < self.costmap_height:
+                    self.costmap[i, j] = signal_strength
+                    self.insert_data(i, j, signal_strength, signal_strength, signal_strength)
+                    self.wifi_data.append((i, j, signal_strength))  # Store wifi data
+            if (i % 100) == 0:
+                print(f'wifi_signal_visualizer_node: processed {i} rows of data')
 
     def load_wifi_data(self):
         """
