@@ -6,6 +6,7 @@ from nav_msgs.msg import OccupancyGrid
 import numpy as np
 import sqlite3
 from scipy.interpolate import griddata
+from scipy.ndimage import gaussian_filter
 
 class WifiSignalVisualizerNode(Node):
     def __init__(self):
@@ -27,7 +28,7 @@ class WifiSignalVisualizerNode(Node):
         self.resolution = self.costmap_resolution
         self.costmap = np.full((self.costmap_width, self.costmap_height), -1, dtype=np.int8)
         self.db_path = '/home/ros/sigyn_ws/src/Sigyn/wifi_data.db'
-        self.declare_parameter('max_interpolation_distance', 5.0)  # in meters
+        self.declare_parameter('max_interpolation_distance', 2.0)  # in meters
         self.max_interpolation_distance = self.get_parameter('max_interpolation_distance').value
         self.declare_parameter('generate_new_data', False)
         self.generate_new_data = self.get_parameter('generate_new_data').value
@@ -93,7 +94,7 @@ class WifiSignalVisualizerNode(Node):
 
         # Interpolate the data
         if len(self.wifi_data) > 0:
-            interpolated_values = griddata(points, values, (grid_x, grid_y), method='linear')
+            interpolated_values = griddata(points, values, (grid_x, grid_y), method='cubic')  # Changed to cubic
 
             # Apply maximum distance threshold
             for i in range(self.costmap_width):
@@ -106,6 +107,8 @@ class WifiSignalVisualizerNode(Node):
                         min_distance = np.min(distances) * self.resolution  # Convert grid units to meters
                         if min_distance > self.max_interpolation_distance:
                             interpolated_values[i, j] = -1  # Too far, set to unknown
+
+            interpolated_values = gaussian_filter(interpolated_values, sigma=2) # Apply Gaussian smoothing
 
             # Convert to int8 and flatten
             occupancy_grid.data = interpolated_values.astype(np.int8).flatten().tolist()
@@ -159,12 +162,14 @@ class WifiSignalVisualizerNode(Node):
 
     def generate_wifi_data(self):
         """
-        Generates random wifi data and stores it in the database.
+        Generates wifi data and stores it in the database.
         """
-        for i in range(0, self.costmap_width, 10):
-            for j in range(0, self.costmap_height, 10):
+        for i in range(0, self.costmap_width, 40):  # Increased data density
+            for j in range(0, self.costmap_height, 40):  # Increased data density
                 distance = np.sqrt(i**2 + j**2)
-                signal_strength = int((np.sin(distance / self.costmap_width * 5 * np.pi) + 1) / 2 * 100)
+                max_dim = max(self.costmap_width, self.costmap_height)
+                distance = np.sqrt(i**2 + j**2)
+                signal_strength = int((np.sin(distance / max_dim * 5 * np.pi) + 1) / 2 * 100)
                 if 0 <= i < self.costmap_width and 0 <= j < self.costmap_height:
                     self.costmap[i, j] = signal_strength
                     self.insert_data(i, j, signal_strength, signal_strength, signal_strength)
