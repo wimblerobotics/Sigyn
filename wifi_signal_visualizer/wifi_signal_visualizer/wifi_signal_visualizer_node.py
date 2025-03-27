@@ -7,6 +7,7 @@ import numpy as np
 import sqlite3
 from scipy.interpolate import griddata
 from scipy.ndimage import gaussian_filter
+from scipy.interpolate import Rbf  # Import Radial Basis Function interpolator
 
 class WifiSignalVisualizerNode(Node):
     def __init__(self):
@@ -29,7 +30,7 @@ class WifiSignalVisualizerNode(Node):
         self.costmap = np.full((self.costmap_width, self.costmap_height), -1, dtype=np.int8)
         self.db_path = '/home/ros/sigyn_ws/src/Sigyn/wifi_data.db'
         self.declare_parameter('enable_interpolation', True)
-        self.declare_parameter('max_interpolation_distance', 2.0)  # in meters
+        self.declare_parameter('max_interpolation_distance', 10.0)  # in meters
         self.max_interpolation_distance = self.get_parameter('max_interpolation_distance').value
         self.declare_parameter('generate_new_data', False)
         self.generate_new_data = self.get_parameter('generate_new_data').value
@@ -81,39 +82,44 @@ class WifiSignalVisualizerNode(Node):
         Publishes the costmap with interpolated WiFi signal strengths.
         """
         occupancy_grid = OccupancyGrid()
+        occupancy_grid.data = [-1] * (self.costmap_width * self.costmap_height)
         occupancy_grid.header.frame_id = 'map'
         occupancy_grid.info.resolution = self.costmap_resolution
         occupancy_grid.info.width = self.costmap_width
         occupancy_grid.info.height = self.costmap_height
 
-        # Create grid coordinates
-        grid_x, grid_y = np.mgrid[0:self.costmap_width, 0:self.costmap_height]
-
         # Extract data points
-        points = np.array([(x, y) for x, y, _ in self.wifi_data])
+        points_x = np.array([x / self.costmap_resolution for x, _, _ in self.wifi_data])
+        points_y = np.array([y / self.costmap_resolution for _, y, _ in self.wifi_data])
         values = np.array([signal_strength for _, _, signal_strength in self.wifi_data])
 
         # Check if interpolation is enabled
         enable_interpolation = self.get_parameter('enable_interpolation').value
 
         if enable_interpolation:
-            # Interpolate the data
+            # Interpolate the data using Radial Basis Function (RBF)
             if len(self.wifi_data) > 0:
-                interpolated_values = griddata(points, values, (grid_x, grid_y), method='cubic')  # Changed to cubic
+                rbf_interpolator = Rbf(points_x, points_y, values, function='linear')
+                grid_x, grid_y = np.meshgrid(
+                    np.arange(self.costmap_width),
+                    np.arange(self.costmap_height)
+                )
+                interpolated_values = rbf_interpolator(grid_x, grid_y)
+
+                # Replace NaN values with -1 (unknown)
+                interpolated_values = np.nan_to_num(interpolated_values, nan=-1)
 
                 # Apply maximum distance threshold
+                replace_count = 0
                 for i in range(self.costmap_width):
                     for j in range(self.costmap_height):
-                        if np.isnan(interpolated_values[i, j]):  # No nearby data
-                            interpolated_values[i, j] = -1  # Set to unknown
-                        else:
-                            # Check distance to nearest data point
-                            distances = np.sqrt((points[:, 0] - i)**2 + (points[:, 1] - j)**2)
-                            min_distance = np.min(distances) * self.resolution  # Convert grid units to meters
-                            if min_distance > self.max_interpolation_distance:
-                                interpolated_values[i, j] = -1  # Too far, set to unknown
-
-                interpolated_values = gaussian_filter(interpolated_values, sigma=2) # Apply Gaussian smoothing
+                        # Check distance to nearest data point
+                        distances = np.sqrt((points_x - i)**2 + (points_y - j)**2)
+                        min_distance = np.min(distances) * self.resolution  # Convert grid units to meters
+                        if min_distance > self.max_interpolation_distance:
+                            replace_count += 1
+                            interpolated_values[j, i] = -1  # Too far, set to unknown
+                print(f'Number of points replaced due to max distance: {replace_count}')
 
                 # Convert to int8 and flatten
                 occupancy_grid.data = interpolated_values.astype(np.int8).flatten().tolist()
@@ -122,30 +128,10 @@ class WifiSignalVisualizerNode(Node):
         else:
             # No interpolation, use raw data
             for x, y, signal_strength in self.wifi_data:
-                if 0 <= x < self.costmap_width and 0 <= y < self.costmap_height:
-                    self.costmap[int(x), int(y)] = signal_strength
-            occupancy_grid.data = self.costmap.flatten().tolist()
-        # if len(self.wifi_data) > 0:
-        #     interpolated_values = griddata(points, values, (grid_x, grid_y), method='cubic')  # Changed to cubic
-
-        #     # Apply maximum distance threshold
-        #     for i in range(self.costmap_width):
-        #         for j in range(self.costmap_height):
-        #             if np.isnan(interpolated_values[i, j]):  # No nearby data
-        #                 interpolated_values[i, j] = -1  # Set to unknown
-        #             else:
-        #                 # Check distance to nearest data point
-        #                 distances = np.sqrt((points[:, 0] - i)**2 + (points[:, 1] - j)**2)
-        #                 min_distance = np.min(distances) * self.resolution  # Convert grid units to meters
-        #                 if min_distance > self.max_interpolation_distance:
-        #                     interpolated_values[i, j] = -1  # Too far, set to unknown
-
-        #     interpolated_values = gaussian_filter(interpolated_values, sigma=2) # Apply Gaussian smoothing
-
-        #     # Convert to int8 and flatten
-        #     occupancy_grid.data = interpolated_values.astype(np.int8).flatten().tolist()
-        # else:
-        #     occupancy_grid.data = self.costmap.flatten().tolist()  # No wifi data, publish empty costmap
+                grid_x = int(x / self.costmap_resolution)
+                grid_y = int(y / self.costmap_resolution)
+                if 0 <= grid_x < self.costmap_width and 0 <= grid_y < self.costmap_height:
+                    occupancy_grid.data[grid_x + grid_y * self.costmap_width] = int(signal_strength)
 
         self.publisher.publish(occupancy_grid)
 
@@ -176,6 +162,7 @@ class WifiSignalVisualizerNode(Node):
                 INSERT INTO wifi_data (x, y, bit_rate, link_quality, signal_level)
                 VALUES (?, ?, ?, ?, ?)
             """, (x, y, bit_rate, link_quality, signal_level))
+            # print(f'inserted data at x={x}, y={y}, bit_rate={bit_rate}, link_quality={link_quality}, signal_level={signal_level}')
             conn.commit()
             conn.close()
         except sqlite3.Error as e:
@@ -196,18 +183,35 @@ class WifiSignalVisualizerNode(Node):
         """
         Generates wifi data and stores it in the database.
         """
-        for i in range(0, self.costmap_width, 40):  # Increased data density
-            for j in range(0, self.costmap_height, 40):  # Increased data density
-                distance = np.sqrt(i**2 + j**2)
-                max_dim = max(self.costmap_width, self.costmap_height)
-                distance = np.sqrt(i**2 + j**2)
-                signal_strength = int((np.sin(distance / max_dim * 5 * np.pi) + 1) / 2 * 100)
+        inserted_rows = 0
+        max_dim = max(self.costmap_width, self.costmap_height) * self.costmap_resolution
+        max_dist = np.sqrt(self.costmap_width**2 + self.costmap_height**2)
+        print(f'max_dim: {max_dim}')
+        for i in range(0, self.costmap_width, 20):
+            for j in range(0, self.costmap_height, 20):
+                # distance = np.sqrt(i**2 + j**2)
+                # # signal_strength = int(distance / max_dist * 127)
+                # signal_strength = int(np.sin(distance / max_dist * 2 * np.pi) * 50) + 40
+                # if i == 1:
+                #     print(f'i: {i}, j: {j}, distance: {distance}, signal_strength: {signal_strength}') 
+                # # if (signal_strength > 127):
+                # #     signal_strength = 127
+
+                # self.costmap[i, j] = signal_strength
+                # self.wifi_data.append((i * self.costmap_resolution, j * self.costmap_resolution, signal_strength))  # Store wifi data
+                real_x = i * self.costmap_resolution
+                real_y = j * self.costmap_resolution
+                distance = np.sqrt(real_x**2 + real_y**2)
+                max_dim = max(self.costmap_width, self.costmap_height) * self.costmap_resolution
+                signal_strength = int(np.sin(distance / max_dim * 2 * np.pi) * 50) + 49
                 if 0 <= i < self.costmap_width and 0 <= j < self.costmap_height:
                     self.costmap[i, j] = signal_strength
-                    self.insert_data(i, j, signal_strength, signal_strength, signal_strength)
-                    self.wifi_data.append((i, j, signal_strength))  # Store wifi data
+                    self.insert_data(real_x, real_y, 200000000, 1.0, signal_strength)
+                    self.wifi_data.append((real_x, real_y, signal_strength))  # Store wifi data
+                    # print(f'wifi_signal_visualizer_node: inserted data at x={real_x}, y={real_y}, i={i}, j={j}, distance={distance}, signal_strength={signal_strength}')
+                    inserted_rows += 1
             if (i % 100) == 0:
-                print(f'wifi_signal_visualizer_node: processed {i} rows of data')
+                print(f'wifi_signal_visualizer_node: processed {inserted_rows} rows of data')
 
     def load_wifi_data(self):
         """
