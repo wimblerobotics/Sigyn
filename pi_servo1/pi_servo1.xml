@@ -1,0 +1,9 @@
+<library path="pi_servo1">
+  <class name="pi_servo1/EndGripperJoint"
+         type="pi_servo1::EndGripperJoint"
+         base_class_type="hardware_interface::ActuatorInterface">
+    <description>
+      The ros2_control end gripper servo.
+    </description>
+  </class>
+</library>

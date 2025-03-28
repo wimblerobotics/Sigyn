@@ -2,7 +2,23 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <xacro:unless value="$(arg sim_mode)">
-    <ros2_control name="RealRobot" type="system">
+    <ros2_control name="endgripper_servo" type="actuator">
+      <hardware>
+        <plugin>pi_servo1/EndGripperJoint</plugin>
+        <param name="example_param_hw_start_duration_sec">2.0</param>
+        <param name="example_param_hw_stop_duration_sec">3.0</param>
+        <param name="example_param_hw_slowdown">1.23</param>
+      </hardware>
+      <joint name="parallel_gripper_base_plate_to_left_finger">
+        <command_interface name="position">
+          <param name="min">-100</param>
+          <param name="max">100</param>
+        </command_interface>
+        <state_interface name="position"/>
+      </joint>
+    </ros2_control>
+
+    <!-- <ros2_control name="RealRobot" type="system">
       <hardware>
         <plugin>diffdrive_arduino/DiffDriveArduinoHardware</plugin>
         <param name="left_wheel_name">left_wheel_joint</param>
@@ -29,10 +45,26 @@
         <state_interface name="position" />
         <state_interface name="velocity" />
       </joint>
-    </ros2_control>
+    </ros2_control> -->
   </xacro:unless>
 
   <xacro:if value="$(arg sim_mode)">
+    <!-- <ros2_control name="endgripper_servo" type="actuator">
+      <hardware>
+        <plugin>pi_servo1/EndGripperJoint</plugin>
+        <param name="example_param_hw_start_duration_sec">2.0</param>
+        <param name="example_param_hw_stop_duration_sec">3.0</param>
+        <param name="example_param_hw_slowdown">1.23</param>
+      </hardware>
+      <joint name="elevator_pole_to_elevator_connector_plate">
+        <command_interface name="position">
+          <param name="min">0.15</param>
+          <param name="max">1.355</param>
+        </command_interface>
+        <state_interface name="position"/>
+      </joint>
+    </ros2_control> -->
+
     <ros2_control name="GazeboSystem" type="system">
       <hardware>
         <plugin>gz_ros2_control/GazeboSimSystem</plugin>
@@ -53,6 +85,45 @@
         <state_interface name="velocity" />
         <state_interface name="position" />
       </joint>
+
+      <joint name="elevator_pole_to_elevator_connector_plate">
+        <command_interface name="position">
+          <param name="min">-100</param>
+          <param name="max">100</param>
+        </command_interface>
+        <state_interface name="position"/>
+      </joint>
+
+      <joint name="gripper_elevator_plate_to_gripper_extender">
+        <command_interface name="position">
+          <param name="min">-100</param>
+          <param name="max">100</param>
+          <!-- <param name="min">0</param>
+          <param name="max">0.4</param> -->
+        </command_interface>
+        <state_interface name="position"/>
+      </joint>
+
+      <joint name="gripper_wrist_to_parallel_gripper_base_plate">
+        <command_interface name="position">
+          <param name="min">-100</param>
+          <param name="max">100</param>
+        </command_interface>
+        <state_interface name="position"/>
+      </joint>
+
+      <joint name="parallel_gripper_base_plate_to_left_finger">
+        <command_interface name="position">
+          <param name="min">-100</param>
+          <param name="max">100</param>
+        </command_interface>
+        <state_interface name="position"/>
+      </joint>
+
+      <!-- <joint name="parallel_gripper_base_plate_to_right_finger">
+        <state_interface name="position"/>
+      </joint> -->
+
     </ros2_control>
   </xacro:if>
 
