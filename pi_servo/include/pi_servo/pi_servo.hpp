@@ -1,7 +1,7 @@
 #ifndef PI_SERVO_HPP_
 #define PI_SERVO_HPP_
 
-#include "hardware_interface/base_interface.hpp"
+// #include "hardware_interface/base_interface.hpp"
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/handle.hpp"
 #include "rclcpp/rclcpp.hpp"

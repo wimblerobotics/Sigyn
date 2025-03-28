@@ -24,33 +24,33 @@ find_package(rclcpp REQUIRED)
 find_package(hardware_interface REQUIRED)
 find_package(pluginlib REQUIRED)
 
-add_library(${PROJECT_NAME} SHARED
-  src/pi_servo.cpp
-)
+# add_library(${PROJECT_NAME} SHARED
+#   src/pi_servo.cpp
+# )
 
-include_directories(
-  include
-  ${conotroller_interface_INCLUDE_DIRS}
-  ${controller_manager_msgs_INCLUDE_DIRS}
-  ${rclcpp_INCLUDE_DIRS}
-  ${hardware_interface_INCLUDE_DIRS}
-  ${pluginlib_INCLUDE_DIRS}
-)
+# include_directories(
+#   include
+#   ${conotroller_interface_INCLUDE_DIRS}
+#   ${controller_manager_msgs_INCLUDE_DIRS}
+#   ${rclcpp_INCLUDE_DIRS}
+#   ${hardware_interface_INCLUDE_DIRS}
+#   ${pluginlib_INCLUDE_DIRS}
+# )
 
-ament_target_dependencies(${PROJECT_NAME}
-  rclcpp
-  hardware_interface
-  pluginlib
-)
+# ament_target_dependencies(${PROJECT_NAME}
+#   rclcpp
+#   hardware_interface
+#   pluginlib
+# )
 
-pluginlib_export_plugin_description_file(hardware_interface pi_servo_plugin.xml)
+# pluginlib_export_plugin_description_file(hardware_interface pi_servo_plugin.xml)
 
-install(TARGETS ${PROJECT_NAME}
-  DESTINATION lib/${PROJECT_NAME}
-)
+# install(TARGETS ${PROJECT_NAME}
+#   DESTINATION lib/${PROJECT_NAME}
+# )
 
-install(DIRECTORY include/
-  DESTINATION include/
-)
+# install(DIRECTORY include/
+#   DESTINATION include/
+# )
 
 ament_package()
