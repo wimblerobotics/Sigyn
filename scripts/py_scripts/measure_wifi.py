@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 
-#TODO Find the name of the wifi device. It is not always wlp9s0. It can be wlan0, etc.
-#TODO Update data for x and y rather than creating new x and y with different timestamp.
-#TODO when visualizing data, interpolate between points to fill in the gaps.
-#TODO Add a subscriber to the wifi signal strength topic and update the costmap with the new data.
 import rclpy
 from rclpy.node import Node
 import subprocess
 import re
 import sqlite3
+from nav_msgs.msg import Odometry
+from tf2_ros import Buffer, TransformListener, LookupException, ConnectivityException, ExtrapolationException
+from geometry_msgs.msg import PoseStamped
+from tf2_geometry_msgs import do_transform_pose
+import pprint  # Add this import for pretty-printing
 
 class WifiDataCollector(Node):
     def __init__(self):
@@ -24,6 +25,15 @@ class WifiDataCollector(Node):
             rclpy.shutdown()
             exit()
         self.create_table()
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+        self.odom_subscriber = self.create_subscription(
+            Odometry,
+            '/odom',
+            self.odom_callback,
+            10
+        )
+        self.current_pose = None
         timer_period = 1  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
@@ -91,7 +101,38 @@ class WifiDataCollector(Node):
             self.get_logger().warn("Could not retrieve wifi data")
             return None, None, None
 
+    def odom_callback(self, msg):
+        try:
+            # Create a PoseStamped message from the odometry data
+            odom_pose = PoseStamped()
+            odom_pose.header = msg.header
+            odom_pose.pose = msg.pose.pose
+
+            # Lookup the transform from odom to map
+            transform = self.tf_buffer.lookup_transform(
+                'map',  # Target frame
+                'odom',  # Source frame
+                rclpy.time.Time(),  # Get the latest available transform
+                timeout=rclpy.duration.Duration(seconds=5.0)
+            )
+
+            # Pretty-print the odom_pose value
+            print(f"Odom Pose:\n{pprint.pformat(odom_pose)}")
+
+            # Transform the pose to the map frame
+            transformed_pose = do_transform_pose(odom_pose.pose, transform)
+            print(f"transformed_pose:\n{pprint.pformat(transformed_pose)}")
+            self.current_pose = (transformed_pose.position.x, transformed_pose.position.y)
+        except (LookupException, ConnectivityException, ExtrapolationException) as e:
+            self.get_logger().warn(f"Transform to map frame failed: {e}")
+            self.current_pose = None
+
     def timer_callback(self):
+        if self.current_pose is None:
+            self.get_logger().warn("Current pose not available, skipping data insertion")
+            return
+
+        self.x, self.y = self.current_pose
         bit_rate, link_quality, signal_level = self.get_wifi_data()
         if bit_rate is not None and link_quality is not None and signal_level is not None:
             self.insert_data(bit_rate, link_quality, signal_level)
@@ -114,6 +155,7 @@ class WifiDataCollector(Node):
             """, (self.x, self.y, bit_rate, link_quality, signal_level))
             conn.commit()
             conn.close()
+            print(f"Inserted/Updated data: X: {self.x}, Y: {self.y}, Bit Rate: {bit_rate}, Link Quality: {link_quality}, Signal Level: {signal_level}")
         except sqlite3.Error as e:
             self.get_logger().error(f"Error inserting or updating data: {e}")
 
