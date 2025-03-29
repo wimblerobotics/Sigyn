@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 #TODO Find the name of the wifi device. It is not always wlp9s0. It can be wlan0, etc.
 #TODO Update data for x and y rather than creating new x and y with different timestamp.
 #TODO when visualizing data, interpolate between points to fill in the gaps.
@@ -49,7 +51,8 @@ class WifiDataCollector(Node):
                     y REAL,
                     bit_rate REAL,
                     link_quality REAL,
-                    signal_level REAL
+                    signal_level REAL,
+                    PRIMARY KEY (x, y)
                 )
             """)
             conn.commit()
@@ -103,11 +106,16 @@ class WifiDataCollector(Node):
             cursor.execute("""
                 INSERT INTO wifi_data (x, y, bit_rate, link_quality, signal_level)
                 VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(x, y) DO UPDATE SET
+                    timestamp = CURRENT_TIMESTAMP,
+                    bit_rate = excluded.bit_rate,
+                    link_quality = excluded.link_quality,
+                    signal_level = excluded.signal_level
             """, (self.x, self.y, bit_rate, link_quality, signal_level))
             conn.commit()
             conn.close()
         except sqlite3.Error as e:
-            self.get_logger().error(f"Error inserting data: {e}")
+            self.get_logger().error(f"Error inserting or updating data: {e}")
 
 def main(args=None):
     rclpy.init(args=args)
