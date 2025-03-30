@@ -30,7 +30,7 @@ class WifiSignalVisualizerNode(Node):
         self.costmap = np.full((self.costmap_width, self.costmap_height), -1, dtype=np.int8)
         self.db_path = '/home/ros/sigyn_ws/src/Sigyn/wifi_data.db'
         self.declare_parameter('enable_interpolation', True)
-        self.declare_parameter('max_interpolation_distance', 10.0)  # in meters
+        self.declare_parameter('max_interpolation_distance', 2.0)  # in meters
         self.max_interpolation_distance = self.get_parameter('max_interpolation_distance').value
         self.declare_parameter('generate_new_data', False)
         self.generate_new_data = self.get_parameter('generate_new_data').value
@@ -43,6 +43,14 @@ class WifiSignalVisualizerNode(Node):
             self.generate_wifi_data()
         else:
             self.load_wifi_data()
+            
+        if self.wifi_data:
+            signal_levels = [signal_level for _, _, signal_level in self.wifi_data]
+            self.min_signal_level = min(signal_levels)
+            self.max_signal_level = max(signal_levels)
+            self.get_logger().info(f"Min signal level: {self.min_signal_level}, Max signal level: {self.max_signal_level}")
+        else:
+            self.get_logger().info("No WiFi data available to determine min and max signal levels.")
 
     def topic_is_available(self, topic_name: str) -> bool:
         """
