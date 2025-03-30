@@ -101,22 +101,37 @@ class WifiSignalVisualizerNode(Node):
         points_y = np.array([y / self.costmap_resolution for _, y, _ in self.wifi_data])
         values = np.array([signal_strength for _, _, signal_strength in self.wifi_data])
 
+        # Rescale the data in 'values' (including any -1) into [2..125].
+        if self.max_signal_level > self.min_signal_level:
+            values = 2 + (
+                (values - self.min_signal_level)
+                * (125 - 2)
+                / (self.max_signal_level - self.min_signal_level)
+            )
+        else:
+            # Fallback if min == max
+            values[:] = 2
+
+        # Clamp to [2..125] just in case
+        values = np.clip(values, 2, 125)
+
         # Check if interpolation is enabled
         enable_interpolation = self.get_parameter('enable_interpolation').value
 
         if enable_interpolation:
             # Interpolate the data using Radial Basis Function (RBF)
             if len(self.wifi_data) > 0:
+
                 rbf_interpolator = Rbf(points_x, points_y, values, function='linear')
                 grid_x, grid_y = np.meshgrid(
                     np.arange(self.costmap_width),
                     np.arange(self.costmap_height)
                 )
                 interpolated_values = rbf_interpolator(grid_x, grid_y)
-
                 # Replace NaN values with -1 (unknown)
                 interpolated_values = np.nan_to_num(interpolated_values, nan=-1)
 
+    
                 # Apply maximum distance threshold
                 replace_count = 0
                 for i in range(self.costmap_width):
@@ -127,7 +142,15 @@ class WifiSignalVisualizerNode(Node):
                         if min_distance > self.max_interpolation_distance:
                             replace_count += 1
                             interpolated_values[j, i] = -1  # Too far, set to unknown
-                print(f'Number of points replaced due to max distance: {replace_count}')
+
+                # # Rescale known cells (≠ -1) from [self.min_signal_level..self.max_signal_level] to [2..125]
+                # mask = (interpolated_values != -1)
+                # if self.max_signal_level > self.min_signal_level:
+                #     interpolated_values[mask] = 2 + (interpolated_values[mask] - self.min_signal_level) * \
+                #         (125 - 2) / (self.max_signal_level - self.min_signal_level)
+                # else:
+                #     # Fallback if min == max
+                #     interpolated_values[mask] = 2
 
                 # Convert to int8 and flatten
                 occupancy_grid.data = interpolated_values.astype(np.int8).flatten().tolist()
