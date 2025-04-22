@@ -21,7 +21,7 @@ class TBattery : TModule {
   void setup();
 
  private:
-  // GPIO addresses of temperature sensors.
+  // GPIO addresses of the analog pins.
   enum { kAnalog0Pin = 26, kAnalog1Pin = 27 };
 
   // Private constructor.
