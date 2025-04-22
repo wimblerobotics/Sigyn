@@ -17,7 +17,7 @@ TMicroRos& micro_ros = TMicroRos::singleton();
 // TProximityPanel& proximityPanel = TProximityPanel::singleton();
 TRelay& relay = TRelay::singleton();
 TRoboClaw& roboclaw = TRoboClaw::singleton();
-TBattery& temperature = TBattery::singleton();
+TBattery& battery = TBattery::singleton();
 
 // WDT_T4<WDT3> wdt;
 

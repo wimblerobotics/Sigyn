@@ -254,7 +254,45 @@ void TMicroRos::PublishOdometry(float vel_dt, float linear_vel_x, float linear_v
 
 void TMicroRos::PublishBattery(const char *frame_id, float voltage) {
   if (TMicroRos::singleton().state_ == kAgentConnected) {
+    // --- Update dynamic fields before publishing ---
     g_singleton_->battery_msg_.voltage = voltage;
+    
+    // --- Calculate Percentage (State of Charge - SoC) ---
+    // This is a simple linear approximation. 
+    // IMPORTANT: LiPo discharge is non-linear. For better accuracy, use a lookup table 
+    // or polynomial fit based on your specific battery's discharge curve.
+    const float min_voltage = 30.0; // 10S * 3.0V/cell (adjust if your cutoff is different)
+    const float max_voltage = 42.0; // 10S * 4.2V/cell (fully charged)
+    float percentage = (voltage - min_voltage) / (max_voltage - min_voltage);
+    // Clamp the value between 0.0 and 1.0
+    g_singleton_->battery_msg_.percentage = fmaxf(0.0, fminf(1.0, percentage)); 
+
+    // --- Determine Power Supply Status ---
+    // TODO: Refine this logic if you have current sensing.
+    // If current > 0, it's charging. If current < 0, discharging. If near 0 and voltage is high, it's full.
+    if (voltage >= 41.8) { // Close to full charge voltage
+        // Assuming no current sensing, guess based on voltage.
+        // If current was near zero, this would be POWER_SUPPLY_STATUS_FULL
+        g_singleton_->battery_msg_.power_supply_status = sensor_msgs__msg__BatteryState__POWER_SUPPLY_STATUS_CHARGING; // Or FULL if current is negligible
+    } else if (voltage > min_voltage) { // Normal operating range
+        g_singleton_->battery_msg_.power_supply_status = sensor_msgs__msg__BatteryState__POWER_SUPPLY_STATUS_DISCHARGING;
+    } else { // Below minimum voltage
+        g_singleton_->battery_msg_.power_supply_status = sensor_msgs__msg__BatteryState__POWER_SUPPLY_STATUS_DISCHARGING; // Still discharging, but critically low
+    }
+
+    // TODO: Update current if measured.
+    // g_singleton_->battery_msg_.current = measured_current; 
+
+    // TODO: Update cell voltages if BMS data is available
+    // for (int i = 0; i < 10; ++i) {
+    //   g_singleton_->battery_msg_.cell_voltage.data[i] = bms_cell_voltages[i];
+    // }
+    
+    // Update timestamp
+    unsigned long long time_stamp = GetTimeMs();
+    g_singleton_->battery_msg_.header.stamp.sec = (time_stamp / 1000LL);
+    g_singleton_->battery_msg_.header.stamp.nanosec = (time_stamp % 1000LL) * 1'000'000L;
+
     ignore_result(
         rcl_publish(&g_singleton_->battery_publisher_, &g_singleton_->battery_msg_, nullptr));
   }
@@ -396,31 +434,59 @@ TMicroRos::TMicroRos()
       wheel_radius_(0.05),
       wheel_separation_(0.3579) {
   battery_msg_.header.frame_id = micro_ros_string_utilities_init("main_battery");
-  battery_msg_.voltage = 0.0;
-  battery_msg_.current = NAN;
+  
+  // --- Battery State Fields for 10S LiPo ---
+  // voltage: Updated dynamically. Typical range: ~30.0V (empty) to 42.0V (full).
+  battery_msg_.voltage = NAN; 
+  
+  // current: Update dynamically if measured.
+  battery_msg_.current = NAN; 
+  
+  // charge, capacity, design_capacity: Set to NaN if unknown (requires BMS/coulomb counter).
   battery_msg_.charge = NAN;
-  battery_msg_.capacity = NAN;
-  battery_msg_.design_capacity = NAN;
-  battery_msg_.percentage = 0.0;
-  battery_msg_.power_supply_status = sensor_msgs__msg__BatteryState__POWER_SUPPLY_STATUS_UNKNOWN;
+  battery_msg_.capacity = NAN; // If known, set the estimated capacity in Ampere-hours (Ah) when full.
+  battery_msg_.design_capacity = NAN; // If known, set the design capacity in Ah.
+  
+  // percentage: State of Charge (0.0 to 1.0). Calculated in PublishBattery.
+  battery_msg_.percentage = NAN; 
+  
+  // power_supply_status: Updated dynamically.
+  battery_msg_.power_supply_status = sensor_msgs__msg__BatteryState__POWER_SUPPLY_STATUS_UNKNOWN; 
+  
+  // power_supply_health: Update if health information is available.
   battery_msg_.power_supply_health = sensor_msgs__msg__BatteryState__POWER_SUPPLY_HEALTH_UNKNOWN;
+  
+  // power_supply_technology: Set for LiPo.
   battery_msg_.power_supply_technology =
-      sensor_msgs__msg__BatteryState__POWER_SUPPLY_TECHNOLOGY_LION;
+      sensor_msgs__msg__BatteryState__POWER_SUPPLY_TECHNOLOGY_LION; // LiPo is a type of Li-ion
+      
+  // present: Set to true if the battery is connected.
   battery_msg_.present = true;
 
+  // cell_voltage: Requires per-cell monitoring (BMS). 
+  // If you have a BMS reporting 10 cell voltages, allocate memory and set size=10.
+  // Example (if you had BMS data):
+  // battery_msg_.cell_voltage.capacity = 10;
+  // battery_msg_.cell_voltage.data = (float*)malloc(battery_msg_.cell_voltage.capacity * sizeof(float));
+  // battery_msg_.cell_voltage.size = 10; 
+  // Otherwise, leave as default (nullptr, size=0, capacity=0).
   battery_msg_.cell_voltage.data = nullptr;
   battery_msg_.cell_voltage.capacity = 0;
   battery_msg_.cell_voltage.size = 0;
 
+  // cell_temperature: Requires per-cell monitoring (BMS). Leave as default if unavailable.
   battery_msg_.cell_temperature.data = nullptr;
   battery_msg_.cell_temperature.capacity = 0;
   battery_msg_.cell_temperature.size = 0;
 
+  // temperature: Overall battery temperature, if available.
   battery_msg_.temperature = NAN;
 
   battery_msg_.location = micro_ros_string_utilities_init("Sigyn");
   battery_msg_.serial_number = micro_ros_string_utilities_init("none");
 
+  // --- Other Initializations ---
+  // ... (string_msg_, odom_msg_ initializations remain the same) ...
   string_msg_.data.capacity = 512;
   string_msg_.data.data = (char *)malloc(string_msg_.data.capacity * sizeof(char));
   string_msg_.data.size = 0;
