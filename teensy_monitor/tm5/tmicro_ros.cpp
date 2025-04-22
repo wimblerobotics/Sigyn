@@ -616,7 +616,7 @@ bool TMicroRos::CreateEntities() {
 
   // Create timers,
   const unsigned int timer_timeout_ns = 1'000'000'000;
-  rclc_result = rclc_timer_init_default2(&timer_, &support_, timer_timeout_ns, TimerCallback, true);
+  rclc_result = rclc_timer_init_default(&timer_, &support_, timer_timeout_ns, TimerCallback);
 #if DEBUG
   snprintf(diagnostic_message, sizeof(diagnostic_message),
            "INFO [TMicroRos(teensy)::createEntities] rclc_timer_init_default result: %ld",
@@ -624,8 +624,8 @@ bool TMicroRos::CreateEntities() {
   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 #endif
 
-  rclc_result = rclc_timer_init_default2(&motor_timer_, &support_, RCL_MS_TO_NS(40),
-                                         MotorTimerCallback, true);
+  rclc_result = rclc_timer_init_default(&motor_timer_, &support_, RCL_MS_TO_NS(40),
+                                         MotorTimerCallback);
 #if DEBUG
   snprintf(diagnostic_message, sizeof(diagnostic_message),
            "INFO [TMicroRos(teensy)::createEntities] rclc_timer_init_default for motor result: %ld",
