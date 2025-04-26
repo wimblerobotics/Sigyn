@@ -480,6 +480,13 @@ def generate_launch_description():
         # ]
     )
     ld.add_action(joint_state_publisher_node)
+    
+    oakd_elevator_top = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+          [base_pgk, "/launch/sub_launch/pointcloud.launch.py"]
+        )
+    )
+    ld.add_action(oakd_elevator_top)
 
     SaySomethingActionServer = Node(
         package="sigyn_behavior_trees",

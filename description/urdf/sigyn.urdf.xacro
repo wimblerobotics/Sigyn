@@ -12,6 +12,7 @@
   <xacro:include filename="$(find description)/urdf/sigyn_base_macro.urdf.xacro" />
   <xacro:include filename="$(find description)/urdf/sigyn_caster_wheel_macro.urdf.xacro" />
   <xacro:include filename="$(find description)/urdf/sigyn_wheels_macro.urdf.xacro" />
+  <xacro:include filename="$(find description)/urdf/oakd.urdf.xacro" />
 
   <xacro:if value="$(arg use_ros2_control)">
     <xacro:include filename="ros2_control.xacro" />
@@ -20,7 +21,7 @@
   <!-- <xacro:unless value="$(arg use_ros2_control)">
     <xacro:include filename="gazebo_control.xacro" />
   </xacro:unless> -->
-
+  
   <!-- Make the body-->
   <xacro:sigyn_base body_props="${props.body}" wheels_props="${props.wheels}" />
 
@@ -38,13 +39,19 @@
 
   <xacro:include filename="$(find description)/urdf/gripper_assembly.urdf.xacro" />
   <joint name="base_link_to_elevator_pole" type="fixed">
-    <origin xyz="-0.16 0.015 ${0.3 + (elevator_pole_height/2)}" rpy="0 0 0" />
+    <origin xyz="-0.16 -0.015 ${0.3 + (elevator_pole_height/2)}" rpy="0 0 0" />
     <parent link="base_link" />
     <child link="evelator_pole" />
   </joint>
 
+  <!-- <xacro:oakd_link mount_point="elevator_top" /> -->
+  <xacro:oakd_joint mount_point="elevator_top">
+    <origin xyz="-0.12 -0.02 1.5" rpy="0 ${(pi / 4)+9*(2.0*pi/360.0)} ${-9*(2.0*pi/360.0)}" />
+  </xacro:oakd_joint>
+
   <gazebo>
-    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+    <plugin filename="gz-sim-joint-position-controller-system"
+      name="gz::sim::systems::JointPositionController">
       <joint_name>elevator_pole_to_elevator_connector_plate</joint_name>
       <p_gain>1.0</p_gain>
       <i_gain>0.0</i_gain>
@@ -57,7 +64,8 @@
       <topic>/elevator_connector_plate/position</topic>
     </plugin>
 
-    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+    <plugin filename="gz-sim-joint-position-controller-system"
+      name="gz::sim::systems::JointPositionController">
       <joint_name>gripper_elevator_plate_to_gripper_extender</joint_name>
       <p_gain>1.0</p_gain>
       <i_gain>0.0</i_gain>
@@ -70,7 +78,8 @@
       <topic>/gripper_elevator_plate_to_gripper_extender/position</topic>
     </plugin>
 
-    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+    <plugin filename="gz-sim-joint-position-controller-system"
+      name="gz::sim::systems::JointPositionController">
       <joint_name>gripper_wrist_to_parallel_gripper_base_plate</joint_name>
       <p_gain>1.0</p_gain>
       <i_gain>0.0</i_gain>
@@ -83,7 +92,8 @@
       <topic>/gripper_wrist_to_parallel_gripper_base_plate/position</topic>
     </plugin>
 
-    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+    <plugin filename="gz-sim-joint-position-controller-system"
+      name="gz::sim::systems::JointPositionController">
       <joint_name>parallel_gripper_base_plate_to_left_finger</joint_name>
       <p_gain>1.0</p_gain>
       <i_gain>0.0</i_gain>
@@ -96,7 +106,8 @@
       <topic>/parallel_gripper_base_plate_to_left_finger/position</topic>
     </plugin>
 
-    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+    <plugin filename="gz-sim-joint-position-controller-system"
+      name="gz::sim::systems::JointPositionController">
       <joint_name>parallel_gripper_base_plate_to_right_finger</joint_name>
       <p_gain>1.0</p_gain>
       <i_gain>0.0</i_gain>
@@ -111,5 +122,6 @@
 
   </gazebo>
 
-  <xacro:diff_drive_controller config="${props}" instances1="${props.wheels.instances}" instances2="${props.wheels.instances}" />
+  <xacro:diff_drive_controller config="${props}" instances1="${props.wheels.instances}"
+    instances2="${props.wheels.instances}" />
 </robot>
