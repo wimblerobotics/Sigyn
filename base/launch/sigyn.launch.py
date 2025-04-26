@@ -483,7 +483,7 @@ def generate_launch_description():
     
     oakd_elevator_top = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-          [base_pgk, "/launch/sub_launch/pointcloud.launch.py"]
+          [base_pgk, "/launch/sub_launch/oakd_stereo.launch.py"]
         )
     )
     ld.add_action(oakd_elevator_top)
