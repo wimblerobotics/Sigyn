@@ -7,17 +7,19 @@ Panels:
         - /Global Options1
         - /Status1
         - /Grid1
+        - /RobotModel1/Status1
         - /TF1/Frames1
         - /TF1/Tree1
-        - /Map1
         - /Map1/Topic1
         - /Map1/Update Topic1
+        - /Global costmap1
+        - /Local CostMap1
+        - /Local CostMap1/Status1
         - /Odometry1/Topic1
         - /Odometry1/Shape1
         - /Cost cloud1/Topic1
         - /Marker1/Topic1
         - /CameraInfo1/Topic1
-        - /PointCloud21
         - /PointCloud21/Status1
       Splitter Ratio: 0.5437352061271667
     Tree Height: 528
@@ -359,7 +361,7 @@ Visualization Manager:
       Class: rviz_default_plugins/Map
       Color Scheme: map
       Draw Behind: true
-      Enabled: true
+      Enabled: false
       Name: Map
       Topic:
         Depth: 1
@@ -375,14 +377,14 @@ Visualization Manager:
         Reliability Policy: Best Effort
         Value: /map_updates
       Use Timestamp: false
-      Value: true
+      Value: false
     - Alpha: 0.20000000298023224
       Binary representation: false
       Binary threshold: 100
       Class: rviz_default_plugins/Map
       Color Scheme: costmap
       Draw Behind: true
-      Enabled: true
+      Enabled: false
       Name: Global costmap
       Topic:
         Depth: 5
@@ -398,7 +400,7 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /global_costmap/costmap_updates
       Use Timestamp: false
-      Value: true
+      Value: false
     - Alpha: 0.5
       Binary representation: false
       Binary threshold: 100
@@ -854,7 +856,7 @@ Visualization Manager:
           Scale: 1
           Value: true
         Value: true
-      Enabled: true
+      Enabled: false
       Head Length: 0.30000001192092896
       Head Radius: 0.10000000149011612
       Name: /amcl_pose
@@ -868,7 +870,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Best Effort
         Value: /amcl_pose
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz_default_plugins/Path
@@ -993,12 +995,12 @@ Visualization Manager:
       Channel Name: intensity
       Class: rviz_default_plugins/PointCloud2
       Color: 255; 255; 255
-      Color Transformer: Intensity
+      Color Transformer: RGB8
       Decay Time: 0
       Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 243
+      Max Intensity: 255
       Min Color: 0; 0; 0
       Min Intensity: 0
       Name: PointCloud2
@@ -1012,7 +1014,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /oak/points
+        Value: /stereo/points
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
@@ -1054,25 +1056,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 16.583660125732422
+      Distance: 13.310637474060059
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 9.722472190856934
-        Y: 3.4331350326538086
-        Z: -0.320210725069046
+        X: 10.233551979064941
+        Y: 1.3289040327072144
+        Z: 1.4674941301345825
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.3947964906692505
+      Pitch: 1.5047963857650757
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz_default_plugins)
-      Yaw: 4.776593208312988
+      Yaw: 0.6534018516540527
     Saved: ~
 Window Geometry:
   Displays:
