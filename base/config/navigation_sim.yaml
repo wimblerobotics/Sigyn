@@ -274,7 +274,7 @@ local_costmap:
           raytrace_min_range: 0.0 # Minimum range to raytrace clear obstacles from costmap.
           topic: /scan # Topic of data.
         oakd_top:
-          clearing: True # Whether source should raytrace clear in costmap.
+          clearing: False ###True # Whether source should raytrace clear in costmap.
           # expected_update_rate: 0.0 # Expected rate to get new data from sensor.
           data_type: "LaserScan" # Data type of input, LaserScan or PointCloud2.
           inf_is_valid: True # Are infinite returns from laser scanners valid measurements to raycast.
