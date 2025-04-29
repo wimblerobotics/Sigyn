@@ -495,10 +495,10 @@ def generate_launch_description():
         output="screen",
         parameters=[
             {"target_frame": "base_link",
-             "min_height": 0.13,
+             "min_height": 0.05,
              "max_height": 2.0,
-             "range_min": 0.5,
-             "range_max": 10.0,
+             "range_min": 0.27,
+             "range_max": 5.0,
              "scan_time": 0.1,
              "use_inf": True,
             },
