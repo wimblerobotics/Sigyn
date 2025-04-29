@@ -20,6 +20,7 @@
   <depend>nav_msgs</depend>
   <depend>nav2_bringup</depend>
   <depend>nav2_smac_planner</depend>
+  <depend>pointcloud_to_laserscan</depend>
   <depend>rclcpp</depend>
   <depend>rosidl_default_generators</depend>
   <depend>tf2_ros</depend>

@@ -49,19 +49,19 @@ def generate_launch_description():
     expTime        = LaunchConfiguration('expTime', default = 20000)
     sensIso        = LaunchConfiguration('sensIso', default = 800)
 
-    enableSpatialDetection  = LaunchConfiguration('enableSpatialDetection', default = True)
-    syncNN                  = LaunchConfiguration('syncNN', default = True)
+    enableSpatialDetection  = LaunchConfiguration('enableSpatialDetection', default = False) # Was True
+    syncNN                  = LaunchConfiguration('syncNN', default = False) # Was True
     detectionClassesCount   = LaunchConfiguration('detectionClassesCount', default = 80)
     nnName                  = LaunchConfiguration('nnName', default = 'x')
     resourceBaseFolder      = LaunchConfiguration('resourceBaseFolder', default = default_resources_path)
 
 
-    stereo_fps            = LaunchConfiguration('stereo_fps', default = 30)
-    confidence            = LaunchConfiguration('confidence', default = 200)
+    stereo_fps            = LaunchConfiguration('stereo_fps', default = 10)  # Was 30
+    confidence            = LaunchConfiguration('confidence', default = 150) # was 200
     LRchecktresh          = LaunchConfiguration('LRchecktresh', default = 5)
-    monoResolution        = LaunchConfiguration('monoResolution', default = '720p')
+    monoResolution        = LaunchConfiguration('monoResolution', default = '400p') # Was 720p
     
-    rgbResolution           = LaunchConfiguration('rgbResolution',  default = '1080p')
+    rgbResolution           = LaunchConfiguration('rgbResolution',  default = '1080p') # was 1080p
     rgbScaleNumerator       = LaunchConfiguration('rgbScaleNumerator',  default = 2)
     rgbScaleDinominator     = LaunchConfiguration('rgbScaleDinominator',    default = 3)
     previewWidth            = LaunchConfiguration('previewWidth',   default = 416)
