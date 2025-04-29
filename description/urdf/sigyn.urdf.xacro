@@ -46,7 +46,7 @@
 
   <!-- <xacro:oakd_link mount_point="elevator_top" /> -->
   <xacro:oakd_joint mount_point="elevator_top">
-    <origin xyz="-0.12 -0.02 1.6" rpy="0 ${(pi / 4)+9*(2.0*pi/360.0)} ${-9*(2.0*pi/360.0)}" /> <!--was 1.45 -->
+    <origin xyz="-0.12 -0.02 1.47" rpy="0 ${(pi / 4)+13*(2.0*pi/360.0)} ${-0*(2.0*pi/360.0)}" /> <!--was 1.45 -->
   </xacro:oakd_joint>
 
   <gazebo>
