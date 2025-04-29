@@ -494,8 +494,8 @@ def generate_launch_description():
         name="pointcloud_to_laserscan_node",
         output="screen",
         parameters=[
-            {"target_frame": "base_link",
-             "min_height": 0.05,
+            {"target_frame": "base_footprint",
+             "min_height": 0.03,
              "max_height": 2.0,
              "range_min": 0.27,
              "range_max": 5.0,
@@ -503,7 +503,7 @@ def generate_launch_description():
              "use_inf": True,
             },
         ],
-        remappings=[
+        remappings= [
           ("/cloud_in", "/stereo/points"),
           ("/scan", "/stereo/points2")],
     )
