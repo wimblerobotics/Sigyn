@@ -487,6 +487,37 @@ def generate_launch_description():
         )
     )
     ld.add_action(oakd_elevator_top)
+    
+    pc2ls = Node(
+        package="pointcloud_to_laserscan",
+        executable="pointcloud_to_laserscan_node",
+        name="pointcloud_to_laserscan_node",
+        output="screen",
+        parameters=[
+            {"target_frame": "base_link",
+             "min_height": 0.13,
+             "max_height": 2.0,
+             "range_min": 0.5,
+             "range_max": 10.0,
+             "scan_time": 0.1,
+             "use_inf": True,
+            },
+        ],
+        remappings=[
+          ("/cloud_in", "/stereo/points"),
+          ("/scan", "/stereo/points2")],
+    )
+    ld.add_action(pc2ls)
+    
+    # <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="downsampled_points">
+    # <param name="target_frame" value="map"/>
+    # <param name="min_height" value="0.0"/>
+    # <param name="max_height" value="1.0"/>
+    # <param name="range_min" value="0.5"/>
+    # <param name="range_max" value="10.0"/>
+    # <param name="scan_time" value="0.1"/>
+    # <param name="use_inf" value="true"/>
+    # </node>
 
     SaySomethingActionServer = Node(
         package="sigyn_behavior_trees",

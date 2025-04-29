@@ -220,8 +220,8 @@ local_costmap:
 
       plugins: [
         # "sonar_layer",
-        # "lidar_layer",
-        "oakd_layer",
+        "lidar_layer",
+        # "oakd_layer",
         # "voxel_layer",
         "inflation_layer"]
 
@@ -258,7 +258,7 @@ local_costmap:
         combination_method: 1 # 0 => Overwrite, 1 => >Max, 2 => MaxWithoutUnknownOverwrite
         footprint_clearing_enabled: True # Clear any occupied cells under robot footprint.
         map_subscribe_transient_local: True
-        observation_sources: scan
+        observation_sources: scan /stereo/points2
         plugin: "nav2_costmap_2d::ObstacleLayer"
         scan:
           clearing: True # Whether source should raytrace clear in costmap.
@@ -280,13 +280,13 @@ local_costmap:
         footprint_clearing_enabled: True # Clear any occupied cells under robot footprint.
         max_obstacle_height: 4.0 # Maximum height to add return to occupancy grid.
         mark_threshold: 0 # Minimum number of voxels in a column to mark as occupied in 2D occupancy grid.
-        observation_sources: oakd_top scan
+        observation_sources: oakd_top
         origin_z: 0.0 # Where to start marking voxels (m).
         plugin: "nav2_costmap_2d::VoxelLayer"
         publish_voxel_map: True # Whether to publish 3D voxel grid for debug, computationally expensive.
         unknown_threshold: 15 # Minimum number of empty voxels in a column to mark as unknown in 2D occupancy grid.
-        z_resolution: 0.0508 # Resolution of voxels in height (m).
-        z_voxels: 10 # Number of voxels high to mark, maximum 16.
+        z_resolution: 0.1 # Resolution of voxels in height (m).
+        z_voxels: 16 # Number of voxels high to mark, maximum 16.
 
         scan:
           clearing: True # Whether source should raytrace clear in costmap.
