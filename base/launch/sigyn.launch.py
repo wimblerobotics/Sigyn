@@ -519,6 +519,28 @@ def generate_launch_description():
         )
     )
     ld.add_action(battery_overlay)
+    
+    wifi_logger = IncludeLaunchDescription(
+      PythonLaunchDescriptionSource(
+        os.path.join(
+          get_package_share_directory('wifi_logger_visualizer'),
+          'launch',
+          'wifi_logger.launch.py'
+        )
+      )
+    )
+    ld.add_action(wifi_logger)
+    
+    head_mapper = IncludeLaunchDescription(
+      PythonLaunchDescriptionSource(
+        os.path.join(
+          get_package_share_directory('wifi_logger_visualizer'),
+          'launch',
+          'heat_mapper.launch.py'
+        )
+      )
+    )
+    ld.add_action(head_mapper)
 
     SaySomethingActionServer = Node(
         package="sigyn_behavior_trees",
