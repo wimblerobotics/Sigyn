@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Attach to WifiLogger",
+      "type": "python",
+      "request": "attach",
+      "connect": { "host": "localhost", "port": 5678 },
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}/src/Sigyn/wifi_logger_visualizer/wifi_logger_visualizer",
+          "remoteRoot": "/home/ros/sigyn_ws/src/Sigyn/wifi_logger_visualizer/wifi_logger_visualizer"
+        }
+      ]
+    }
+  ]
+}
