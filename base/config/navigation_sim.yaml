@@ -161,26 +161,28 @@ controller_server:
         enabled: true
         cost_power: 1
         cost_weight: 3.81
-        critical_cost: 300.0
+        critical_cost: 200.0
         consider_footprint: true
-        collision_cost: 1000000.0
+        collision_cost: 2000000.0
         near_goal_distance: 1.0
         trajectory_point_step: 2
       PathAlignCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 14.0
-        max_path_occupancy_ratio: 0.05
-        trajectory_point_step: 4
-        threshold_to_consider: 0.5
+        cost_weight: 10.0    # moderate penalty to avoid over-tighter alignment
+        max_path_occupancy_ratio: 0.02  # stricter occupancy limit along path
+        trajectory_point_step: 2          # sample more densely along path edges
+        threshold_to_consider: 0.8        # only penalize deviations >0.8m
         offset_from_furthest: 20
         use_path_orientations: false
+
       PathFollowCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 5.0
-        offset_from_furthest: 5
-        threshold_to_consider: 1.4
+        cost_weight: 8.0    # increase penalty for stray from path center
+        offset_from_furthest: 3  # focus on nearer segments for better path centering
+        threshold_to_consider: 0.8    # narrow tolerance to keep central
+        trajectory_point_step: 2       # denser sampling of path during follow
       PathAngleCritic:
         enabled: true
         cost_power: 1
@@ -227,10 +229,8 @@ local_costmap:
 
       inflation_layer:
         enabled: True
-        cost_scaling_factor: 1.0 ###2.0 # Exponential decay factor across inflation radius.
-        ###inflate_around_unknown: True # Whether to inflate unknown cells.
-        ###inflate_unknown: False # Whether to inflate unknown space.
-        inflation_radius: 0.2 # Radius to inflate costmap around lethal obstacles.
+        cost_scaling_factor: 5.0   # steepen cost curve so robot centers itself in wider passages
+        inflation_radius: 0.24   # matches inscribed radius to prevent collisions
         plugin: "nav2_costmap_2d::InflationLayer"
 
       lidar_layer:
@@ -275,70 +275,6 @@ local_costmap:
           raytrace_min_range: 0.0 # Minimum range to raytrace clear obstacles from costmap.
           topic: /stereo/points2 # Topic of data.
 
-      # oakd_layer:
-      #   enabled: True
-      #   combination_method: 1 # 0 => Overwrite, 1 => >Max, 2 => MaxWithoutUnknownOverwrite
-      #   footprint_clearing_enabled: True # Clear any occupied cells under robot footprint.
-      #   max_obstacle_height: 4.0 # Maximum height to add return to occupancy grid.
-      #   mark_threshold: 0 # Minimum number of voxels in a column to mark as occupied in 2D occupancy grid.
-      #   observation_sources: oakd_top
-      #   origin_z: 0.0 # Where to start marking voxels (m).
-      #   plugin: "nav2_costmap_2d::VoxelLayer"
-      #   publish_voxel_map: True # Whether to publish 3D voxel grid for debug, computationally expensive.
-      #   unknown_threshold: 15 # Minimum number of empty voxels in a column to mark as unknown in 2D occupancy grid.
-      #   z_resolution: 0.1 # Resolution of voxels in height (m).
-      #   z_voxels: 16 # Number of voxels high to mark, maximum 16.
-
-      #   scan:
-      #     clearing: True # Whether source should raytrace clear in costmap.
-      #     # expected_update_rate: 0.0 # Expected rate to get new data from sensor.
-      #     data_type: "LaserScan" # Data type of input, LaserScan or PointCloud2.
-      #     inf_is_valid: True # Are infinite returns from laser scanners valid measurements to raycast.
-      #     marking: True # Whether source should mark in costmap.
-      #     max_obstacle_height: 2.0 # Maximum height to add return to occupancy grid.
-      #     min_obstacle_height: 0.0 # Minimum height to add return to occupancy grid.
-      #     obstacle_max_range: 2.4 # Maximum range to mark obstacles in costmap.
-      #     obstacle_min_range: 0.0 # Minimum range to mark obstacles in costmap.
-      #     raytrace_max_range: 3.0 # Maximum range to raytrace clear obstacles from costmap.
-      #     raytrace_min_range: 0.0 # Minimum range to raytrace clear obstacles from costmap.
-      #     topic: /scan # Topic of data.
-
-      #   oakd_top:
-      #     clearing: True # Whether source should raytrace clear in costmap.
-      #     data_type: "PointCloud2" # Data type of input, LaserScan or PointCloud2.
-      #     # expected_update_rate: 8.0 # Expected rate to get new data from sensor.
-      #     inf_is_valid: True # Are infinite returns from laser scanners valid measurements to raycast.
-      #     marking: True # Whether source should mark in costmap.
-      #     max_obstacle_height: 4.0 # Maximum height to add return to occupancy grid.
-      #     min_obstacle_height: 0.0508 # Minimum height to add return to occupancy grid.
-      #     # observation_persistence: 0.0 # How long to store messages in a buffer to add to costmap before removing them (s).
-      #     obstacle_max_range: 5.0 # Maximum range to mark obstacles in costmap.
-      #     obstacle_min_range: 0.0 # Minimum range to mark obstacles in costmap.
-      #     raytrace_max_range: 5.0 # Maximum range to raytrace clear obstacles from costmap.
-      #     raytrace_min_range: 0.0 # Minimum range to raytrace clear obstacles from costmap.
-      #     topic: /stereo/points # Topic of data.
-      #   map_subscribe_transient_local: True
-      #   transform_tolerance: 0.3 # TF transform tolerance.
-      # voxel_layer:
-      #   plugin: "nav2_costmap_2d::VoxelLayer"
-      #   enabled: True
-      #   publish_voxel_map: True
-      #   origin_z: 0.0
-      #   z_resolution: 0.05
-      #   z_voxels: 16
-      #   max_obstacle_height: 2.0
-      #       mark_threshold: 0
-      #   observation_sources: oakd_depth
-      #   oakd_depth:
-      #     topic: /oakd/depth/points
-      #     sensor_frame: oakd_frame
-      #     data_type: PointCloud2
-      #     marking: true
-      #     clearing: true
-      #     min_obstacle_height: 0.1
-      #     max_obstacle_height: 2.0
-      #     obstacle_range: 5.0
-      #     raytrace_range: 6.0
 
 global_costmap:
   global_costmap:
