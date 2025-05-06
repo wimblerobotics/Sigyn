@@ -87,7 +87,7 @@ controller_server:
     progress_checker_plugins: ["progress_checker"]
     goal_checker_plugins: ["precise_goal_checker"]
     controller_plugins: ["FollowPath"]
-    use_realtime_priority: false
+    use_realtime_priority: yes
 
     # Progress checker parameters
     progress_checker:
@@ -212,10 +212,10 @@ local_costmap:
       robot_radius: 0.2286 # Radius of robot base (m).
       rolling_window: True # Whether costmap should roll with robot base frame.
       # track_unknown_space: True # If false, treats unknown space as free space, else as unknown space.
-      # transform_tolerance: 0.3 # TF transform tolerance.
+      transform_tolerance: 0.5 # TF transform tolerance.
       # trinary_costmap: True # Whether to use trinary or continuous costmap.
       # unknown_cost_value: 255 # Cost of unknown space if tracking it.
-      update_frequency: 10.0 # Costmap update frequency.
+      update_frequency: 15.0 # Costmap update frequency.
       width: 3 # Width of costmap (m).
 
       plugins: [
@@ -236,6 +236,7 @@ local_costmap:
       lidar_layer:
         enabled: True
         combination_method: 1 # 0 => Overwrite, 1 => >Max, 2 => MaxWithoutUnknownOverwrite
+        expected_update_rate: 10.0 # Expected rate to get new data from sensor.
         footprint_clearing_enabled: True # Clear any occupied cells under robot footprint.
         map_subscribe_transient_local: True
         observation_sources: front_lidar
@@ -349,8 +350,8 @@ global_costmap:
       robot_base_frame: base_link
       robot_radius: 0.2286 # Radius of robot base (m).
       track_unknown_space: True # If false, treats unknown space as free space, else as unknown space.
-      transform_tolerance: 0.3
-      update_frequency: 1.0 # Costmap update frequency.
+      transform_tolerance: 0.5
+      update_frequency: 5.0 # Costmap update frequency.
 
       plugins: [
         "static_layer", 
@@ -422,7 +423,7 @@ planner_server:
     costmap_update_timeout: 1.0
     GridBased:
       plugin: "nav2_navfn_planner::NavfnPlanner"
-      tolerance: 0.5
+      tolerance: 1.0
       use_astar: false
       allow_unknown: true
 
@@ -475,6 +476,7 @@ waypoint_follower:
 
 velocity_smoother:
   ros__parameters:
+    use_realtime_priority: yes
     smoothing_frequency: 20.0
     scale_velocities: False
     feedback: "OPEN_LOOP"

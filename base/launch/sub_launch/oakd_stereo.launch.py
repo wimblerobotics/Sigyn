@@ -32,9 +32,9 @@ def generate_launch_description():
                     'base_frame' : 'oak',
                     'camera_model' : 'OAK-D',
                     # 'parent_frame': 'oakd_left',
-                    # 'rgbResolution': '1080p',
+                    'rgbResolution': '1080p',
                     'tf_prefix' : 'oak',
-                    # 'mxId' : '14442C1051B665D700',
+                    'mxId' : '14442C1051B665D700',
                 }.items()
             )
         ]
