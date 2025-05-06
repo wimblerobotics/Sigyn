@@ -22,7 +22,7 @@ def generate_launch_description():
     default_resources_path = os.path.join(depthai_examples_path,
                                 'resources')
 
-    mxId         = LaunchConfiguration('mxId',      default = 'x')
+    mxId         = LaunchConfiguration('mxId',      default = '')
     usb2Mode     = LaunchConfiguration('usb2Mode',  default = False)
     poeMode      = LaunchConfiguration('poeMode',   default = False)
 
