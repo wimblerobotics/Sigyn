@@ -31,10 +31,18 @@ def generate_launch_description():
                 launch_arguments={
                     'base_frame' : 'oak',
                     'camera_model' : 'OAK-D',
-                    # 'parent_frame': 'oakd_left',
                     'rgbResolution': '1080p',
                     'tf_prefix' : 'oak',
                     'mxId' : '14442C1051B665D700',
+                    'previewWidth': '640',    # match NN input size
+                    'previewHeight': '640',
+                    # Switch to a non-YOLO SSD-based model to avoid side7 mask errors:
+                    'resourceBaseFolder': PathJoinSubstitution([FindPackageShare('depthai_examples'), 'resources']),
+                    'nnName': 'yolov4_tiny_coco_416x416_openvino_2021.4_6shave_bgr.blob',  # SSD retail model
+                    # 'numShaves': '7',          # match blob's shave count
+                    'enableSpatialDetection': 'true',
+                    'syncNN': 'true',
+                    'detectionClassesCount': '80',
                 }.items()
             )
         ]

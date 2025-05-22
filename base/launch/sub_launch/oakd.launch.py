@@ -34,12 +34,15 @@ def generate_launch_description():
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(oakd_launch_path),
                 launch_arguments={
-                    'base_frame' : 'oakd_left_base',
-                    'camera_model' : 'OAK-D',
+                    'base_frame': 'oakd_left_base',
+                    'camera_model': 'OAK-D',
                     'parent_frame': 'oakd_left',
-                    # 'rgbResolution': '1080p',
-                    'tf_prefix' : 'oakd_left',
-                    'mxId' : '14442C1051B665D700',
+                    'tf_prefix': 'oakd_left',
+                    'mxId': '14442C1051B665D700',
+                    'enableSpatialDetection': 'true',  # turn on object detection
+                    'syncNN': 'true',                 # synchronize neural inference
+                    'detectionClassesCount': '80',    # number of COCO classes
+                    'nnName': 'mobilenet-ssd',        # select the MobileNet-SSD blob
                 }.items()
             )
         ]
