@@ -59,6 +59,7 @@ python3 videoServer.py
 ## On terminal 4
 ```bash
 ssh sigyn7900
+nav
 ```
 
 
