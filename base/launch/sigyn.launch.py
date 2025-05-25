@@ -558,15 +558,16 @@ def generate_launch_description():
     )
     ld.add_action(MoveAShortDistanceAheadActionServer)
     
-    nimbus_steelseries_joystick = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(
-                get_package_share_directory("bluetooth_joystick"),
-                "launch",
-                "bluetooth_joystick.launch.py",
-            )
-        ),
-    )
+    # nimbus_steelseries_joystick = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(
+    #         os.path.join(
+    #             get_package_share_directory("bluetooth_joystick"),
+    #             "launch",
+    #             "bluetooth_joystick.launch.py",
+    #         )
+    #     ),
+    # )
+    # ld.add_action(nimbus_steelseries_joystick)
 
     rviz_node = Node(
         package="rviz2",
