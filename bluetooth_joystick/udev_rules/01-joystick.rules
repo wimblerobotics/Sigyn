@@ -1,0 +1,1 @@
+SUBSYSTEMS=="input", ATTRS{uniq}=="28:9a:4b:16:a8:d3", MODE:="0666", TAG+="systemd"

@@ -2,6 +2,10 @@ int16 axis0_lr
 int16 axis0_ud
 int16 axis1_lr
 int16 axis1_ud
+int16 axis2_lr
+int16 axis2_ud
+int16 dpad_lr
+int16 dpad_ud
 uint8 button_a
 uint8 button_b
 uint8 button_x
