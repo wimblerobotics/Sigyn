@@ -557,6 +557,16 @@ def generate_launch_description():
         # prefix=['xterm -e gdb -ex run --args'],
     )
     ld.add_action(MoveAShortDistanceAheadActionServer)
+    
+    nimbus_steelseries_joystick = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory("bluetooth_joystick"),
+                "launch",
+                "bluetooth_joystick.launch.py",
+            )
+        ),
+    )
 
     rviz_node = Node(
         package="rviz2",
