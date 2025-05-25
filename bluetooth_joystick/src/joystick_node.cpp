@@ -126,6 +126,14 @@ void PublishJoystickMessages() {
     twist.angular.z = (double)message.axis2_lr / axis_range_normalizer;
     gripper_publisher->publish(twist);
   }
+
+  // Middle stick (axis1) controls gripper
+  if (!IsStickZero(message.axis1_lr, message.axis1_ud)) {
+    geometry_msgs::msg::Twist twist;
+    twist.linear.x = (double)message.axis1_ud / axis_range_normalizer;
+    twist.angular.z = (double)message.axis1_lr / axis_range_normalizer;
+    gripper_publisher->publish(twist);
+  }
 }
 
 void CaptureJoystickEvent() {
