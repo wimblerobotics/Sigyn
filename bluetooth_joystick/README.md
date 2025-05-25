@@ -6,10 +6,10 @@ This package connects to a Bluetooth joystick (tested with Nimbus SteelSeries) a
 - Publishes a custom `BluetoothJoystick` message with all control surface states.
 - Publishes `cmd_vel` (base movement) from the left joystick only when moved.
 - Publishes `cmd_vel_gripper` (or configurable topic) from the right joystick only when moved.
-- Handles all buttons, left stick, right stick, and D-Pad (cross control).
+- Handles all buttons, left stick, right stick.
 
-## D-Pad (Cross Control)
-The D-Pad (upper left cross) is a digital 4-way control, but is reported as axes (not buttons) by the Linux joystick driver. It is not analog.
+***NOTE*** that the MENU and D-Pad buttons are not handled by this code. D-Pad is not published at all by the Linux bluetooth driver, and MENU is just not handled by this code.
+
 
 ## Configuration
 Edit `config/bluetooth_joystick.yaml`:
@@ -32,7 +32,6 @@ ros2 launch bluetooth_joystick bluetooth_joystick.launch.py
 
 ## Notes
 - The rightmost joystick is mapped to axes 2 (left/right) and 3 (up/down).
-- The D-Pad is mapped as axes 4 and 5 (digital, values -32767, 0, 32767).
 - The node publishes the custom message on any control change, and only publishes `cmd_vel` or `gripper_topic` if the respective stick is moved.
 
 ## Udev Rules
