@@ -277,3 +277,11 @@ void TMotorClass::StepPulse(Direction direction) {
     current_position_ -= travel_mm_per_pulse_;
   }
 }
+
+void TMotorClass::MoveByDelta(float delta) {
+  float target = current_position_ + delta;
+  if (target > position_max_up_) target = position_max_up_;
+  if (target < position_min_down_) target = position_min_down_;
+  remaining_pulses_ = (target - current_position_) / travel_mm_per_pulse_;
+  pending_movement_command_ = (remaining_pulses_ != 0);
+}
