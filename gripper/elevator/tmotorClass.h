@@ -32,6 +32,9 @@ public:
   // Home the motor.
   void Home();
 
+  // Move the motor by a delta (meters), clamped to limits.
+  void MoveByDelta(float delta);
+
 protected:
   enum {
     // For limit switches, 0 => interrupted, 1 => not interrupted.
