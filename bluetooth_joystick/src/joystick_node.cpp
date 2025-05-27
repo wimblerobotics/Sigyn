@@ -19,12 +19,19 @@ rclcpp::Publisher<msgs::msg::BluetoothJoystick>::SharedPtr
 rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmdvel_publisher;
 rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr gripper_publisher;
 std::shared_ptr<rclcpp::TimerBase> publish_timer;
+std::shared_ptr<rclcpp::TimerBase> cmdvel_publish_timer;
+std::shared_ptr<rclcpp::TimerBase> gripper_publish_timer;
 double dead_zone = 0.0;
 std::string device_name;
 int message_rate = 15;
+int cmdvel_message_rate = 30;
+int gripper_message_rate = 600;
+int joystick_message_rate = 100;
 std::shared_ptr<rclcpp::Node> node;
 double scale_x;
 double scale_z;
+bool should_publish_cmdvel = false;
+bool should_publish_gripper = false;
 
 /**
  * Reads a joystick event from the joystick device.
@@ -105,10 +112,7 @@ bool ShouldPublishMessages() {
   return some_button_changed_state || !IsStickZero(message.axis0_lr, message.axis0_ud) || !IsStickZero(message.axis1_lr, message.axis1_ud);
 }
 
-void PublishJoystickMessages() {
-  bluetooth_joystick_publisher->publish(message);
-
-  // Left stick (axis0) controls base movement
+void PublishCmdvelTimerCallback() {
   if (!IsStickZero(message.axis0_lr, message.axis0_ud)) {
     geometry_msgs::msg::Twist twist;
     twist.linear.x = (double)message.axis0_ud / axis_range_normalizer;
@@ -119,14 +123,19 @@ void PublishJoystickMessages() {
     twist.angular.z *= scale_z;
     cmdvel_publisher->publish(twist);
   }
+}
 
-  // Right stick (axis1) controls gripper
+void PublishGripperTimerCallback() {
   if (!IsStickZero(message.axis1_lr, message.axis1_ud)) {
     geometry_msgs::msg::Twist twist;
     twist.linear.x = (double)message.axis1_ud / axis_range_normalizer;
     twist.angular.z = (double)message.axis1_lr / axis_range_normalizer;
     gripper_publisher->publish(twist);
   }
+}
+
+void PublishJoystickMessages() {
+  bluetooth_joystick_publisher->publish(message);
 }
 
 void PublishMessagesTimerCallback() {
@@ -298,16 +307,16 @@ int main(int argc, char *argv[]) {
   RCUTILS_LOG_INFO("[bluetooth_joystick_node] device_name: %s",
                    device_name.c_str());
 
-  node->declare_parameter<int>("message_rate", 4);
-  node->get_parameter("message_rate", message_rate);
-  if (message_rate < 1) {
-    RCUTILS_LOG_FATAL(
-        "[bluetooth_joystick_node] message rate must be a positive "
-        "integer");
-    exit(-1);
-  }
-  RCUTILS_LOG_INFO("[bluetooth_joystick_node] message_rate: %d",
-                   message_rate);
+  node->declare_parameter<int>("cmdvel_message_rate", 30);
+  node->get_parameter("cmdvel_message_rate", cmdvel_message_rate);
+  node->declare_parameter<int>("gripper_message_rate", 600);
+  node->get_parameter("gripper_message_rate", gripper_message_rate);
+  RCUTILS_LOG_INFO("[bluetooth_joystick_node] cmdvel_message_rate: %d", cmdvel_message_rate);
+  RCUTILS_LOG_INFO("[bluetooth_joystick_node] gripper_message_rate: %d", gripper_message_rate);
+
+  node->declare_parameter<int>("joystick_message_rate", 100);
+  node->get_parameter("joystick_message_rate", joystick_message_rate);
+  RCUTILS_LOG_INFO("[bluetooth_joystick_node] joystick_message_rate: %d", joystick_message_rate);
 
   node->declare_parameter<double>("scale_x", 1.0);
   node->get_parameter("scale_x", scale_x);
@@ -320,10 +329,18 @@ int main(int argc, char *argv[]) {
   // Start the joystick event thread
   std::thread deviceEventThread(CaptureJoystickEvent);
 
-  // Start the timer for publishing messages
-  double period_sec = 1.0 / static_cast<double>(message_rate);
+  // Start the timers for publishing messages
+  double cmdvel_period_sec = 1.0 / static_cast<double>(cmdvel_message_rate);
+  double gripper_period_sec = 1.0 / static_cast<double>(gripper_message_rate);
+  cmdvel_publish_timer = node->create_wall_timer(
+      std::chrono::duration<double>(cmdvel_period_sec), PublishCmdvelTimerCallback);
+  gripper_publish_timer = node->create_wall_timer(
+      std::chrono::duration<double>(gripper_period_sec), PublishGripperTimerCallback);
+
+  // BluetoothJoystick message publisher (unchanged, can be at any rate)
+  double joy_period_sec = 1.0 / static_cast<double>(joystick_message_rate);
   publish_timer = node->create_wall_timer(
-      std::chrono::duration<double>(period_sec), PublishMessagesTimerCallback);
+      std::chrono::duration<double>(joy_period_sec), PublishJoystickMessages);
 
   rclcpp::spin(node);
   deviceEventThread.join();
