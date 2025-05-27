@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <geometry_msgs/msg/twist.h>
 #include <micro_ros_arduino.h>
 #include <rcl/error_handling.h>
 #include <rcl/rcl.h>
@@ -23,7 +24,7 @@
 
 class TMotorClass;
 
-class TMicroRos : TModule {
+class TMicroRos : public TModule {
 public:
   // Check if ROS time appears to be correct and, if not, fix it.
   // Returns a reasonable ROS time.
@@ -34,6 +35,9 @@ public:
 
   // Singleton constructor.
   static TMicroRos &singleton();
+
+  static TMotorClass* get_elevator() { return elevator_; }
+  static TMotorClass* get_extender() { return extender_; }
 
 protected:
   enum Direction { kUp, kDown };
@@ -75,6 +79,7 @@ private:
   rcl_allocator_t allocator_;
   rcl_subscription_t elevator_command_subscriber_;
   rcl_subscription_t extender_command_subscriber_;
+  rcl_subscription_t cmd_vel_gripper_subscriber_;
   rclc_executor_t executor_;
   rclc_action_server_t elevator_action_server_;
   rcl_service_t elevator_gripper_service_;
@@ -97,10 +102,15 @@ private:
   sigyn_interfaces__srv__GripperPosition_Request extender_request_msg_;
   sigyn_interfaces__srv__GripperPosition_Response extender_response_msg_;
   std_msgs__msg__String string_msg_;
+  geometry_msgs__msg__Twist cmd_vel_gripper_msg_;
 
   static TMotorClass *elevator_;
   static TMotorClass *extender_;
 
   // Singleton instance.
   static TMicroRos *g_singleton_;
+
+  static void HandleMoveTopicCallback(const void *msg, void *context);
+  static void HandleCmdVelGripperCallback(const void *msg, void *context);
+  static void HandleGripperServiceCallback(const void *request_msg, void *response_msg, void *context);
 };

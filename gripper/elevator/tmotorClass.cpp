@@ -4,6 +4,7 @@
 #include "tmicro_ros.h"
 #include <Wire.h>
 #include <stdio.h>
+#include <geometry_msgs/msg/twist.h>
 
 TMotorClass *TMotorClass::CreateMotor(TMotorType motor_type) {
   if (motor_type == Elevator) {
@@ -11,13 +12,13 @@ TMotorClass *TMotorClass::CreateMotor(TMotorType motor_type) {
                            TMotorClass::kElevatorStepDirectionPin,
                            TMotorClass::kElevatorStepPulsePin,
                            TMotorClass::kElevatorTopLimitSwitchPin, 0.9, 0.0,
-                           0.000180369, false);
+                           0.000180369, false); // 5544 pules per meter.
   } else {
     return new TMotorClass(TMotorClass::kExtenderInLimitSwitchPin,
                            TMotorClass::kExtenderStepDirectionPin,
                            TMotorClass::kExtenderStepPulsePin,
                            TMotorClass::kExtenderOutLimitSwitchPin, 0.342, 0.0,
-                           0.000149626, true);
+                           0.000149626, true); // 6683 pulses per meter.
   }
 }
 
@@ -187,43 +188,6 @@ TMotorClass::HandleActionRequest(rclc_action_goal_handle_t *goal_handle,
   return RCL_RET_ACTION_GOAL_ACCEPTED;
 }
 
-void TMotorClass::HandleGripperServiceCallback(const void *request_msg,
-                                               void *response_msg,
-                                               void *context) {
-  // Cast messages to expected types
-  TMotorClass *motor = (TMotorClass *)context;
-  sigyn_interfaces__srv__GripperPosition_Response *res_in =
-      (sigyn_interfaces__srv__GripperPosition_Response *)response_msg;
-
-  // Handle request message and set the response message values
-  res_in->position = motor->current_position_;
-}
-
-void TMotorClass::HandleMoveTopicCallback(const void *msg, void *context) {
-  TMotorClass *motor = (TMotorClass *)context;
-  const std_msgs__msg__Float32 *command = (const std_msgs__msg__Float32 *)msg;
-
-  char diagnostic_message[256];
-  snprintf(diagnostic_message, sizeof(diagnostic_message),
-           "INFO [TMotorClass::HandleMoveTopicCallback] command: %4.3f",
-           command->data);
-  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-  float target_position = command->data;
-  if (motor->current_position_ != target_position) {
-    motor->remaining_pulses_ = (target_position - motor->current_position_) /
-                               motor->travel_mm_per_pulse_;
-    motor->pending_movement_command_ = true;
-
-    char diagnostic_message[256];
-    snprintf(
-        diagnostic_message, sizeof(diagnostic_message),
-        "INFO [TMotorClass::HandleMoveTopicCallback] target_position: %7.6f, "
-        "current_position: %7.6f, remaining_pulses: %ld",
-        target_position, motor->current_position_, motor->remaining_pulses_);
-    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-  }
-}
-
 void TMotorClass::Home() {
   while (!AtDownLimit()) {
     StepPulse(kDown);
@@ -258,6 +222,21 @@ void TMotorClass::StepPulse(Direction direction) {
   // 20 takes about 21
   // 10 takes about 22
 
+  // static unsigned long last_call_time = 0;
+  // static float avg_rate_hz = 0.0f;
+  // unsigned long now = micros();
+  // if (last_call_time != 0) {
+  //   float dt = (now - last_call_time) / 1e6f;
+  //   float rate = (dt > 0) ? (1.0f / dt) : 0.0f;
+  //   // Simple moving average for smoother output
+  //   avg_rate_hz = 0.9f * avg_rate_hz + 0.1f * rate;
+  //   char diagnostic_message[128];
+  //   snprintf(diagnostic_message, sizeof(diagnostic_message),
+  //            "StepPulse rate: %.2f Hz (instant: %.2f Hz)", avg_rate_hz, rate);
+  //   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+  // }
+  // last_call_time = now;
+
   if ((direction == kUp) && AtUpLimit()) {
     return;
   }
@@ -266,10 +245,10 @@ void TMotorClass::StepPulse(Direction direction) {
     return;
   }
 
-  digitalWrite(pin_step_direction_, direction == reverse_travel_ ? kUp : kDown);
-  digitalWrite(pin_step_pulse_, HIGH);
+  digitalWriteFast(pin_step_direction_, direction == reverse_travel_ ? kUp : kDown);
+  digitalWriteFast(pin_step_pulse_, HIGH);
   delayMicroseconds(pd);
-  digitalWrite(pin_step_pulse_, LOW);
+  digitalWriteFast(pin_step_pulse_, LOW);
   delayMicroseconds(pd);
   if (direction == kUp) {
     current_position_ += travel_mm_per_pulse_;
@@ -277,3 +256,4 @@ void TMotorClass::StepPulse(Direction direction) {
     current_position_ -= travel_mm_per_pulse_;
   }
 }
+

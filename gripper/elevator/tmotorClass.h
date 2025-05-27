@@ -22,15 +22,29 @@ public:
   static rcl_ret_t HandleActionRequest(rclc_action_goal_handle_t *goal_handle,
                                        void *context);
 
-  // Handle a gripper service callback.
-  static void HandleGripperServiceCallback(const void *request_msg,
-                                           void *response_msg, void *context);
-
-  // Handle a move topic callback.
-  static void HandleMoveTopicCallback(const void *msg, void *context);
-
   // Home the motor.
   void Home();
+
+  float get_current_position() const { return current_position_; }
+  void SetTargetPosition(float target_position) {
+    if (current_position_ != target_position) {
+      remaining_pulses_ = (target_position - current_position_) / travel_mm_per_pulse_;
+      pending_movement_command_ = true;
+    }
+  }
+  void MoveByDelta(float delta) {
+    float target = current_position_ + delta;
+    if (target > position_max_up_) target = position_max_up_;
+    if (target < position_min_down_) target = position_min_down_;
+    remaining_pulses_ = (target - current_position_) / travel_mm_per_pulse_;
+    pending_movement_command_ = (remaining_pulses_ != 0);
+    char diagnostic_message[256];
+    snprintf(diagnostic_message, sizeof(diagnostic_message),
+             "INFO [TMotorClass::MoveByDelta] target: %4.3f, "
+             "current_position: %4.3f, remaining_pulses: %ld",
+             target, current_position_, remaining_pulses_);
+    TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+  }
 
 protected:
   enum {
