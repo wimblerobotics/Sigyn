@@ -18,9 +18,10 @@ rclcpp::Publisher<msgs::msg::BluetoothJoystick>::SharedPtr
     bluetooth_joystick_publisher;
 rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmdvel_publisher;
 rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr gripper_publisher;
+std::shared_ptr<rclcpp::TimerBase> publish_timer;
 double dead_zone = 0.0;
 std::string device_name;
-int message_rate = 4;
+int message_rate = 15;
 std::shared_ptr<rclcpp::Node> node;
 double scale_x;
 double scale_z;
@@ -101,7 +102,7 @@ bool IsStickZero(int16_t lr, int16_t ud) {
 }
 
 bool ShouldPublishMessages() {
-  return some_button_changed_state || !IsStickZero(message.axis0_lr, message.axis0_ud) || !IsStickZero(message.axis2_lr, message.axis2_ud);
+  return some_button_changed_state || !IsStickZero(message.axis0_lr, message.axis0_ud) || !IsStickZero(message.axis1_lr, message.axis1_ud);
 }
 
 void PublishJoystickMessages() {
@@ -119,20 +120,21 @@ void PublishJoystickMessages() {
     cmdvel_publisher->publish(twist);
   }
 
-  // Right stick (axis2/3) controls gripper
-  if (!IsStickZero(message.axis2_lr, message.axis2_ud)) {
-    geometry_msgs::msg::Twist twist;
-    twist.linear.x = (double)message.axis2_ud / axis_range_normalizer;
-    twist.angular.z = (double)message.axis2_lr / axis_range_normalizer;
-    gripper_publisher->publish(twist);
-  }
-
-  // Middle stick (axis1) controls gripper
+  // Right stick (axis1) controls gripper
   if (!IsStickZero(message.axis1_lr, message.axis1_ud)) {
     geometry_msgs::msg::Twist twist;
     twist.linear.x = (double)message.axis1_ud / axis_range_normalizer;
     twist.angular.z = (double)message.axis1_lr / axis_range_normalizer;
     gripper_publisher->publish(twist);
+  }
+}
+
+void PublishMessagesTimerCallback() {
+  // Only publish if a control surface is touched
+  if (some_button_changed_state || !IsStickZero(message.axis0_lr, message.axis0_ud) || !IsStickZero(message.axis1_lr, message.axis1_ud)) {
+    PublishJoystickMessages();
+    const std::lock_guard<std::mutex> lock(some_button_changed_state_guard);
+    some_button_changed_state = false;
   }
 }
 
@@ -246,7 +248,6 @@ void CaptureJoystickEvent() {
           /* Ignore init events. */
           break;
       }  // switch (event.type)
-      PublishJoystickMessages();
     }    // while (ReadEvent(js, &event) == 0)
 
     js = -1;
@@ -254,21 +255,6 @@ void CaptureJoystickEvent() {
 
   close(js);
   RCUTILS_LOG_INFO("[bluetooth_joystick_node] device loop shutdown");
-}
-
-void PublishMessages() {
-  rclcpp::Rate publishRate(message_rate);
-  while (rclcpp::ok()) {
-    // Only publish if a control surface is touched
-    if (some_button_changed_state || !IsStickZero(message.axis0_lr, message.axis0_ud) || !IsStickZero(message.axis2_lr, message.axis2_ud)) {
-      PublishJoystickMessages();
-      const std::lock_guard<std::mutex> lock(some_button_changed_state_guard);
-      some_button_changed_state = false;
-    }
-    publishRate.sleep();
-  }
-
-  RCUTILS_LOG_INFO("[bluetooth_joystick_node] messages publisher shutdown");
 }
 
 int main(int argc, char *argv[]) {
@@ -331,13 +317,16 @@ int main(int argc, char *argv[]) {
   node->get_parameter("scale_z", scale_z);
   RCUTILS_LOG_INFO("[bluetooth_joystick_node] scale_z: %f", scale_z);
 
+  // Start the joystick event thread
   std::thread deviceEventThread(CaptureJoystickEvent);
-  std::thread publishMessagesThread(PublishMessages);
 
-  deviceEventThread.join();
-  publishMessagesThread.join();
+  // Start the timer for publishing messages
+  double period_sec = 1.0 / static_cast<double>(message_rate);
+  publish_timer = node->create_wall_timer(
+      std::chrono::duration<double>(period_sec), PublishMessagesTimerCallback);
 
   rclcpp::spin(node);
+  deviceEventThread.join();
   rclcpp::shutdown();
   return 0;
 }
