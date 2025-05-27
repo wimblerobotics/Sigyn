@@ -24,7 +24,7 @@
 
 class TMotorClass;
 
-class TMicroRos : TModule {
+class TMicroRos : public TModule {
 public:
   // Check if ROS time appears to be correct and, if not, fix it.
   // Returns a reasonable ROS time.
@@ -35,6 +35,9 @@ public:
 
   // Singleton constructor.
   static TMicroRos &singleton();
+
+  static TMotorClass* get_elevator() { return elevator_; }
+  static TMotorClass* get_extender() { return extender_; }
 
 protected:
   enum Direction { kUp, kDown };
@@ -107,5 +110,7 @@ private:
   // Singleton instance.
   static TMicroRos *g_singleton_;
 
+  static void HandleMoveTopicCallback(const void *msg, void *context);
   static void HandleCmdVelGripperCallback(const void *msg, void *context);
+  static void HandleGripperServiceCallback(const void *request_msg, void *response_msg, void *context);
 };
