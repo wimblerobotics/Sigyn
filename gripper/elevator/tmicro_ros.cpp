@@ -395,7 +395,7 @@ bool TMicroRos::CreateEntities() {
 
   rclc_result = rclc_executor_add_subscription_with_context(
       &executor_, &elevator_command_subscriber_, &elevator_command_msg_,
-      &TMotorClass::HandleMoveTopicCallback, elevator_, ON_NEW_DATA);
+      &TMicroRos::HandleMoveTopicCallback, elevator_, ON_NEW_DATA);
 #if DEBUG
   snprintf(diagnostic_message, sizeof(diagnostic_message),
            "INFO [TMicroRos::createEntities] "
@@ -407,7 +407,7 @@ bool TMicroRos::CreateEntities() {
 
   rclc_result = rclc_executor_add_subscription_with_context(
       &executor_, &extender_command_subscriber_, &extender_command_msg_,
-      &TMotorClass::HandleMoveTopicCallback, extender_, ON_NEW_DATA);
+      &TMicroRos::HandleMoveTopicCallback, extender_, ON_NEW_DATA);
 #if DEBUG
   snprintf(diagnostic_message, sizeof(diagnostic_message),
            "INFO [TMicroRos::createEntities] "
@@ -419,13 +419,12 @@ bool TMicroRos::CreateEntities() {
 
   rclc_result = rclc_executor_add_subscription_with_context(
       &executor_, &cmd_vel_gripper_subscriber_, &cmd_vel_gripper_msg_,
-      &TMicroRos::HandleCmdVelGripperCallback, this, ON_NEW_DATA);
+      &TMicroRos::HandleCmdVelGripperCallback, nullptr, ON_NEW_DATA);
 #if DEBUG
-  snprintf(
-      diagnostic_message, sizeof(diagnostic_message),
-      "INFO [TMicroRos::createEntities] "
-      "rclc_executor_add_subscription_with_context cmd_vel_gripper result: %ld",
-      rclc_result);
+  snprintf(diagnostic_message, sizeof(diagnostic_message),
+           "INFO [TMicroRos::createEntities] "
+           "rclc_executor_add_subscription_with_context cmd_vel_gripper result: %ld",
+           rclc_result);
   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
 #endif
 
@@ -515,7 +514,7 @@ bool TMicroRos::CreateEntities() {
 #endif
   rclc_result = rclc_executor_add_service_with_context(
       &executor_, &elevator_gripper_service_, &elevator_request_msg_,
-      &elevator_response_msg_, &TMotorClass::HandleGripperServiceCallback,
+      &elevator_response_msg_, &TMicroRos::HandleGripperServiceCallback,
       (void *)elevator_);
 
   // Create extender gripper service.
@@ -533,7 +532,7 @@ bool TMicroRos::CreateEntities() {
 #endif
   rclc_result = rclc_executor_add_service_with_context(
       &executor_, &extender_gripper_service_, &extender_request_msg_,
-      &extender_response_msg_, &TMotorClass::HandleGripperServiceCallback,
+      &extender_response_msg_, &TMicroRos::HandleGripperServiceCallback,
       (void *)extender_);
 
   return true;
@@ -575,25 +574,52 @@ volatile int64_t TMicroRos::ros_sync_time_ = 0;
 TMotorClass *TMicroRos::elevator_ = nullptr;
 TMotorClass *TMicroRos::extender_ = nullptr;
 
-void TMicroRos::HandleCmdVelGripperCallback(const void *msg, void *context) {
-  const geometry_msgs__msg__Twist *twist =
-      (const geometry_msgs__msg__Twist *)msg;
-  TMicroRos *self = (TMicroRos *)context;
+// Add static callback handlers for ROS subscriptions and services
+void TMicroRos::HandleMoveTopicCallback(const void *msg, void *context) {
+  TMotorClass *motor = (TMotorClass *)context;
+  const std_msgs__msg__Float32 *command = (const std_msgs__msg__Float32 *)msg;
   char diagnostic_message[256];
-  snprintf(
-      diagnostic_message, sizeof(diagnostic_message),
-      "[TMicroRos::HandleCmdVelGripperCallback] linear.x: %f, angular.z: %f",
-      twist->linear.x, twist->angular.z);
+  snprintf(diagnostic_message, sizeof(diagnostic_message),
+           "INFO [TMicroRos::HandleMoveTopicCallback] command->data: %4.3f",
+           command->data);
   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+  motor->SetTargetPosition(command->data);
+}
 
-  // Move elevator if linear.x is nonzero
-  if (twist->linear.x != 0.0f && self->elevator_) {
-    float step = 0.005f * (twist->linear.x > 0 ? 1 : -1);
-    self->elevator_->MoveByDelta(step);
+void TMicroRos::HandleCmdVelGripperCallback(const void *msg, void *context) {
+  const geometry_msgs__msg__Twist *twist = (const geometry_msgs__msg__Twist *)msg;
+  char diagnostic_message[256];
+  snprintf(diagnostic_message, sizeof(diagnostic_message),
+    "[TMicroRos::HandleCmdVelGripperCallback] linear.x: %f, angular.z: %f",
+    twist->linear.x, twist->angular.z);
+  TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+  // Move elevator by 1 mm per message if linear.x is nonzero
+  TMotorClass* elevator = TMicroRos::get_elevator();
+  if (twist->linear.x > 0.0f && elevator) {
+    // elevator->MoveByDelta(0.001f);
+    elevator->SetTargetPosition(
+        elevator->get_current_position() + 0.001f);
+  } else if (twist->linear.x < 0.0f && elevator) {
+    // elevator->MoveByDelta(-0.001f);
+    elevator->SetTargetPosition(
+        elevator->get_current_position() - 0.001f);
   }
-  // Move extender if angular.z is nonzero
-  if (twist->angular.z != 0.0f && self->extender_) {
-    float step = 0.005f * (twist->angular.z > 0 ? 1 : -1);
-    self->extender_->MoveByDelta(step);
+  // Move extender by 1 mm per message if angular.z is nonzero
+  TMotorClass* extender = TMicroRos::get_extender();
+  if (twist->angular.z > 0.0f && extender) {
+    // extender->MoveByDelta(0.001f);
+    extender->SetTargetPosition(
+        extender->get_current_position() + 0.001f);
+  } else if (twist->angular.z < 0.0f && extender) {
+    // extender->MoveByDelta(-0.001f);
+    extender->SetTargetPosition(
+        extender->get_current_position() - 0.001f);
   }
+}
+
+void TMicroRos::HandleGripperServiceCallback(const void *request_msg, void *response_msg, void *context) {
+  TMotorClass *motor = (TMotorClass *)context;
+  sigyn_interfaces__srv__GripperPosition_Response *res_in =
+      (sigyn_interfaces__srv__GripperPosition_Response *)response_msg;
+  res_in->position = motor->get_current_position();
 }
