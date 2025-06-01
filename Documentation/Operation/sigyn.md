@@ -52,8 +52,10 @@ This introduces the topics:
 
 ## On terminal 3
 ```bash
-ssh sigynPiServo
-python3 videoServer.py
+ssh sigynVision
+cd ~/sigyn_video_server_ws
+python3 videoServer.py &
+ros2 launch sigyn_testicle_twister sigyn_testicle_twister
 ```
 
 ## On terminal 4
