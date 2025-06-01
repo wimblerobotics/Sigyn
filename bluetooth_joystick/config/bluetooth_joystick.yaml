@@ -10,3 +10,6 @@ bluetooth_joystick:
     cmdvel_message_rate: 30
     gripper_message_rate: 600
     joystick_message_rate: 100
+    gripper_open_value: 1000
+    gripper_close_value: -1000
+    cmdvel_twister_topic: "cmd_vel_testicle_twister"

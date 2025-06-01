@@ -18,6 +18,7 @@ rclcpp::Publisher<msgs::msg::BluetoothJoystick>::SharedPtr
     bluetooth_joystick_publisher;
 rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmdvel_publisher;
 rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr gripper_publisher;
+rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr twister_publisher;
 std::shared_ptr<rclcpp::TimerBase> publish_timer;
 std::shared_ptr<rclcpp::TimerBase> cmdvel_publish_timer;
 std::shared_ptr<rclcpp::TimerBase> gripper_publish_timer;
@@ -27,6 +28,9 @@ int message_rate = 15;
 int cmdvel_message_rate = 30;
 int gripper_message_rate = 600;
 int joystick_message_rate = 100;
+int gripper_open_value = 1000;
+int gripper_close_value = -1000;
+std::string cmdvel_twister_topic;
 std::shared_ptr<rclcpp::Node> node;
 double scale_x;
 double scale_z;
@@ -232,8 +236,6 @@ void CaptureJoystickEvent() {
               message.button_r2 = r2 = event.value ? 1 : 0;
               break;
           }
-          // printf("Button %u %s\n", event.number, event.value ? "pressed" :
-          // "released");
           break;
         case JS_EVENT_AXIS:
           axis = GetAxisState(&event, axes);
@@ -264,6 +266,35 @@ void CaptureJoystickEvent() {
 
   close(js);
   RCUTILS_LOG_INFO("[bluetooth_joystick_node] device loop shutdown");
+}
+
+void TwisterButtonThread() {
+  rclcpp::Rate rate(10);
+  int last_r1 = 0;
+  int last_r2 = 0;
+  while (rclcpp::ok()) {
+    int r1, r2;
+    {
+      // Lock mutex to safely read button states
+      const std::lock_guard<std::mutex> lock(some_button_changed_state_guard);
+      r1 = message.button_r1;
+      r2 = message.button_r2;
+    }
+    // Only send if button_r1 or button_r2 is pressed (edge or level)
+    if (r1 && !last_r1) {
+      geometry_msgs::msg::Twist twist;
+      twist.linear.x = gripper_open_value;
+      twister_publisher->publish(twist);
+    }
+    if (r2 && !last_r2) {
+      geometry_msgs::msg::Twist twist;
+      twist.linear.x = gripper_close_value;
+      twister_publisher->publish(twist);
+    }
+    last_r1 = r1;
+    last_r2 = r2;
+    rate.sleep();
+  }
 }
 
 int main(int argc, char *argv[]) {
@@ -326,6 +357,14 @@ int main(int argc, char *argv[]) {
   node->get_parameter("scale_z", scale_z);
   RCUTILS_LOG_INFO("[bluetooth_joystick_node] scale_z: %f", scale_z);
 
+  node->declare_parameter<int>("gripper_open_value", 1000);
+  node->get_parameter("gripper_open_value", gripper_open_value);
+  node->declare_parameter<int>("gripper_close_value", -1000);
+  node->get_parameter("gripper_close_value", gripper_close_value);
+  node->declare_parameter<std::string>("cmdvel_twister_topic", "cmd_vel_testicle_twister");
+  node->get_parameter("cmdvel_twister_topic", cmdvel_twister_topic);
+  twister_publisher = node->create_publisher<geometry_msgs::msg::Twist>(cmdvel_twister_topic, qos);
+
   // Start the joystick event thread
   std::thread deviceEventThread(CaptureJoystickEvent);
 
@@ -342,8 +381,11 @@ int main(int argc, char *argv[]) {
   publish_timer = node->create_wall_timer(
       std::chrono::duration<double>(joy_period_sec), PublishJoystickMessages);
 
+  std::thread twisterThread(TwisterButtonThread);
+
   rclcpp::spin(node);
   deviceEventThread.join();
+  twisterThread.join();
   rclcpp::shutdown();
   return 0;
 }
