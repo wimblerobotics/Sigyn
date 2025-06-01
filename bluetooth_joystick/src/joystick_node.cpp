@@ -107,17 +107,11 @@ bool some_button_changed_state = false;
 std::mutex some_button_changed_state_guard;
 
 // Helper to check if a joystick is at zero
-bool IsStickZero(int16_t lr, int16_t ud) {
-  return lr == 0 && ud == 0;
-}
-
-bool ShouldPublishMessages() {
-  return some_button_changed_state || !IsStickZero(message.axis0_lr, message.axis0_ud) || !IsStickZero(message.axis1_lr, message.axis1_ud);
-}
+inline bool IsStickZero(int16_t lr, int16_t ud) { return lr == 0 && ud == 0; }
 
 void PublishCmdvelTimerCallback() {
   static bool was_active = false;
-  if (!IsStickZero(message.axis0_lr, message.axis0_ud)) {
+  if (message.button_l2 == 1) {
     geometry_msgs::msg::Twist twist;
     twist.linear.x = (double)message.axis0_ud / axis_range_normalizer;
     twist.angular.z = (double)message.axis0_lr / axis_range_normalizer;
@@ -126,6 +120,8 @@ void PublishCmdvelTimerCallback() {
     twist.linear.x *= scale_x;
     twist.angular.z *= scale_z;
     cmdvel_publisher->publish(twist);
+    RCUTILS_LOG_DEBUG("Publishing cmdvel: linear.x = %f, angular.z = %f",
+                      twist.linear.x, twist.angular.z);
     was_active = true;
   } else if (was_active) {
     // Deadman stick released, send zero message
@@ -133,12 +129,14 @@ void PublishCmdvelTimerCallback() {
     twist.linear.x = 0.0;
     twist.angular.z = 0.0;
     cmdvel_publisher->publish(twist);
+    RCUTILS_LOG_DEBUG(
+        "deadman released Publishing cmdvel: linear.x = 0.0, angular.z = 0.0");
     was_active = false;
   }
 }
 
 void PublishGripperTimerCallback() {
-  if (!IsStickZero(message.axis1_lr, message.axis1_ud)) {
+  if (message.button_l2 == 1) {
     geometry_msgs::msg::Twist twist;
     twist.linear.x = (double)message.axis1_ud / axis_range_normalizer;
     twist.angular.z = (double)message.axis1_lr / axis_range_normalizer;
@@ -152,7 +150,7 @@ void PublishJoystickMessages() {
 
 void PublishMessagesTimerCallback() {
   // Only publish if a control surface is touched
-  if (some_button_changed_state || !IsStickZero(message.axis0_lr, message.axis0_ud) || !IsStickZero(message.axis1_lr, message.axis1_ud)) {
+  if (some_button_changed_state) {
     PublishJoystickMessages();
     const std::lock_guard<std::mutex> lock(some_button_changed_state_guard);
     some_button_changed_state = false;
@@ -215,7 +213,8 @@ void CaptureJoystickEvent() {
       message.button_r2 = r2;
       switch (event.type) {
         case JS_EVENT_BUTTON: {
-          const std::lock_guard<std::mutex> lock(some_button_changed_state_guard);
+          const std::lock_guard<std::mutex> lock(
+              some_button_changed_state_guard);
           some_button_changed_state = true;
         }
           switch (event.number) {
@@ -267,7 +266,7 @@ void CaptureJoystickEvent() {
           /* Ignore init events. */
           break;
       }  // switch (event.type)
-    }    // while (ReadEvent(js, &event) == 0)
+    }  // while (ReadEvent(js, &event) == 0)
 
     js = -1;
   }  // while (rclcpp::ok())
@@ -323,14 +322,16 @@ int main(int argc, char *argv[]) {
   node->declare_parameter<std::string>("cmdvel_topic",
                                        "!!NO_JOYSTICK_TOPIC_SPECIFIED");
   node->get_parameter("cmdvel_topic", cmdvel_topic);
-  RCUTILS_LOG_INFO("[bluetooth_joystick_node] cmd_vel_topic: %s", cmdvel_topic.c_str());
+  RCUTILS_LOG_INFO("[bluetooth_joystick_node] cmd_vel_topic: %s",
+                   cmdvel_topic.c_str());
   cmdvel_publisher =
       node->create_publisher<geometry_msgs::msg::Twist>(cmdvel_topic, qos);
 
   std::string gripper_topic;
   node->declare_parameter<std::string>("gripper_topic", "cmd_vel_gripper");
   node->get_parameter("gripper_topic", gripper_topic);
-  RCUTILS_LOG_INFO("[bluetooth_joystick_node] gripper_topic: %s", gripper_topic.c_str());
+  RCUTILS_LOG_INFO("[bluetooth_joystick_node] gripper_topic: %s",
+                   gripper_topic.c_str());
   gripper_publisher =
       node->create_publisher<geometry_msgs::msg::Twist>(gripper_topic, qos);
 
@@ -350,12 +351,15 @@ int main(int argc, char *argv[]) {
   node->get_parameter("cmdvel_message_rate", cmdvel_message_rate);
   node->declare_parameter<int>("gripper_message_rate", 600);
   node->get_parameter("gripper_message_rate", gripper_message_rate);
-  RCUTILS_LOG_INFO("[bluetooth_joystick_node] cmdvel_message_rate: %d", cmdvel_message_rate);
-  RCUTILS_LOG_INFO("[bluetooth_joystick_node] gripper_message_rate: %d", gripper_message_rate);
+  RCUTILS_LOG_INFO("[bluetooth_joystick_node] cmdvel_message_rate: %d",
+                   cmdvel_message_rate);
+  RCUTILS_LOG_INFO("[bluetooth_joystick_node] gripper_message_rate: %d",
+                   gripper_message_rate);
 
   node->declare_parameter<int>("joystick_message_rate", 100);
   node->get_parameter("joystick_message_rate", joystick_message_rate);
-  RCUTILS_LOG_INFO("[bluetooth_joystick_node] joystick_message_rate: %d", joystick_message_rate);
+  RCUTILS_LOG_INFO("[bluetooth_joystick_node] joystick_message_rate: %d",
+                   joystick_message_rate);
 
   node->declare_parameter<double>("scale_x", 1.0);
   node->get_parameter("scale_x", scale_x);
@@ -369,9 +373,11 @@ int main(int argc, char *argv[]) {
   node->get_parameter("gripper_open_value", gripper_open_value);
   node->declare_parameter<int>("gripper_close_value", -1000);
   node->get_parameter("gripper_close_value", gripper_close_value);
-  node->declare_parameter<std::string>("cmdvel_twister_topic", "cmd_vel_testicle_twister");
+  node->declare_parameter<std::string>("cmdvel_twister_topic",
+                                       "cmd_vel_testicle_twister");
   node->get_parameter("cmdvel_twister_topic", cmdvel_twister_topic);
-  twister_publisher = node->create_publisher<geometry_msgs::msg::Twist>(cmdvel_twister_topic, qos);
+  twister_publisher = node->create_publisher<geometry_msgs::msg::Twist>(
+      cmdvel_twister_topic, qos);
 
   // Start the joystick event thread
   std::thread deviceEventThread(CaptureJoystickEvent);
@@ -379,10 +385,12 @@ int main(int argc, char *argv[]) {
   // Start the timers for publishing messages
   double cmdvel_period_sec = 1.0 / static_cast<double>(cmdvel_message_rate);
   double gripper_period_sec = 1.0 / static_cast<double>(gripper_message_rate);
-  cmdvel_publish_timer = node->create_wall_timer(
-      std::chrono::duration<double>(cmdvel_period_sec), PublishCmdvelTimerCallback);
-  gripper_publish_timer = node->create_wall_timer(
-      std::chrono::duration<double>(gripper_period_sec), PublishGripperTimerCallback);
+  cmdvel_publish_timer =
+      node->create_wall_timer(std::chrono::duration<double>(cmdvel_period_sec),
+                              PublishCmdvelTimerCallback);
+  gripper_publish_timer =
+      node->create_wall_timer(std::chrono::duration<double>(gripper_period_sec),
+                              PublishGripperTimerCallback);
 
   // BluetoothJoystick message publisher (unchanged, can be at any rate)
   double joy_period_sec = 1.0 / static_cast<double>(joystick_message_rate);
