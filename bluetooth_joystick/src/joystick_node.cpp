@@ -24,7 +24,6 @@ std::shared_ptr<rclcpp::TimerBase> cmdvel_publish_timer;
 std::shared_ptr<rclcpp::TimerBase> gripper_publish_timer;
 double dead_zone = 0.0;
 std::string device_name;
-int message_rate = 15;
 int cmdvel_message_rate = 30;
 int gripper_message_rate = 600;
 int joystick_message_rate = 100;
@@ -117,6 +116,7 @@ bool ShouldPublishMessages() {
 }
 
 void PublishCmdvelTimerCallback() {
+  static bool was_active = false;
   if (!IsStickZero(message.axis0_lr, message.axis0_ud)) {
     geometry_msgs::msg::Twist twist;
     twist.linear.x = (double)message.axis0_ud / axis_range_normalizer;
@@ -126,6 +126,14 @@ void PublishCmdvelTimerCallback() {
     twist.linear.x *= scale_x;
     twist.angular.z *= scale_z;
     cmdvel_publisher->publish(twist);
+    was_active = true;
+  } else if (was_active) {
+    // Deadman stick released, send zero message
+    geometry_msgs::msg::Twist twist;
+    twist.linear.x = 0.0;
+    twist.angular.z = 0.0;
+    cmdvel_publisher->publish(twist);
+    was_active = false;
   }
 }
 
