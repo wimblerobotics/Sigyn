@@ -4,12 +4,12 @@ twist_multiplexer_node:
     topics:
       -
         name: "joystick"
-        topic: "cmd_vel_joystick"
+        topic: "/cmd_vel_joystick"
         timeout: 0.5
         priority: 30
       -
         name: "keyboard"
-        topic: "cmd_vel_keyboard"
+        topic: "/cmd_vel_keyboard"
         timeout: 0.5
         priority: 20
       -

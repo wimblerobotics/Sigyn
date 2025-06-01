@@ -56,31 +56,35 @@ auto lastCommandPoppedTime = std::chrono::steady_clock::now();
 
 bool canAcceptNewMessage(const string &topic, int priority)
 {
-    // Can accept a new message if any of the following is true:
-    // 1. No previous messag) has been received yet.
-    // 2. The current message is a higher priority than the previous message.
-    // 3. The current message is the same topic as the previous message.
-    // 4. The previous message timeout has expired.
-    if (currentMessage.priority == -1)
+    if (currentMessage.priority == -1) {
+        RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Accepting new message: no previous message");
         return true; // No message seen yet.
-
+    }
     std::chrono::duration<double> secondsSinceLastMessage = std::chrono::steady_clock::now() - lastCommandPoppedTime;
-    if (priority > currentMessage.priority) return true;
-    if (currentMessage.topic == topic)
+    if (priority > currentMessage.priority) {
+        RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Accepting new message: higher priority (%d > %d)", priority, currentMessage.priority);
         return true;
-    if (secondsSinceLastMessage.count() > currentMessage.timeout)
+    }
+    if (currentMessage.topic == topic) {
+        RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Accepting new message: same topic (%s)", topic.c_str());
         return true;
-    else
-        return false;
+    }
+    if (secondsSinceLastMessage.count() > currentMessage.timeout) {
+        RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Accepting new message: timeout expired (%.2f > %.2f)", secondsSinceLastMessage.count(), currentMessage.timeout);
+        return true;
+    }
+    RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Rejecting new message: lower priority and not timed out");
+    return false;
 }
 
-class CmdVelSubscriber : public rclcpp::Node
+class CmdVelSubscriber
 {
 public:
-    CmdVelSubscriber(string nodeName = "<NoName>") : Node(nodeName)
+    CmdVelSubscriber(string nodeName = "<NoName>")
     {
         priority_ = -1;
         subscription_ = nullptr;
+        nodeName_ = nodeName;
     }
 
     void init(string &topic, int priority, float timeout)
@@ -95,17 +99,28 @@ public:
     int priority_;
     float timeout_;
     string topic_;
+    string nodeName_;
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr subscription_;
 
     void topicCallback(const geometry_msgs::msg::Twist::SharedPtr msg)
     {
         if (!deadmanSwitch)
         {
+            RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Received Twist message on topic: %s, priority: %d", topic_.c_str(), priority_);
             CmdVelMessage m(*msg, priority_, timeout_, topic_);
             if (canAcceptNewMessage(topic_, priority_))
             {
+                RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Pushing message to queue from topic: %s", topic_.c_str());
                 messageQueue.push(m);
             }
+            else
+            {
+                RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Message from topic %s not accepted (priority: %d)", topic_.c_str(), priority_);
+            }
+        }
+        else
+        {
+            RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Deadman switch active, ignoring Twist message on topic: %s", topic_.c_str());
         }
     }
 };
@@ -226,7 +241,27 @@ void processConfiguration(int argc, char *argv[])
 
 void bluetoothJoystickCallback(const msgs::msg::BluetoothJoystick::SharedPtr msg)
 {
+    bool prevDeadman = deadmanSwitch;
     deadmanSwitch = msg->button_l2 == 0;
+    RCUTILS_LOG_DEBUG("[twist_multiplexer_node] BluetoothJoystick callback: button_l2=%d, deadmanSwitch=%d", msg->button_l2, deadmanSwitch);
+    if (deadmanSwitch && !prevDeadman) {
+        // Deadman just activated: clear queue and reset current message
+        RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Deadman switch activated: clearing joystick messages from queue and stopping output");
+        // Remove all messages from cmd_vel_joystick from the queue
+        std::priority_queue<CmdVelMessage> newQueue;
+        while (!messageQueue.empty()) {
+            CmdVelMessage m = messageQueue.top();
+            messageQueue.pop();
+            if (m.topic != "cmd_vel_joystick") {
+                newQueue.push(m);
+            }
+        }
+        messageQueue = std::move(newQueue);
+        // If the current message is from joystick, reset it
+        if (currentMessage.topic == "cmd_vel_joystick") {
+            currentMessage = CmdVelMessage();
+        }
+    }
 }
 
 int main(int argc, char *argv[])
@@ -248,10 +283,27 @@ int main(int argc, char *argv[])
     {
         if (!messageQueue.empty())
         {
+            // If deadman is active, skip joystick messages
+            if (deadmanSwitch && messageQueue.top().topic == "cmd_vel_joystick") {
+                RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Deadman switch active: skipping joystick message");
+                messageQueue.pop();
+                continue;
+            }
             currentMessage = messageQueue.top();
+            // Prevent publishing if deadman is active and current message is from joystick
+            if (deadmanSwitch && currentMessage.topic == "cmd_vel_joystick") {
+                RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Deadman switch active: not publishing joystick message");
+                messageQueue.pop();
+                currentMessage = CmdVelMessage();
+                continue;
+            }
+            RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Publishing Twist message from topic: %s, priority: %d", currentMessage.topic.c_str(), currentMessage.priority);
             twistPublisher->publish(currentMessage.message);
             messageQueue.pop();
             lastCommandPoppedTime = std::chrono::steady_clock::now();
+        }
+        else {
+            RCLCPP_DEBUG_THROTTLE(rosNode->get_logger(), *rosNode->get_clock(), 2000, "[twist_multiplexer_node] Message queue empty, nothing to publish");
         }
         rclcpp::spin_some(rosNode);
         loopRate.sleep();
