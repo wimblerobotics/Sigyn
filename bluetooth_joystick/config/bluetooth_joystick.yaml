@@ -3,11 +3,10 @@ bluetooth_joystick:
     device_name: "/dev/input/nimbus_steelseries"
     cmdvel_topic: "cmd_vel_joystick"
     deadzone_percent: 5.0
-    message_rate: 500
     scale_x: 0.25
-    scale_z: 0.0625
+    scale_z: 0.25
     gripper_topic: "cmd_vel_gripper"
-    cmdvel_message_rate: 30
+    cmdvel_message_rate: 10
     gripper_message_rate: 600
     joystick_message_rate: 100
     gripper_open_value: 1000
