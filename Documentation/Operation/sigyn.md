@@ -53,7 +53,7 @@ This introduces the topics:
 ## On terminal 3
 ```bash
 ssh sigynVision
-cd ~/sigyn_video_server_ws
+cd ~/sigyn_video_server
 python3 videoServer.py &
 ros2 launch sigyn_testicle_twister sigyn_testicle_twister
 ```
