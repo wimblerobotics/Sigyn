@@ -16,7 +16,7 @@ void RoboclawModule::loop() {
     
     // Send status message at configured rate
     if (current_time - last_status_send_time >= status_send_interval) {
-        sendStatusMessage();
+        // sendStatusMessage();
         last_status_send_time = current_time;
     }
     

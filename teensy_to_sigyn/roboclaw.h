@@ -14,7 +14,7 @@ protected:
   void loop();
 
   // From TModule.
-  const char *name() { return "Batt"; }
+  const char *name() { return "Claw"; }
 
   // From TModule.
   void setup();

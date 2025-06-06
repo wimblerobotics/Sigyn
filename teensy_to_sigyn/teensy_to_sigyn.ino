@@ -1,14 +1,19 @@
 #include <Arduino.h>
 
 #include "battery.h"
+#include "diagnostic_message.h"
 #include "roboclaw.h"
 #include "tmodule.h"
 
 RoboclawModule& roboclaw = RoboclawModule::singleton();
-BatteryModule& battery = BatteryModule::singleton();
+// BatteryModule& battery = BatteryModule::singleton();
+DiagnosticMessage& diagnostic_message = DiagnosticMessage::singleton();
+
+// Buffer for accumulating incoming serial data
+String serialBuffer;
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(921600);
   while (!Serial) {
     ;  // Wait for serial port to connect
   }
@@ -21,13 +26,21 @@ void setup() {
 void loop() {
   TModule::DoLoop();
 
-  // Handle incoming serial messages
-  if (Serial.available()) {
-    String message = Serial.readStringUntil('\n');
-    handleIncomingMessage(message);
+  // Non-blocking serial read and message handling
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\r' || c == '\n') {
+      if (serialBuffer.length() > 0) {
+        handleIncomingMessage(serialBuffer);
+        serialBuffer = "";
+      }
+      // If multiple newlines in a row, just skip
+    } else {
+      serialBuffer += c;
+    }
   }
 
-  delay(1);  // Small delay to prevent overwhelming the loop
+  // delay(1);  // Small delay to prevent overwhelming the loop
 }
 
 void handleIncomingMessage(const String& message) {

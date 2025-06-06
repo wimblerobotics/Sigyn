@@ -1,6 +1,4 @@
-#ifndef BATTERY_H
-#define BATTERY_H
-
+#pragma once
 #include "tmodule.h"
 #include <Arduino.h>
 
@@ -35,5 +33,3 @@ private:
   // Singleton instance.
   static BatteryModule *g_singleton_;
 };
-
-#endif
