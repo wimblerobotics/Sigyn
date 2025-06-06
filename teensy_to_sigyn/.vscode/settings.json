@@ -1,0 +1,23 @@
+{
+  "C_Cpp.clang_format_style": "Google",
+  "C_Cpp.clang_format_fallbackStyle": "Google",
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "[cpp]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.defaultFormatter": "xaver.clang-format"
+  },
+  "[c]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.defaultFormatter": "xaver.clang-format"
+  },
+  "files.associations": {
+    "typeinfo": "cpp",
+    "source_location": "cpp",
+    "stacktrace": "cpp",
+    "iterator": "cpp",
+    "cstdint": "cpp"
+  }
+}
