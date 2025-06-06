@@ -34,10 +34,10 @@ class TModule {
   // Used only to definitely define NUMBER_MODULES.
   typedef enum Module {
     kBattery,
+    kDiagnosticMessage,
     kMicroRos, // Make this the first module as it is used for diagnostic reporting.
     kMotorCurrent,
     kProximityPanel,
-    kRelay,
     kRoboClaw,
     kSd,
     kNumberModules  // The number of all possible modules.

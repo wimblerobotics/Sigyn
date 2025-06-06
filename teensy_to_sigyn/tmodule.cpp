@@ -3,8 +3,8 @@
 #include <Arduino.h>
 #include <stdint.h>
 
+#include "diagnostic_message.h"
 #include "tconfiguration.h"
-// #include "tmicro_ros.h"
 #define DO_TIMING true
 
 #ifdef __arm__
@@ -30,20 +30,19 @@ void TModule::GetStatistics(char* outString, size_t outStringSize) {
 
   for (size_t i = 0; i < kNumberModules; i++) {
     if (all_modules_[i] != nullptr) {
-      TModule* module = all_modules_[i];
-      static size_t MAXLEN = 512;
-      char temp[MAXLEN];
-      temp[0] = '\0';
-      snprintf(temp, MAXLEN,
-               "{\"n\":\"%-s\",\"MnMxAv\":[%-2.1f,%-2.1f,%-2.1f]},",
-               all_modules_[i]->name(), module->duration_stats_[kMin],
-               module->duration_stats_[kMax],
-               module->duration_stats_[kSum] / total_do_loop_count_);
-      strcat(statList, temp);
-      module->loop_calls_between_get_statistics_calls_ = 0;
-      module->duration_stats_[kMin] = 10'000'000.0;
-      module->duration_stats_[kMax] = -10'000'000.0;
-      module->duration_stats_[kSum] = 0.0;
+        static size_t MAXLEN = 512;
+        char temp[MAXLEN];
+        TModule* module = all_modules_[i];
+        temp[0] = '\0';
+        snprintf(temp, MAXLEN, "{\"n\":\"%-s\",\"MnMxAv\":[%-2.1f,%-2.1f,%-2.1f]},",
+                 module->name(), module->duration_stats_[kMin],
+                 module->duration_stats_[kMax],
+                 module->duration_stats_[kSum] / total_do_loop_count_);
+        strcat(statList, temp);
+        module->loop_calls_between_get_statistics_calls_ = 0;
+        module->duration_stats_[kMin] = 10'000'000.0;
+        module->duration_stats_[kMax] = -10'000'000.0;
+        module->duration_stats_[kSum] = 0.0;
     }
   }
 
@@ -61,9 +60,10 @@ void TModule::GetStatistics(char* outString, size_t outStringSize) {
 }
 
 void TModule::DoLoop() {
-  char diagnostic_message[256];
+  // char diagnostic_message[256];
   if (TM5::kDoDetailDebug) {
-    // TMicroRos::singleton().PublishDiagnostic("INFO [TModule::DoLoop] >> enter");
+    // TMicroRos::singleton().PublishDiagnostic("INFO [TModule::DoLoop] >>
+    // enter");
   }
 
   // {
@@ -80,13 +80,6 @@ void TModule::DoLoop() {
   for (size_t i = 0; i < kNumberModules; i++) {
     if (all_modules_[i] != nullptr) {
       TModule* module = all_modules_[i];
-      if (TM5::kDoDetailDebug) {
-        snprintf(diagnostic_message, sizeof(diagnostic_message),
-                 "INFO [TModule::DoLoop] about to loop on: %s",
-                 all_modules_[i]->name());
-        // TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
-      }
-
       uint32_t start = micros();
 
       all_modules_[i]->loop();
@@ -106,19 +99,23 @@ void TModule::DoLoop() {
   }
 
   total_do_loop_count_++;
-  if (TM5::kDoDetailDebug) {
-    snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TModule::DoLoop] << exit, total_do_loop_count: %ld",
-             total_do_loop_count_);
-    // TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+
+  static unsigned long last_status_send_time = millis();
+  unsigned long current_time = millis();
+  if (current_time - last_status_send_time >=
+      1000 /*TM5::kStatusSendInterval*/) {
+    last_status_send_time = current_time;
+    char stats[2048];
+    GetStatistics(stats, sizeof(stats));
+    DiagnosticMessage::singleton().sendMessage(stats);
   }
 }
 
 void TModule::DoSetup() {
-  if (TM5::kDoDetailDebug) {
-    // TMicroRos::singleton().PublishDiagnostic(
-    //     "INFO [TModule::DoSetup] >> enter");
-  }
+  // if (TM5::kDoDetailDebug) {
+  //   // TMicroRos::singleton().PublishDiagnostic(
+  //   //     "INFO [TModule::DoSetup] >> enter");
+  // }
 
   for (int i = 0; i < kNumberModules; i++) {
     if (all_modules_[i] != nullptr) {
@@ -126,9 +123,10 @@ void TModule::DoSetup() {
     }
   }
 
-  if (TM5::kDoDetailDebug) {
-    // TMicroRos::singleton().PublishDiagnostic("INFO [TModule::DoSetup] << exit");
-  }
+  // if (TM5::kDoDetailDebug) {
+  //   // TMicroRos::singleton().PublishDiagnostic("INFO [TModule::DoSetup] <<
+  //   // exit");
+  // }
 }
 
 TModule* TModule::all_modules_[TModule::kNumberModules + 1] = {

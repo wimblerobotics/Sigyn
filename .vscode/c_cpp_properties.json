@@ -7,10 +7,12 @@
         "limitSymbolsToIncludedHeaders": false
       },
       "includePath": [
+        "${workspaceFolder}",
+        "${workspaceFolder}/**",
         "/usr/include/**",
-        "/opt/ros/jazzy/include/**", // Update "foxy" to your ROS 2 distribution
-        "/home/ros/sigyn_ws/install/include/**",
-        "${workspaceFolder}/**"
+        "/opt/ros/jazzy/include/**",
+        "/home/ros/Arduino/libraries/**",
+        "/home/ros/.arduino15/packages/teensy/hardware/avr/1.59.0/cores/teensy4/**"
       ],
       "defines": [],
       "intelliSenseMode": "gcc-x64",
