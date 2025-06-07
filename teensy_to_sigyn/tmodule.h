@@ -38,6 +38,7 @@ class TModule {
     kMicroRos, // Make this the first module as it is used for diagnostic reporting.
     kMotorCurrent,
     kProximityPanel,
+    kRelay,
     kRoboClaw,
     kSd,
     kNumberModules  // The number of all possible modules.
