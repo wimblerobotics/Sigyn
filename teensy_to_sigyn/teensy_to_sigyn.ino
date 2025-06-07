@@ -2,12 +2,15 @@
 
 #include "battery.h"
 #include "diagnostic_message.h"
-#include "roboclaw.h"
 #include "tmodule.h"
+#include "trelay.h"
+#include "troboclaw.h"
 
-RoboclawModule& roboclaw = RoboclawModule::singleton();
-// BatteryModule& battery = BatteryModule::singleton();
+// RoboclawModule& roboclaw = RoboclawModule::singleton();
+BatteryModule& battery = BatteryModule::singleton();
 DiagnosticMessage& diagnostic_message = DiagnosticMessage::singleton();
+TRelay& relay = TRelay::singleton();
+TRoboClaw& roboclaw = TRoboClaw::singleton();
 
 // Buffer for accumulating incoming serial data
 String serialBuffer;

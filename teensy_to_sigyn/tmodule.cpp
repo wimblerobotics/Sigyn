@@ -62,7 +62,7 @@ void TModule::GetStatistics(char* outString, size_t outStringSize) {
 void TModule::DoLoop() {
   // char diagnostic_message[256];
   if (TM5::kDoDetailDebug) {
-    // TMicroRos::singleton().PublishDiagnostic("INFO [TModule::DoLoop] >>
+    // DiagnosticMessage::singleton().sendMessage("INFO [TModule::DoLoop] >>
     // enter");
   }
 
@@ -74,7 +74,7 @@ void TModule::DoLoop() {
   //   snprintf(diagnostic_message, sizeof(diagnostic_message),
   //            "INFO [TModule::DoLoop] free stack kb %d, free heap kb: %d",
   //            stack >> 10, heap >> 10);
-  //   TMicroRos::singleton().PublishDiagnostic(diagnostic_message);
+  //   DiagnosticMessage::singleton().sendMessage(diagnostic_message);
   // }
 
   for (size_t i = 0; i < kNumberModules; i++) {
@@ -113,7 +113,7 @@ void TModule::DoLoop() {
 
 void TModule::DoSetup() {
   // if (TM5::kDoDetailDebug) {
-  //   // TMicroRos::singleton().PublishDiagnostic(
+  //   // DiagnosticMessage::singleton().sendMessage(
   //   //     "INFO [TModule::DoSetup] >> enter");
   // }
 
@@ -124,12 +124,12 @@ void TModule::DoSetup() {
   }
 
   // if (TM5::kDoDetailDebug) {
-  //   // TMicroRos::singleton().PublishDiagnostic("INFO [TModule::DoSetup] <<
+  //   // DiagnosticMessage::singleton().sendMessage("INFO [TModule::DoSetup] <<
   //   // exit");
   // }
 }
 
 TModule* TModule::all_modules_[TModule::kNumberModules + 1] = {
-    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 
 uint32_t TModule::total_do_loop_count_ = 0;
