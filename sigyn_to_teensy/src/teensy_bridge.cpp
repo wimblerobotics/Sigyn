@@ -17,7 +17,7 @@ public:
     TeensyBridge() : Node("teensy_bridge"), serial_fd_(-1)
     {
         // Initialize serial connection
-        if (!initSerial("/dev/teensy_test", 115200)) {
+        if (!initSerial("/dev/teensy_sensor", 115200)) {
             RCLCPP_ERROR(this->get_logger(), "Failed to initialize serial connection");
             return;
         }
