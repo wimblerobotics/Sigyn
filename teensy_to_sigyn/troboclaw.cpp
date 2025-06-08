@@ -26,7 +26,7 @@ void TRoboClaw::CheckForMotorStall() {
   if (abs(motor_current = GetM1Current()) > kStallCurrentThreshold) {
     consecutiveStallFaultsLeftMotor += 1;
     snprintf(msg, sizeof(msg),
-             "WARN [TRoboclaw::CheckForMotorStall] M1 overcurrent: %f, "
+             "WARN:[TRoboclaw::CheckForMotorStall] M1 overcurrent: %f, "
              "consecutive faults: %ld",
              motor_current, consecutiveStallFaultsLeftMotor);
     DiagnosticMessage::singleton().sendMessage(msg);
@@ -37,7 +37,7 @@ void TRoboClaw::CheckForMotorStall() {
   if (abs(motor_current = GetM2Current()) > kStallCurrentThreshold) {
     consecutiveStallFaultsRightMotor += 1;
     snprintf(msg, sizeof(msg),
-             "WARN [TRoboclaw::CheckForMotorStall] M2 overcurrent: %f, "
+             "WARN:[TRoboclaw::CheckForMotorStall] M2 overcurrent: %f, "
              "consecutive faults: %ld",
              motor_current, consecutiveStallFaultsRightMotor);
     DiagnosticMessage::singleton().sendMessage(msg);
@@ -52,10 +52,10 @@ void TRoboClaw::CheckForMotorStall() {
   if (left_motor_stalled || right_motor_stalled) {
     if (left_motor_stalled) {
       DiagnosticMessage::singleton().sendMessage(
-          "ERROR [TRoboClaw::CheckForMotorStall] STALL for M1 (left) motor");
+          "ERROR:[TRoboClaw::CheckForMotorStall] STALL for M1 (left) motor");
     } else {
       DiagnosticMessage::singleton().sendMessage(
-          "ERROR [TRoboClaw::CheckForMotorStall] STALL for M2 (right) motor");
+          "ERROR:[TRoboClaw::CheckForMotorStall] STALL for M2 (right) motor");
     }
 
     TRelay::singleton().PowerOn(TRelay::kMotorEStop);  // E-stop the motors.
@@ -70,7 +70,7 @@ void TRoboClaw::DoMixedSpeedDist(int32_t m1_quad_pulses_per_second,
       (m1_quad_pulses_per_second == 0) && (m2_quad_pulses_per_second == 0)) {
     TRelay::singleton().PowerOff(TRelay::kMotorEStop);  // UN E-stop the motors.
     DiagnosticMessage::singleton().sendMessage(
-        "INFO [TRoboClaw::DoMixedSpeedDist] Removing E-Stop because of zero "
+        "INFO:[TRoboClaw::DoMixedSpeedDist] Removing E-Stop because of zero "
         "velocity command");
   }
 
@@ -88,18 +88,18 @@ void TRoboClaw::DoMixedSpeedAccelDist(uint32_t accel_quad_pulses_per_second,
       (m1_quad_pulses_per_second == 0) && (m2_quad_pulses_per_second == 0)) {
     TRelay::singleton().PowerOff(TRelay::kMotorEStop);  // UN E-stop the motors.
     DiagnosticMessage::singleton().sendMessage(
-        "INFO [TRoboClaw::DoMixedSpeedAccelDist] Removing E-Stop because of "
+        "INFO:[TRoboClaw::DoMixedSpeedAccelDist] Removing E-Stop because of "
         "zero velocity command");
   }
 
-  char msg[512];
-  snprintf(msg, sizeof(msg),
-           "INFO [TRoboClaw::DoMixedSpeedAccelDist] accel_qpps: %ld, m1_qpps: "
-           "%ld, m1_max_dist: %ld, m2_qpps: %ld, "
-           "m2_max_dist: %ld",
-           accel_quad_pulses_per_second, m1_quad_pulses_per_second,
-           m1_max_distance, m2_quad_pulses_per_second, m2_max_distance);
-  DiagnosticMessage::singleton().sendMessage(msg);
+  // char msg[512];
+  // snprintf(msg, sizeof(msg),
+  //          "INFO:[TRoboClaw::DoMixedSpeedAccelDist] accel_qpps: %ld, m1_qpps:"
+  //          "%ld, m1_max_dist: %ld, m2_qpps: %ld, "
+  //          "m2_max_dist: %ld",
+  //          accel_quad_pulses_per_second, m1_quad_pulses_per_second,
+  //          m1_max_distance, m2_quad_pulses_per_second, m2_max_distance);
+  // DiagnosticMessage::singleton().sendMessage(msg);
   g_roboclaw_.SpeedAccelDistanceM1M2(
       kDeviceAddress, accel_quad_pulses_per_second, m1_quad_pulses_per_second,
       m1_max_distance, m2_quad_pulses_per_second, m2_max_distance, 1);
@@ -115,7 +115,7 @@ bool TRoboClaw::GetCurrents() {
   bool valid = g_roboclaw_.ReadCurrents(kDeviceAddress, currentM1, currentM2);
   if (!valid) {
     DiagnosticMessage::singleton().sendMessage(
-        "ERROR [TRoboClaw::GetCurrents] fail");
+        "ERROR:[TRoboClaw::GetCurrents] fail");
     return false;
   } else {
     g_current_m1_10ma_ = currentM1;
@@ -130,7 +130,7 @@ bool TRoboClaw::GetEncoderM1() {
   int32_t value = g_roboclaw_.ReadEncM1(kDeviceAddress, &status, &valid);
   if (!valid) {
     DiagnosticMessage::singleton().sendMessage(
-        "ERROR [TRoboClaw::GetEncoderM1] fail");
+        "ERROR:[TRoboClaw::GetEncoderM1] fail");
     return false;
   } else {
     g_encoder_m1_ = value;
@@ -144,7 +144,7 @@ bool TRoboClaw::GetEncoderM2() {
   int32_t value = g_roboclaw_.ReadEncM2(kDeviceAddress, &status, &valid);
   if (!valid) {
     DiagnosticMessage::singleton().sendMessage(
-        "ERROR [TRoboClaw::GetEncoderM2] fail");
+        "ERROR:[TRoboClaw::GetEncoderM2] fail");
     return false;
   } else {
     g_encoder_m2_ = value;
@@ -160,7 +160,7 @@ bool TRoboClaw::GetLogicBattery() {
   voltage = g_roboclaw_.ReadLogicBatteryVoltage(kDeviceAddress, &valid);
   if (!valid) {
     DiagnosticMessage::singleton().sendMessage(
-        "ERROR [TRoboClaw::GetLogicBattery] fail");
+        "ERROR:[TRoboClaw::GetLogicBattery] fail");
     return false;
   } else {
     g_logic_battery_ = voltage;
@@ -186,7 +186,7 @@ bool TRoboClaw::GetMainBattery() {
   voltage = g_roboclaw_.ReadMainBatteryVoltage(kDeviceAddress, &valid);
   if (!valid) {
     DiagnosticMessage::singleton().sendMessage(
-        "ERROR [TRoboClaw::GetMainBattery] fail");
+        "ERROR:[TRoboClaw::GetMainBattery] fail");
     return false;
   } else {
     g_main_battery_ = voltage;
@@ -200,7 +200,7 @@ bool TRoboClaw::GetSpeedM1() {
   uint32_t speed = g_roboclaw_.ReadSpeedM1(kDeviceAddress, &status, &valid);
   if (!valid) {
     DiagnosticMessage::singleton().sendMessage(
-        "ERROR [TRoboClaw::GetSpeedM1] fail");
+        "ERROR:[TRoboClaw::GetSpeedM1] fail");
     g_speed_m1_ = std::numeric_limits<uint32_t>::min();
     return false;
   } else {
@@ -215,7 +215,7 @@ bool TRoboClaw::GetSpeedM2() {
   int32_t speed = g_roboclaw_.ReadSpeedM2(kDeviceAddress, &status, &valid);
   if (!valid) {
     DiagnosticMessage::singleton().sendMessage(
-        "ERROR [TRoboClaw::GetSpeedM2] fail");
+        "ERROR:[TRoboClaw::GetSpeedM2] fail");
     g_speed_m2_ = std::numeric_limits<uint32_t>::min();
     return false;
   } else {
@@ -233,13 +233,13 @@ bool TRoboClaw::GetVersion() {
     char msg[512];
     if (strcmp(version, kDeviceVersion) != 0) {
       snprintf(msg, sizeof(msg),
-               "ERROR [TRoboClaw::GetVersion] version mismatch, found: '%s'",
+               "ERROR:[TRoboClaw::GetVersion] version mismatch, found: '%s'",
                version);
       DiagnosticMessage::singleton().sendMessage(msg);
       return false;
     } else {
       snprintf(msg, sizeof(msg),
-               "INFO [TRoboClaw::GetVersion] version match, found: '%s'",
+               "INFO:[TRoboClaw::GetVersion] version match, found: '%s'",
                version);
       DiagnosticMessage::singleton().sendMessage(msg);
       version_matched = true;
@@ -247,7 +247,7 @@ bool TRoboClaw::GetVersion() {
     }
   } else if (!version_matched) {
     DiagnosticMessage::singleton().sendMessage(
-        "ERROR [TRoboClaw::GetVersion fail");
+        "ERROR:[TRoboClaw::GetVersion fail");
     return false;
   } else {
     return true;
@@ -334,7 +334,7 @@ void TRoboClaw::CheckForRunaway(TRoboClaw::WhichMotor whichMotor) {
       TRelay::singleton().PowerOn(TRelay::kMotorEStop);  // E-stop the motors.
       char msg[512];
       snprintf(msg, sizeof(msg),
-               "ERROR [TRoboClaw::Loop] RUNAWAY for motor: %s, "
+               "ERROR:[TRoboClaw::CheckForRunaway] RUNAWAY for motor: %s, "
                "duration_since_last_runaway_check_for_encoder: %-2.3f",
                motor_name, duration_since_last_runaway_check_for_encoder);
       DiagnosticMessage::singleton().sendMessage(msg);
@@ -428,8 +428,8 @@ void TRoboClaw::handleTwistMessage(const String& data) {
   if (commaIndex != -1) {
     linear_x_ = data.substring(0, commaIndex).toFloat();
     angular_z_ = data.substring(commaIndex + 1).toFloat();
-    last_twist_time_ = millis();
-
+    last_twist_received_time_ms_ = millis();
+  
     // Serial.print("Received twist: linear_x=");
     // Serial.print(linear_x);
     // Serial.print(", angular_z=");
@@ -440,14 +440,14 @@ void TRoboClaw::handleTwistMessage(const String& data) {
 void TRoboClaw::loop() {
   // Static variable to keep track of last time (in ms) we did the "every
   // second" code
-  static uint32_t last_second_tick = millis();
-  static uint32_t last_odom_pub_tick = micros();
+  static uint32_t start_loop_ms = millis();
+  static uint32_t last_odom_pub_usec = micros();
   static const uint32_t kOdomPubIntervalMs =
-      50;  // Publish odometry and handle cmd_vel every 50 ms
+      40;  // Publish odometry and handle cmd_vel every 40 ms
 
   // Check if one second has expired
-  uint32_t now = millis();
-  if (now - last_second_tick >= 1000) {
+  uint32_t now_ms = millis();
+  if (now_ms - start_loop_ms >= 1000) {
     if (g_state_ != kVersion) {
       const size_t MAXSIZE = 512;
       char msg[MAXSIZE];
@@ -472,13 +472,14 @@ void TRoboClaw::loop() {
       //       TSd::singleton().log(g_singleton_->string_msg_.data.data);
       // #endif
     }
-    last_second_tick = now;
+
+    start_loop_ms = now_ms;
   }
 
-  unsigned long current_time_us = micros();
-  unsigned long delta_time_us = current_time_us - last_odom_pub_tick;
-  double delta_time_minutes = ((double)delta_time_us) / 60'000'000;
-  if (delta_time_us >= (kOdomPubIntervalMs * 1000)) {
+  unsigned long current_time_usec = micros();
+  unsigned long delta_time_usec = current_time_usec - last_odom_pub_usec;
+  double delta_time_minutes = ((double)delta_time_usec) / 60'000'000;
+  if (delta_time_usec >= (kOdomPubIntervalMs * 1000)) {
     static const float kMaxSecondsUncommandedTravel = 0.05;
     static const int32_t kAccelQuadPulsesPerSecond = 1000;
     static Kinematics kinematics(
@@ -487,8 +488,15 @@ void TRoboClaw::loop() {
         SuperDroid_1831.motor_power_max_voltage, Sigyn_specs.wheel_diameter,
         Sigyn_specs.wheels_separation);
 
-    Kinematics::rpm rpm =
-        kinematics.getRPM(linear_x_, 0.0f, angular_z_);
+    Kinematics::rpm rpm = kinematics.getRPM(linear_x_, 0.0f, angular_z_);
+    // char msg[512];
+    // snprintf(msg, sizeof(msg),
+    //          "ROBOCLAW: delta_time_usec=%lu, delta_time_minutes=%.2f, "
+    //          "linear_x=%.2f, angular_z=%.2f, "
+    //          "rpm.motor1=%.2f, rpm.motor2=%.2f",
+    //          delta_time_usec, delta_time_minutes, linear_x_, angular_z_,
+    //          rpm.motor1, rpm.motor2);
+    // DiagnosticMessage::singleton().sendMessage(msg);
 
     const int32_t m1_quad_pulses_per_second =
         rpm.motor1 * SuperDroid_1831.quad_pulses_per_revolution / 60.0;
@@ -499,9 +507,15 @@ void TRoboClaw::loop() {
     const int32_t m2_max_distance =
         fabs(m2_quad_pulses_per_second * kMaxSecondsUncommandedTravel);
 
+    // snprintf(msg, sizeof(msg),
+    //         "m1_quad_pulses_per_second=%ld, m1_max_distance=%ld, "
+    //         "m2_quad_pulses_per_second=%ld, m2_max_distance=%ld\n",
+    //         m1_quad_pulses_per_second, m1_max_distance,
+    //         m2_quad_pulses_per_second, m2_max_distance);
+    // DiagnosticMessage::singleton().sendMessage(msg);
     TRoboClaw::singleton().DoMixedSpeedAccelDist(
-        kAccelQuadPulsesPerSecond, m1_quad_pulses_per_second, m1_max_distance,
-        m2_quad_pulses_per_second, m2_max_distance);
+        kAccelQuadPulsesPerSecond, m1_quad_pulses_per_second,
+        m1_max_distance, m2_quad_pulses_per_second, m2_max_distance);
 
     // Get the actual  RPM values for each motor.
     static unsigned long prev_m1_ticks = TRoboClaw::singleton().GetM1Encoder();
@@ -521,10 +535,10 @@ void TRoboClaw::loop() {
         kinematics.getVelocities(current_rpm1, current_rpm2, 0.0, 0.0);
     prev_m1_ticks = current_m1_ticks;
     prev_m2_ticks = current_m2_ticks;
-    g_singleton_->PublishOdometry(delta_time_us / 1'000'000.0,
+    g_singleton_->PublishOdometry(delta_time_usec / 1'000'000.0,
                                   current_vel.linear_x, current_vel.linear_y,
                                   current_vel.angular_z);
-    last_odom_pub_tick = now;
+    last_odom_pub_usec = micros();
   }
 
   switch (g_state_) {
@@ -548,7 +562,7 @@ void TRoboClaw::loop() {
 
     case kEncoderM1:
       if (GetEncoderM1() && GetEncoderM2()) {
-        g_state_ = kSpeedM1;
+        g_state_ = kLogicBattery;
         CheckForRunaway(kLeftMotor);
         CheckForRunaway(kRightMotor);
       } else {
@@ -556,6 +570,14 @@ void TRoboClaw::loop() {
         g_state_ = kVersion;
       }
       break;
+
+    case kLogicBattery:
+      if (GetLogicBattery() && GetMainBattery() && GetCurrents()) {
+        g_state_ = kSpeedM1;
+      } else {
+        Reconnect();
+        g_state_ = kVersion;
+      }
 
     default:
       g_state_ = kVersion;
@@ -610,7 +632,7 @@ TRoboClaw::TRoboClaw()
       g_speed_m2_(0),
       linear_x_(0.0f),
       angular_z_(0.0f),
-      last_twist_time_(0) {
+      last_twist_received_time_ms_(0) {
   Serial6.begin(kBaudRate);
 }
 

@@ -19,25 +19,25 @@ void BatteryModule::setup() {
 }
 
 void BatteryModule::loop() {
-  unsigned long current_time = millis();
+  unsigned long current_time_ms = millis();
 
-  static unsigned long last_battery_read_time = millis();
-  if (current_time - last_battery_read_time >= 100) {
+  static unsigned long last_battery_read_time_ms = millis();
+  if (current_time_ms - last_battery_read_time_ms >= 100) {
     // Read battery values every second
     readBatteryValues();
-    last_battery_read_time = current_time;
+    last_battery_read_time_ms = current_time_ms;
   }
 
   // Send battery state at configured rate
-  if (current_time - last_battery_send_time >= battery_send_interval_) {
+  if (current_time_ms - last_battery_send_time >= battery_send_interval_) {
     sendBatteryState();
-    last_battery_send_time = current_time;
+    last_battery_send_time = current_time_ms;
   }
 }
 
 void BatteryModule::readBatteryValues() {
   float raw = analogRead(kAnalog1Pin);
-  float battery_v = raw * 0.08845 * 0.91;
+  float battery_v = raw * 0.08845 * 0.9168;
   g_averages_[0][g_next_average_index_] = battery_v;
   total_battery_readings_++;
 
@@ -49,7 +49,6 @@ void BatteryModule::readBatteryValues() {
 
 void BatteryModule::sendBatteryState() {
   float voltage_sum = 0;
-  float voltage = 0.0;
   float current = 0.0;
   float charge = 0.0;
   size_t number_readings_to_averae =

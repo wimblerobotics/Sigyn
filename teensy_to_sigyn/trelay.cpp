@@ -11,8 +11,8 @@ bool TRelay::IsPoweredOn(TRelayDevice device) {
 }
 
 void TRelay::loop() {
-  // DiagnosticMessage::singleton().sendMessage("INFO [TRelay::loop]");
-  // uint32_t now = millis();
+  // DiagnosticMessage::singleton().sendMessage("INFO:[TRelay::loop]");
+  // uint32_t now_ms = millis();
   // if (g_device_set_time_ms_[kUnused1] &&
   //     (now > (g_device_set_time_ms_[kUnused1] + kResetDurationMs))) {
   //   digitalWrite(kUnused1Pin, LOW);
@@ -25,7 +25,7 @@ void TRelay::PowerOff(TRelay::TRelayDevice device) {
   g_device_set_time_ms_[device] = 0;
   if (TM5::kDoDetailDebug) {
     snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TRelay::PowerOff] >> device: %d", (uint8_t)device);
+             "INFO:[TRelay::PowerOff] >> device: %d", (uint8_t)device);
     DiagnosticMessage::singleton().sendMessage(diagnostic_message);
   }
 
@@ -60,7 +60,7 @@ void TRelay::PowerOn(TRelay::TRelayDevice device) {
   g_device_set_time_ms_[device] = 0;
   if (TM5::kDoDetailDebug) {
     snprintf(diagnostic_message, sizeof(diagnostic_message),
-             "INFO [TRelay::PowerOn] >> device: %d", (uint8_t)device);
+             "INFO:[TRelay::PowerOn] >> device: %d", (uint8_t)device);
     DiagnosticMessage::singleton().sendMessage(diagnostic_message);
   }
 
@@ -97,7 +97,7 @@ void TRelay::PowerOn(TRelay::TRelayDevice device) {
 
 void TRelay::setup() {
   if (TM5::kDoDetailDebug) {
-    DiagnosticMessage::singleton().sendMessage("INFO [TRelay::setup] >>enter");
+    DiagnosticMessage::singleton().sendMessage("INFO:[TRelay::setup] >>enter");
   }
 
   // pinMode(kUnused0Pin, OUTPUT);
