@@ -94,7 +94,8 @@ void TRoboClaw::DoMixedSpeedAccelDist(uint32_t accel_quad_pulses_per_second,
 
   // char msg[512];
   // snprintf(msg, sizeof(msg),
-  //          "INFO:[TRoboClaw::DoMixedSpeedAccelDist] accel_qpps: %ld, m1_qpps:"
+  //          "INFO:[TRoboClaw::DoMixedSpeedAccelDist] accel_qpps: %ld,
+  //          m1_qpps:"
   //          "%ld, m1_max_dist: %ld, m2_qpps: %ld, "
   //          "m2_max_dist: %ld",
   //          accel_quad_pulses_per_second, m1_quad_pulses_per_second,
@@ -363,63 +364,137 @@ void TRoboClaw::CheckForRunaway(TRoboClaw::WhichMotor whichMotor) {
   }
 }
 
-void TRoboClaw::PublishOdometry(float vel_dt, float linear_vel_x,
-                                float linear_vel_y, float angular_vel_z) {
-  static bool first_time = true;
+void TRoboClaw::MoveRobotAndPublishOdometry() {
+  static uint32_t last_odom_pub_usec = micros();
+  static const uint32_t kOdomPubIntervalMs = 40;  // Publish every 40 ms
+  
+  unsigned long current_time_usec = micros();
+  unsigned long delta_time_usec = current_time_usec - last_odom_pub_usec;
+  
+  if (delta_time_usec >= (kOdomPubIntervalMs * 1000)) {
+    static Kinematics kinematics(
+        Kinematics::DIFFERENTIAL_DRIVE, SuperDroid_1831.max_rpm, 1.0,
+        SuperDroid_1831.motor_operating_voltage,
+        SuperDroid_1831.motor_power_max_voltage, Sigyn_specs.wheel_diameter,
+        Sigyn_specs.wheels_separation);
 
-  static float x_pos_(0.0);
-  static float y_pos_(0.0);
-  static float heading_(0.0);
-  static uint32_t call_count = 0;
+    double delta_time_minutes = ((double)delta_time_usec) / 60'000'000;
+    
+    // Update motor commands based on twist message
+    UpdateMotorCommands(kinematics, delta_time_minutes);
+    
+    // Calculate odometry from encoder readings
+    CalculateOdometry(kinematics, delta_time_usec);
+    
+    last_odom_pub_usec = current_time_usec;
+  }
+}
 
-  call_count++;
-  if (first_time) {  // ###
-    first_time = false;
-    x_pos_ = 0.0;
-    y_pos_ = 0.0;
-    heading_ = 0.0;
+void TRoboClaw::UpdateMotorCommands(const Kinematics& kinematics, float delta_time_minutes) {
+  static const float kMaxSecondsUncommandedTravel = 0.05;
+  static const int32_t kAccelQuadPulsesPerSecond = 1000;
+
+  // Create a non-const reference to call the method
+  Kinematics& non_const_kinematics = const_cast<Kinematics&>(kinematics);
+  Kinematics::rpm rpm = non_const_kinematics.getRPM(linear_x_, 0.0f, angular_z_);
+
+  const int32_t m1_quad_pulses_per_second =
+      rpm.motor1 * SuperDroid_1831.quad_pulses_per_revolution / 60.0;
+  const int32_t m2_quad_pulses_per_second =
+      rpm.motor2 * SuperDroid_1831.quad_pulses_per_revolution / 60.0;
+  const int32_t m1_max_distance =
+      fabs(m1_quad_pulses_per_second * kMaxSecondsUncommandedTravel);
+  const int32_t m2_max_distance =
+      fabs(m2_quad_pulses_per_second * kMaxSecondsUncommandedTravel);
+
+  TRoboClaw::singleton().DoMixedSpeedAccelDist(
+      kAccelQuadPulsesPerSecond, m1_quad_pulses_per_second, m1_max_distance,
+      m2_quad_pulses_per_second, m2_max_distance);
+}
+
+void TRoboClaw::CalculateOdometry(const Kinematics& kinematics, float delta_time_usec) {
+  // Initialize odometry state on first run
+  if (!odometry_initialized_) {
+    prev_m1_ticks_ = TRoboClaw::singleton().GetM1Encoder();
+    prev_m2_ticks_ = TRoboClaw::singleton().GetM2Encoder();
+    x_pos_ = 0.0f;
+    y_pos_ = 0.0f;
+    heading_ = 0.0f;
+    odometry_initialized_ = true;
+    return;
   }
 
+  // Get current encoder readings
+  int32_t current_m1_ticks = TRoboClaw::singleton().GetM1Encoder();
+  int32_t current_m2_ticks = TRoboClaw::singleton().GetM2Encoder();
+  int32_t delta_ticks_m1 = current_m1_ticks - prev_m1_ticks_;
+  int32_t delta_ticks_m2 = current_m2_ticks - prev_m2_ticks_;
+
+  // Calculate current RPM for each motor
+  double delta_time_minutes = ((double)delta_time_usec) / 60'000'000;
+  float current_rpm1 = (((float)delta_ticks_m1 /
+                         (float)SuperDroid_1831.quad_pulses_per_revolution) /
+                        delta_time_minutes);
+  float current_rpm2 = (((float)delta_ticks_m2 /
+                         (float)SuperDroid_1831.quad_pulses_per_revolution) /
+                        delta_time_minutes);
+
+  // Get current velocities
+  Kinematics& non_const_kinematics = const_cast<Kinematics&>(kinematics);
+  Kinematics::velocities current_vel =
+      non_const_kinematics.getVelocities(current_rpm1, current_rpm2, 0.0, 0.0);
+
+  // Update odometry only if not in version state
   if (g_state_ != kVersion) {
-    // Publish odometry information.
-    float delta_heading = angular_vel_z * vel_dt;  // radians
+    float vel_dt = delta_time_usec / 1'000'000.0;
+    
+    // Calculate deltas
+    float delta_heading = current_vel.angular_z * vel_dt;
     float cos_h = cos(heading_);
     float sin_h = sin(heading_);
-    float delta_x =
-        (linear_vel_x * cos_h - linear_vel_y * sin_h) * vel_dt;  // m
-    float delta_y =
-        (linear_vel_x * sin_h + linear_vel_y * cos_h) * vel_dt;  // m
+    float delta_x = (current_vel.linear_x * cos_h - current_vel.linear_y * sin_h) * vel_dt;
+    float delta_y = (current_vel.linear_x * sin_h + current_vel.linear_y * cos_h) * vel_dt;
 
-    // calculate current position of the robot
+    // Update position and heading
     x_pos_ += delta_x;
     y_pos_ += delta_y;
     heading_ += delta_heading;
 
-    // calculate robot's heading in quaternion angle
-    // ROS has a function to calculate yaw in quaternion angle
-    float q[4];
-    TRoboClaw::singleton().EulerToQuaternion(0, 0, heading_, q);
-
-    Serial.print("ODOM:");
-    Serial.print("px=");
-    Serial.print(x_pos_);
-    Serial.print(",py=");
-    Serial.print(y_pos_);
-    Serial.print("ox=");
-    Serial.print((double)q[1]);
-    Serial.print(",oy=");
-    Serial.print((double)q[2]);
-    Serial.print(",oz=");
-    Serial.print((double)q[3]);
-    Serial.print(",ow=");
-    Serial.print((double)q[0]);
-    Serial.print(",vx=");
-    Serial.print(linear_vel_x);
-    Serial.print(",vy=");
-    Serial.print(linear_vel_y);
-    Serial.print(",wz=");
-    Serial.println(angular_vel_z);
+    // Publish odometry data
+    PublishOdometryData(x_pos_, y_pos_, heading_, current_vel);
   }
+
+  // Update previous encoder values
+  prev_m1_ticks_ = current_m1_ticks;
+  prev_m2_ticks_ = current_m2_ticks;
+}
+
+void TRoboClaw::PublishOdometryData(float x_pos, float y_pos, float heading,
+                                   const Kinematics::velocities& current_vel) {
+  // Calculate quaternion from heading
+  float q[4];
+  TRoboClaw::singleton().EulerToQuaternion(0, 0, heading, q);
+
+  // Publish odometry message
+  Serial.print("ODOM:");
+  Serial.print("px=");
+  Serial.print(x_pos);
+  Serial.print(",py=");
+  Serial.print(y_pos);
+  Serial.print("ox=");
+  Serial.print((double)q[1]);
+  Serial.print(",oy=");
+  Serial.print((double)q[2]);
+  Serial.print(",oz=");
+  Serial.print((double)q[3]);
+  Serial.print(",ow=");
+  Serial.print((double)q[0]);
+  Serial.print(",vx=");
+  Serial.print(current_vel.linear_x);
+  Serial.print(",vy=");
+  Serial.print(current_vel.linear_y);
+  Serial.print(",wz=");
+  Serial.println(current_vel.angular_z);
 }
 
 void TRoboClaw::handleTwistMessage(const String& data) {
@@ -429,7 +504,7 @@ void TRoboClaw::handleTwistMessage(const String& data) {
     linear_x_ = data.substring(0, commaIndex).toFloat();
     angular_z_ = data.substring(commaIndex + 1).toFloat();
     last_twist_received_time_ms_ = millis();
-  
+
     // Serial.print("Received twist: linear_x=");
     // Serial.print(linear_x);
     // Serial.print(", angular_z=");
@@ -438,109 +513,14 @@ void TRoboClaw::handleTwistMessage(const String& data) {
 }
 
 void TRoboClaw::loop() {
-  // Static variable to keep track of last time (in ms) we did the "every
-  // second" code
-  static uint32_t start_loop_ms = millis();
-  static uint32_t last_odom_pub_usec = micros();
-  static const uint32_t kOdomPubIntervalMs =
-      40;  // Publish odometry and handle cmd_vel every 40 ms
+  PublishRoboClawStats();
+  MoveRobotAndPublishOdometry();
 
-  // Check if one second has expired
-  uint32_t now_ms = millis();
-  if (now_ms - start_loop_ms >= 1000) {
-    if (g_state_ != kVersion) {
-      const size_t MAXSIZE = 512;
-      char msg[MAXSIZE];
-      uint32_t error = TRoboClaw::singleton().getError();
-      snprintf(msg, MAXSIZE,
-               "{\"LogicVoltage\":%-2.1f,\"MainVoltage\":%-2.1f,\"Encoder_"
-               "Left\":%-ld,\"Encoder_Right\":"
-               "%-ld,\"LeftMotorCurrent\":%-2.3f,\"RightMotorCurrent\":%-2.3f,"
-               "\"LeftMotorSpeed\":%ld,\"RightMotorSpeed\":%ld,"
-               "\"Error\":%-lX}",
-               TRoboClaw::singleton().GetBatteryLogic(),
-               TRoboClaw::singleton().GetBatteryMain(),
-               TRoboClaw::singleton().GetM1Encoder(),
-               TRoboClaw::singleton().GetM2Encoder(),
-               TRoboClaw::singleton().GetM1Current(),
-               TRoboClaw::singleton().GetM2Current(),
-               TRoboClaw::singleton().GetM1Speed(),
-               TRoboClaw::singleton().GetM2Speed(), error);
-      Serial.print("ROBOCLAW:");
-      Serial.println(msg);
-      // #if USE_TSD
-      //       TSd::singleton().log(g_singleton_->string_msg_.data.data);
-      // #endif
-    }
-
-    start_loop_ms = now_ms;
-  }
-
-  unsigned long current_time_usec = micros();
-  unsigned long delta_time_usec = current_time_usec - last_odom_pub_usec;
-  double delta_time_minutes = ((double)delta_time_usec) / 60'000'000;
-  if (delta_time_usec >= (kOdomPubIntervalMs * 1000)) {
-    static const float kMaxSecondsUncommandedTravel = 0.05;
-    static const int32_t kAccelQuadPulsesPerSecond = 1000;
-    static Kinematics kinematics(
-        Kinematics::DIFFERENTIAL_DRIVE, SuperDroid_1831.max_rpm, 1.0,
-        SuperDroid_1831.motor_operating_voltage,
-        SuperDroid_1831.motor_power_max_voltage, Sigyn_specs.wheel_diameter,
-        Sigyn_specs.wheels_separation);
-
-    Kinematics::rpm rpm = kinematics.getRPM(linear_x_, 0.0f, angular_z_);
-    // char msg[512];
-    // snprintf(msg, sizeof(msg),
-    //          "ROBOCLAW: delta_time_usec=%lu, delta_time_minutes=%.2f, "
-    //          "linear_x=%.2f, angular_z=%.2f, "
-    //          "rpm.motor1=%.2f, rpm.motor2=%.2f",
-    //          delta_time_usec, delta_time_minutes, linear_x_, angular_z_,
-    //          rpm.motor1, rpm.motor2);
-    // DiagnosticMessage::singleton().sendMessage(msg);
-
-    const int32_t m1_quad_pulses_per_second =
-        rpm.motor1 * SuperDroid_1831.quad_pulses_per_revolution / 60.0;
-    const int32_t m2_quad_pulses_per_second =
-        rpm.motor2 * SuperDroid_1831.quad_pulses_per_revolution / 60.0;
-    const int32_t m1_max_distance =
-        fabs(m1_quad_pulses_per_second * kMaxSecondsUncommandedTravel);
-    const int32_t m2_max_distance =
-        fabs(m2_quad_pulses_per_second * kMaxSecondsUncommandedTravel);
-
-    // snprintf(msg, sizeof(msg),
-    //         "m1_quad_pulses_per_second=%ld, m1_max_distance=%ld, "
-    //         "m2_quad_pulses_per_second=%ld, m2_max_distance=%ld\n",
-    //         m1_quad_pulses_per_second, m1_max_distance,
-    //         m2_quad_pulses_per_second, m2_max_distance);
-    // DiagnosticMessage::singleton().sendMessage(msg);
-    TRoboClaw::singleton().DoMixedSpeedAccelDist(
-        kAccelQuadPulsesPerSecond, m1_quad_pulses_per_second,
-        m1_max_distance, m2_quad_pulses_per_second, m2_max_distance);
-
-    // Get the actual  RPM values for each motor.
-    static unsigned long prev_m1_ticks = TRoboClaw::singleton().GetM1Encoder();
-    static unsigned long prev_m2_ticks = TRoboClaw::singleton().GetM2Encoder();
-    int32_t current_m1_ticks = TRoboClaw::singleton().GetM1Encoder();
-    int32_t current_m2_ticks = TRoboClaw::singleton().GetM2Encoder();
-    int32_t delta_ticks_m1 = current_m1_ticks - prev_m1_ticks;
-    int32_t delta_ticks_m2 = current_m2_ticks - prev_m2_ticks;
-
-    float current_rpm1 = (((float)delta_ticks_m1 /
-                           (float)SuperDroid_1831.quad_pulses_per_revolution) /
-                          delta_time_minutes);
-    float current_rpm2 = (((float)delta_ticks_m2 /
-                           (float)SuperDroid_1831.quad_pulses_per_revolution) /
-                          delta_time_minutes);
-    Kinematics::velocities current_vel =
-        kinematics.getVelocities(current_rpm1, current_rpm2, 0.0, 0.0);
-    prev_m1_ticks = current_m1_ticks;
-    prev_m2_ticks = current_m2_ticks;
-    g_singleton_->PublishOdometry(delta_time_usec / 1'000'000.0,
-                                  current_vel.linear_x, current_vel.linear_y,
-                                  current_vel.angular_z);
-    last_odom_pub_usec = micros();
-  }
-
+  // Notes about GetXxx speeds.
+  // GetCurrents: 3.7 ms
+  // GetEncoderM1: 3.7 ms
+  // Get LogicBattery: 2.5 ms
+  // GetMainBattery: 3.1 ms
   switch (g_state_) {
     case kVersion:
       if (GetVersion()) {
@@ -600,6 +580,39 @@ const void TRoboClaw::EulerToQuaternion(float roll, float pitch, float yaw,
   q[3] = sy * cp * cr - cy * sp * sr;
 }
 
+void TRoboClaw::PublishRoboClawStats() {
+  static uint32_t start_loop_ms = millis();
+  uint32_t now_ms = millis();
+  if (now_ms - start_loop_ms >= 1000) {
+    if (g_state_ != kVersion) {
+      const size_t MAXSIZE = 512;
+      char msg[MAXSIZE];
+      uint32_t error = TRoboClaw::singleton().getError();
+      snprintf(msg, MAXSIZE,
+               "{\"LogicVoltage\":%-2.1f,\"MainVoltage\":%-2.1f,\"Encoder_"
+               "Left\":%-ld,\"Encoder_Right\":"
+               "%-ld,\"LeftMotorCurrent\":%-2.3f,\"RightMotorCurrent\":%-2.3f,"
+               "\"LeftMotorSpeed\":%ld,\"RightMotorSpeed\":%ld,"
+               "\"Error\":%-lX}",
+               TRoboClaw::singleton().GetBatteryLogic(),
+               TRoboClaw::singleton().GetBatteryMain(),
+               TRoboClaw::singleton().GetM1Encoder(),
+               TRoboClaw::singleton().GetM2Encoder(),
+               TRoboClaw::singleton().GetM1Current(),
+               TRoboClaw::singleton().GetM2Current(),
+               TRoboClaw::singleton().GetM1Speed(),
+               TRoboClaw::singleton().GetM2Speed(), error);
+      Serial.print("ROBOCLAW:");
+      Serial.println(msg);
+      // #if USE_TSD
+      //       TSd::singleton().log(g_singleton_->string_msg_.data.data);
+      // #endif
+    }
+
+    start_loop_ms = now_ms;
+  }
+}
+
 void TRoboClaw::Reconnect() {
   g_current_m1_10ma_ = 0;
   g_current_m2_10ma_ = 0;
@@ -632,7 +645,13 @@ TRoboClaw::TRoboClaw()
       g_speed_m2_(0),
       linear_x_(0.0f),
       angular_z_(0.0f),
-      last_twist_received_time_ms_(0) {
+      last_twist_received_time_ms_(0),
+      x_pos_(0.0f),
+      y_pos_(0.0f),
+      heading_(0.0f),
+      odometry_initialized_(false),
+      prev_m1_ticks_(0),
+      prev_m2_ticks_(0) {
   Serial6.begin(kBaudRate);
 }
 
