@@ -481,33 +481,33 @@ def generate_launch_description():
     )
     ld.add_action(joint_state_publisher_node)
     
-    oakd_elevator_top = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-          [base_pgk, "/launch/sub_launch/oakd_stereo.launch.py"]
-        )
-    )
-    ld.add_action(oakd_elevator_top)
+    # oakd_elevator_top = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(
+    #       [base_pgk, "/launch/sub_launch/oakd_stereo.launch.py"]
+    #     )
+    # )
+    # ld.add_action(oakd_elevator_top)
     
-    pc2ls = Node(
-        package="pointcloud_to_laserscan",
-        executable="pointcloud_to_laserscan_node",
-        name="pointcloud_to_laserscan_node",
-        output="screen",
-        parameters=[
-            {"target_frame": "base_footprint",
-             "min_height": 0.03,
-             "max_height": 2.0,
-             "range_min": 0.27,
-             "range_max": 5.0,
-             "scan_time": 0.1,
-             "use_inf": True,
-            },
-        ],
-        remappings= [
-          ("/cloud_in", "/stereo/points"),
-          ("/scan", "/stereo/points2")],
-    )
-    ld.add_action(pc2ls)
+    # pc2ls = Node(
+    #     package="pointcloud_to_laserscan",
+    #     executable="pointcloud_to_laserscan_node",
+    #     name="pointcloud_to_laserscan_node",
+    #     output="screen",
+    #     parameters=[
+    #         {"target_frame": "base_footprint",
+    #          "min_height": 0.03,
+    #          "max_height": 2.0,
+    #          "range_min": 0.27,
+    #          "range_max": 5.0,
+    #          "scan_time": 0.1,
+    #          "use_inf": True,
+    #         },
+    #     ],
+    #     remappings= [
+    #       ("/cloud_in", "/stereo/points"),
+    #       ("/scan", "/stereo/points2")],
+    # )
+    # ld.add_action(pc2ls)
     
     battery_overlay = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -520,27 +520,27 @@ def generate_launch_description():
     )
     ld.add_action(battery_overlay)
     
-    wifi_logger = IncludeLaunchDescription(
-      PythonLaunchDescriptionSource(
-        os.path.join(
-          get_package_share_directory('wifi_logger_visualizer'),
-          'launch',
-          'wifi_logger.launch.py'
-        )
-      )
-    )
-    ld.add_action(wifi_logger)
+    # wifi_logger = IncludeLaunchDescription(
+    #   PythonLaunchDescriptionSource(
+    #     os.path.join(
+    #       get_package_share_directory('wifi_logger_visualizer'),
+    #       'launch',
+    #       'wifi_logger.launch.py'
+    #     )
+    #   )
+    # )
+    # ld.add_action(wifi_logger)
     
-    head_mapper = IncludeLaunchDescription(
-      PythonLaunchDescriptionSource(
-        os.path.join(
-          get_package_share_directory('wifi_logger_visualizer'),
-          'launch',
-          'heat_mapper.launch.py'
-        )
-      )
-    )
-    ld.add_action(head_mapper)
+    # head_mapper = IncludeLaunchDescription(
+    #   PythonLaunchDescriptionSource(
+    #     os.path.join(
+    #       get_package_share_directory('wifi_logger_visualizer'),
+    #       'launch',
+    #       'heat_mapper.launch.py'
+    #     )
+    #   )
+    # )
+    # ld.add_action(head_mapper)
 
     SaySomethingActionServer = Node(
         package="sigyn_behavior_trees",

@@ -23,6 +23,7 @@
 #pragma once
 
 #include "RoboClaw.h"
+#include "kinematics.h"
 #include "tmodule.h"
 
 class TRoboClaw : TModule {
@@ -141,8 +142,20 @@ class TRoboClaw : TModule {
   bool GetVersion();
 
   // Publish odometry information.
-  void PublishOdometry(float vel_dt, float linear_vel_x, float linear_vel_y,
-                       float angular_vel_z);
+  void MoveRobotAndPublishOdometry();
+
+  // Calculate and send motor commands based on twist message
+  void UpdateMotorCommands(const Kinematics& kinematics,
+                           float delta_time_minutes);
+
+  // Calculate odometry from encoder readings
+  void CalculateOdometry(const Kinematics& kinematics, float delta_time_usec);
+
+  // Publish odometry data to serial
+  void PublishOdometryData(float x_pos, float y_pos, float heading,
+                           const Kinematics::velocities& current_vel);
+
+  void PublishRoboClawStats();
 
   // Reestablish connection to device.
   void Reconnect();
@@ -175,6 +188,14 @@ class TRoboClaw : TModule {
   float linear_x_;
   float angular_z_;
   unsigned long last_twist_received_time_ms_;
+
+  // Odometry state
+  float x_pos_;
+  float y_pos_;
+  float heading_;
+  bool odometry_initialized_;
+  uint32_t prev_m1_ticks_;
+  uint32_t prev_m2_ticks_;
 
   static const uint32_t kBaudRate = 38'400;
 };
