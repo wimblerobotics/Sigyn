@@ -30,6 +30,11 @@ target_compile_features(teensy_bridge PUBLIC c_std_99 cxx_std_17)
 install(TARGETS teensy_bridge
   DESTINATION lib/${PROJECT_NAME})
 
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
