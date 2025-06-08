@@ -174,7 +174,7 @@ class TRoboClaw : TModule {
   // Twist message data.
   float linear_x_;
   float angular_z_;
-  unsigned long last_twist_time_;
+  unsigned long last_twist_received_time_ms_;
 
   static const uint32_t kBaudRate = 38'400;
 };

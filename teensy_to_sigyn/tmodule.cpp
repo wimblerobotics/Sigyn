@@ -23,7 +23,7 @@ TModule::TModule(TModule::Module moduleKind) {
 }
 
 void TModule::GetStatistics(char* outString, size_t outStringSize) {
-  static uint32_t statTimingStart = micros();
+  static uint32_t start_usec = micros();
   char statList[2048];
 
   statList[0] = '\0';
@@ -34,7 +34,7 @@ void TModule::GetStatistics(char* outString, size_t outStringSize) {
         char temp[MAXLEN];
         TModule* module = all_modules_[i];
         temp[0] = '\0';
-        snprintf(temp, MAXLEN, "{\"n\":\"%-s\",\"MnMxAv\":[%-2.1f,%-2.1f,%-2.1f]},",
+        snprintf(temp, MAXLEN, "TModuleStats:{\"n\":\"%-s\",\"MnMxAv\":[%-2.1f,%-2.1f,%-2.1f]},",
                  module->name(), module->duration_stats_[kMin],
                  module->duration_stats_[kMax],
                  module->duration_stats_[kSum] / total_do_loop_count_);
@@ -53,16 +53,16 @@ void TModule::GetStatistics(char* outString, size_t outStringSize) {
 
   snprintf(outString, outStringSize,
            "{\"loops\":%-ld,\"Ms\":%-2.1f,\"mdls\":[%-s]}",
-           total_do_loop_count_, ((micros() * 1.0) - statTimingStart) / 1000.0,
+           total_do_loop_count_, ((micros() * 1.0) - start_usec) / 1000.0,
            statList);
-  statTimingStart = micros();
+  start_usec = micros();
   total_do_loop_count_ = 0;
 }
 
 void TModule::DoLoop() {
   // char diagnostic_message[256];
   if (TM5::kDoDetailDebug) {
-    // DiagnosticMessage::singleton().sendMessage("INFO [TModule::DoLoop] >>
+    // DiagnosticMessage::singleton().sendMessage("INFO:[TModule::DoLoop] >>
     // enter");
   }
 
@@ -72,7 +72,7 @@ void TModule::DoLoop() {
   //   auto stack = sp - _ebss;
   //   auto heap = _heap_end - __brkval;
   //   snprintf(diagnostic_message, sizeof(diagnostic_message),
-  //            "INFO [TModule::DoLoop] free stack kb %d, free heap kb: %d",
+  //            "INFO:[TModule::DoLoop] free stack kb %d, free heap kb: %d",
   //            stack >> 10, heap >> 10);
   //   DiagnosticMessage::singleton().sendMessage(diagnostic_message);
   // }
@@ -80,11 +80,11 @@ void TModule::DoLoop() {
   for (size_t i = 0; i < kNumberModules; i++) {
     if (all_modules_[i] != nullptr) {
       TModule* module = all_modules_[i];
-      uint32_t start = micros();
+      uint32_t start_usec = micros();
 
       all_modules_[i]->loop();
 
-      float duration_ms = (micros() - start) / 1000.0;
+      float duration_ms = (micros() - start_usec) / 1000.0;
       module->duration_stats_[kSum] += duration_ms;
       if (duration_ms < module->duration_stats_[kMin]) {
         module->duration_stats_[kMin] = duration_ms;
@@ -100,11 +100,11 @@ void TModule::DoLoop() {
 
   total_do_loop_count_++;
 
-  static unsigned long last_status_send_time = millis();
-  unsigned long current_time = millis();
-  if (current_time - last_status_send_time >=
+  static unsigned long last_status_send_tim_ms = millis();
+  unsigned long current_time_ms = millis();
+  if (current_time_ms - last_status_send_tim_ms >=
       1000 /*TM5::kStatusSendInterval*/) {
-    last_status_send_time = current_time;
+    last_status_send_tim_ms = current_time_ms;
     char stats[2048];
     GetStatistics(stats, sizeof(stats));
     DiagnosticMessage::singleton().sendMessage(stats);
@@ -114,7 +114,7 @@ void TModule::DoLoop() {
 void TModule::DoSetup() {
   // if (TM5::kDoDetailDebug) {
   //   // DiagnosticMessage::singleton().sendMessage(
-  //   //     "INFO [TModule::DoSetup] >> enter");
+  //   //     "INFO:[TModule::DoSetup] >> enter");
   // }
 
   for (int i = 0; i < kNumberModules; i++) {
@@ -124,7 +124,7 @@ void TModule::DoSetup() {
   }
 
   // if (TM5::kDoDetailDebug) {
-  //   // DiagnosticMessage::singleton().sendMessage("INFO [TModule::DoSetup] <<
+  //   // DiagnosticMessage::singleton().sendMessage("INFO:[TModule::DoSetup] <<
   //   // exit");
   // }
 }

@@ -119,7 +119,7 @@ private:
                 std::string line = serial_buffer_.substr(0, pos);
                 serial_buffer_.erase(0, pos + 1);
                 processSerialMessage(line);
-                RCUTILS_LOG_INFO("Received serial message: %s", line.c_str());
+                // RCUTILS_LOG_INFO("Received serial message: %s", line.c_str());
             }
         }
     }
