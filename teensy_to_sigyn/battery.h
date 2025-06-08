@@ -25,10 +25,11 @@ private:
   void sendBatteryState();
   void readBatteryValues();
   unsigned long last_battery_send_time;
-  unsigned long battery_send_interval; // milliseconds
+  unsigned long battery_send_interval_; // milliseconds
   static const uint8_t kNumberReadingsToAverage_ = 50;
   static float g_averages_[1][kNumberReadingsToAverage_];
   static size_t g_next_average_index_;
+  unsigned long total_battery_readings_; // Total number of battery readings taken.
 
   // Singleton instance.
   static BatteryModule *g_singleton_;
