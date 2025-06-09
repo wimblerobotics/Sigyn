@@ -95,6 +95,8 @@ class PublishThread(threading.Thread):
         self.turn = 0.0
         self.condition = threading.Condition()
         self.done = False
+        self.last_published_time = time.time()
+        self.stop_published = False  # Track if we've already published a stop message
 
         # Set timeout to None if rate is 0 (causes new_message to wait forever
         # for new data to publish)
@@ -124,6 +126,9 @@ class PublishThread(threading.Thread):
         self.th = th
         self.speed = speed
         self.turn = turn
+        # Reset stop_published flag when we have new movement
+        if x != 0 or y != 0 or z != 0 or th != 0:
+            self.stop_published = False
         # Notify publish thread that we have a new message.
         self.condition.notify()
         self.condition.release()
@@ -159,8 +164,17 @@ class PublishThread(threading.Thread):
 
             self.condition.release()
 
-            # Publish.
-            self.publisher.publish(twist_msg)
+            # Check if we have movement
+            has_movement = (self.x != 0 or self.y != 0 or self.z != 0 or self.th != 0)
+            
+            # Publish if:
+            # 1. We have movement (always publish movement commands)
+            # 2. We don't have movement but haven't published a stop command yet
+            if has_movement or not self.stop_published:
+                self.publisher.publish(twist_msg)
+                # If we just published a stop command, mark it as published
+                if not has_movement:
+                    self.stop_published = True
 
         # Publish stop message when thread exits.
         twist.linear.x = 0.0
