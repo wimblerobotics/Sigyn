@@ -364,39 +364,56 @@ void TRoboClaw::CheckForRunaway(TRoboClaw::WhichMotor whichMotor) {
   }
 }
 
-void TRoboClaw::MoveRobotAndPublishOdometry() {
+void TRoboClaw::SetMotorVelocityAndUpdateOdometry() {
   static uint32_t last_odom_pub_usec = micros();
-  static const uint32_t kOdomPubIntervalMs = 40;  // Publish every 40 ms
-  
   unsigned long current_time_usec = micros();
   unsigned long delta_time_usec = current_time_usec - last_odom_pub_usec;
-  
-  if (delta_time_usec >= (kOdomPubIntervalMs * 1000)) {
-    static Kinematics kinematics(
-        Kinematics::DIFFERENTIAL_DRIVE, SuperDroid_1831.max_rpm, 1.0,
-        SuperDroid_1831.motor_operating_voltage,
-        SuperDroid_1831.motor_power_max_voltage, Sigyn_specs.wheel_diameter,
-        Sigyn_specs.wheels_separation);
 
-    double delta_time_minutes = ((double)delta_time_usec) / 60'000'000;
-    
-    // Update motor commands based on twist message
-    UpdateMotorCommands(kinematics, delta_time_minutes);
-    
-    // Calculate odometry from encoder readings
-    CalculateOdometry(kinematics, delta_time_usec);
-    
-    last_odom_pub_usec = current_time_usec;
+  static Kinematics kinematics(
+      Kinematics::DIFFERENTIAL_DRIVE, SuperDroid_1831.max_rpm, 1.0,
+      SuperDroid_1831.motor_operating_voltage,
+      SuperDroid_1831.motor_power_max_voltage, Sigyn_specs.wheel_diameter,
+      Sigyn_specs.wheels_separation);
+
+  double delta_time_minutes = ((double)delta_time_usec) / 60'000'000;
+
+  if ((millis() - last_twist_received_time_ms_) > 200) {
+    // If no twist message received for 200 ms, stop the motors.
+    linear_x_ = 0.0f;
+    angular_z_ = 0.0f;
   }
+
+  // {
+  //   if (linear_x_ != 0.0f || angular_z_ != 0.0f) {
+  //     char msg[512];
+  //     snprintf(msg, sizeof(msg),
+  //              "INFO:[TRoboClaw::SetMotorVelocityAndUpdateOdometry] "
+  //              "at: %lu, ms since received twist: %lu, linear_x: %.2f, "
+  //              "angular_z: %.2f",
+  //              millis(), millis() - last_twist_received_time_ms_, linear_x_,
+  //              angular_z_);
+  //     DiagnosticMessage::singleton().sendMessage(msg);
+  //   }
+  // }
+
+  // Update motor commands based on twist message
+  UpdateMotorCommands(kinematics, delta_time_minutes);
+
+  // Calculate odometry from encoder readings
+  CalculateOdometry(kinematics, delta_time_usec);
+
+  last_odom_pub_usec = current_time_usec;
 }
 
-void TRoboClaw::UpdateMotorCommands(const Kinematics& kinematics, float delta_time_minutes) {
-  static const float kMaxSecondsUncommandedTravel = 0.05;
+void TRoboClaw::UpdateMotorCommands(const Kinematics& kinematics,
+                                    float delta_time_minutes) {
+  static const float kMaxSecondsUncommandedTravel = 0.25;
   static const int32_t kAccelQuadPulsesPerSecond = 1000;
 
   // Create a non-const reference to call the method
   Kinematics& non_const_kinematics = const_cast<Kinematics&>(kinematics);
-  Kinematics::rpm rpm = non_const_kinematics.getRPM(linear_x_, 0.0f, angular_z_);
+  Kinematics::rpm rpm =
+      non_const_kinematics.getRPM(linear_x_, 0.0f, angular_z_);
 
   const int32_t m1_quad_pulses_per_second =
       rpm.motor1 * SuperDroid_1831.quad_pulses_per_revolution / 60.0;
@@ -412,7 +429,8 @@ void TRoboClaw::UpdateMotorCommands(const Kinematics& kinematics, float delta_ti
       m2_quad_pulses_per_second, m2_max_distance);
 }
 
-void TRoboClaw::CalculateOdometry(const Kinematics& kinematics, float delta_time_usec) {
+void TRoboClaw::CalculateOdometry(const Kinematics& kinematics,
+                                  float delta_time_usec) {
   // Initialize odometry state on first run
   if (!odometry_initialized_) {
     prev_m1_ticks_ = TRoboClaw::singleton().GetM1Encoder();
@@ -424,9 +442,14 @@ void TRoboClaw::CalculateOdometry(const Kinematics& kinematics, float delta_time
     return;
   }
 
+  if (delta_time_usec == 0) {
+    // If no time has passed, skip odometry update
+    return;
+  }
+
   // Get current encoder readings
-  int32_t current_m1_ticks = TRoboClaw::singleton().GetM1Encoder();
-  int32_t current_m2_ticks = TRoboClaw::singleton().GetM2Encoder();
+  int32_t current_m1_ticks = TRoboClaw::singleton().GetEncoderM1();
+  int32_t current_m2_ticks = TRoboClaw::singleton().GetEncoderM2();
   int32_t delta_ticks_m1 = current_m1_ticks - prev_m1_ticks_;
   int32_t delta_ticks_m2 = current_m2_ticks - prev_m2_ticks_;
 
@@ -447,13 +470,15 @@ void TRoboClaw::CalculateOdometry(const Kinematics& kinematics, float delta_time
   // Update odometry only if not in version state
   if (g_state_ != kVersion) {
     float vel_dt = delta_time_usec / 1'000'000.0;
-    
+
     // Calculate deltas
     float delta_heading = current_vel.angular_z * vel_dt;
     float cos_h = cos(heading_);
     float sin_h = sin(heading_);
-    float delta_x = (current_vel.linear_x * cos_h - current_vel.linear_y * sin_h) * vel_dt;
-    float delta_y = (current_vel.linear_x * sin_h + current_vel.linear_y * cos_h) * vel_dt;
+    float delta_x =
+        (current_vel.linear_x * cos_h - current_vel.linear_y * sin_h) * vel_dt;
+    float delta_y =
+        (current_vel.linear_x * sin_h + current_vel.linear_y * cos_h) * vel_dt;
 
     // Update position and heading
     x_pos_ += delta_x;
@@ -470,7 +495,7 @@ void TRoboClaw::CalculateOdometry(const Kinematics& kinematics, float delta_time
 }
 
 void TRoboClaw::PublishOdometryData(float x_pos, float y_pos, float heading,
-                                   const Kinematics::velocities& current_vel) {
+                                    const Kinematics::velocities& current_vel) {
   // Calculate quaternion from heading
   float q[4];
   TRoboClaw::singleton().EulerToQuaternion(0, 0, heading, q);
@@ -504,6 +529,14 @@ void TRoboClaw::handleTwistMessage(const String& data) {
     linear_x_ = data.substring(0, commaIndex).toFloat();
     angular_z_ = data.substring(commaIndex + 1).toFloat();
     last_twist_received_time_ms_ = millis();
+    // {
+    //   char msg[128];
+    //   snprintf(msg, sizeof(msg),
+    //            "INFO:[TRoboClaw::handleTwistMessage] At: %lu Received twist: "
+    //            "linear_x=%.2f, angular_z=%.2f",
+    //            millis(), linear_x_, angular_z_);
+    //   DiagnosticMessage::singleton().sendMessage(msg);
+    // }
 
     // Serial.print("Received twist: linear_x=");
     // Serial.print(linear_x);
@@ -514,7 +547,15 @@ void TRoboClaw::handleTwistMessage(const String& data) {
 
 void TRoboClaw::loop() {
   PublishRoboClawStats();
-  MoveRobotAndPublishOdometry();
+  {
+    static uint32_t last_odom_publish_time_ms = millis();
+    uint32_t now_ms = millis();
+    if (((now_ms - last_odom_publish_time_ms) >= 40) &&
+        (g_state_ != kVersion)) {
+      last_odom_publish_time_ms = now_ms;
+      SetMotorVelocityAndUpdateOdometry();
+    }
+  }
 
   // Notes about GetXxx speeds.
   // GetCurrents: 3.7 ms
@@ -532,32 +573,32 @@ void TRoboClaw::loop() {
       break;
 
     case kSpeedM1:
-      if (GetSpeedM1() && GetSpeedM2()) {
-        g_state_ = kEncoderM1;
-      } else {
-        Reconnect();
-        g_state_ = kVersion;
-      }
+      //   if (GetSpeedM1() && GetSpeedM2()) {
+      //     g_state_ = kEncoderM1;
+      //   } else {
+      //     Reconnect();
+      //     g_state_ = kVersion;
+      //   }
       break;
 
-    case kEncoderM1:
-      if (GetEncoderM1() && GetEncoderM2()) {
-        g_state_ = kLogicBattery;
-        CheckForRunaway(kLeftMotor);
-        CheckForRunaway(kRightMotor);
-      } else {
-        Reconnect();
-        g_state_ = kVersion;
-      }
-      break;
+      // case kEncoderM1:
+      //   // if (GetEncoderM1() && GetEncoderM2()) {
+      //   g_state_ = kLogicBattery;
+      //   CheckForRunaway(kLeftMotor);
+      //   CheckForRunaway(kRightMotor);
+      //   // } else {
+      //   //   Reconnect();
+      //   //   g_state_ = kVersion;
+      //   // }
+      //   break;
 
-    case kLogicBattery:
-      if (GetLogicBattery() && GetMainBattery() && GetCurrents()) {
-        g_state_ = kSpeedM1;
-      } else {
-        Reconnect();
-        g_state_ = kVersion;
-      }
+      // case kLogicBattery:
+      //   if (GetLogicBattery() && GetMainBattery() && GetCurrents()) {
+      //     g_state_ = kSpeedM1;
+      //   } else {
+      //     Reconnect();
+      //     g_state_ = kVersion;
+      //   }
 
     default:
       g_state_ = kVersion;

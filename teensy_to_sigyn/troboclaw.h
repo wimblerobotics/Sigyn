@@ -1,6 +1,6 @@
 /**
  * MIT License
- * Copyright 2021 by Michael Wimble
+ * Copyright 2025 by Michael Wimble
  *
  * Interface to the RoboClaw controller.
  *
@@ -142,7 +142,7 @@ class TRoboClaw : TModule {
   bool GetVersion();
 
   // Publish odometry information.
-  void MoveRobotAndPublishOdometry();
+  void SetMotorVelocityAndUpdateOdometry();
 
   // Calculate and send motor commands based on twist message
   void UpdateMotorCommands(const Kinematics& kinematics,
