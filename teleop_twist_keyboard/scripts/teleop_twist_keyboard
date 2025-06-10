@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+
+# Add the package to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib', 'python3.12', 'site-packages'))
+
+from teleop_twist_keyboard.teleop_twist_keyboard import main
+
+if __name__ == '__main__':
+    main()
