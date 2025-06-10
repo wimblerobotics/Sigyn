@@ -140,7 +140,7 @@ private:
         } else if (type == "BATTERY") {
             // Parse and publish battery state
             parseBatteryMessage(data);
-        } else if (type == "DiagnosticMessage") {
+        } else if (type == "DIAG") {
             auto msg = std_msgs::msg::String();
             msg.data = data;
             teensy_diagnostics_pub_->publish(msg);
@@ -204,22 +204,21 @@ private:
     void parseBatteryMessage(const std::string& data)
     {
         std::istringstream iss(data);
-        std::string voltage_str, current_str, charge_str;
+        std::string voltage_str, percentage_str;
         
         if (std::getline(iss, voltage_str, ',') &&
-            std::getline(iss, current_str, ',') &&
-            std::getline(iss, charge_str)) {
+            std::getline(iss, percentage_str, ',')) {
             
             auto battery_msg = sensor_msgs::msg::BatteryState();
             battery_msg.header.stamp = this->get_clock()->now();
             battery_msg.header.frame_id = "base_link";
             
             battery_msg.voltage = std::stof(voltage_str);
-            battery_msg.current = std::stof(current_str);
-            battery_msg.charge = std::stof(charge_str);
+            battery_msg.percentage = std::stof(percentage_str);
+            battery_msg.current = 0.0; // Placeholder
+            battery_msg.charge = 0.0; // Placeholder
             battery_msg.capacity = 1.0; // Placeholder
             battery_msg.design_capacity = 1.0; // Placeholder
-            battery_msg.percentage = battery_msg.charge * 100.0;
             battery_msg.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_DISCHARGING;
             battery_msg.power_supply_health = sensor_msgs::msg::BatteryState::POWER_SUPPLY_HEALTH_GOOD;
             battery_msg.power_supply_technology = sensor_msgs::msg::BatteryState::POWER_SUPPLY_TECHNOLOGY_LIPO;
