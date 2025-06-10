@@ -164,17 +164,11 @@ class PublishThread(threading.Thread):
 
             self.condition.release()
 
-            # Check if we have movement
+            # Only publish if there's actual movement or if timeout occurred with movement
+            # This prevents continuous publishing of zero velocity when robot is stopped
             has_movement = (self.x != 0 or self.y != 0 or self.z != 0 or self.th != 0)
-            
-            # Publish if:
-            # 1. We have movement (always publish movement commands)
-            # 2. We don't have movement but haven't published a stop command yet
-            if has_movement or not self.stop_published:
+            if has_movement or (self.timeout is not None and has_movement):
                 self.publisher.publish(twist_msg)
-                # If we just published a stop command, mark it as published
-                if not has_movement:
-                    self.stop_published = True
 
         # Publish stop message when thread exits.
         twist.linear.x = 0.0
