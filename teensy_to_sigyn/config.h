@@ -1,10 +1,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// Serial Communication
-#define SERIAL_BAUD_RATE 115200
-#define SERIAL_TIMEOUT_MS 10 // Timeout for reading serial commands
-
 // Robot Physical Parameters
 #define WHEEL_DIAMETER_M 0.102224144529039f       // Wheel diameter in meters (e.g., 10 cm)
 #define WHEEL_RADIUS_M (WHEEL_DIAMETER_M / 2.0f)
@@ -23,28 +19,16 @@
 
 #define MAX_ACCELERATION_QPPS2 3000
 
-// #define MAX_MOTOR_RPM 300          // Max safe motor RPM
-// #define MAX_LINEAR_SPEED_MPS 1.0f  // Max safe linear speed in m/s
-// #define MAX_ANGULAR_SPEED_RPS 1.57f // Max safe angular speed in rad/s (approx 90 deg/s)
-
 // RoboClaw Configuration
 #define ROBOCLAW_ADDRESS 0x80      // RoboClaw address (default is 128)
 #define ROBOCLAW_TIMEOUT_US 10'000  // RoboClaw communication timeout (10ms)
 #define ROBOCLAW_BAUD_RATE 38400U
 #define ROBOCLAW_SOFTWARE_VERSION "USB Roboclaw 2x15a v4.2.8\n"
 #define ROBOCLAW_PUBLISH_STATUS_INTERVAL_MS 1000 // Publish status every 1000ms (1 second)
-// #define ROBOCLAW_M1_MAX_CURRENT_A 5.0f // Max current for motor 1
-// #define ROBOCLAW_M2_MAX_CURRENT_A 5.0f // Max current for motor 2
-// // QPPS = Quarter Pulses Per Second for RoboClaw speed commands
-// // Calculate QPPS from RPM: (RPM / 60) * QUADRATURE_PULSES_PER_REVOLUTION
-
 
 // Safety and E-Stop
 #define ROBOCLAW_SERIAL Serial6
 #define E_STOP_PIN 5              // Digital pin connected to RoboClaw E-Stop or relay
-// #define MOTOR_RUNAWAY_SPEED_FACTOR 1.5f // Actual speed > commanded * factor = runaway
-// #define MOTOR_STALL_DETECTION_MS 500 // Time (ms) to detect stall if encoders don't change with command
-// #define MOTOR_STALL_ENCODER_THRESHOLD 10 // Minimal encoder change to consider not stalled
 
 // Battery Monitoring
 #define MAIN_BATTERY_PIN 27             // Analog pin for battery voltage sensing
@@ -58,9 +42,7 @@
 // Loop Frequencies (Number of main loops per action)
 // These define how often certain messages are sent or actions are performed.
 // Example: If main loop is ~10ms (100Hz), ODOMETRY_SEND_INTERVAL = 5 means 100Hz/5 = 20Hz odometry.
-#define ODOMETRY_UPDATE_PERIOD_MS 33 // Update odometry every 10ms (100Hz)
-#define ROBOCLAW_STATUS_INTERVAL 100  // Report RoboClaw status every 100 main loops (~1Hz)
-#define MODULE_STATS_INTERVAL 100     // Report module stats every 100 main loops (~1Hz)
+#define ODOMETRY_UPDATE_PERIOD_MS 33 // Update odometry every 33ms (~30Hz)
 
 // Math Constants
 #ifndef M_PI
