@@ -1,5 +1,5 @@
-# Request: directory path on Teensy SD card
-string directory_path
+# Request: no parameters needed - always returns root directory listing
+# (left empty for future extensibility)
 
 ---
 

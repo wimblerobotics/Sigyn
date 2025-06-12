@@ -27,10 +27,14 @@ ros2 service call /teensy_sd_getdir sigyn_interfaces/srv/TeensySdGetDir "{direct
 ```
 
 ### Expected Response Format
-The `directory_listing` field will contain a pipe-delimited string of filenames, like:
-```
-SDIR: | LOG00053.TXT | .Trashes | Total files: 57
-```
+The `directory_listing` field will contain either:
+- **Tab-separated format**: `SDIR:.Spotlight-V100\tLOG00044.TXT\tLOG00045.TXT...` (direct from Teensy)
+- **Pipe-separated format**: `SDIR: | filename | filename...` (if processed by diagnostic system)
+
+## Timing Considerations
+- **First request**: May take 15+ seconds due to SD card initialization and file scanning
+- **Subsequent requests**: Should complete within 1-2 seconds
+- **Service timeout**: 15 seconds to accommodate initialization delays
 
 ## Prerequisites
 1. **Teensy Bridge Node**: The `teensy_bridge` node must be running
