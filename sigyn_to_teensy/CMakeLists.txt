@@ -12,6 +12,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(sigyn_interfaces REQUIRED)
 
 add_executable(teensy_bridge src/teensy_bridge.cpp)
 ament_target_dependencies(teensy_bridge 
@@ -20,6 +21,7 @@ ament_target_dependencies(teensy_bridge
   nav_msgs
   sensor_msgs 
   std_msgs
+  sigyn_interfaces
 )
 
 target_include_directories(teensy_bridge PUBLIC

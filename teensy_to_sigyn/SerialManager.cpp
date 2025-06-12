@@ -103,6 +103,7 @@ void SerialManager::SendRoboClawStatus(const char* msg) {
 
 void SerialManager::SendDiagnosticMessage(const String& message) {
     // Format: "diag <message_string>"
+    // Handle multi-line messages by replacing newlines with spaces or sending as-is
     Serial.print("DIAG:");
     Serial.println(message);
 }
