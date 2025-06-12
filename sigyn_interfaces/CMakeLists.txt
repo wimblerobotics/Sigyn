@@ -17,6 +17,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "action/MoveElevator.action"
   "action/MoveExtender.action"
   "srv/GripperPosition.srv"
+  "srv/TeensySdGetDir.srv"
 )
 
 # install(FILES mapping_rules.yaml DESTINATION share/${PROJECT_NAME})

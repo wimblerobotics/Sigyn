@@ -1,0 +1,9 @@
+# Request: directory path on Teensy SD card
+string directory_path
+
+---
+
+# Response: directory listing result
+string directory_listing
+bool success
+string error_message
