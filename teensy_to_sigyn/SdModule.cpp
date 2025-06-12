@@ -51,60 +51,21 @@ void SdModule::handleDirMessage(const String &message) {
     return;
   }
 
-  // Use the directory path from the message, or default to "/" if empty
-  String directoryPath = message;
-  if (directoryPath.length() == 0) {
-    directoryPath = "/";
+  // Use cached directory listing - fast operation!
+  SerialManager::singleton().SendDiagnosticMessage("[SdModule] Using cached directory listing");
+  
+  size_t currentLen = strlen(msg);
+  size_t remainingSpace = sizeof(msg) - currentLen - 1;
+  size_t cachedLen = cached_directory_listing_.length();
+  
+  if (remainingSpace > cachedLen) {
+    snprintf(msg + currentLen, remainingSpace, "%s", cached_directory_listing_.c_str());
+  } else {
+    SerialManager::singleton().SendDiagnosticMessage(
+        "[SdModule::handleDirMessage] Cached listing too large for buffer");
+    snprintf(msg + currentLen, remainingSpace, "ERROR: Directory listing too large");
   }
 
-  FsFile directory = g_sd_.open(directoryPath.c_str());
-  if (!directory) {
-    snprintf(msg + strlen(msg), sizeof(msg) - strlen(msg),
-             "ERROR: Failed to open directory: %s\n", directoryPath.c_str());
-    SerialManager::singleton().SendDiagnosticMessage(msg);
-    return;
-  }
-
-  // Check if it's actually a directory
-  if (!directory.isDirectory()) {
-    snprintf(msg + strlen(msg), sizeof(msg) - strlen(msg),
-             "ERROR: Path is not a directory: %s\n", directoryPath.c_str());
-    directory.close();
-    SerialManager::singleton().SendDiagnosticMessage(msg);
-    return;
-  }
-
-  // Ensure we start from the beginning of the directory
-  directory.rewindDirectory();
-
-  int fileCount = 0;
-  while (true) {
-    FsFile nextFileInDirectory = directory.openNextFile();
-    if (!nextFileInDirectory) {
-      break;
-    }
-
-    char fileName[256];
-    nextFileInDirectory.getName(fileName, sizeof(fileName));
-
-    // Check buffer space before appending
-    size_t currentLen = strlen(msg);
-    size_t remainingSpace =
-        sizeof(msg) - currentLen - 1;  // -1 for null terminator
-    size_t fileNameLen = strlen(fileName);
-
-    if (remainingSpace > fileNameLen + 1) {  // +1 for tab
-      snprintf(msg + currentLen, remainingSpace, "%s\t", fileName);
-    } else {
-      SerialManager::singleton().SendDiagnosticMessage(
-          "[SdModule::handleDirMessage] Buffer full, cannot add more files");
-    }
-
-    nextFileInDirectory.close();
-    fileCount++;
-  }
-
-  directory.close();
   SerialManager::singleton().SendDiagnosticMessage(msg);
 }
 
@@ -145,40 +106,58 @@ void SdModule::regexpMatchCallback(const char *match, const unsigned int length,
 void SdModule::setup() {}
 
 SdModule::SdModule() : TModule() {
-  if (!g_initialized_) {
-    data_buffer_.reserve(8192);
-    g_highestExistingLogFileNumber_ = 0;
-    if (!g_sd_.begin(SdioConfig(FIFO_SDIO))) {
-      //  ERROR Unable to access builtin SD card.
-      //  g_logFile_ = g_sd_.open("error", FILE_WRITE);
-    } else {
-      FsFile rootDirectory = g_sd_.open("/");
+  SerialManager::singleton().SendDiagnosticMessage("[SdModule] Starting full initialization...");
+  data_buffer_.reserve(8192);
+  g_highestExistingLogFileNumber_ = 0;
+  cached_directory_listing_ = "";
+  
+  if (!g_sd_.begin(SdioConfig(FIFO_SDIO))) {
+    SerialManager::singleton().SendDiagnosticMessage("[SdModule] ERROR: Failed to initialize SD card");
+  } else {
+    SerialManager::singleton().SendDiagnosticMessage("[SdModule] SD card initialized, scanning for log files...");
+    FsFile rootDirectory = g_sd_.open("/");
 
-      while (true) {
-        FsFile nextFileInDirectory = rootDirectory.openNextFile();
-        if (!nextFileInDirectory) {
-          break;
-        }
-        char fileName[256];
-        nextFileInDirectory.getName(fileName, sizeof(fileName));
-        nextFileInDirectory.close();
-        MatchState matchState;
-        matchState.Target(fileName);
-        matchState.GlobalMatch("LOG(%d+).TXT", regexpMatchCallback);
+    // Scan for highest log file number AND build cached directory listing
+    while (true) {
+      FsFile nextFileInDirectory = rootDirectory.openNextFile();
+      if (!nextFileInDirectory) {
+        break;
       }
-
-      rootDirectory.close();
-
-      char newLogFileName[20];  // Big enough to hold file name like:
-                                // LOG12345.TXT.
-      sprintf(newLogFileName, "LOG%05d.TXT", ++g_highestExistingLogFileNumber_);
-      g_logFile_ = g_sd_.open(newLogFileName, FILE_WRITE);
+      char fileName[256];
+      nextFileInDirectory.getName(fileName, sizeof(fileName));
+      nextFileInDirectory.close();
+      
+      // Add to cached directory listing
+      if (cached_directory_listing_.length() > 0) {
+        cached_directory_listing_ += "\t";
+      }
+      cached_directory_listing_ += fileName;
+      
+      // Check if this is a log file for numbering
+      MatchState matchState;
+      matchState.Target(fileName);
+      matchState.GlobalMatch("LOG(%d+).TXT", regexpMatchCallback);
     }
 
-    g_initialized_ = true;
-    SdModule::singleton().log("[SdModule::SdModule] Compiled on: " __DATE__
-                              ", " __TIME__);
+    rootDirectory.close();
+    SerialManager::singleton().SendDiagnosticMessage("[SdModule] File scanning complete, creating log file...");
+
+    char newLogFileName[20];
+    sprintf(newLogFileName, "LOG%05d.TXT", ++g_highestExistingLogFileNumber_);
+    g_logFile_ = g_sd_.open(newLogFileName, FILE_WRITE);
+    
+    // Add the new log file to the cached directory listing
+    if (cached_directory_listing_.length() > 0) {
+      cached_directory_listing_ += "\t";
+    }
+    cached_directory_listing_ += newLogFileName;
+    
+    SerialManager::singleton().SendDiagnosticMessage("[SdModule] Log file created successfully");
   }
+
+  g_initialized_ = true;
+  SerialManager::singleton().SendDiagnosticMessage("[SdModule] Initialization complete");
+  this->log("[SdModule::SdModule] Compiled on: " __DATE__ ", " __TIME__);
 }
 
 SdModule &SdModule::singleton() {
@@ -194,6 +173,8 @@ SdFs SdModule::g_sd_;
 int SdModule::g_highestExistingLogFileNumber_ = 0;
 
 bool SdModule::g_initialized_ = false;
+
+String SdModule::cached_directory_listing_ = "";
 
 FsFile SdModule::g_logFile_;
 

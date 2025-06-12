@@ -77,6 +77,9 @@ class SdModule : TModule {
   // Has SD device been properly initialized?
   static bool g_initialized_;
 
+  // Cached directory listing (captured during initialization)
+  static String cached_directory_listing_;
+
   // The file handle for the log file on the SD card device.
   static FsFile g_logFile_;
 
