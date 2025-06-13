@@ -32,21 +32,21 @@ void setup() {
 String serialBuffer;
 
 void loop() {
-  static unsigned long last_loop_time = 0;
-  unsigned long current_time = millis();
+  // static unsigned long last_loop_time = 0;
+  // unsigned long current_time = millis();
   
-  // Log if loop takes too long (more than 100ms since last iteration)
-  if (last_loop_time > 0 && (current_time - last_loop_time) > 100) {
-    Serial.println("[TIMING] Loop gap detected: " + String(current_time - last_loop_time) + "ms at " + String(current_time));
-  }
+  // // Log if loop takes too long (more than 100ms since last iteration)
+  // if (last_loop_time > 0 && (current_time - last_loop_time) > 100) {
+  //   Serial.println("[TIMING] Loop gap detected: " + String(current_time - last_loop_time) + "ms at " + String(current_time));
+  // }
   
   TModule::Loop();  // Call Loop on all registered modules
   
-  // Check if TModule::Loop took a long time
-  unsigned long after_tmodule = millis();
-  if ((after_tmodule - current_time) > 100) {
-    Serial.println("[TIMING] TModule::Loop took " + String(after_tmodule - current_time) + "ms at " + String(after_tmodule));
-  }
+  // // Check if TModule::Loop took a long time
+  // unsigned long after_tmodule = millis();
+  // if ((after_tmodule - current_time) > 100) {
+  //   Serial.println("[TIMING] TModule::Loop took " + String(after_tmodule - current_time) + "ms at " + String(after_tmodule));
+  // }
 
   // Non-blocking serial read and message handling
   while (Serial.available()) {
@@ -62,7 +62,7 @@ void loop() {
     }
   }
   
-  last_loop_time = millis();
+  // last_loop_time = millis();
 }
 
 void handleIncomingMessage(const String& message) {

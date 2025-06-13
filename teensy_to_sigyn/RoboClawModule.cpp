@@ -406,10 +406,6 @@ void RoboClawModule::updateOdometry() {
         roboclaw_.ReadEncM1(ROBOCLAW_ADDRESS, &status_m1, &valid_m1);
     prev_encoder_m2_ =
         roboclaw_.ReadEncM2(ROBOCLAW_ADDRESS, &status_m2, &valid_m2);
-    if (prev_encoder_m1_ < 0 || prev_encoder_m2_ < 0) {
-      SerialManager::singleton().SendDiagnosticMessage(
-          "RoboClaw: EncRead FAIL init odom");
-    }
     last_odom_update_time_us_ = micros();
     odom_initialized_ = true;
   }
