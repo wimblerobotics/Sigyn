@@ -33,41 +33,32 @@ void SdModule::flush() {
 }
 
 void SdModule::handleDirMessage(const String &message) {
-  char msg[16384];  // Buffer for diagnostic messages, large enough to hold
-                    // directory listing.
-  snprintf(msg, sizeof(msg),
-           "[SdModule::handleDirMessage] Received directory "
-           "message: %s",
-           message.c_str());
-  SerialManager::singleton().SendDiagnosticMessage(msg);
-
-  msg[0] = '\0';  // Clear the message buffer.
-  snprintf(msg, sizeof(msg), "SDIR:");
-
   if (!g_initialized_) {
-    snprintf(msg + strlen(msg), sizeof(msg) - strlen(msg),
-             "ERROR: SD card not initialized\n");
-    SerialManager::singleton().SendDiagnosticMessage(msg);
+    SerialManager::singleton().SendDiagnosticMessage("ERROR: SD card not initialized\n");
     return;
   }
 
-  // Use cached directory listing - fast operation!
-  SerialManager::singleton().SendDiagnosticMessage(
-      "[SdModule] Using cached directory listing");
+  char msg[16384];  // Buffer for diagnostic messages, large enough to hold
+                    // directory listing.
 
-  size_t currentLen = strlen(msg);
-  size_t remainingSpace = sizeof(msg) - currentLen - 1;
-  size_t cachedLen = cached_directory_listing_.length();
+  msg[0] = '\0';  // Clear the message buffer.
+  snprintf(msg, sizeof(msg), "SDIR:%s\n", cached_directory_listing_.c_str());
 
-  if (remainingSpace > cachedLen) {
-    snprintf(msg + currentLen, remainingSpace, "%s",
-             cached_directory_listing_.c_str());
-  } else {
-    SerialManager::singleton().SendDiagnosticMessage(
-        "[SdModule::handleDirMessage] Cached listing too large for buffer");
-    snprintf(msg + currentLen, remainingSpace,
-             "ERROR: Directory listing too large");
-  }
+  // size_t currentLen = strlen(msg);
+  // size_t remainingSpace = sizeof(msg) - currentLen - 1;
+  // size_t cachedLen = cached_directory_listing_.length();
+
+  // if (remainingSpace > cachedLen) {
+  //   snprintf(msg + currentLen, remainingSpace, "%s",
+  //            cached_directory_listing_.c_str());
+  // } else {
+  //   char msgTooLarge[256];
+  //   snprintf(msgTooLarge, sizeof(msgTooLarge),
+  //            "[SdModule::handleDirMessage] message length of %zu is too large for buffer of length %zu",
+  //            sizeof(message) - 1, sizeof(msg) - 1);
+  //   SerialManager::singleton().SendDiagnosticMessage(msgTooLarge);
+  //   return;
+  // }
 
   SerialManager::singleton().SendDiagnosticMessage(msg);
 }
@@ -166,7 +157,7 @@ void SdModule::loop() {
       break;
 
     case kDumpingNextLine:
-     if (dump_file_.available()) {
+      if (dump_file_.available()) {
         // Read one line from the file
         String line = dump_file_.readStringUntil('\n');
 
@@ -215,8 +206,6 @@ void SdModule::regexpMatchCallback(const char *match, const unsigned int length,
 void SdModule::setup() {}
 
 SdModule::SdModule() : TModule() {
-  SerialManager::singleton().SendDiagnosticMessage(
-      "[SdModule] Starting full initialization...");
   data_buffer_.reserve(8192);
   g_highestExistingLogFileNumber_ = 0;
   cached_directory_listing_ = "";
@@ -226,11 +215,8 @@ SdModule::SdModule() : TModule() {
   dump_filename_ = "";
 
   if (!g_sd_.begin(SdioConfig(FIFO_SDIO))) {
-    SerialManager::singleton().SendDiagnosticMessage(
-        "[SdModule] ERROR: Failed to initialize SD card");
+    // Nothing to do, SD card initialization failed.
   } else {
-    SerialManager::singleton().SendDiagnosticMessage(
-        "[SdModule] SD card initialized, scanning for log files...");
     FsFile rootDirectory = g_sd_.open("/");
 
     // Scan for highest log file number AND build cached directory listing
@@ -241,7 +227,7 @@ SdModule::SdModule() : TModule() {
       }
       char fileName[256];
       nextFileInDirectory.getName(fileName, sizeof(fileName));
-      
+
       // Get file size before closing
       uint32_t fileSize = nextFileInDirectory.size();
       nextFileInDirectory.close();
@@ -261,8 +247,6 @@ SdModule::SdModule() : TModule() {
     }
 
     rootDirectory.close();
-    SerialManager::singleton().SendDiagnosticMessage(
-        "[SdModule] File scanning complete, creating log file...");
 
     char newLogFileName[20];
     sprintf(newLogFileName, "LOG%05d.TXT", ++g_highestExistingLogFileNumber_);
@@ -273,15 +257,9 @@ SdModule::SdModule() : TModule() {
       cached_directory_listing_ += "\t";
     }
     cached_directory_listing_ += newLogFileName;
-    cached_directory_listing_ += ",0";  // New file starts with 0 bytes
-
-    SerialManager::singleton().SendDiagnosticMessage(
-        "[SdModule] Log file created successfully");
   }
 
   g_initialized_ = true;
-  SerialManager::singleton().SendDiagnosticMessage(
-      "[SdModule] Initialization complete");
   this->log("[SdModule::SdModule] Compiled on: " __DATE__ ", " __TIME__);
 }
 
@@ -301,7 +279,7 @@ bool SdModule::g_initialized_ = false;
 
 String SdModule::cached_directory_listing_ = "";
 
-SdModule::FileDumpState SdModule::loop_state_ = SdModule::kDoNothing;
+SdModule::LoopState SdModule::loop_state_ = SdModule::kDoNothing;
 
 FsFile SdModule::dump_file_;
 

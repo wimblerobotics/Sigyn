@@ -62,7 +62,7 @@ class SdModule : TModule {
   static const unsigned int kChunkSize = 4096;
 
   // State machine for file dumping
-  enum FileDumpState {
+  enum LoopState {
     kDoNothing,
     kDumpingNextLine
   };
@@ -90,7 +90,7 @@ class SdModule : TModule {
   static String cached_directory_listing_;
 
   // File dump state machine variables
-  static FileDumpState loop_state_;
+  static LoopState loop_state_;
   static FsFile dump_file_;
   static String dump_filename_;
 
