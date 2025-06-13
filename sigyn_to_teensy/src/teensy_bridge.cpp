@@ -198,16 +198,16 @@ class TeensyBridge : public rclcpp::Node {
   void sendQueuedMessages() {
     std::lock_guard<std::mutex> lock(outgoing_queue_mutex_);
     
-    if (!outgoing_message_queue_.empty()) {
-      RCLCPP_INFO(this->get_logger(), "Processing message queue, size: %zu", 
-                  outgoing_message_queue_.size());
-    }
+    // if (!outgoing_message_queue_.empty()) {
+    //   RCLCPP_INFO(this->get_logger(), "Processing message queue, size: %zu", 
+    //               outgoing_message_queue_.size());
+    // }
     
     while (!outgoing_message_queue_.empty()) {
       const std::string& message = outgoing_message_queue_.front();
       
-      RCLCPP_INFO(this->get_logger(), "About to send serial message: '%s'", 
-                   message.c_str());
+      // RCLCPP_INFO(this->get_logger(), "About to send serial message: '%s'", 
+      //              message.c_str());
       
       ssize_t bytes_written = write(serial_fd_, message.c_str(), message.length());
       if (bytes_written < 0) {
@@ -216,8 +216,8 @@ class TeensyBridge : public rclcpp::Node {
       } else {
         // Force immediate transmission
         fsync(serial_fd_);
-        RCLCPP_INFO(this->get_logger(), "Successfully sent %zd bytes: '%s'", 
-                     bytes_written, message.c_str());
+        // RCLCPP_INFO(this->get_logger(), "Successfully sent %zd bytes: '%s'", 
+        //              bytes_written, message.c_str());
       }
       
       outgoing_message_queue_.pop();
@@ -225,7 +225,7 @@ class TeensyBridge : public rclcpp::Node {
   }
 
   void processIncomingMessage(const std::string& message) {
-    RCLCPP_INFO(this->get_logger(), "Processing message: %s", message.c_str());
+    // RCLCPP_INFO(this->get_logger(), "Processing message: %s", message.c_str());
     
     size_t colon_pos = message.find(':');
     if (colon_pos == std::string::npos) {
@@ -269,21 +269,21 @@ class TeensyBridge : public rclcpp::Node {
     
     // Check if this diagnostic message contains an SDIR response
     if (data.substr(0, 5) == "SDIR:") {
-      RCLCPP_INFO(this->get_logger(), "Found SDIR response in DIAG message");
+      // RCLCPP_INFO(this->get_logger(), "Found SDIR response in DIAG message");
       // Extract the SDIR data (everything after "SDIR:")
       std::string sdir_data = data.substr(5);
       handleSdirResponse(sdir_data);
     }
     // Check if this diagnostic message contains an SDLINE response
     else if (data.substr(0, 7) == "SDLINE:") {
-      RCLCPP_INFO(this->get_logger(), "Found SDLINE response in DIAG message");
+      // RCLCPP_INFO(this->get_logger(), "Found SDLINE response in DIAG message");
       // Extract the SDLINE data (everything after "SDLINE:")
       std::string sdline_data = data.substr(7);
       handleSdlineResponse(sdline_data);
     }
     // Check if this diagnostic message contains an SDEOF response
     else if (data.substr(0, 6) == "SDEOF:") {
-      RCLCPP_INFO(this->get_logger(), "Found SDEOF response in DIAG message");
+      // RCLCPP_INFO(this->get_logger(), "Found SDEOF response in DIAG message");
       // Extract the SDEOF data (everything after "SDEOF:")
       std::string sdeof_data = data.substr(6);
       handleSdeofResponse(sdeof_data);
@@ -375,7 +375,7 @@ class TeensyBridge : public rclcpp::Node {
   }
 
   void handleSdirResponse(const std::string& data) {
-    RCLCPP_INFO(this->get_logger(), "Received SDIR response: %s", data.c_str());
+    // RCLCPP_INFO(this->get_logger(), "Received SDIR response: %s", data.c_str());
     
     std::lock_guard<std::mutex> lock(service_mutex_);
     
@@ -396,8 +396,8 @@ class TeensyBridge : public rclcpp::Node {
           request.completion_promise->set_value(true);
         }
         
-        RCLCPP_INFO(this->get_logger(), "Directory service request completed with %zu characters", 
-                    data.length());
+        // RCLCPP_INFO(this->get_logger(), "Directory service request completed with %zu characters", 
+        //             data.length());
       } else {
         RCLCPP_WARN(this->get_logger(), "Received SDIR response but pending request is not get_dir type");
       }
@@ -407,7 +407,7 @@ class TeensyBridge : public rclcpp::Node {
   }
 
   void handleSdlineResponse(const std::string& data) {
-    RCLCPP_INFO(this->get_logger(), "Received SDLINE response: %s", data.c_str());
+    // RCLCPP_INFO(this->get_logger(), "Received SDLINE response: %s", data.c_str());
     
     std::lock_guard<std::mutex> lock(service_mutex_);
     
@@ -425,8 +425,8 @@ class TeensyBridge : public rclcpp::Node {
         }
         request.accumulated_content += data;
         
-        RCLCPP_INFO(this->get_logger(), "Accumulated %zu characters so far", 
-                    request.accumulated_content.length());
+        // RCLCPP_INFO(this->get_logger(), "Accumulated %zu characters so far", 
+        //             request.accumulated_content.length());
       } else {
         RCLCPP_WARN(this->get_logger(), "Received SDLINE response but pending request is not get_file type");
       }
@@ -436,7 +436,7 @@ class TeensyBridge : public rclcpp::Node {
   }
 
   void handleSdeofResponse(const std::string& data) {
-    RCLCPP_INFO(this->get_logger(), "Received SDEOF response, file dump complete");
+    // RCLCPP_INFO(this->get_logger(), "Received SDEOF response, file dump complete");
     (void)data; // Unused parameter
     
     std::lock_guard<std::mutex> lock(service_mutex_);
@@ -458,8 +458,8 @@ class TeensyBridge : public rclcpp::Node {
           request.completion_promise->set_value(true);
         }
         
-        RCLCPP_INFO(this->get_logger(), "File service request completed with %zu characters", 
-                    request.accumulated_content.length());
+        // RCLCPP_INFO(this->get_logger(), "File service request completed with %zu characters", 
+        //             request.accumulated_content.length());
       } else {
         RCLCPP_WARN(this->get_logger(), "Received SDEOF response but pending request is not get_file type");
       }
@@ -472,7 +472,7 @@ class TeensyBridge : public rclcpp::Node {
       const std::shared_ptr<sigyn_interfaces::srv::TeensySdGetDir::Request> request,
       std::shared_ptr<sigyn_interfaces::srv::TeensySdGetDir::Response> response) {
     
-    RCLCPP_INFO(this->get_logger(), "=== SERVICE HANDLER CALLED ===");
+    // RCLCPP_INFO(this->get_logger(), "=== SERVICE HANDLER CALLED ===");
     (void)request;  // Unused parameter
     
     if (serial_fd_ < 0) {
@@ -505,11 +505,11 @@ class TeensyBridge : public rclcpp::Node {
     {
       std::lock_guard<std::mutex> lock(outgoing_queue_mutex_);
       outgoing_message_queue_.push("SDDIR:\n");
-      RCLCPP_INFO(this->get_logger(), "SDDIR message queued, queue size now: %zu", 
-                  outgoing_message_queue_.size());
+      // RCLCPP_INFO(this->get_logger(), "SDDIR message queued, queue size now: %zu", 
+      //             outgoing_message_queue_.size());
     }
     
-    RCLCPP_INFO(this->get_logger(), "SDDIR request queued, waiting for response...");
+    // RCLCPP_INFO(this->get_logger(), "SDDIR request queued, waiting for response...");
     
     // Wait for completion with timeout
     auto status = completion_future.wait_for(std::chrono::seconds(10));
@@ -533,9 +533,9 @@ class TeensyBridge : public rclcpp::Node {
       response->directory_listing = "";
       response->error_message = "Timeout waiting for response from Teensy";
       
-      RCLCPP_WARN(this->get_logger(), "SDIR service request timed out");
+      // RCLCPP_WARN(this->get_logger(), "SDIR service request timed out");
     } else {
-      RCLCPP_INFO(this->get_logger(), "SDIR service request completed successfully");
+      // RCLCPP_INFO(this->get_logger(), "SDIR service request completed successfully");
     }
   }
 
@@ -543,8 +543,8 @@ class TeensyBridge : public rclcpp::Node {
       const std::shared_ptr<sigyn_interfaces::srv::TeensySdGetFile::Request> request,
       std::shared_ptr<sigyn_interfaces::srv::TeensySdGetFile::Response> response) {
     
-    RCLCPP_INFO(this->get_logger(), "=== FILE DUMP SERVICE HANDLER CALLED ===");
-    RCLCPP_INFO(this->get_logger(), "Requested filename: %s", request->filename.c_str());
+    // RCLCPP_INFO(this->get_logger(), "=== FILE DUMP SERVICE HANDLER CALLED ===");
+    // RCLCPP_INFO(this->get_logger(), "Requested filename: %s", request->filename.c_str());
     
     if (serial_fd_ < 0) {
       response->success = false;
@@ -584,73 +584,15 @@ class TeensyBridge : public rclcpp::Node {
       std::lock_guard<std::mutex> lock(outgoing_queue_mutex_);
       std::string message = "SDFILE:" + request->filename + "\n";
       outgoing_message_queue_.push(message);
-      RCLCPP_INFO(this->get_logger(), "SDFILE message queued: %s", message.c_str());
+      // RCLCPP_INFO(this->get_logger(), "SDFILE message queued: %s", message.c_str());
     }
     
-    RCLCPP_INFO(this->get_logger(), "SDFILE request queued, waiting for response...");
+    // RCLCPP_INFO(this->get_logger(), "SDFILE request queued, waiting for response...");
     
-    // Wait for completion with activity-based timeout
-    // Check every 100ms, timeout only if no activity for 10 seconds
-    const auto activity_timeout = std::chrono::seconds(10);
-    const auto check_interval = std::chrono::milliseconds(100);
+    // Wait for completion with timeout (longer timeout for file dumps)
+    auto status = completion_future.wait_for(std::chrono::seconds(30));
     
-    bool completed = false;
-    auto start_time = std::chrono::steady_clock::now();
-    
-    while (!completed) {
-      auto status = completion_future.wait_for(check_interval);
-      
-      if (status == std::future_status::ready) {
-        completed = true;
-        break;
-      }
-      
-      // Check if we've been inactive for too long
-      bool should_timeout = false;
-      {
-        std::lock_guard<std::mutex> lock(service_mutex_);
-        if (!pending_service_requests_.empty()) {
-          auto& req = pending_service_requests_.front();
-          if (req.service_type == "get_file" && req.file_response == response) {
-            auto now = this->get_clock()->now();
-            auto time_since_activity = now - req.last_activity_time;
-            
-            if (time_since_activity > rclcpp::Duration(activity_timeout)) {
-              RCLCPP_WARN(this->get_logger(), "File dump inactive for %f seconds, timing out", 
-                         time_since_activity.seconds());
-              should_timeout = true;
-            } else {
-              // Log progress every 5 seconds
-              auto time_since_start = now - req.request_time;
-              if (((int)time_since_start.seconds()) % 5 == 0) {
-                RCLCPP_INFO(this->get_logger(), "File dump progress: %zu characters, %f seconds since last activity", 
-                           req.accumulated_content.length(), time_since_activity.seconds());
-              }
-            }
-          } else {
-            RCLCPP_WARN(this->get_logger(), "Pending request mismatch during file dump");
-            should_timeout = true;
-          }
-        } else {
-          RCLCPP_WARN(this->get_logger(), "No pending request found during file dump wait");
-          should_timeout = true;
-        }
-      }
-      
-      if (should_timeout) {
-        break;
-      }
-      
-      // Also check absolute timeout (5 minutes max for very large files)
-      auto elapsed = std::chrono::steady_clock::now() - start_time;
-      if (elapsed > MAX_FILE_DUMP_TIMEOUT) {
-        RCLCPP_WARN(this->get_logger(), "File dump exceeded absolute timeout of %ld minutes", 
-                   MAX_FILE_DUMP_TIMEOUT.count());
-        break;
-      }
-    }
-    
-    if (!completed) {
+    if (status == std::future_status::timeout) {
       // Handle timeout
       std::lock_guard<std::mutex> lock(service_mutex_);
       
@@ -669,9 +611,9 @@ class TeensyBridge : public rclcpp::Node {
       response->file_contents = "";
       response->error_message = "Timeout waiting for response from Teensy";
       
-      RCLCPP_WARN(this->get_logger(), "SDFILE service request timed out");
+      // RCLCPP_WARN(this->get_logger(), "SDFILE service request timed out");
     } else {
-      RCLCPP_INFO(this->get_logger(), "SDFILE service request completed successfully");
+      // RCLCPP_INFO(this->get_logger(), "SDFILE service request completed successfully");
     }
   }
 
@@ -699,9 +641,6 @@ class TeensyBridge : public rclcpp::Node {
   // Service request handling
   std::queue<PendingServiceRequest> pending_service_requests_;
   std::mutex service_mutex_;
-
-  // Timeout constants
-  static constexpr std::chrono::minutes MAX_FILE_DUMP_TIMEOUT{15}; // Maximum time for file dump operations
 };
 
 int main(int argc, char* argv[]) {
