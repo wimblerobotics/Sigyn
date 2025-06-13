@@ -75,6 +75,7 @@ class SdModule : TModule {
 
   // Used to hold a big chunk of data so writes are fewer.
   String data_buffer_;
+  uint32_t last_data_buffer_flush_time_ms_ = 0;
 
   // The SD card device.
   static SdFs g_sd_;
@@ -89,7 +90,7 @@ class SdModule : TModule {
   static String cached_directory_listing_;
 
   // File dump state machine variables
-  static FileDumpState dump_state_;
+  static FileDumpState loop_state_;
   static FsFile dump_file_;
   static String dump_filename_;
 
