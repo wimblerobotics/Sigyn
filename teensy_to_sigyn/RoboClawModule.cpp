@@ -10,7 +10,16 @@ RoboClawModule::RoboClawModule()
       roboclaw_(RoboClaw(&ROBOCLAW_SERIAL, ROBOCLAW_TIMEOUT_US)),
       angular_z_(0.0f),
       linear_x_(0.0f),
-      last_twist_received_time_ms_(0) {
+      last_twist_received_time_ms_(0),
+      last_commanded_qpps_m1_(0),
+      last_commanded_qpps_m2_(0),
+      last_command_time_ms_(0),
+      runaway_detection_initialized_(false),
+      last_runaway_encoder_m1_(0),
+      last_runaway_encoder_m2_(0),
+      last_runaway_check_time_ms_(0),
+      motor_runaway_fault_m1_(false),
+      motor_runaway_fault_m2_(false) {
   current_pose_ = {0.0f, 0.0f, 0.0f};
   current_velocity_ = {0.0f, 0.0f};
   reconnect();
@@ -31,6 +40,14 @@ void RoboClawModule::doMixedSpeedAccelDist(
   roboclaw_.SpeedAccelDistanceM1M2(
       ROBOCLAW_ADDRESS, accel_quad_pulses_per_second, m1_quad_pulses_per_second,
       m1_max_distance, m2_quad_pulses_per_second, m2_max_distance, 1);
+  char msg[256];
+  snprintf(
+      msg, sizeof(msg),
+      "INFO:[TRoboClaw::DoMixedSpeedAccelDist] M1: %ld qpps, M2: %ld qpps, "
+      "M1 dist: %ld, M2 dist: %ld",
+      m1_quad_pulses_per_second, m2_quad_pulses_per_second, m1_max_distance,
+      m2_max_distance);
+  SerialManager::singleton().SendRoboClawStatus(msg);
 }
 
 uint32_t RoboClawModule::getError() {
@@ -133,6 +150,14 @@ float RoboClawModule::getMainBatteryVoltage() {
   }
 }
 
+void RoboClawModule::setM1PID(float p, float i, float d, uint32_t qpps) {
+  roboclaw_.SetM1VelocityPID(ROBOCLAW_ADDRESS, p, i, d, qpps);
+}
+
+void RoboClawModule::setM2PID(float p, float i, float d, uint32_t qpps) {
+  roboclaw_.SetM2VelocityPID(ROBOCLAW_ADDRESS, p, i, d, qpps);
+}
+
 void RoboClawModule::setup() {
   // Initialize E-Stop pin
   pinMode(E_STOP_PIN, OUTPUT);
@@ -200,7 +225,8 @@ void RoboClawModule::loop() {
     case State::kLoop:
       updateMotorCommands();
       updateOdometry();
-      publishStatus();  // Publish status periodically
+      checkForRunaway();  // Check for motor runaway conditions
+      publishStatus();    // Publish status periodically
       break;
 
     default:
@@ -254,6 +280,8 @@ void RoboClawModule::reconnect() {
   roboclaw_.~RoboClaw();  // Clean up the previous instance
   roboclaw_ = RoboClaw(&ROBOCLAW_SERIAL, ROBOCLAW_TIMEOUT_US);
   roboclaw_.begin(ROBOCLAW_BAUD_RATE);
+  setM1PID(7.26239, 2.43, 00, 2437);
+  setM2PID(7.26239, 2.43, 00, 2437);
   if (isVersionOk()) {
     SerialManager::singleton().SendDiagnosticMessage(
         "INFO [RoboClawModule::Loop] Version check passed");
@@ -376,6 +404,19 @@ void RoboClawModule::updateMotorCommands() {
   //            qpps_m2_max_distance);
   //   SerialManager::singleton().SendDiagnosticMessage(msg);
   // }
+
+  // Capture commanded QPPS values and time for runaway detection
+  last_commanded_qpps_m1_ = qpps_m1;
+  last_commanded_qpps_m2_ = qpps_m2;
+  last_command_time_ms_ = millis();
+
+  // Reset runaway faults if commanded speed is zero
+  if (qpps_m1 == 0) {
+    motor_runaway_fault_m1_ = false;
+  }
+  if (qpps_m2 == 0) {
+    motor_runaway_fault_m2_ = false;
+  }
 
   doMixedSpeedAccelDist(MAX_ACCELERATION_QPPS2, qpps_m1, qpps_m1_max_distance,
                         qpps_m2, qpps_m2_max_distance);
@@ -614,6 +655,105 @@ void RoboClawModule::ResetSafetyFlags() {
   //         motor_stall_detected_m1_ = false;
   //         motor_stall_detected_m2_ = false;
   //     }
+}
+
+void RoboClawModule::checkForRunaway() {
+  uint32_t current_time_ms = millis();
+
+  // Initialize on first call
+  if (!runaway_detection_initialized_) {
+    bool valid_m1, valid_m2;
+    uint8_t status_m1, status_m2;
+    last_runaway_encoder_m1_ =
+        roboclaw_.ReadEncM1(ROBOCLAW_ADDRESS, &status_m1, &valid_m1);
+    last_runaway_encoder_m2_ =
+        roboclaw_.ReadEncM2(ROBOCLAW_ADDRESS, &status_m2, &valid_m2);
+
+    if (!valid_m1 || !valid_m2) {
+      SerialManager::singleton().SendDiagnosticMessage(
+          "ERROR: [RoboClawModule::checkForRunaway] Failed to initialize "
+          "encoder readings");
+      return;
+    }
+
+    last_runaway_check_time_ms_ = current_time_ms;
+    runaway_detection_initialized_ = true;
+    return;
+  }
+
+  // Check if enough time has passed since last check
+  if ((current_time_ms - last_runaway_check_time_ms_) < TEST_MOTOR_RUNAWAY_MS) {
+    return;
+  }
+
+  // Read current encoder values
+  bool valid_m1, valid_m2;
+  uint8_t status_m1, status_m2;
+  long current_encoder_m1 =
+      roboclaw_.ReadEncM1(ROBOCLAW_ADDRESS, &status_m1, &valid_m1);
+  long current_encoder_m2 =
+      roboclaw_.ReadEncM2(ROBOCLAW_ADDRESS, &status_m2, &valid_m2);
+
+  if (!valid_m1 || !valid_m2) {
+    SerialManager::singleton().SendDiagnosticMessage(
+        "ERROR: [RoboClawModule::checkForRunaway] Failed to read current "
+        "encoder values");
+    return;
+  }
+
+  // Calculate time difference in seconds
+  float dt_s = (current_time_ms - last_runaway_check_time_ms_) / 1000.0f;
+  if (dt_s <= 0.0f) return;  // Avoid division by zero
+
+  // Calculate actual encoder speeds (QPPS - Quadrature Pulses Per Second)
+  long delta_encoder_m1 = current_encoder_m1 - last_runaway_encoder_m1_;
+  long delta_encoder_m2 = current_encoder_m2 - last_runaway_encoder_m2_;
+
+  float actual_qpps_m1 = delta_encoder_m1 / dt_s;
+  float actual_qpps_m2 = delta_encoder_m2 / dt_s;
+
+  // Check for runaway conditions
+  // Only check if we have a non-zero commanded speed
+  if (last_commanded_qpps_m1_ != 0) {
+    float expected_qpps_m1 = static_cast<float>(last_commanded_qpps_m1_);
+    float threshold_qpps_m1 =
+        fabs(expected_qpps_m1) * (CRITICAL_MOTOR_RUNAWAY_PERCENT / 100.0f);
+
+    if (fabs(actual_qpps_m1) > threshold_qpps_m1) {
+      if (!motor_runaway_fault_m1_) {
+        motor_runaway_fault_m1_ = true;
+        char msg[128];
+        snprintf(msg, sizeof(msg),
+                 "FAULT: Motor M1 runaway detected! Actual: %.1f QPPS, "
+                 "Expected: %.1f QPPS, Threshold: %.1f QPPS",
+                 actual_qpps_m1, expected_qpps_m1, threshold_qpps_m1);
+        SerialManager::singleton().SendDiagnosticMessage(msg);
+      }
+    }
+  }
+
+  if (last_commanded_qpps_m2_ != 0) {
+    float expected_qpps_m2 = static_cast<float>(last_commanded_qpps_m2_);
+    float threshold_qpps_m2 =
+        fabs(expected_qpps_m2) * (CRITICAL_MOTOR_RUNAWAY_PERCENT / 100.0f);
+
+    if (fabs(actual_qpps_m2) > threshold_qpps_m2) {
+      if (!motor_runaway_fault_m2_) {
+        motor_runaway_fault_m2_ = true;
+        char msg[128];
+        snprintf(msg, sizeof(msg),
+                 "FAULT: Motor M2 runaway detected! Actual: %.1f QPPS, "
+                 "Expected: %.1f QPPS, Threshold: %.1f QPPS",
+                 actual_qpps_m2, expected_qpps_m2, threshold_qpps_m2);
+        SerialManager::singleton().SendDiagnosticMessage(msg);
+      }
+    }
+  }
+
+  // Update state for next check
+  last_runaway_encoder_m1_ = current_encoder_m1;
+  last_runaway_encoder_m2_ = current_encoder_m2;
+  last_runaway_check_time_ms_ = current_time_ms;
 }
 
 // bool RoboClawModule::IsEStopActive() const {

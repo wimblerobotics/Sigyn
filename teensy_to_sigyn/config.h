@@ -46,6 +46,10 @@
 // Example: If main loop is ~10ms (100Hz), ODOMETRY_SEND_INTERVAL = 5 means 100Hz/5 = 20Hz odometry.
 #define ODOMETRY_UPDATE_PERIOD_MS 33 // Update odometry every 33ms (~30Hz)
 
+// Motor Runaway Detection
+#define TEST_MOTOR_RUNAWAY_MS 10 // Test for motor runaway every 10ms
+#define CRITICAL_MOTOR_RUNAWAY_PERCENT 125.0f // Critical runaway threshold (125% of expected speed)
+
 // Math Constants
 #ifndef M_PI
 #define M_PI 3.14159265358979323846f
