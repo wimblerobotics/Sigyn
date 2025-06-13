@@ -39,11 +39,14 @@ The Teensy bridge provides two services for interacting with the Teensy's SD car
 ros2 service call /teensy_sd_getdir sigyn_interfaces/srv/TeensySdGetDir "{}"
 ```
 
-Example response:
-```
-success: true
-directory_listing: ".Spotlight-V100	LOG00044.TXT	LOG00045.TXT	LOG00046.TXT	LOG00067.TXT"
-error_message: ""
+Example response shows each file in the root directory followed by a comma then the size of the file. The last file in the list
+is the current log file and it has no size showing. The directory list is computed once at startup is that cached result
+is what is shown for each request.
+```code
+requester: making request: sigyn_interfaces.srv.TeensySdGetDir_Request()
+
+response:
+sigyn_interfaces.srv.TeensySdGetDir_Response(directory_listing='.Spotlight-V100,0\tLOG00001.TXT,622209\tLOG00002.TXT,0\tLOG00003.TXT,0\tLOG00004.TXT,163489\tLOG00005.TXT,15206097\tLOG00006.TXT,491379\t.Trashes,0\t.fseventsd,0\tLOG00007.TXT', success=True, error_message='')
 ```
 
 ### File Dump Service
