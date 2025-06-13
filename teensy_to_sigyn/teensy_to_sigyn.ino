@@ -77,6 +77,8 @@ void handleIncomingMessage(const String& message) {
     roboclaw_module.handleTwistMessage(data);
   } else if (type == "SDDIR") {
     sd_module.handleDirMessage(data);
+  } else if (type == "SDFILE") {
+    sd_module.handleFileDump(data);
   } else {
     Serial.println("Unknown message type: " + type);
   }

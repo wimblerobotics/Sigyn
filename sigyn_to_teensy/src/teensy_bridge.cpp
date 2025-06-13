@@ -14,6 +14,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/battery_state.hpp>
 #include <sigyn_interfaces/srv/teensy_sd_get_dir.hpp>
+#include <sigyn_interfaces/srv/teensy_sd_get_file.hpp>
 #include <sstream>
 #include <std_msgs/msg/string.hpp>
 #include <string>
@@ -22,9 +23,13 @@
 // Structure to hold pending service requests
 struct PendingServiceRequest {
   std::string request_id;
-  std::shared_ptr<sigyn_interfaces::srv::TeensySdGetDir::Response> response;
+  std::string service_type; // "get_dir" or "get_file"
+  std::shared_ptr<sigyn_interfaces::srv::TeensySdGetDir::Response> dir_response;
+  std::shared_ptr<sigyn_interfaces::srv::TeensySdGetFile::Response> file_response;
   rclcpp::Time request_time;
+  rclcpp::Time last_activity_time; // Last time we received data for this request
   std::shared_ptr<std::promise<bool>> completion_promise;
+  std::string accumulated_content; // For file dump responses
 };
 
 class TeensyBridge : public rclcpp::Node {
@@ -62,7 +67,16 @@ class TeensyBridge : public rclcpp::Node {
             "teensy_sd_getdir",
             std::bind(&TeensyBridge::handleSdGetDirRequest, this,
                       std::placeholders::_1, std::placeholders::_2),
-            rmw_qos_profile_services_default,
+            rclcpp::ServicesQoS(),
+            service_callback_group_);
+
+    // Create service for SD card file dump with separate callback group
+    sd_getfile_service_ =
+        this->create_service<sigyn_interfaces::srv::TeensySdGetFile>(
+            "teensy_sd_getfile",
+            std::bind(&TeensyBridge::handleSdGetFileRequest, this,
+                      std::placeholders::_1, std::placeholders::_2),
+            rclcpp::ServicesQoS(),
             service_callback_group_);
 
     // Single timer for all serial communication - this ensures thread safety
@@ -231,6 +245,10 @@ class TeensyBridge : public rclcpp::Node {
       publishDiagnostics(data);
     } else if (type == "SDIR") {
       handleSdirResponse(data);
+    } else if (type == "SDLINE") {
+      handleSdlineResponse(data);
+    } else if (type == "SDEOF") {
+      handleSdeofResponse(data);
     } else if (type == "ODOM") {
       publishOdometry(data);
     } else {
@@ -255,6 +273,20 @@ class TeensyBridge : public rclcpp::Node {
       // Extract the SDIR data (everything after "SDIR:")
       std::string sdir_data = data.substr(5);
       handleSdirResponse(sdir_data);
+    }
+    // Check if this diagnostic message contains an SDLINE response
+    else if (data.substr(0, 7) == "SDLINE:") {
+      RCLCPP_INFO(this->get_logger(), "Found SDLINE response in DIAG message");
+      // Extract the SDLINE data (everything after "SDLINE:")
+      std::string sdline_data = data.substr(7);
+      handleSdlineResponse(sdline_data);
+    }
+    // Check if this diagnostic message contains an SDEOF response
+    else if (data.substr(0, 6) == "SDEOF:") {
+      RCLCPP_INFO(this->get_logger(), "Found SDEOF response in DIAG message");
+      // Extract the SDEOF data (everything after "SDEOF:")
+      std::string sdeof_data = data.substr(6);
+      handleSdeofResponse(sdeof_data);
     }
   }
 
@@ -347,25 +379,92 @@ class TeensyBridge : public rclcpp::Node {
     
     std::lock_guard<std::mutex> lock(service_mutex_);
     
-    // Check if we have a pending service request
+    // Check if we have a pending service request for directory listing
     if (!pending_service_requests_.empty()) {
       auto request = pending_service_requests_.front();
-      pending_service_requests_.pop();
       
-      // Set the response data - the data portion already contains the file listing
-      request.response->success = true;
-      request.response->directory_listing = data;  // This is the tab-separated file list
-      request.response->error_message = "";
-      
-      // Signal completion using the promise
-      if (request.completion_promise) {
-        request.completion_promise->set_value(true);
+      if (request.service_type == "get_dir") {
+        pending_service_requests_.pop();
+        
+        // Set the response data - the data portion already contains the file listing
+        request.dir_response->success = true;
+        request.dir_response->directory_listing = data;  // This is the tab-separated file list
+        request.dir_response->error_message = "";
+        
+        // Signal completion using the promise
+        if (request.completion_promise) {
+          request.completion_promise->set_value(true);
+        }
+        
+        RCLCPP_INFO(this->get_logger(), "Directory service request completed with %zu characters", 
+                    data.length());
+      } else {
+        RCLCPP_WARN(this->get_logger(), "Received SDIR response but pending request is not get_dir type");
       }
-      
-      RCLCPP_INFO(this->get_logger(), "Service request completed with %zu characters", 
-                  data.length());
     } else {
       RCLCPP_WARN(this->get_logger(), "Received SDIR response but no pending request");
+    }
+  }
+
+  void handleSdlineResponse(const std::string& data) {
+    RCLCPP_INFO(this->get_logger(), "Received SDLINE response: %s", data.c_str());
+    
+    std::lock_guard<std::mutex> lock(service_mutex_);
+    
+    // Check if we have a pending file dump request
+    if (!pending_service_requests_.empty()) {
+      auto& request = pending_service_requests_.front();
+      
+      if (request.service_type == "get_file") {
+        // Update last activity time to reset timeout
+        request.last_activity_time = this->get_clock()->now();
+        
+        // Accumulate line content (data should already have \r removed by Teensy)
+        if (!request.accumulated_content.empty()) {
+          request.accumulated_content += "\n";
+        }
+        request.accumulated_content += data;
+        
+        RCLCPP_INFO(this->get_logger(), "Accumulated %zu characters so far", 
+                    request.accumulated_content.length());
+      } else {
+        RCLCPP_WARN(this->get_logger(), "Received SDLINE response but pending request is not get_file type");
+      }
+    } else {
+      RCLCPP_WARN(this->get_logger(), "Received SDLINE response but no pending request");
+    }
+  }
+
+  void handleSdeofResponse(const std::string& data) {
+    RCLCPP_INFO(this->get_logger(), "Received SDEOF response, file dump complete");
+    (void)data; // Unused parameter
+    
+    std::lock_guard<std::mutex> lock(service_mutex_);
+    
+    // Check if we have a pending file dump request
+    if (!pending_service_requests_.empty()) {
+      auto request = pending_service_requests_.front();
+      
+      if (request.service_type == "get_file") {
+        pending_service_requests_.pop();
+        
+        // Set the response data with accumulated content
+        request.file_response->success = true;
+        request.file_response->file_contents = request.accumulated_content;
+        request.file_response->error_message = "";
+        
+        // Signal completion using the promise
+        if (request.completion_promise) {
+          request.completion_promise->set_value(true);
+        }
+        
+        RCLCPP_INFO(this->get_logger(), "File service request completed with %zu characters", 
+                    request.accumulated_content.length());
+      } else {
+        RCLCPP_WARN(this->get_logger(), "Received SDEOF response but pending request is not get_file type");
+      }
+    } else {
+      RCLCPP_WARN(this->get_logger(), "Received SDEOF response but no pending request");
     }
   }
 
@@ -392,9 +491,13 @@ class TeensyBridge : public rclcpp::Node {
       std::lock_guard<std::mutex> lock(service_mutex_);
       pending_service_requests_.push({
         "sdir_request",
+        "get_dir",
         response,
+        nullptr,
         this->get_clock()->now(),
-        completion_promise
+        this->get_clock()->now(),
+        completion_promise,
+        ""
       });
     }
     
@@ -419,7 +522,7 @@ class TeensyBridge : public rclcpp::Node {
       std::queue<PendingServiceRequest> temp_queue;
       while (!pending_service_requests_.empty()) {
         auto req = pending_service_requests_.front();
-        if (req.response != response) {
+        if (req.dir_response != response) {
           temp_queue.push(req);
         }
         pending_service_requests_.pop();
@@ -436,6 +539,142 @@ class TeensyBridge : public rclcpp::Node {
     }
   }
 
+  void handleSdGetFileRequest(
+      const std::shared_ptr<sigyn_interfaces::srv::TeensySdGetFile::Request> request,
+      std::shared_ptr<sigyn_interfaces::srv::TeensySdGetFile::Response> response) {
+    
+    RCLCPP_INFO(this->get_logger(), "=== FILE DUMP SERVICE HANDLER CALLED ===");
+    RCLCPP_INFO(this->get_logger(), "Requested filename: %s", request->filename.c_str());
+    
+    if (serial_fd_ < 0) {
+      response->success = false;
+      response->error_message = "Serial connection not available";
+      response->file_contents = "";
+      return;
+    }
+
+    if (request->filename.empty()) {
+      response->success = false;
+      response->error_message = "Filename cannot be empty";
+      response->file_contents = "";
+      return;
+    }
+
+    // Create a promise for async completion
+    auto completion_promise = std::make_shared<std::promise<bool>>();
+    auto completion_future = completion_promise->get_future();
+
+    // Store the service request for async completion
+    {
+      std::lock_guard<std::mutex> lock(service_mutex_);
+      pending_service_requests_.push({
+        "sdfile_request",
+        "get_file",
+        nullptr,
+        response,
+        this->get_clock()->now(),
+        this->get_clock()->now(),
+        completion_promise,
+        ""
+      });
+    }
+    
+    // Queue the serial message
+    {
+      std::lock_guard<std::mutex> lock(outgoing_queue_mutex_);
+      std::string message = "SDFILE:" + request->filename + "\n";
+      outgoing_message_queue_.push(message);
+      RCLCPP_INFO(this->get_logger(), "SDFILE message queued: %s", message.c_str());
+    }
+    
+    RCLCPP_INFO(this->get_logger(), "SDFILE request queued, waiting for response...");
+    
+    // Wait for completion with activity-based timeout
+    // Check every 100ms, timeout only if no activity for 10 seconds
+    const auto activity_timeout = std::chrono::seconds(10);
+    const auto check_interval = std::chrono::milliseconds(100);
+    
+    bool completed = false;
+    auto start_time = std::chrono::steady_clock::now();
+    
+    while (!completed) {
+      auto status = completion_future.wait_for(check_interval);
+      
+      if (status == std::future_status::ready) {
+        completed = true;
+        break;
+      }
+      
+      // Check if we've been inactive for too long
+      bool should_timeout = false;
+      {
+        std::lock_guard<std::mutex> lock(service_mutex_);
+        if (!pending_service_requests_.empty()) {
+          auto& req = pending_service_requests_.front();
+          if (req.service_type == "get_file" && req.file_response == response) {
+            auto now = this->get_clock()->now();
+            auto time_since_activity = now - req.last_activity_time;
+            
+            if (time_since_activity > rclcpp::Duration(activity_timeout)) {
+              RCLCPP_WARN(this->get_logger(), "File dump inactive for %f seconds, timing out", 
+                         time_since_activity.seconds());
+              should_timeout = true;
+            } else {
+              // Log progress every 5 seconds
+              auto time_since_start = now - req.request_time;
+              if (((int)time_since_start.seconds()) % 5 == 0) {
+                RCLCPP_INFO(this->get_logger(), "File dump progress: %zu characters, %f seconds since last activity", 
+                           req.accumulated_content.length(), time_since_activity.seconds());
+              }
+            }
+          } else {
+            RCLCPP_WARN(this->get_logger(), "Pending request mismatch during file dump");
+            should_timeout = true;
+          }
+        } else {
+          RCLCPP_WARN(this->get_logger(), "No pending request found during file dump wait");
+          should_timeout = true;
+        }
+      }
+      
+      if (should_timeout) {
+        break;
+      }
+      
+      // Also check absolute timeout (5 minutes max for very large files)
+      auto elapsed = std::chrono::steady_clock::now() - start_time;
+      if (elapsed > MAX_FILE_DUMP_TIMEOUT) {
+        RCLCPP_WARN(this->get_logger(), "File dump exceeded absolute timeout of %ld minutes", 
+                   MAX_FILE_DUMP_TIMEOUT.count());
+        break;
+      }
+    }
+    
+    if (!completed) {
+      // Handle timeout
+      std::lock_guard<std::mutex> lock(service_mutex_);
+      
+      // Remove the request from the queue if still there
+      std::queue<PendingServiceRequest> temp_queue;
+      while (!pending_service_requests_.empty()) {
+        auto req = pending_service_requests_.front();
+        if (req.file_response != response) {
+          temp_queue.push(req);
+        }
+        pending_service_requests_.pop();
+      }
+      pending_service_requests_ = temp_queue;
+      
+      response->success = false;
+      response->file_contents = "";
+      response->error_message = "Timeout waiting for response from Teensy";
+      
+      RCLCPP_WARN(this->get_logger(), "SDFILE service request timed out");
+    } else {
+      RCLCPP_INFO(this->get_logger(), "SDFILE service request completed successfully");
+    }
+  }
+
   // ROS2 components
   rclcpp::CallbackGroup::SharedPtr service_callback_group_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_sub_;
@@ -444,6 +683,7 @@ class TeensyBridge : public rclcpp::Node {
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr teensy_diagnostics_pub_;
   rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr battery_state_pub_;
   rclcpp::Service<sigyn_interfaces::srv::TeensySdGetDir>::SharedPtr sd_getdir_service_;
+  rclcpp::Service<sigyn_interfaces::srv::TeensySdGetFile>::SharedPtr sd_getfile_service_;
   
   // Single timer for all serial communication
   rclcpp::TimerBase::SharedPtr serial_timer_;
@@ -459,6 +699,9 @@ class TeensyBridge : public rclcpp::Node {
   // Service request handling
   std::queue<PendingServiceRequest> pending_service_requests_;
   std::mutex service_mutex_;
+
+  // Timeout constants
+  static constexpr std::chrono::minutes MAX_FILE_DUMP_TIMEOUT{15}; // Maximum time for file dump operations
 };
 
 int main(int argc, char* argv[]) {

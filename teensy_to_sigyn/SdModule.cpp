@@ -69,6 +69,48 @@ void SdModule::handleDirMessage(const String &message) {
   SerialManager::singleton().SendDiagnosticMessage(msg);
 }
 
+void SdModule::handleFileDump(const String &message) {
+  char msg[512];
+  snprintf(msg, sizeof(msg),
+           "[SdModule::handleFileDump] Received file dump request: %s",
+           message.c_str());
+  SerialManager::singleton().SendDiagnosticMessage(msg);
+
+  if (!g_initialized_) {
+    SerialManager::singleton().SendDiagnosticMessage("SDLINE:ERROR: SD card not initialized\r");
+    SerialManager::singleton().SendDiagnosticMessage("SDEOF:\n");
+    return;
+  }
+
+  if (dump_state_ != kDoNothing) {
+    SerialManager::singleton().SendDiagnosticMessage("SDLINE:ERROR: File dump already in progress\r");
+    SerialManager::singleton().SendDiagnosticMessage("SDEOF:\n");
+    return;
+  }
+
+  // Extract filename from message (everything after the colon)
+  dump_filename_ = message;
+  if (dump_filename_.length() == 0) {
+    SerialManager::singleton().SendDiagnosticMessage("SDLINE:ERROR: No filename specified\r");
+    SerialManager::singleton().SendDiagnosticMessage("SDEOF:\n");
+    return;
+  }
+
+  // Try to open the file
+  dump_file_ = g_sd_.open(dump_filename_.c_str(), FILE_READ);
+  if (!dump_file_) {
+    snprintf(msg, sizeof(msg), "SDLINE:ERROR: Could not open file '%s'\r", dump_filename_.c_str());
+    SerialManager::singleton().SendDiagnosticMessage(msg);
+    SerialManager::singleton().SendDiagnosticMessage("SDEOF:\n");
+    return;
+  }
+
+  // Set state to start dumping
+  dump_state_ = kDumpingNextLine;
+  snprintf(msg, sizeof(msg), "[SdModule] Started dumping file: %s", dump_filename_.c_str());
+  SerialManager::singleton().SendDiagnosticMessage(msg);
+}
+
 void SdModule::log(const char *message) {
   if (g_initialized_) {
     char log_message[kChunkSize];
@@ -91,7 +133,33 @@ void SdModule::log(const char *message) {
   }
 }
 
-void SdModule::loop() {}
+void SdModule::loop() {
+  if (dump_state_ == kDumpingNextLine) {
+    if (dump_file_.available()) {
+      // Read one line from the file
+      String line = dump_file_.readStringUntil('\n');
+      
+      // Remove carriage return if present
+      if (line.endsWith("\r")) {
+        line.remove(line.length() - 1);
+      }
+      
+      // Send the line with SDLINE prefix and carriage return
+      String response = "SDLINE:" + line + "\r";
+      SerialManager::singleton().SendDiagnosticMessage(response.c_str());
+    } else {
+      // End of file reached
+      SerialManager::singleton().SendDiagnosticMessage("SDEOF:\n");
+      dump_file_.close();
+      dump_state_ = kDoNothing;
+      
+      char msg[256];
+      snprintf(msg, sizeof(msg), "[SdModule] Completed dumping file: %s", dump_filename_.c_str());
+      SerialManager::singleton().SendDiagnosticMessage(msg);
+      dump_filename_ = "";
+    }
+  }
+}
 
 void SdModule::regexpMatchCallback(const char *match, const unsigned int length,
                                    const MatchState &matchState) {
@@ -110,6 +178,10 @@ SdModule::SdModule() : TModule() {
   data_buffer_.reserve(8192);
   g_highestExistingLogFileNumber_ = 0;
   cached_directory_listing_ = "";
+  
+  // Initialize file dump state machine
+  dump_state_ = kDoNothing;
+  dump_filename_ = "";
   
   if (!g_sd_.begin(SdioConfig(FIFO_SDIO))) {
     SerialManager::singleton().SendDiagnosticMessage("[SdModule] ERROR: Failed to initialize SD card");
@@ -175,6 +247,12 @@ int SdModule::g_highestExistingLogFileNumber_ = 0;
 bool SdModule::g_initialized_ = false;
 
 String SdModule::cached_directory_listing_ = "";
+
+SdModule::FileDumpState SdModule::dump_state_ = SdModule::kDoNothing;
+
+FsFile SdModule::dump_file_;
+
+String SdModule::dump_filename_ = "";
 
 FsFile SdModule::g_logFile_;
 

@@ -44,6 +44,8 @@ class SdModule : TModule {
 
   void handleDirMessage(const String &message);
 
+  void handleFileDump(const String &message);
+
   // Write message to log file.
   void log(const char *message);
 
@@ -58,6 +60,12 @@ class SdModule : TModule {
 
  private:
   static const unsigned int kChunkSize = 4096;
+
+  // State machine for file dumping
+  enum FileDumpState {
+    kDoNothing,
+    kDumpingNextLine
+  };
 
   // Private constructor.
   SdModule();
@@ -79,6 +87,11 @@ class SdModule : TModule {
 
   // Cached directory listing (captured during initialization)
   static String cached_directory_listing_;
+
+  // File dump state machine variables
+  static FileDumpState dump_state_;
+  static FsFile dump_file_;
+  static String dump_filename_;
 
   // The file handle for the log file on the SD card device.
   static FsFile g_logFile_;
