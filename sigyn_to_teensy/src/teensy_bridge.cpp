@@ -590,7 +590,7 @@ class TeensyBridge : public rclcpp::Node {
     // RCLCPP_INFO(this->get_logger(), "SDFILE request queued, waiting for response...");
     
     // Wait for completion with timeout (longer timeout for file dumps)
-    auto status = completion_future.wait_for(std::chrono::seconds(30));
+    auto status = completion_future.wait_for(std::chrono::seconds(120));
     
     if (status == std::future_status::timeout) {
       // Handle timeout
