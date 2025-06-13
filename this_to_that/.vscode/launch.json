@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Debug this_to_that_node.py",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/this_to_that/this_to_that_node.py",
+      "console": "integratedTerminal",
+      "args": [
+        "--ros-args",
+        "--params-file",
+        "${workspaceFolder}/config/config.yaml"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/install/this_to_that/lib/python3.12/site-packages",
+        "AMENT_PREFIX_PATH": "${workspaceFolder}/install"
+      }
+    }
+  ]
+}
