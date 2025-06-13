@@ -1,9 +1,6 @@
 [submodule "min_max_curr_rviz_overlay"]
 	path = min_max_curr_rviz_overlay
 	url = git@github.com:wimblerobotics/min_max_curr_rviz_overlay.git
-[submodule "this_to_that"]
-	path = this_to_that
-	url = git@github.com:wimblerobotics/this_to_that.git
 [submodule "wifi_logger_visualizer"]
 	path = wifi_logger_visualizer
 	url = git@github.com:wimblerobotics/wifi_logger_visualizer.git
