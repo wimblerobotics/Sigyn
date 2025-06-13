@@ -101,7 +101,7 @@ class RoboClawModule : public TModule {
     q[2] = sy * cp * sr + cy * sp * cr;
     q[3] = sy * cp * cr - cy * sp * sr;
   }
-  
+
   // Is the RoboClaw version compatible with this module?
   bool isVersionOk();
 
@@ -118,6 +118,9 @@ class RoboClawModule : public TModule {
   // Reconnect to RoboClaw if communication fails or version mismatch
   void reconnect();
 
+  void setM1PID(float p, float i, float d, uint32_t qpps);
+  void setM2PID(float p, float i, float d, uint32_t qpps);
+  
   float ticksToMeters(long quadrature_pulses);
 
   void updateMotorCommands();
@@ -125,6 +128,24 @@ class RoboClawModule : public TModule {
 
   Pose2D current_pose_;
   Twist current_velocity_;
+
+  // Motor runaway detection variables
+  int32_t last_commanded_qpps_m1_;
+  int32_t last_commanded_qpps_m2_;
+  unsigned long last_command_time_ms_;
+
+  // Runaway detection state
+  bool runaway_detection_initialized_;
+  long last_runaway_encoder_m1_;
+  long last_runaway_encoder_m2_;
+  unsigned long last_runaway_check_time_ms_;
+
+  // Runaway fault flags
+  bool motor_runaway_fault_m1_;
+  bool motor_runaway_fault_m2_;
+
+  // Motor runaway detection function
+  void checkForRunaway();
 
   //   long prev_encoder_m1_;
   //   long prev_encoder_m2_;
