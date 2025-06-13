@@ -28,7 +28,7 @@
 
 // Safety and E-Stop
 #define ROBOCLAW_SERIAL Serial6
-#define E_STOP_PIN 5              // Digital pin connected to RoboClaw E-Stop or relay
+#define E_STOP_PIN 7              // Digital pin connected to RoboClaw E-Stop or relay
 
 // Battery Monitoring
 #define MAIN_BATTERY_PIN 27             // Analog pin for battery voltage sensing
@@ -39,6 +39,8 @@
 #define MAIN_BATTERY_LIPO_CELLS 10       // Number of LiPo cells in series
 #define MAIN_BATTERY_CRITICAL_VOLTAGE_THRESHOLD 33.0f // Critical low battery voltage threshold
 
+// Odometry Configuration
+#define ODOMETRY_LOG_SKIP_INTERVAL 25 // How many odometry messages to skip before logging
 // Loop Frequencies (Number of main loops per action)
 // These define how often certain messages are sent or actions are performed.
 // Example: If main loop is ~10ms (100Hz), ODOMETRY_SEND_INTERVAL = 5 means 100Hz/5 = 20Hz odometry.
