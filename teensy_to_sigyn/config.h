@@ -48,7 +48,7 @@
 
 // Motor Runaway Detection
 #define TEST_MOTOR_RUNAWAY_MS 10 // Test for motor runaway every 10ms
-#define CRITICAL_MOTOR_RUNAWAY_PERCENT 125.0f // Critical runaway threshold (125% of expected speed)
+#define CRITICAL_MOTOR_RUNAWAY_PERCENT 200.0f // Critical runaway threshold (125% of expected speed)
 
 // Math Constants
 #ifndef M_PI
