@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>sigyn_to_teensy</name>
+  <name>sigyn_to_sensor</name>
   <version>0.0.0</version>
-  <description>ROS2 bridge for Teensy communication</description>
-  <maintainer email="your_email@example.com">Your Name</maintainer>
+  <description>ROS2 bridge for Teensy communication with teensy_sensor device</description>
+  <maintainer email="mike@wimblerobotics.com">Your Name</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
