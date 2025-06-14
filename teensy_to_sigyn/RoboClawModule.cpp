@@ -40,14 +40,14 @@ void RoboClawModule::doMixedSpeedAccelDist(
   roboclaw_.SpeedAccelDistanceM1M2(
       ROBOCLAW_ADDRESS, accel_quad_pulses_per_second, m1_quad_pulses_per_second,
       m1_max_distance, m2_quad_pulses_per_second, m2_max_distance, 1);
-  char msg[256];
-  snprintf(
-      msg, sizeof(msg),
-      "INFO:[TRoboClaw::DoMixedSpeedAccelDist] M1: %ld qpps, M2: %ld qpps, "
-      "M1 dist: %ld, M2 dist: %ld",
-      m1_quad_pulses_per_second, m2_quad_pulses_per_second, m1_max_distance,
-      m2_max_distance);
-  SerialManager::singleton().SendRoboClawStatus(msg);
+  // char msg[256];
+  // snprintf(
+  //     msg, sizeof(msg),
+  //     "INFO:[TRoboClaw::DoMixedSpeedAccelDist] M1: %ld qpps, M2: %ld qpps, "
+  //     "M1 dist: %ld, M2 dist: %ld",
+  //     m1_quad_pulses_per_second, m2_quad_pulses_per_second, m1_max_distance,
+  //     m2_max_distance);
+  // SerialManager::singleton().SendRoboClawStatus(msg);
 }
 
 uint32_t RoboClawModule::getError() {
@@ -233,15 +233,6 @@ void RoboClawModule::loop() {
       // Handle unexpected states if necessary
       break;
   }
-
-  // // Update odometry
-  // updateOdometry();
-
-  // // Check motor safety every 50ms
-  // if (millis() - last_status_check_time_ms_ > 50) {
-  //     checkMotorSafety();
-  //     last_status_check_time_ms_ = millis();
-  // }
 }
 
 void RoboClawModule::publishStatus() {
@@ -344,27 +335,6 @@ void RoboClawModule::updateMotorCommands() {
     linear_x_ = 0.0f;
     angular_z_ = 0.0f;
   }
-
-  static uint32_t last_commanded_time_ms = millis();
-  uint32_t current_time_ms = millis();
-
-  // Initialize on first call
-  uint32_t duration_ms = current_time_ms - last_commanded_time_ms;
-  if (duration_ms < (MAX_SECONDS_COMMANDED_TRAVEL * 0.25f * 1000.0f)) {
-    // Don't pound the controller at max loop rate.
-    // Instead, process commands about four times as fast as keyboard_teleop
-    // would normally send them, or about 80 times per second.
-    // char msg[128];
-    // snprintf(msg, sizeof(msg),
-    //          "RoboClawModule: Skipping command update, duration_ms=%lu,
-    //          last_commanded_time_ms=%lu, last_twist_received_time_ms=%lu",
-    //          duration_ms, last_commanded_time_ms,
-    //          last_twist_received_time_ms_);
-    // SerialManager::singleton().SendDiagnosticMessage(msg);
-    return;
-  }
-
-  last_commanded_time_ms = current_time_ms;
 
   float v_left_mps = linear_x_ - (angular_z_ * WHEEL_BASE_M / 2.0f);
   float v_right_mps = linear_x_ + (angular_z_ * WHEEL_BASE_M / 2.0f);
