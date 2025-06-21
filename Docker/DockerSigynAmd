@@ -11,6 +11,26 @@ ENV ROS_DISTRO=jazzy
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 ENV PYTHONUNBUFFERED=1
+# GUI and graphics environment variables
+ENV DISPLAY=:0
+ENV QT_X11_NO_MITSHM=1
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=all
+ENV LIBGL_ALWAYS_INDIRECT=0
+ENV LIBGL_ALWAYS_SOFTWARE=0
+
+# Remove any snap packages and prevent snap from being installed
+# This prevents conflicts with system libraries
+RUN if dpkg -l | grep -q snapd; then \
+        apt-get update && \
+        apt-get purge -y snapd && \
+        apt-get autoremove -y && \
+        rm -rf /var/lib/snapd /snap /var/snap; \
+    fi && \
+    echo 'Package: snapd' > /etc/apt/preferences.d/nosnap.pref && \
+    echo 'Pin: release a=*' >> /etc/apt/preferences.d/nosnap.pref && \
+    echo 'Pin-Priority: -10' >> /etc/apt/preferences.d/nosnap.pref && \
+    rm -rf /var/lib/apt/lists/*
 
 # Update system and install essential packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -37,19 +57,35 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Network tools
     iputils-ping \
     net-tools \
-    # NVIDIA GPU support
-    nvidia-utils-535 \
     # X11 and GUI support for Gazebo/RViz2
     x11-apps \
     x11-utils \
     x11-xserver-utils \
     xauth \
+    xvfb \
     mesa-utils \
-    libgl1-mesa-glx \
+    libgl1-mesa-dev \
     libgl1-mesa-dri \
     libglu1-mesa \
+    libglx-mesa0 \
+    libegl1-mesa-dev \
     libxext6 \
     libx11-6 \
+    libxrandr2 \
+    libxss1 \
+    libxcursor1 \
+    libxcomposite1 \
+    libxi6 \
+    libxtst6 \
+    libxrender1 \
+    libxfixes3 \
+    libxdamage1 \
+    libasound2t64 \
+    # OpenGL support
+    libgl1 \
+    libglvnd0 \
+    libglx0 \
+    libglvnd-dev \
     # Additional tools for development
     software-properties-common \
     apt-transport-https \
@@ -113,10 +149,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Testing
     ros-jazzy-ament-lint-auto \
     ros-jazzy-ament-lint-common \
-    # Gazebo simulation
-    ros-jazzy-gazebo-ros \
-    ros-jazzy-gazebo-ros-pkgs \
-    ros-jazzy-gazebo-plugins \
+    # ROS Gazebo integration packages
+    ros-jazzy-ros-gz-bridge \
+    ros-jazzy-ros-gz-sim \
+    ros-jazzy-ros-gz-interfaces \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Gazebo Harmonic from official Gazebo repository
+RUN wget https://packages.osrfoundation.org/gazebo.gpg -O /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        gz-harmonic \
     && rm -rf /var/lib/apt/lists/*
 
 # Install DepthAI packages for OAK-D camera
@@ -163,7 +207,7 @@ RUN echo "# ROS2 Environment Setup" >> /home/ros/.bashrc && \
     echo "alias tele='ros2 run teleop_twist_keyboard teleop_twist_keyboard'" >> /home/ros/.bashrc && \
     echo "alias code='code --no-sandbox'" >> /home/ros/.bashrc && \
     echo "alias rviz='ros2 run rviz2 rviz2'" >> /home/ros/.bashrc && \
-    echo "alias gazebo='gazebo --verbose'" >> /home/ros/.bashrc && \
+    echo "alias gazebo='gz sim --verbose'" >> /home/ros/.bashrc && \
     echo "alias ll='ls -alF'" >> /home/ros/.bashrc && \
     echo "alias la='ls -A'" >> /home/ros/.bashrc && \
     echo "alias l='ls -CF'" >> /home/ros/.bashrc && \
@@ -191,6 +235,15 @@ RUN wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor 
     apt-get update && \
     apt-get install -y code && \
     rm -rf /var/lib/apt/lists/*
+
+# Fix ros user UID to match typical host systems (1000 instead of 1001)
+# This prevents file ownership issues when mounting host directories
+# First, move the existing UID 1000 user (ubuntu) out of the way
+RUN usermod -u 1099 ubuntu && \
+    groupmod -g 1099 ubuntu && \
+    usermod -u 1000 ros && \
+    groupmod -g 1000 ros && \
+    chown -R 1000:1000 /home/ros
 
 # Set up proper permissions for ros user
 RUN chown -R ros:ros /home/ros
