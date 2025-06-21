@@ -46,6 +46,16 @@ def launch_nav(context, ld, nav2_config_path, bt_xml, make_map, use_sim_time, ma
     replacement_xml_path = context.perform_substitution(bt_xml)
     xml_path = config_yaml["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"]
     config_yaml["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"] = replacement_xml_path
+    
+    # Override use_realtime_priority to false when using simulation
+    use_sim_time_bool = context.perform_substitution(use_sim_time).lower() == 'true'
+    if use_sim_time_bool:
+        # Disable realtime priority for simulation
+        if "controller_server" in config_yaml and "ros__parameters" in config_yaml["controller_server"]:
+            config_yaml["controller_server"]["ros__parameters"]["use_realtime_priority"] = False
+        if "velocity_smoother" in config_yaml and "ros__parameters" in config_yaml["velocity_smoother"]:
+            config_yaml["velocity_smoother"]["ros__parameters"]["use_realtime_priority"] = False
+    
     # config_yaml["map_server"]["ros__parameters"]["yaml_filename"] = map_path_sim ###
     nav_config_tempfile = tempfile.NamedTemporaryFile(mode='w+t', delete=False)
     # print(f"[launch_nav] fp.name: {nav_config_tempfile.name}, replacement_xml_path: {replacement_xml_path}")
@@ -323,7 +333,7 @@ def generate_launch_description():
     diff_drive_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        condition=IfCondition(use_sim_time),
+        condition=UnlessCondition(use_sim_time),
         arguments=["diff_cont"],
     )
     ld.add_action(diff_drive_spawner)
@@ -331,7 +341,7 @@ def generate_launch_description():
     joint_broad_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        condition=IfCondition(use_sim_time),
+        condition=UnlessCondition(use_sim_time),
         arguments=["joint_broad"],
     )
     ld.add_action(joint_broad_spawner)
@@ -516,7 +526,8 @@ def generate_launch_description():
                 'launch',
                 'battery_voltage.launch.py'
             )
-        )
+        ),
+        condition=UnlessCondition(use_sim_time),
     )
     ld.add_action(battery_overlay)
     

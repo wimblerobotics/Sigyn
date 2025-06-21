@@ -1,0 +1,210 @@
+# Dockerfile for Sigyn robot workspace with ROS2 Jazzy
+# Based on Ubuntu 24.04 (Noble) with ROS2 Jazzy Desktop Full with NVIDIA GPU support
+FROM osrf/ros:jazzy-desktop-full
+
+# Install NVIDIA Container Toolkit support
+# This base image should be run with --gpus all flag
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROS_DISTRO=jazzy
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV PYTHONUNBUFFERED=1
+
+# Update system and install essential packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Development tools
+    build-essential \
+    cmake \
+    git \
+    wget \
+    curl \
+    vim \
+    nano \
+    sudo \
+    bash-completion \
+    # System libraries
+    libudev-dev \
+    udev \
+    nlohmann-json3-dev \
+    # Python development
+    python3-pip \
+    python3-dev \
+    python3-venv \
+    # USB and hardware support
+    usbutils \
+    # Network tools
+    iputils-ping \
+    net-tools \
+    # NVIDIA GPU support
+    nvidia-utils-535 \
+    # X11 and GUI support for Gazebo/RViz2
+    x11-apps \
+    x11-utils \
+    x11-xserver-utils \
+    xauth \
+    mesa-utils \
+    libgl1-mesa-glx \
+    libgl1-mesa-dri \
+    libglu1-mesa \
+    libxext6 \
+    libx11-6 \
+    # Additional tools for development
+    software-properties-common \
+    apt-transport-https \
+    ca-certificates \
+    gnupg \
+    lsb-release \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install ROS2 packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Core ROS2 development
+    ros-jazzy-ament-cmake \
+    ros-jazzy-ament-index-python \
+    ros-jazzy-rclcpp \
+    ros-jazzy-rclcpp-action \
+    ros-jazzy-rclcpp-components \
+    ros-jazzy-rclpy \
+    ros-jazzy-rosidl-default-generators \
+    ros-jazzy-rosidl-default-runtime \
+    # Message types
+    ros-jazzy-geometry-msgs \
+    ros-jazzy-sensor-msgs \
+    ros-jazzy-nav-msgs \
+    ros-jazzy-std-msgs \
+    ros-jazzy-action-msgs \
+    # Navigation stack
+    ros-jazzy-nav2-bringup \
+    ros-jazzy-nav2-behaviors \
+    ros-jazzy-nav2-smac-planner \
+    ros-jazzy-cartographer \
+    ros-jazzy-cartographer-ros \
+    ros-jazzy-robot-localization \
+    ros-jazzy-laser-filters \
+    ros-jazzy-laser-geometry \
+    ros-jazzy-pointcloud-to-laserscan \
+    # Robot description and visualization
+    ros-jazzy-joint-state-publisher \
+    ros-jazzy-joint-state-publisher-gui \
+    ros-jazzy-robot-state-publisher \
+    ros-jazzy-xacro \
+    ros-jazzy-rviz2 \
+    # Hardware interfaces
+    ros-jazzy-controller-manager \
+    ros-jazzy-hardware-interface \
+    # Vision and perception
+    ros-jazzy-cv-bridge \
+    ros-jazzy-image-transport \
+    ros-jazzy-camera-info-manager \
+    ros-jazzy-pcl-ros \
+    # Behavior trees
+    ros-jazzy-behaviortree-cpp \
+    # TF2
+    ros-jazzy-tf2 \
+    ros-jazzy-tf2-ros \
+    ros-jazzy-tf2-tools \
+    # Launch system
+    ros-jazzy-launch \
+    ros-jazzy-launch-ros \
+    # Teleop
+    ros-jazzy-teleop-twist-keyboard \
+    # Testing
+    ros-jazzy-ament-lint-auto \
+    ros-jazzy-ament-lint-common \
+    # Gazebo simulation
+    ros-jazzy-gazebo-ros \
+    ros-jazzy-gazebo-ros-pkgs \
+    ros-jazzy-gazebo-plugins \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install DepthAI packages for OAK-D camera
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-jazzy-depthai \
+    ros-jazzy-depthai-ros-driver \
+    ros-jazzy-depthai-examples \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages (using --break-system-packages for Ubuntu 24.04)
+RUN pip3 install --no-cache-dir --break-system-packages \
+    # DepthAI for OAK-D camera
+    depthai \
+    # Computer vision
+    opencv-python \
+    numpy \
+    # Additional useful packages
+    matplotlib \
+    scipy \
+    # YOLO if needed
+    ultralytics
+
+# Create ros user with sudo privileges
+RUN useradd -ms /bin/bash ros && \
+    echo "ros ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/ros && \
+    chmod 0440 /etc/sudoers.d/ros
+
+# Set up ROS environment for ros user
+RUN echo "# ROS2 Environment Setup" >> /home/ros/.bashrc && \
+    echo "source /opt/ros/jazzy/setup.bash" >> /home/ros/.bashrc && \
+    echo "source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash" >> /home/ros/.bashrc && \
+    echo "" >> /home/ros/.bashrc && \
+    echo "# Workspace setup" >> /home/ros/.bashrc && \
+    echo "if [ -f ~/sigyn_ws/install/setup.bash ]; then" >> /home/ros/.bashrc && \
+    echo "  source ~/sigyn_ws/install/setup.bash" >> /home/ros/.bashrc && \
+    echo "fi" >> /home/ros/.bashrc && \
+    echo "" >> /home/ros/.bashrc && \
+    echo "# Useful aliases" >> /home/ros/.bashrc && \
+    echo "alias cb='colcon build --symlink-install'" >> /home/ros/.bashrc && \
+    echo "alias cbt='colcon build --symlink-install --packages-select'" >> /home/ros/.bashrc && \
+    echo "alias fr='ros2 run tf2_tools view_frames'" >> /home/ros/.bashrc && \
+    echo "alias pm='ros2 topic pub --rate 10 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.2}}\"'" >> /home/ros/.bashrc && \
+    echo "alias rd='rosdep install --from-paths src --ignore-src -r -y'" >> /home/ros/.bashrc && \
+    echo "alias tele='ros2 run teleop_twist_keyboard teleop_twist_keyboard'" >> /home/ros/.bashrc && \
+    echo "alias code='code --no-sandbox'" >> /home/ros/.bashrc && \
+    echo "alias rviz='ros2 run rviz2 rviz2'" >> /home/ros/.bashrc && \
+    echo "alias gazebo='gazebo --verbose'" >> /home/ros/.bashrc && \
+    echo "alias ll='ls -alF'" >> /home/ros/.bashrc && \
+    echo "alias la='ls -A'" >> /home/ros/.bashrc && \
+    echo "alias l='ls -CF'" >> /home/ros/.bashrc && \
+    echo "" >> /home/ros/.bashrc && \
+    echo "# Set workspace directory as default" >> /home/ros/.bashrc && \
+    echo "cd ~/sigyn_ws" >> /home/ros/.bashrc
+
+# Set up udev rules directory for hardware access
+RUN mkdir -p /etc/udev/rules.d
+
+# Install additional development tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gdb \
+    valgrind \
+    htop \
+    tree \
+    tmux \
+    screen \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Visual Studio Code
+RUN wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg && \
+    install -o root -g root -m 644 packages.microsoft.gpg /etc/apt/trusted.gpg.d/ && \
+    echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/trusted.gpg.d/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list && \
+    apt-get update && \
+    apt-get install -y code && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set up proper permissions for ros user
+RUN chown -R ros:ros /home/ros
+
+# Switch to ros user
+USER ros
+WORKDIR /home/ros
+
+# Create workspace directory
+RUN mkdir -p ~/sigyn_ws/src
+
+# Set entrypoint to ensure ROS environment is sourced
+COPY --chown=ros:ros ros_entrypoint.sh /home/ros/
+RUN chmod +x /home/ros/ros_entrypoint.sh
+
+# Default command
+CMD ["/bin/bash"]
