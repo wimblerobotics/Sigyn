@@ -47,8 +47,9 @@
 #define ODOMETRY_UPDATE_PERIOD_MS 33 // Update odometry every 33ms (~30Hz)
 
 // Motor Runaway Detection
-#define TEST_MOTOR_RUNAWAY_MS 10 // Test for motor runaway every 10ms
+#define TEST_MOTOR_RUNAWAY_MS 25 // Test for motor runaway this often.
 #define CRITICAL_MOTOR_RUNAWAY_PERCENT 200.0f // Critical runaway threshold (125% of expected speed)
+#define ESTOP_PIN 7 // Pin for E-Stop button (active low)
 
 // Math Constants
 #ifndef M_PI
