@@ -120,6 +120,7 @@
     "stop_token": "cpp",
     "syncstream": "cpp",
     "thread": "cpp",
-    "variant": "cpp"
+    "variant": "cpp",
+    "*.cppx": "cpp"
   }
 }

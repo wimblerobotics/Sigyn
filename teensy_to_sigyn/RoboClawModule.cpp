@@ -29,24 +29,22 @@ void RoboClawModule::doMixedSpeedAccelDist(
     uint32_t accel_quad_pulses_per_second, int32_t m1_quad_pulses_per_second,
     uint32_t m1_max_distance, int32_t m2_quad_pulses_per_second,
     uint32_t m2_max_distance) {
-  //   if (TRelay::singleton().IsPoweredOn(TRelay::kMotorEStop) &&
-  //       (m1_quad_pulses_per_second == 0) && (m2_quad_pulses_per_second == 0))
-  //       {
-  //     TRelay::singleton().PowerOff(TRelay::kMotorEStop);  // UN E-stop the
-  //     motors. DiagnosticMessage::singleton().sendMessage(
-  //         "INFO:[TRoboClaw::DoMixedSpeedAccelDist] Removing E-Stop because of
-  //         " "zero velocity command");
-  //   }
+  if ((m1_quad_pulses_per_second == 0) && (m2_quad_pulses_per_second == 0)) {
+    // Reset e-stop once motors are stopped.
+    motor_runaway_fault_m1_ = false;
+    motor_runaway_fault_m2_ = false;
+    digitalWrite(E_STOP_PIN, LOW);  // LOW = E-Stop not active.
+  }
+
   roboclaw_.SpeedAccelDistanceM1M2(
       ROBOCLAW_ADDRESS, accel_quad_pulses_per_second, m1_quad_pulses_per_second,
       m1_max_distance, m2_quad_pulses_per_second, m2_max_distance, 1);
   // char msg[256];
   // snprintf(
   //     msg, sizeof(msg),
-  //     "INFO:[TRoboClaw::DoMixedSpeedAccelDist] M1: %ld qpps, M2: %ld qpps, "
-  //     "M1 dist: %ld, M2 dist: %ld",
-  //     m1_quad_pulses_per_second, m2_quad_pulses_per_second, m1_max_distance,
-  //     m2_max_distance);
+  //     "INFO:[TRoboClaw::DoMixedSpeedAccelDist] M1: %ld qpps, M2: %ld qpps,
+  //     " "M1 dist: %ld, M2 dist: %ld", m1_quad_pulses_per_second,
+  //     m2_quad_pulses_per_second, m1_max_distance, m2_max_distance);
   // SerialManager::singleton().SendRoboClawStatus(msg);
 }
 
@@ -164,9 +162,9 @@ void RoboClawModule::setup() {
   digitalWrite(E_STOP_PIN, LOW);  // LOW = E-Stop not active.
   // // Initialize encoder readings
   // bool valid1, valid2;
-  // prev_encoder_m1_ = roboclaw_.ReadEncM1(ROBOCLAW_ADDRESS, nullptr, &valid1);
-  // prev_encoder_m2_ = roboclaw_.ReadEncM2(ROBOCLAW_ADDRESS, nullptr, &valid2);
-  // if (!valid1 || !valid2) {
+  // prev_encoder_m1_ = roboclaw_.ReadEncM1(ROBOCLAW_ADDRESS, nullptr,
+  // &valid1); prev_encoder_m2_ = roboclaw_.ReadEncM2(ROBOCLAW_ADDRESS,
+  // nullptr, &valid2); if (!valid1 || !valid2) {
   //     Serial.println("RoboClaw: Failed to read initial encoder values.");
   //     SerialManager::singleton().SendDiagnosticMessage("RoboClaw: EncRead
   //     FAIL init");
@@ -312,8 +310,8 @@ void RoboClawModule::reconnect() {
 //     // Safety checks can be done slightly less frequently if needed, but
 //     critical.
 //     // Example: Check safety every few loops if full check is too long.
-//     // For now, call it, assuming it's quick enough or internally manages its
-//     time. if (millis() - last_status_check_time_ms_ > 50) { // Check
+//     // For now, call it, assuming it's quick enough or internally manages
+//     its time. if (millis() - last_status_check_time_ms_ > 50) { // Check
 //     status/safety every 50ms
 //         checkMotorSafety();
 //         last_status_check_time_ms_ = millis();
@@ -335,6 +333,20 @@ void RoboClawModule::updateMotorCommands() {
     linear_x_ = 0.0f;
     angular_z_ = 0.0f;
   }
+
+  // Rate limiting code to prevent pounding on the RoboClaw controller.
+  static uint32_t last_commanded_time_ms = millis();
+  uint32_t current_time_ms = millis();
+
+  uint32_t duration_ms = current_time_ms - last_commanded_time_ms;
+  if (duration_ms < (MAX_SECONDS_COMMANDED_TRAVEL * 0.25f * 1000.0f)) {
+    // Don't pound the controller at max loop rate.
+    // Instead, process commands about four times as fast as keyboard_teleop
+    // would normally send them, or about 80 times per second.
+    return;
+  }
+
+  last_commanded_time_ms = current_time_ms;
 
   float v_left_mps = linear_x_ - (angular_z_ * WHEEL_BASE_M / 2.0f);
   float v_right_mps = linear_x_ + (angular_z_ * WHEEL_BASE_M / 2.0f);
@@ -482,6 +494,10 @@ float RoboClawModule::ticksToMeters(long quadrature_pulses) {
          M_PI * WHEEL_DIAMETER_M;
 }
 
+// -- When velocity set to zero, begin reset by entereing loop
+// -- state where we wait for the various conditions to register
+// -- such as temperature, current and speed. Then release e-stop.
+
 // void RoboClawModule::checkMotorSafety() {
 //     if (e_stop_active_) return; // Don't check if already e-stopped
 
@@ -498,22 +514,24 @@ float RoboClawModule::ticksToMeters(long quadrature_pulses) {
 //         motor_overcurrent_detected_ = false;
 //     }
 
-//     // --- Runaway/Stall Detection (based on current_velocity_ from odometry
-//     and last_commanded_qpps) ---
+//     // --- Runaway/Stall Detection (based on current_velocity_ from
+//     odometry and last_commanded_qpps) ---
 //     // This is a simplified check. More sophisticated checks might involve
 //     PID error, etc.
 
 //     // If there was a non-zero command recently
-//     if (millis() - last_nonzero_command_time_ms_ < 1000) { // Check within 1
-//     second of last command
+//     if (millis() - last_nonzero_command_time_ms_ < 1000) { // Check within
+//     1 second of last command
 //         float expected_speed_m1_rps =
-//         (static_cast<float>(last_commanded_qpps_m1_) / TICKS_PER_REVOLUTION)
+//         (static_cast<float>(last_commanded_qpps_m1_) /
+//         TICKS_PER_REVOLUTION)
 //         * 2.0f * M_PI; // rad/s wheel float expected_speed_m2_rps =
-//         (static_cast<float>(last_commanded_qpps_m2_) / TICKS_PER_REVOLUTION)
+//         (static_cast<float>(last_commanded_qpps_m2_) /
+//         TICKS_PER_REVOLUTION)
 //         * 2.0f * M_PI;
 
-//         // Actual wheel speeds from odometry (dist_m1/dt_s is linear speed of
-//         wheel contact point)
+//         // Actual wheel speeds from odometry (dist_m1/dt_s is linear speed
+//         of wheel contact point)
 //         // Wheel angular speed = linear_wheel_speed / WHEEL_RADIUS_M
 //         float actual_speed_m1_rps = (current_velocity_.linear_x -
 //         (current_velocity_.angular_z * WHEEL_BASE_M / 2.0f)) /
@@ -527,8 +545,8 @@ float RoboClawModule::ticksToMeters(long quadrature_pulses) {
 //         "commanded to move" bool m2_should_move =
 //         abs(last_commanded_qpps_m2_) > MOTOR_STALL_ENCODER_THRESHOLD * 5;
 
-//         if (m1_should_move && abs(actual_speed_m1_rps) < 0.1f) { // Arbitrary
-//         small speed threshold for stall
+//         if (m1_should_move && abs(actual_speed_m1_rps) < 0.1f) { //
+//         Arbitrary small speed threshold for stall
 //             if (motor_stall_start_time_m1_ms_ == 0)
 //             motor_stall_start_time_m1_ms_ = millis(); if (millis() -
 //             motor_stall_start_time_m1_ms_ > MOTOR_STALL_DETECTION_MS) {
@@ -556,10 +574,10 @@ float RoboClawModule::ticksToMeters(long quadrature_pulses) {
 //         }
 
 //         // Runaway detection (moving significantly faster than commanded)
-//         if ( (abs(expected_speed_m1_rps) > 0.1f && abs(actual_speed_m1_rps) >
-//         abs(expected_speed_m1_rps) * MOTOR_RUNAWAY_SPEED_FACTOR) ||
-//              (abs(expected_speed_m2_rps) > 0.1f && abs(actual_speed_m2_rps) >
-//              abs(expected_speed_m2_rps) * MOTOR_RUNAWAY_SPEED_FACTOR) ) {
+//         if ( (abs(expected_speed_m1_rps) > 0.1f && abs(actual_speed_m1_rps)
+//         > abs(expected_speed_m1_rps) * MOTOR_RUNAWAY_SPEED_FACTOR) ||
+//              (abs(expected_speed_m2_rps) > 0.1f && abs(actual_speed_m2_rps)
+//              > abs(expected_speed_m2_rps) * MOTOR_RUNAWAY_SPEED_FACTOR) ) {
 //             motor_runaway_detected_ = true;
 //             triggerEStop("Motor Runaway");
 //             return;
@@ -578,8 +596,8 @@ float RoboClawModule::ticksToMeters(long quadrature_pulses) {
 
 bool RoboClawModule::IsUnsafe() {
   //     // This module's specific unsafe conditions, E-Stop activation is the
-  //     master unsafe flag return e_stop_active_ || motor_runaway_detected_ ||
-  //     motor_overcurrent_detected_ || motor_stall_detected_m1_ ||
+  //     master unsafe flag return e_stop_active_ || motor_runaway_detected_
+  //     || motor_overcurrent_detected_ || motor_stall_detected_m1_ ||
   //     motor_stall_detected_m2_;
   return false;  // Placeholder, implement actual checks
 }
@@ -604,14 +622,15 @@ bool RoboClawModule::IsUnsafe() {
 //         motor_overcurrent_detected_ = false;
 //         motor_stall_detected_m1_ = false;
 //         motor_stall_detected_m2_ = false;
-//         digitalWrite(E_STOP_PIN, LOW); // Deactivate E-Stop (LOW = power ON)
+//         digitalWrite(E_STOP_PIN, LOW); // Deactivate E-Stop (LOW = power
+//         ON)
 //         // Serial.println("E-Stop Reset.");
 //         serial_manager.SendDiagnosticMessage("E-Stop Reset");
 //         // Reset RoboClaw errors if any.
-//         roboclaw_.ResetEncoders(ROBOCLAW_ADDRESS); // Example: reset encoders
-//         might clear some error flags.
-//                                                     // Or use specific error
-//                                                     reset commands if
+//         roboclaw_.ResetEncoders(ROBOCLAW_ADDRESS); // Example: reset
+//         encoders might clear some error flags.
+//                                                     // Or use specific
+//                                                     error reset commands if
 //                                                     available.
 //     }
 // }

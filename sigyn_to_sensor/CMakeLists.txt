@@ -14,8 +14,8 @@ find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sigyn_interfaces REQUIRED)
 
-add_executable(teensy_to_sensor src/sigyn_to_sensor.cpp)
-ament_target_dependencies(teensy_to_sensor 
+add_executable(sigyn_to_sensor src/sigyn_to_sensor.cpp)
+ament_target_dependencies(sigyn_to_sensor 
   rclcpp 
   geometry_msgs 
   nav_msgs
@@ -24,12 +24,12 @@ ament_target_dependencies(teensy_to_sensor
   sigyn_interfaces
 )
 
-target_include_directories(teensy_to_sensor PUBLIC
+target_include_directories(sigyn_to_sensor PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-target_compile_features(teensy_to_sensor PUBLIC c_std_99 cxx_std_17)
+target_compile_features(sigyn_to_sensor PUBLIC c_std_99 cxx_std_17)
 
-install(TARGETS teensy_to_sensor
+install(TARGETS sigyn_to_sensor
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY

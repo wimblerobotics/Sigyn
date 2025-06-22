@@ -578,6 +578,15 @@ def generate_launch_description():
         condition=IfCondition(do_joystick),
     )
     ld.add_action(nimbus_steelseries_joystick)
+    
+    sigyn_to_sensor = Node(
+        package="sigyn_to_sensor",
+        executable="sigyn_to_sensor",
+        name="sigyn_to_sensor",
+        output="screen",
+        UnlessCondition(use_sim_time)
+    )
+    ld.add_action(sigyn_to_sensor)
 
     rviz_node = Node(
         package="rviz2",
