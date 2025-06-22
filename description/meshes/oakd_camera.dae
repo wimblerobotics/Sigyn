@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <asset>
+    <contributor>
+      <author>Sigyn Robot</author>
+      <authoring_tool>Generated for Sigyn Robot Simulation</authoring_tool>
+    </contributor>
+    <created>2024-01-02T12:00:00</created>
+    <modified>2024-01-02T12:00:00</modified>
+    <unit name="meter" meter="1"/>
+    <up_axis>Z_UP</up_axis>
+  </asset>
+  <library_geometries>
+    <geometry id="oakd_camera-mesh" name="oakd_camera">
+      <mesh>
+        <source id="oakd_camera-mesh-positions">
+          <float_array id="oakd_camera-mesh-positions-array" count="24">
+            -0.05 -0.025 -0.015
+             0.05 -0.025 -0.015
+             0.05  0.025 -0.015
+            -0.05  0.025 -0.015
+            -0.05 -0.025  0.015
+             0.05 -0.025  0.015
+             0.05  0.025  0.015
+            -0.05  0.025  0.015
+          </float_array>
+          <technique_common>
+            <accessor source="#oakd_camera-mesh-positions-array" count="8" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="oakd_camera-mesh-vertices">
+          <input semantic="POSITION" source="#oakd_camera-mesh-positions"/>
+        </vertices>
+        <triangles count="12">
+          <input semantic="VERTEX" source="#oakd_camera-mesh-vertices" offset="0"/>
+          <p>
+            0 1 2  0 2 3
+            4 7 6  4 6 5
+            0 4 5  0 5 1
+            2 6 7  2 7 3
+            0 3 7  0 7 4
+            1 5 6  1 6 2
+          </p>
+        </triangles>
+      </mesh>
+    </geometry>
+  </library_geometries>
+  <library_materials>
+    <material id="oakd_camera_material" name="oakd_camera_material">
+      <instance_effect url="#oakd_camera_material-effect"/>
+    </material>
+  </library_materials>
+  <library_effects>
+    <effect id="oakd_camera_material-effect">
+      <profile_COMMON>
+        <technique sid="common">
+          <phong>
+            <diffuse>
+              <color sid="diffuse">0.2 0.2 0.2 1</color>
+            </diffuse>
+          </phong>
+        </technique>
+      </profile_COMMON>
+    </effect>
+  </library_effects>
+  <library_visual_scenes>
+    <visual_scene id="Scene" name="Scene">
+      <node id="oakd_camera" name="oakd_camera" type="NODE">
+        <instance_geometry url="#oakd_camera-mesh" name="oakd_camera">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="oakd_camera_material" target="#oakd_camera_material"/>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene>
+    <instance_visual_scene url="#Scene"/>
+  </scene>
+</COLLADA>
