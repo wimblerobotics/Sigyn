@@ -6,6 +6,7 @@ alias clcm='ros2 service call /local_costmap/clear_entirely_local_costmap nav2_m
 alias dla='ros2 run --prefix '\''gdbserver localhost:3000'\'' line_finder laser_accumulator'
 alias fr='ros2 run tf2_tools view_frames'
 alias gripper='ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/teensy_gripper'
+alias nav='clear;ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=true'
 alias record='/home/ros/sigyn_ws/src/Sigyn/scripts/bag_record_sim.sh'
 alias redoudev='sudo service udev restart;sudo udevadm control --reload-rules;sudo udevadm trigger'
 alias rms='ros2 launch nav2_map_server map_saver_server.launch.py'
@@ -15,22 +16,48 @@ alias sim='clear;ros2 launch base sigyn.launch.py use_sim_time:=true do_rviz:=tr
 alias stele='ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=/cmd_vel_keyboard'
 alias teensy='ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/teensy_sensor'
 alias tele='ros2 run teleop_twist_keyboard teleop_twist_keyboard'
+
+# Navigation
+On sigyn7900, you can launch the navigation stack with:
+```bash
+ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=true
 ```
+
+If you want to use the joystick for teleoperation, you can run the following on amdc:
+
+```bash
+ros2 launch bluetooth_joystick bluetooth_joystick.launch.py
+```
+
+
+To build the Docker file, you can run:
+```bash
+cd /home/ros/sigyn_ws/src/Sigyn/Docker && ./buildSigynAmd.sh
+```
+
+If you want to use the simulation, you can run:
+```bash
+cd /home/ros/sigyn_ws/src/Sigyn/Docker && ./runSigynAmd.sh --mount-workspace
+```
+
 
 # Capturing images
 ## On terminal 1
 ```bash
 ssh sigyn7900
-teensy
+ros2 launch sigyn_to_sensor sigyn_to_sensor.launch.py
 ```
 
 This introduces the topics:
 * /cmd_vel
-* /main_battery
+* /main_battery_state
+* /parameter_events
 * /roboclaw_status
-* /teensy_diagnostics
-* /teensy_stats
+* /rosout
+* /teensy_sensor_diagnostics
 * /wheel_odom
+
+
 
 
 ## On terminal 2
@@ -51,6 +78,7 @@ This introduces the topics:
   ros2 action send_goal /move_extender sigyn_interfaces/action/MoveExtender "{goal_position: 0.02}" --feedback
 
 ## On terminal 3
+
 ```bash
 ssh sigynVision
 cd ~/sigyn_video_server
@@ -58,10 +86,10 @@ python3 videoServer.py &
 ros2 launch sigyn_testicle_twister sigyn_testicle_twister
 ```
 
-## On terminal 4
+## To use the joystick, on terminal 4
+
 ```bash
-ssh sigyn7900
-nav
+ros2 launch bluetooth_joystick bluetooth_joystick.launch.py
 ```
 
 

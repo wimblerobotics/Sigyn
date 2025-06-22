@@ -592,12 +592,20 @@ def generate_launch_description():
     
     sigyn_to_sensor = Node(
         package="sigyn_to_sensor",
+        condition=UnlessCondition(use_sim_time),
         executable="sigyn_to_sensor",
         name="sigyn_to_sensor",
-        output="screen",
-        UnlessCondition(use_sim_time)
-    )
+        output="screen",    )
     ld.add_action(sigyn_to_sensor)
+    
+    sigyn_to_elevator = Node(
+        package="sigyn_to_elevator",
+        condition=UnlessCondition(use_sim_time),
+        executable="sigyn_to_elevator",
+        name="sigyn_to_elevator",
+        output="screen",
+    )
+    ld.add_action(sigyn_to_elevator)
 
     rviz_node = Node(
         package="rviz2",
