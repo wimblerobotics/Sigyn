@@ -66,8 +66,7 @@
               <size>0.83 3.2 0.6096</size>
             </box>
           </geometry>
-          <!--Wood cabinet material - realistic oak-like color-->
-          <material>
+           <material>
             <ambient>0.45 0.3 0.15 1</ambient>
             <diffuse>0.72 0.48 0.24 1</diffuse>
             <specular>0.15 0.15 0.15 1</specular>
@@ -92,8 +91,7 @@
               <size>0.83 1.5 2.13</size>
             </box>
           </geometry>
-          <!--Wood cabinet material - realistic oak-like color-->
-          <material>
+           <material>
             <ambient>0.45 0.3 0.15 1</ambient>
             <diffuse>0.72 0.48 0.24 1</diffuse>
             <specular>0.15 0.15 0.15 1</specular>
@@ -118,8 +116,7 @@
               <size>1.05 1.2 2.13</size>
             </box>
           </geometry>
-          <!--Wood cabinet material - realistic oak-like color-->
-          <material>
+           <material>
             <ambient>0.45 0.3 0.15 1</ambient>
             <diffuse>0.72 0.48 0.24 1</diffuse>
             <specular>0.15 0.15 0.15 1</specular>
@@ -130,7 +127,7 @@
         <collision name="collision">
           <geometry>
             <box>
-              <size>1.05 1.1 2.13</size>
+              <size>1.05 1.2 2.13</size>
             </box>
           </geometry>
         </collision>
@@ -144,8 +141,7 @@
               <size>1.0 2.4 0.6096</size>
             </box>
           </geometry>
-          <!--Wood cabinet material - realistic oak-like color-->
-          <material>
+           <material>
             <ambient>0.45 0.3 0.15 1</ambient>
             <diffuse>0.72 0.48 0.24 1</diffuse>
             <specular>0.15 0.15 0.15 1</specular>
@@ -170,8 +166,7 @@
               <size>0.17 0.5 0.6096</size>
             </box>
           </geometry>
-          <!--Wood cabinet material - realistic oak-like color-->
-          <material>
+           <material>
             <ambient>0.45 0.3 0.15 1</ambient>
             <diffuse>0.72 0.48 0.24 1</diffuse>
             <specular>0.15 0.15 0.15 1</specular>
@@ -196,8 +191,7 @@
               <size>1.21 2.5 0.6096</size>
             </box>
           </geometry>
-          <!--Wood cabinet material - realistic oak-like color-->
-          <material>
+           <material>
             <ambient>0.45 0.3 0.15 1</ambient>
             <diffuse>0.72 0.48 0.24 1</diffuse>
             <specular>0.15 0.15 0.15 1</specular>
@@ -222,8 +216,7 @@
               <size>0.4 1.2 2.13</size>
             </box>
           </geometry>
-          <!--Wood cabinet material - realistic oak-like color-->
-          <material>
+           <material>
             <ambient>0.45 0.3 0.15 1</ambient>
             <diffuse>0.72 0.48 0.24 1</diffuse>
             <specular>0.15 0.15 0.15 1</specular>
@@ -248,8 +241,7 @@
               <size>0.4 0.7 0.6096</size>
             </box>
           </geometry>
-          <!--Wood cabinet material - realistic oak-like color-->
-          <material>
+           <material>
             <ambient>0.45 0.3 0.15 1</ambient>
             <diffuse>0.72 0.48 0.24 1</diffuse>
             <specular>0.15 0.15 0.15 1</specular>
@@ -274,8 +266,7 @@
               <size>0.1 1.52 2.13</size>
             </box>
           </geometry>
-          <!--Wood cabinet material - realistic oak-like color-->
-          <material>
+           <material>
             <ambient>0.45 0.3 0.15 1</ambient>
             <diffuse>0.72 0.48 0.24 1</diffuse>
             <specular>0.15 0.15 0.15 1</specular>
@@ -286,7 +277,7 @@
         <collision name="collision">
           <geometry>
             <box>
-              <size>1.55 0.1 2.13</size>
+              <size>0.1 1.52 2.13</size>
             </box>
           </geometry>
         </collision>
@@ -300,8 +291,7 @@
               <size>0.33 1.22 2.13</size>
             </box>
           </geometry>
-          <!--Wood cabinet material - realistic oak-like color-->
-          <material>
+           <material>
             <ambient>0.45 0.3 0.15 1</ambient>
             <diffuse>0.72 0.48 0.24 1</diffuse>
             <specular>0.15 0.15 0.15 1</specular>
@@ -326,8 +316,7 @@
               <size>0.3 0.8 0.6096</size>
             </box>
           </geometry>
-          <!--Wood cabinet material - realistic oak-like color-->
-          <material>
+           <material>
             <ambient>0.45 0.3 0.15 1</ambient>
             <diffuse>0.72 0.48 0.24 1</diffuse>
             <specular>0.15 0.15 0.15 1</specular>
@@ -352,8 +341,7 @@
               <size>1.4 0.1 2.13</size>
             </box>
           </geometry>
-          <!--Wood cabinet material - realistic oak-like color-->
-          <material>
+           <material>
             <ambient>0.45 0.3 0.15 1</ambient>
             <diffuse>0.72 0.48 0.24 1</diffuse>
             <specular>0.15 0.15 0.15 1</specular>
