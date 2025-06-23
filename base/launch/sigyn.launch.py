@@ -22,6 +22,7 @@ from launch.actions import (
     LogInfo,
     OpaqueFunction,
     RegisterEventHandler,
+    SetEnvironmentVariable,
     TimerAction,
 )
 from launch.conditions import IfCondition, UnlessCondition
@@ -275,6 +276,14 @@ def generate_launch_description():
         }.items(),
     )
     ld.add_action(slam_toolbox)
+
+    # Set Gazebo resource path to find textures and materials
+    base_pkg = get_package_share_directory("base")
+    gz_resource_path = SetEnvironmentVariable(
+        name="GZ_SIM_RESOURCE_PATH",
+        value=os.path.join(base_pkg, "..") + ":" + os.environ.get("GZ_SIM_RESOURCE_PATH", "")
+    )
+    ld.add_action(gz_resource_path)
 
     # Include the Gazebo launch file, provided by the ros_gz_sim package
     gz_args = "-r -v4 --render-engine ogre " if on_a_mac else "-r -v4 "
