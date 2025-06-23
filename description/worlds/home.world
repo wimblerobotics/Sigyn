@@ -11,12 +11,10 @@
     </plugin>
     <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster">
     </plugin>
-    <plugin
-      filename="gz-sim-sensors-system"
-      name="gz::sim::systems::Sensors">
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
       <render_engine>ogre2</render_engine>
     </plugin>
-    
+
     <light type="directional" name="sun">
       <cast_shadows>true</cast_shadows>
       <pose>0 0 10 0 0 0</pose>
@@ -60,6 +58,318 @@
     <model name="robot_home">
       <static>true</static>
       <!-- <xacro:marker name="x_origin_marker" x="0.2" y="0.3" /> -->
+      <link name="kitchen_lower_cabinet">
+        <pose> 4.5298 13.7 0.3048 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.83 3.2 0.6096</size>
+            </box>
+          </geometry>
+          <!--Wood cabinet material - realistic oak-like color-->
+          <material>
+            <ambient>0.45 0.3 0.15 1</ambient>
+            <diffuse>0.72 0.48 0.24 1</diffuse>
+            <specular>0.15 0.15 0.15 1</specular>
+            <emissive>0 0 0 1</emissive>
+            <shininess>30</shininess>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.83 3.2 0.6096</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+
+      <link name="kitchen_pantry">
+        <pose> 4.5298 11.35 0.6 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.83 1.5 2.13</size>
+            </box>
+          </geometry>
+          <!--Wood cabinet material - realistic oak-like color-->
+          <material>
+            <ambient>0.45 0.3 0.15 1</ambient>
+            <diffuse>0.72 0.48 0.24 1</diffuse>
+            <specular>0.15 0.15 0.15 1</specular>
+            <emissive>0 0 0 1</emissive>
+            <shininess>30</shininess>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.83 1.5 2.13</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+
+      <link name="refrigerator">
+        <pose> 6.525 11.2 1.065 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.05 1.2 2.13</size>
+            </box>
+          </geometry>
+          <!--Wood cabinet material - realistic oak-like color-->
+          <material>
+            <ambient>0.45 0.3 0.15 1</ambient>
+            <diffuse>0.72 0.48 0.24 1</diffuse>
+            <specular>0.15 0.15 0.15 1</specular>
+            <emissive>0 0 0 1</emissive>
+            <shininess>30</shininess>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.05 1.1 2.13</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+
+      <link name="peninsula">
+        <pose> 6.5 13.0 0.3048 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.0 2.4 0.6096</size>
+            </box>
+          </geometry>
+          <!--Wood cabinet material - realistic oak-like color-->
+          <material>
+            <ambient>0.45 0.3 0.15 1</ambient>
+            <diffuse>0.72 0.48 0.24 1</diffuse>
+            <specular>0.15 0.15 0.15 1</specular>
+            <emissive>0 0 0 1</emissive>
+            <shininess>30</shininess>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.05 2.4 0.6096</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+
+      <link name="garbage_can">
+        <pose> 5.935 13.95 0.3048 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.17 0.5 0.6096</size>
+            </box>
+          </geometry>
+          <!--Wood cabinet material - realistic oak-like color-->
+          <material>
+            <ambient>0.45 0.3 0.15 1</ambient>
+            <diffuse>0.72 0.48 0.24 1</diffuse>
+            <specular>0.15 0.15 0.15 1</specular>
+            <emissive>0 0 0 1</emissive>
+            <shininess>30</shininess>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.17 0.5 0.6096</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+
+      <link name="kitchen_table">
+        <pose> 8.355 12.85 0.3048 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.21 2.5 0.6096</size>
+            </box>
+          </geometry>
+          <!--Wood cabinet material - realistic oak-like color-->
+          <material>
+            <ambient>0.45 0.3 0.15 1</ambient>
+            <diffuse>0.72 0.48 0.24 1</diffuse>
+            <specular>0.15 0.15 0.15 1</specular>
+            <emissive>0 0 0 1</emissive>
+            <shininess>30</shininess>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.21 2.5 0.6096</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+
+      <link name="ikea_pantry">
+        <pose>10.2  13.5 1.065 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.4 1.2 2.13</size>
+            </box>
+          </geometry>
+          <!--Wood cabinet material - realistic oak-like color-->
+          <material>
+            <ambient>0.45 0.3 0.15 1</ambient>
+            <diffuse>0.72 0.48 0.24 1</diffuse>
+            <specular>0.15 0.15 0.15 1</specular>
+            <emissive>0 0 0 1</emissive>
+            <shininess>30</shininess>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.4 1.2 2.13</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+
+      <link name="ikea_boxes">
+        <pose> 10.2 11.75 0.3048 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.4 0.7 0.6096</size>
+            </box>
+          </geometry>
+          <!--Wood cabinet material - realistic oak-like color-->
+          <material>
+            <ambient>0.45 0.3 0.15 1</ambient>
+            <diffuse>0.72 0.48 0.24 1</diffuse>
+            <specular>0.15 0.15 0.15 1</specular>
+            <emissive>0 0 0 1</emissive>
+            <shininess>30</shininess>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.4 0.7 0.6096</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+
+      <link name="hall_storage_door_east">
+        <pose> 11.45 8.81 1.065 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.1 1.52 2.13</size>
+            </box>
+          </geometry>
+          <!--Wood cabinet material - realistic oak-like color-->
+          <material>
+            <ambient>0.45 0.3 0.15 1</ambient>
+            <diffuse>0.72 0.48 0.24 1</diffuse>
+            <specular>0.15 0.15 0.15 1</specular>
+            <emissive>0 0 0 1</emissive>
+            <shininess>30</shininess>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.55 0.1 2.13</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+
+      <link name="computer_bookcase_north">
+        <pose>7.635 2.38 1.065 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.33 1.22 2.13</size>
+            </box>
+          </geometry>
+          <!--Wood cabinet material - realistic oak-like color-->
+          <material>
+            <ambient>0.45 0.3 0.15 1</ambient>
+            <diffuse>0.72 0.48 0.24 1</diffuse>
+            <specular>0.15 0.15 0.15 1</specular>
+            <emissive>0 0 0 1</emissive>
+            <shininess>30</shininess>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.33 1.22 2.13</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+
+      <link name="computer_table_south">
+        <pose> 10.35 2.18 0.3048 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.8 0.6096</size>
+            </box>
+          </geometry>
+          <!--Wood cabinet material - realistic oak-like color-->
+          <material>
+            <ambient>0.45 0.3 0.15 1</ambient>
+            <diffuse>0.72 0.48 0.24 1</diffuse>
+            <specular>0.15 0.15 0.15 1</specular>
+            <emissive>0 0 0 1</emissive>
+            <shininess>30</shininess>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.8 0.6096</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+
+      <link name="hall_storage_door_west">
+        <pose> 11.3 2.25 1.065 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.4 0.1 2.13</size>
+            </box>
+          </geometry>
+          <!--Wood cabinet material - realistic oak-like color-->
+          <material>
+            <ambient>0.45 0.3 0.15 1</ambient>
+            <diffuse>0.72 0.48 0.24 1</diffuse>
+            <specular>0.15 0.15 0.15 1</specular>
+            <emissive>0 0 0 1</emissive>
+            <shininess>30</shininess>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.55 0.1 2.13</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+
       <link name="north_wall">
         <pose> -0.0508 7.7089 1.2191999999999998 0 0 0</pose>
         <visual name="visual">

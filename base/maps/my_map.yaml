@@ -1,6 +1,6 @@
 image: my_map2.pgm
 mode: trinary
-resolution: 0.0254
+resolution: 0.026176231
 # origin: [-8.67, -2.3, 0]
 origin: [0, 0, 0]
 negate: 0
