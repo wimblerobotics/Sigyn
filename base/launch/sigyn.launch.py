@@ -387,7 +387,8 @@ def generate_launch_description():
         [base_pgk, "launch", "nav2_bringup.launch.py"]
     )
  
-    map_path_sim = os.path.join(base_pgk, "maps", "map2.yaml")
+    # map_path_sim = os.path.join(base_pgk, "maps", "map2.yaml")
+    map_path_sim = os.path.join(base_pgk, "maps", "my_map.yaml")
     map_path_real = os.path.join(base_pgk, "maps", "20241210l.yaml")
     
     nav2_config_path = os.path.join(
