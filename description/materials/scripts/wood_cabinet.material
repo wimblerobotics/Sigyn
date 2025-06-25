@@ -1,0 +1,20 @@
+material WoodCabinet
+{
+    technique
+    {
+        pass
+        {
+            ambient 0.6 0.4 0.2 1.0
+            diffuse 0.8 0.5 0.3 1.0
+            specular 0.2 0.2 0.2 1.0
+            shininess 25
+            
+            texture_unit
+            {
+                texture wood_cabinet.jpg
+                tex_coord_set 0
+                colour_op modulate
+            }
+        }
+    }
+}
