@@ -269,12 +269,12 @@ void RoboClawModule::reconnect() {
   roboclaw_.~RoboClaw();  // Clean up the previous instance
   roboclaw_ = RoboClaw(&ROBOCLAW_SERIAL, ROBOCLAW_TIMEOUT_US);
   roboclaw_.begin(ROBOCLAW_BAUD_RATE);
-  setM1PID(7.26239, 2.43, 00, 2437);
-  setM2PID(7.26239, 2.43, 00, 2437);
   if (isVersionOk()) {
     SerialManager::singleton().SendDiagnosticMessage(
         "INFO [RoboClawModule::Loop] Version check passed");
     current_state_ = State::kLoop;  // Transition to the loop state
+    setM1PID(7.26239, 2.43, 00, 2437);
+    setM2PID(7.26239, 2.43, 00, 2437);
   } else {
     SerialManager::singleton().SendDiagnosticMessage(
         "ERROR [RoboClawModule::Loop] Version check failed, staying in "
