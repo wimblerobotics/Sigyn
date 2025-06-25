@@ -221,11 +221,16 @@ local_costmap:
       width: 3 # Width of costmap (m).
 
       plugins: [
+        "static_layer",
         # "sonar_layer",
         "lidar_layer",
         "oakd_top_layer",
         # "voxel_layer",
         "inflation_layer"]
+
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: True
 
       inflation_layer:
         enabled: True
