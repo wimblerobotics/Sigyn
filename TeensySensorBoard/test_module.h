@@ -1,22 +1,29 @@
 #pragma once
+
 #include <Arduino.h>
 
 class TTestModule {
  public:
+  virtual ~TTestModule() {}
+
   static TTestModule& singleton();
 
-  virtual const int numberOfDevices() { return 0; }
-  virtual void getDeviceName(uint8_t deviceIndex, String& name) { strcpy }
-  virtual const char* getDeviceDescription(uint8_t deviceIndex) { return nullptr; }
-  virtual const int numberOfTestsPerDevice() { return 0; }
-  virtual const char* getTestName(uint8_t testIndex) { return nullptr; }
-  virtual const char* getTestDescription(uint8_t testIndex) { return nullptr; }
-  virtual bool runTest(uit8_t testDevice, uint8_t testIndex) { return false; }
+  virtual const char* deviceDescription(uint8_t deviceIndex) = 0;
 
-  virtual void setup() {}
-  //   void loop();
+  virtual const char* deviceName(uint8_t deviceIndex) = 0;
 
- private:
+  virtual const int numberOfDevices() = 0;
+
+  virtual const int numberOfTestsPerDevice() = 0;
+
+  virtual bool runTest(uint8_t testDevice, uint8_t testIndex) = 0;
+
+  virtual const char* testName(uint8_t testIndex) = 0;
+  
+ protected:
   TTestModule();
+
+  virtual void setup() = 0;
+
   static TTestModule* g_singleton;
 };
