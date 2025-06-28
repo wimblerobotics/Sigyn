@@ -1,0 +1,120 @@
+// Example: Using VL53L0XModule for distance sensing
+// This example shows how to integrate the VL53L0X Time-of-Flight sensor module
+// 
+// Hardware Requirements:
+// - VL53L0X Time-of-Flight sensors (1-8 sensors)
+// - TCA9548A I2C multiplexer (address 0x70)
+// - Teensy 4.1 microcontroller
+//
+// Wiring:
+// - VL53L0X SDA -> TCA9548A SCx (channel 0-7)
+// - VL53L0X SCL -> TCA9548A SDx (channel 0-7)  
+// - TCA9548A SDA -> Teensy SDA (pin 18)
+// - TCA9548A SCL -> Teensy SCL (pin 19)
+// - All VCC to 3.3V, all GND to GND
+
+#include "vl53l0x_module.h"
+#include "module.h"
+
+void setup() {
+    Serial.begin(115200);
+    
+    // Wait for serial connection (optional for debugging)
+    while (!Serial && millis() < 5000);
+    
+    Serial.println("VL53L0X Time-of-Flight Sensor Example Starting...");
+    
+    // Initialize the VL53L0X module singleton
+    // This automatically registers it with the module system
+    VL53L0XModule::singleton();
+    
+    // Initialize all modules (including VL53L0X)
+    Module::Setup();
+    
+    Serial.println("VL53L0X Distance Sensor Example Ready");
+    Serial.println("Expected serial output format: VL53L0X_DISTANCE:sensor_id,distance_mm");
+}
+
+void loop() {
+    // Run all modules (including VL53L0X)
+    Module::Loop();
+    
+    // Example: Get distance from sensor 0 manually
+    static uint32_t last_manual_read = 0;
+    uint32_t current_time = millis();
+    
+    if (current_time - last_manual_read >= 1000) { // Every 1 second
+        auto& vl53l0x = VL53L0XModule::singleton();
+        
+        float distance = vl53l0x.getDistanceMm(0);
+        
+        if (isnan(distance)) {
+            Serial.println("Manual read: Sensor 0 - No valid distance (sensor not initialized or timeout)");
+        } else {
+            Serial.printf("Manual read: Sensor 0 distance: %.1f mm\n", distance);
+        }
+        
+        // Check sensor status
+        if (vl53l0x.isSensorInitialized(0)) {
+            Serial.println("Manual read: Sensor 0 is initialized and working");
+        } else {
+            Serial.println("Manual read: Sensor 0 failed to initialize");
+        }
+        
+        // Check safety status
+        if (vl53l0x.isUnsafe()) {
+            Serial.println("Manual read: SAFETY WARNING - Obstacle detected within 50mm!");
+        }
+        
+        last_manual_read = current_time;
+    }
+    
+    // The module automatically sends distance data every 10ms via serial:
+    // Format: "VL53L0X_DISTANCE:sensor_id,distance_mm"
+    // Example: "VL53L0X_DISTANCE:0,123.4"
+    // Example: "VL53L0X_DISTANCE:0,NAN" (if sensor not working or timeout)
+}
+
+/*
+Expected Serial Output:
+======================
+
+VL53L0XModule: Configured for 1 sensors
+VL53L0XModule: Starting sensor initialization...
+VL53L0XModule: I2C multiplexer found at address 0x70
+VL53L0XModule: Initializing sensor 0...
+VL53L0X: Successfully initialized sensor 0 (address 0x29)
+VL53L0XModule: 1/1 sensors initialized
+VL53L0X Time-of-Flight Sensor Example Starting...
+VL53L0X Distance Sensor Example Ready
+Expected serial output format: VL53L0X_DISTANCE:sensor_id,distance_mm
+
+VL53L0X_DISTANCE:0,150.0
+VL53L0X_DISTANCE:0,145.2
+VL53L0X_DISTANCE:0,155.8
+Manual read: Sensor 0 distance: 150.0 mm
+Manual read: Sensor 0 is initialized and working
+VL53L0X_DISTANCE:0,148.1
+VL53L0X_DISTANCE:0,152.3
+...
+
+Notes:
+======
+1. VL53L0X is a single-zone ToF sensor (simpler than VL53L8CX)
+2. Distance data is automatically sent every 10ms per enabled sensor
+3. To enable more sensors, change ENABLED_SENSORS constant in the header
+4. The module handles I2C multiplexer switching automatically
+5. NAN is reported for sensors that fail to initialize or have timeouts
+6. The module integrates with the safety system (isUnsafe() for obstacles < 50mm)
+7. All timing is non-blocking to maintain real-time performance
+8. Sensor runs at 30Hz frequency with 20ms timing budget for good performance
+9. Each sensor gets a unique I2C address to avoid conflicts
+10. Timeout is set to 500ms to handle occasional measurement delays
+
+Troubleshooting:
+===============
+- If "I2C multiplexer NOT found", check TCA9548A wiring and address
+- If "Failed to initialize sensor", check VL53L0X wiring and power
+- If getting NAN values, check for loose connections or interference
+- Distance range is typically 30mm to 2000mm (varies with target material)
+*/

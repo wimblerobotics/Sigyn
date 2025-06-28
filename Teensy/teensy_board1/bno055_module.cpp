@@ -384,14 +384,14 @@ bool BNO055Module::getIMUDataROS(uint8_t chip_index, float &qx, float &qy, float
     convertQuaternionToROS(data.qw, data.qx, data.qy, data.qz, qx, qy, qz, qw);
     
     // Convert gyroscope data to ROS coordinate system (rad/s)
-    gyro_x = data.gyro_y;   // BNO055 Y → ROS X (forward)
-    gyro_y = -data.gyro_x;  // BNO055 X → ROS Y (right→left, flip sign)
-    gyro_z = data.gyro_z;   // BNO055 Z → ROS Z (up)
+    gyro_x = data.gy;   // BNO055 Y → ROS X (forward)
+    gyro_y = -data.gx;  // BNO055 X → ROS Y (right→left, flip sign)
+    gyro_z = data.gz;   // BNO055 Z → ROS Z (up)
     
     // Convert linear acceleration to ROS coordinate system (m/s²)
-    accel_x = data.accel_y;   // BNO055 Y → ROS X (forward)
-    accel_y = -data.accel_x;  // BNO055 X → ROS Y (right→left, flip sign)
-    accel_z = data.accel_z;   // BNO055 Z → ROS Z (up)
+    accel_x = data.ay;   // BNO055 Y → ROS X (forward)
+    accel_y = -data.ax;  // BNO055 X → ROS Y (right→left, flip sign)
+    accel_z = data.az;   // BNO055 Z → ROS Z (up)
     
     return true;
 }
