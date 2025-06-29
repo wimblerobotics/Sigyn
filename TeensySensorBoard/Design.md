@@ -1,3 +1,24 @@
+# The Teensy Sensor Board, from Wimble Robotics
+![Teensy Sensor Board](TeensySensorBoard.png)
+Features of the **Teensy Sensor Board** 
+* 8 I2C ports controlled by a multiplexer. This allows for multiple devices with the same I2C address to be used without conflicts. The clock and data busses have pull-up resistors.
+* 2 non multiplexed I2C ports.
+* 4 ports, each with a pair of bidirectional 5-volt level translators. Suitable for use with PING SONAR sensors.
+* 2 SPI ports.
+* A CANBUS port.
+* 4 MOSFET-driven output ports intended for 5-volt level translation.
+* 4 PWM ports with a jumper to power them from either the on-board 5-volt power rail or your own power rail.
+* 8 Analog input ports.
+* 3 extra, miscellaneous ports with UART capabilities, 2 also offering an additional bidirectional port.
+* A 5-volt connector for external power input if you don’t just want to power everything from the USB port on the Teensy 4.1 chip.
+* A power connector to supply custom power to the PWM ports, if selected via a jumper.
+
+# 5 Volt Power Input
+You should not use both the USB port and the 5 volt power port at the same time without modification to the Teensy 4.1 board itself. 
+See [https://www.pjrc.com/store/teensy41.html](https://www.pjrc.com/store/teensy41.html). Otherwise, you can supply the 5 volt power via the power port.
+
+![5 volt power port](5VPower.png)
+
 # Analog Block
 There are 8 analog connectors, labeled ***ALG0*** through ***ALG7***.
 Each connector in the picture has pin 1 at the top and pin 3 at the bottom. Each pin's function is:
@@ -112,6 +133,7 @@ to the desired 'on' voltage for the switch. That maximum voltage
 that can be switched is 5 volts.
 
 Each connector in the picture has pin 1 at the top and pin 3 at the bottom. Each pin's function is:
+
 1. The switched output. The output should include a pull up resistor to
 the desired voltage, typically 3.3 volts or 5 volts. Don't exceed 5 volts.
 In my original design, the pin was used to drive a solid state relay.
@@ -199,3 +221,85 @@ To use the multiplexed block, you would have code similar to this:
 
   // Continue with I2C code
   ```
+
+# PWM Block
+
+There is a ***3-pin header*** to the left of the PWM block and you must
+provide a 2-pin jump to select either the on-board 5 volt power rail 
+or your own power rail. 
+Short the top two pins (***5V*** and ***GND***) to use the on-board 5V rail, or short the bottom two pins (***GND*** and ***C***) to select
+power from the ***PWM Custom Power*** port.
+
+Each connector in the picture has pin 1 at the top and pin 3 at the
+bottom. Each pin's function is:
+
+1. The power you selected from the ***3-pin header***.
+2. Ground.
+3. The PWM signal. Of course, this is just a connection to one of
+the many Teensy I/O pins, and you have to set the pin to be in
+PWM mode, as described below.
+
+The Teensy pin the provides the signal for each connector is:
+
+<div style="border:1px solid black; padding: 8px;">
+<table>
+  <tr>
+    <th>Connector</th>
+    <th>Logical Pin Name</th>
+    <th>Digital Pin Number</th>
+  </tr>
+  <tr>
+    <td>PWM0</td>
+    <td>BCLK2</td>
+    <td>4</td>
+  </tr>
+  <tr>
+    <td>PWM1</td>
+    <td>IN2</td>
+    <td>5</td>
+  </tr>
+  <tr>
+    <td>PWM2</td>
+    <td>OUT1D</td>
+    <td>6</td>
+  </tr>
+  <tr>
+    <td>PWM3</td>
+    <td>OUT1A</td>
+    <td>7</td>
+  </tr>
+  </table>
+
+![PWM block](PWM.png)
+
+To use the PWM block as pulse with modulated outputs,
+you could use a library such as ![this](https://github.com/khoih-prog/Teensy_PWM). Here would be an example code snipped:
+
+```code
+#include "Teensy_PWM.h"
+Teensy_PWM* PWM_Instance;
+float frequency = 2000.0f;
+float dutyCycle = 0.0f; // Zero percent.
+PWM_Instance = new Teensy_PWM(pinToUse, frequency, dutyCycle);
+dutyCycle = 50.0f; // 50 percent.
+PWM_Instance->setPWM(pinToUse, frequency, dutyCycle);
+```
+
+# CAN bus
+
+Two of the pins that the Teensy intended for use as CAN bus
+signals are brought out to a 4-pin connector. 
+It is up to you to provide any additional hardware and physical
+connector to complete the connection to a CAN bus.
+
+The connector has pin 1 to the left and pin 4 to the right in the picture. Each pin's function is:
+
+1. 3.3 volts.
+2. Ground.
+3. ***CRX1*** or digital pin 23.
+4. ***CTX1*** or digital pin 22.
+
+Of course, could use this connector as a UART or for any other
+purpose. Just set up the proper pin mode in your code.
+
+![CAN bus](CanBus.png)
