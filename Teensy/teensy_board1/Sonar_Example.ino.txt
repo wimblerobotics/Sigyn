@@ -1,0 +1,160 @@
+// Example: Using SonarModule for ultrasonic distance sensing
+// This example shows how to integrate the HC-SR04 ultrasonic sensor module
+// 
+// Hardware Requirements:
+// - HC-SR04 ultrasonic sensors (4 sensors)
+// - Teensy 4.1 microcontroller
+//
+// Wiring:
+// - Sensor 0 (Front): Echo->Pin 35, Trigger->Pin 34
+// - Sensor 1 (Right): Echo->Pin 37, Trigger->Pin 36  
+// - Sensor 2 (Back):  Echo->Pin 41, Trigger->Pin 40
+// - Sensor 3 (Left):  Echo->Pin 15, Trigger->Pin 14
+// - All VCC to 5V, all GND to GND
+
+#include "sonar_module.h"
+#include "module.h"
+
+void setup() {
+    Serial.begin(115200);
+    
+    // Wait for serial connection (optional for debugging)
+    while (!Serial && millis() < 5000);
+    
+    Serial.println("SonarModule Ultrasonic Distance Sensor Example Starting...");
+    
+    // Initialize the SonarModule singleton
+    // This automatically registers it with the module system
+    SonarModule::singleton();
+    
+    // Initialize all modules (including SonarModule)
+    Module::Setup();
+    
+    Serial.println("SonarModule Distance Sensor Example Ready");
+    Serial.println("Expected serial output format: SONAR_DISTANCES:FRONT:distance_mm,RIGHT:distance_mm,BACK:distance_mm,LEFT:distance_mm");
+}
+
+void loop() {
+    // Run all modules (including SonarModule)
+    Module::Loop();
+    
+    // Example: Get distance from front sensor manually
+    static uint32_t last_manual_read = 0;
+    uint32_t current_time = millis();
+    
+    if (current_time - last_manual_read >= 1000) { // Every 1 second
+        auto& sonar = SonarModule::singleton();
+        
+        // Read individual sensors
+        int front_distance = sonar.getDistanceMm(SonarModule::FRONT);
+        int right_distance = sonar.getDistanceMm(SonarModule::RIGHT);
+        int back_distance = sonar.getDistanceMm(SonarModule::BACK);
+        int left_distance = sonar.getDistanceMm(SonarModule::LEFT);
+        
+        Serial.println("Manual read distances:");
+        Serial.printf("  Front: %d mm\n", front_distance);
+        Serial.printf("  Right: %d mm\n", right_distance);
+        Serial.printf("  Back:  %d mm\n", back_distance);
+        Serial.printf("  Left:  %d mm\n", left_distance);
+        
+        // Check for obstacles
+        if (sonar.isObstacleDetected(SonarModule::FRONT)) {
+            Serial.println("  WARNING: Front obstacle detected!");
+        }
+        if (sonar.isObstacleDetected(SonarModule::RIGHT)) {
+            Serial.println("  WARNING: Right obstacle detected!");
+        }
+        if (sonar.isObstacleDetected(SonarModule::BACK)) {
+            Serial.println("  WARNING: Back obstacle detected!");
+        }
+        if (sonar.isObstacleDetected(SonarModule::LEFT)) {
+            Serial.println("  WARNING: Left obstacle detected!");
+        }
+        
+        // Check overall safety status
+        if (sonar.isUnsafe()) {
+            Serial.println("  SAFETY WARNING - Obstacle detected within 76mm safety threshold!");
+        }
+        
+        last_manual_read = current_time;
+    }
+    
+    // The module automatically sends distance data every 100ms via serial:
+    // Format: "SONAR_DISTANCES:FRONT:distance_mm,RIGHT:distance_mm,BACK:distance_mm,LEFT:distance_mm"
+    // Example: "SONAR_DISTANCES:FRONT:1250,RIGHT:2300,BACK:INVALID,LEFT:450"
+}
+
+/*
+Expected Serial Output:
+======================
+
+SonarModule: Configured for 4 sensors
+SonarModule: Starting sensor initialization...
+SonarModule: All sensors initialized successfully
+SonarModule Ultrasonic Distance Sensor Example Starting...
+SonarModule Distance Sensor Example Ready
+Expected serial output format: SONAR_DISTANCES:FRONT:distance_mm,RIGHT:distance_mm,BACK:distance_mm,LEFT:distance_mm
+
+SONAR_DISTANCES:FRONT:1250,RIGHT:2300,BACK:890,LEFT:1450,[4/4 valid]
+SONAR_DISTANCES:FRONT:1245,RIGHT:2315,BACK:885,LEFT:1455,[4/4 valid]
+Manual read distances:
+  Front: 1250 mm
+  Right: 2300 mm
+  Back:  890 mm
+  Left:  1450 mm
+SONAR_DISTANCES:FRONT:1255,RIGHT:2298,BACK:892,LEFT:1448,[4/4 valid]
+...
+
+Notes:
+======
+1. HC-SR04 is a popular ultrasonic distance sensor with ~2-400cm range
+2. Distance data is automatically sent every 100ms for all sensors in one message
+3. Timer-based sensor triggering prevents interference between sensors (10ms stagger)
+4. Interrupt-driven echo measurement provides precise timing
+5. INVALID is reported for sensors that fail to respond or have errors
+6. The module integrates with the safety system (isUnsafe() for obstacles < 76mm)
+7. All timing is non-blocking to maintain real-time performance
+8. Sensors are triggered in round-robin fashion: Front->Right->Back->Left->repeat
+9. Each sensor gets triggered every 40ms (4 sensors * 10ms stagger)
+10. Distance calculation: time * 0.1715 (speed of sound conversion)
+
+Troubleshooting:
+===============
+- If getting INVALID readings, check sensor wiring and 5V power supply
+- If readings seem inconsistent, check for interference from other sensors
+- If no readings at all, verify interrupt pins are connected correctly
+- Distance range is typically 20mm to 4000mm (varies with target material)
+- Ensure adequate spacing between sensors to prevent cross-talk
+- Use 5V power supply for HC-SR04 sensors (not 3.3V)
+
+Configuration Summary:
+======================
+- Number of sensors = 4 (Front, Right, Back, Left)
+- Data output interval = 100ms
+- Safety threshold = 76mm (3 inches)
+- Timer interrupt period = 20µs
+- Sensor trigger stagger = 10ms
+- Trigger pulse width = ~20µs (one timer period)
+- Maximum detection range = ~4000mm
+- Minimum detection range = ~20mm
+
+Pin Assignment:
+==============
+- Front Sensor: Echo=35, Trigger=34
+- Right Sensor: Echo=37, Trigger=36
+- Back Sensor:  Echo=41, Trigger=40
+- Left Sensor:  Echo=15, Trigger=14
+
+To modify the configuration:
+1. Change sensor positions/names in the enum if needed
+2. Modify timing intervals in the header file
+3. Adjust safety threshold if required
+4. Update pin assignments for your hardware layout
+
+For best performance:
+- Use quality HC-SR04 sensors or compatible modules
+- Ensure stable 5V power supply
+- Keep sensor wiring short and away from motor wires
+- Mount sensors with clear line-of-sight to target areas
+- Consider sensor cone angle (~15°) when positioning
+*/

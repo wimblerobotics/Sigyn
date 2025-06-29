@@ -4,6 +4,8 @@
 #include <Wire.h>
 #include <math.h>
 
+#include "serial_manager.h"
+
 // Static member definitions
 VL53L8CXModule* VL53L8CXModule::g_instance_ = nullptr;
 
@@ -48,7 +50,7 @@ void VL53L8CXModule::setup() {
   pinMode(8, OUTPUT);
   digitalWrite(8, HIGH);
   Wire.begin();
-  Wire.setClock(400000); // 400kHz I2C speed
+  Wire.setClock(400000);  // 400kHz I2C speed
 
   // Initialize each enabled sensor
   uint8_t initialized_count = 0;
@@ -63,8 +65,8 @@ void VL53L8CXModule::setup() {
     }
   }
 
-  Serial.printf("setup: %d/%d sensors initialized\n",
-                initialized_count, ENABLED_SENSORS);
+  Serial.printf("setup: %d/%d sensors initialized\n", initialized_count,
+                ENABLED_SENSORS);
 
   if (initialized_count == 0) {
     Serial.println(
@@ -171,19 +173,22 @@ bool VL53L8CXModule::initializeSensor(uint8_t sensor_index) {
   uint8_t sensor_error = Wire.endTransmission();
 
   if (sensor_error != 0) {
-    Serial.printf("initializeSensor: Sensor %d not responding on I2C (error: %d)\n",
-                  sensor_index, sensor_error);
+    Serial.printf(
+        "initializeSensor: Sensor %d not responding on I2C (error: %d)\n",
+        sensor_index, sensor_error);
     return false;
   }
 
-  Serial.printf("initializeSensor: Sensor %d responding on I2C, initializing...\n",
-                sensor_index);
+  Serial.printf(
+      "initializeSensor: Sensor %d responding on I2C, initializing...\n",
+      sensor_index);
 
   // Create VL53L8CX configuration object using the API
   VL53L8CX_Configuration* sensor = new VL53L8CX_Configuration();
   if (sensor == nullptr) {
-    Serial.printf("initializeSensor: Failed to create sensor object for sensor %d\n",
-                  sensor_index);
+    Serial.printf(
+        "initializeSensor: Failed to create sensor object for sensor %d\n",
+        sensor_index);
     return false;
   }
 
@@ -192,8 +197,9 @@ bool VL53L8CXModule::initializeSensor(uint8_t sensor_index) {
                 sensor_index);
   uint8_t status = vl53l8cx_init(sensor);
   if (status != VL53L8CX_STATUS_OK) {
-    Serial.printf("initializeSensor: vl53l8cx_init failed for sensor %d (status: %d)\n",
-                  sensor_index, status);
+    Serial.printf(
+        "initializeSensor: vl53l8cx_init failed for sensor %d (status: %d)\n",
+        sensor_index, status);
     delete sensor;
     return false;
   }
@@ -213,8 +219,9 @@ bool VL53L8CXModule::initializeSensor(uint8_t sensor_index) {
   // Set ranging frequency to 30Hz (good balance of speed vs power)
   status = vl53l8cx_set_ranging_frequency_hz(sensor, 30);
   if (status != VL53L8CX_STATUS_OK) {
-    Serial.printf("initializeSensor: Failed to set ranging frequency for sensor %d\n",
-                  sensor_index);
+    Serial.printf(
+        "initializeSensor: Failed to set ranging frequency for sensor %d\n",
+        sensor_index);
     delete sensor;
     return false;
   }
@@ -231,7 +238,8 @@ bool VL53L8CXModule::initializeSensor(uint8_t sensor_index) {
   sensors_[sensor_index].sensor = sensor;
   sensors_[sensor_index].initialized = true;
 
-  Serial.printf("initializeSensor: Successfully initialized sensor %d\n", sensor_index);
+  Serial.printf("initializeSensor: Successfully initialized sensor %d\n",
+                sensor_index);
   return true;
 }
 

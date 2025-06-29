@@ -231,7 +231,12 @@ Short the top two pins (***5V*** and ***GND***) to use the on-board 5V rail, or 
 power from the ***PWM Custom Power*** port.
 
 Each connector in the picture has pin 1 at the top and pin 3 at the
-bottom. Each pin's function is:
+bottom. 
+
+***NOTE: This pin ordering is NOT the same as is usual with a servo.
+Make sure you remap the pins to match your servo device.***
+
+Each pin's function is:
 
 1. The power you selected from the ***3-pin header***.
 2. Ground.
@@ -269,20 +274,42 @@ The Teensy pin the provides the signal for each connector is:
     <td>7</td>
   </tr>
   </table>
+</div>
 
 ![PWM block](PWM.png)
 
 To use the PWM block as pulse with modulated outputs,
-you could use a library such as ![this](https://github.com/khoih-prog/Teensy_PWM). Here would be an example code snipped:
+you could use the Servo.h library. Here is an example:
 
 ```code
-#include "Teensy_PWM.h"
-Teensy_PWM* PWM_Instance;
-float frequency = 2000.0f;
-float dutyCycle = 0.0f; // Zero percent.
-PWM_Instance = new Teensy_PWM(pinToUse, frequency, dutyCycle);
-dutyCycle = 50.0f; // 50 percent.
-PWM_Instance->setPWM(pinToUse, frequency, dutyCycle);
+#include <Servo.h>
+
+enum TeensySensorPWMPins {
+  PWM0 = 4,
+  PWM1 = 5,
+  PWM2 = 6,
+  PWM3 = 7,
+};
+
+Servo myservo;
+
+void setup() {
+  myservo.attach(PWM0);  // attaches the servo on pin 20
+}
+
+void loop() {
+  for (int pos = 10; pos < 170;
+       pos += 1)         // goes from 10 degrees to 170 degrees
+  {                      // in steps of 1 degree
+    myservo.write(pos);  // tell servo to go to position in variable 'pos'
+    delay(15);           // waits 15ms for the servo to reach the position
+  }
+  for (int pos = 180; pos >= 1; pos -= 1)  // goes from 180 degrees to 0 degrees
+  {
+    myservo.write(pos);  // tell servo to go to position in variable 'pos'
+    delay(15);           // waits 15ms for the servo to reach the position
+  }
+}
 ```
 
 # CAN bus
@@ -303,3 +330,55 @@ Of course, could use this connector as a UART or for any other
 purpose. Just set up the proper pin mode in your code.
 
 ![CAN bus](CanBus.png)
+
+# SONAR Block
+
+There are 4 SONAR connectors, labeled ***SONAR0*** through ***SONAR3***.
+The intent is that each connector is attached to a HC-SR04 ultrasonic sensor.
+Each connector in the picture has pin 1 to the left and pin 4 to the right.
+Each pin's function is:
+
+1. 5 volts.
+2. Ground.
+3. Trigger.
+4. Echo.
+
+![Sonar block of connectors](SONAR.png)
+
+No example code is given here, as the code I use is designed to use
+interrupt handlers and timers to stagger the handling of the 4 SONAR
+sensors and minimize execution time so that I can send as many SONAR
+reports as possible.
+
+The digital pin number to be used for trigger and echo for each connector is:
+
+<div style="border:1px solid black; padding: 8px;">
+<table>
+  <tr>
+    <th>Connector</th>
+    <th>Trigger</th>
+    <th>Echo</th>
+  </tr>
+  <tr>
+    <td>SONAR0</td>
+    <td>24</td>
+    <td>25</td>
+  </tr>
+  <tr>
+    <td>SONAR1</td>
+    <td>26</td>
+    <td>27</td>
+  <tr>
+  <tr>
+    <td>SONAR2</td>
+    <td>28</td>
+    <td>29</td>
+  </tr>
+  <tr>
+    <td>SONAR3</td>
+    <td>36</td>
+    <td>37</td>
+  <tr>
+</table>
+</div>
+
