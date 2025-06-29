@@ -18,7 +18,7 @@
  * - Supports up to 8 VL53L0X sensors
  * - Uses I2C multiplexer (TCA9548A) for sensor selection
  * - Non-blocking operation in loop()
- * - 10ms update rate per sensor
+ * 
  * - Automatic sensor initialization and error handling
  * - Single-zone distance readings
  * - Serial output for distance data via SerialManager
@@ -29,7 +29,7 @@ public:
     static const uint8_t MAX_SENSORS = 8;
     
     // Number of sensors currently enabled (change this to enable more sensors)
-    static const uint8_t ENABLED_SENSORS = 1;
+    static const uint8_t ENABLED_SENSORS = 4;
     
     // Get singleton instance
     static VL53L0XModule& singleton();
@@ -77,6 +77,9 @@ private:
     
     // Setup status
     bool setup_completed_;
+    
+    // Multiplexer availability
+    bool multiplexer_available_;
     
     // I2C multiplexer configuration
     static const uint8_t I2C_MULTIPLEXER_ADDRESS = 0x70;
