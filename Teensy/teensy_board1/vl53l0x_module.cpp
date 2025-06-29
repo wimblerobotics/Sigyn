@@ -35,7 +35,8 @@ VL53L0XModule::VL53L0XModule() : Module() {
   }
 
   SerialManager::singleton().SendDiagnosticMessage(
-      String("VL53L0XModule: Configured for ") + String(ENABLED_SENSORS) + String(" sensors"));
+      String("VL53L0XModule: Configured for ") + String(ENABLED_SENSORS) +
+      String(" sensors"));
 }
 
 void VL53L0XModule::setup() {
@@ -78,7 +79,8 @@ void VL53L0XModule::setup() {
   }
 
   SerialManager::singleton().SendDiagnosticMessage(
-      "VL53L0XModule: " + String(initialized_count) + "/" + String(ENABLED_SENSORS) + " sensors initialized");
+      "VL53L0XModule: " + String(initialized_count) + "/" +
+      String(ENABLED_SENSORS) + " sensors initialized");
 
   setup_completed_ = true;
 }
@@ -179,7 +181,8 @@ bool VL53L0XModule::initializeSensor(uint8_t sensor_index) {
   VL53L0X* sensor = new VL53L0X();
   if (sensor == nullptr) {
     SerialManager::singleton().SendDiagnosticMessage(
-        "VL53L0X: Failed to create sensor object for sensor " + String(sensor_index));
+        "VL53L0X: Failed to create sensor object for sensor " +
+        String(sensor_index));
     return false;
   }
 
@@ -194,8 +197,8 @@ bool VL53L0XModule::initializeSensor(uint8_t sensor_index) {
     return false;
   }
 
-  // Set timeout for measurements (500ms)
-  sensor->setTimeout(500);
+  // Set timeout for measurements
+  sensor->setTimeout(70);
 
   // Configure the sensor for good accuracy
   // Use high accuracy mode with longer range capability
@@ -206,7 +209,8 @@ bool VL53L0XModule::initializeSensor(uint8_t sensor_index) {
   // Set measurement timing budget to 33ms for good accuracy vs speed balance
   if (!sensor->setMeasurementTimingBudget(33000)) {
     SerialManager::singleton().SendDiagnosticMessage(
-        "VL53L0X: Failed to set timing budget for sensor " + String(sensor_index));
+        "VL53L0X: Failed to set timing budget for sensor " +
+        String(sensor_index));
     delete sensor;
     return false;
   }
@@ -290,7 +294,8 @@ void VL53L0XModule::sendDistanceData() {
   }
 
   // Add active sensor count for debugging
-  message += ",[" + String(active_sensors) + "/" + String(ENABLED_SENSORS) + " active]";
+  message += ",[" + String(active_sensors) + "/" + String(ENABLED_SENSORS) +
+             " active]";
 
   SerialManager::singleton().SendDiagnosticMessage(message);
 }
@@ -302,12 +307,14 @@ bool VL53L0XModule::testI2CMultiplexer() {
 
   if (error == 0) {
     SerialManager::singleton().SendDiagnosticMessage(
-        "VL53L0XModule: I2C multiplexer found at address 0x" + String(I2C_MULTIPLEXER_ADDRESS, HEX));
+        "VL53L0XModule: I2C multiplexer found at address 0x" +
+        String(I2C_MULTIPLEXER_ADDRESS, HEX));
     return true;
   } else {
     SerialManager::singleton().SendDiagnosticMessage(
-        "VL53L0XModule: I2C multiplexer NOT found at address 0x" + String(I2C_MULTIPLEXER_ADDRESS, HEX) + 
-        " (error: " + String(error) + ")");
+        "VL53L0XModule: I2C multiplexer NOT found at address 0x" +
+        String(I2C_MULTIPLEXER_ADDRESS, HEX) + " (error: " + String(error) +
+        ")");
     return false;
   }
 }
