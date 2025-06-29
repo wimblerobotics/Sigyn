@@ -5,15 +5,17 @@
 #include "module.h"
 #include "serial_manager.h"
 // #include "vl53l8cx_module.h"
-#include "vl53l0x_module.h"
+// #include "vl53l0x_module.h"
+#include "sonar_module.h"
 
 // BNO055Module& bno055_module =
 //     BNO055Module::singleton();  // BNO055 sensor module
 // VL53L8CXModule& vl53l8cx_module =
 //     VL53L8CXModule::singleton();  // VL53L8CX sensor module
-VL53L0XModule& vl53l0x_module =
-    VL53L0XModule::singleton();  // VL53L0X sensor module
-    
+// VL53L0XModule& vl53l0x_module =
+//     VL53L0XModule::singleton();  // VL53L0X sensor module
+SonarModule& sonar_module = SonarModule::singleton();  // Sonar sensor module
+
 void setup() {
   // Wire.begin();
   Serial.begin(115200);  // Initialize USB Serial for communication with PC

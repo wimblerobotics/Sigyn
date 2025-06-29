@@ -12,6 +12,7 @@
         "/usr/include/**",
         "/opt/ros/jazzy/include/**",
         "/home/ros/Arduino/libraries/**",
+        "/home/ros/Arduino/libraries/BNO055/**",
         "/home/ros/.arduino15/packages/teensy/hardware/avr/1.59.0/cores/teensy4/**",
         "/home/ros/Arduino_libraries_SdFat/**"
       ],
