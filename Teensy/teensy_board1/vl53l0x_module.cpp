@@ -57,13 +57,13 @@ void VL53L0XModule::setup() {
   multiplexer_available_ = testI2CMultiplexer();
   if (!multiplexer_available_) {
     SerialManager::singleton().SendDiagnosticMessage(
-        "VL53L0XModule: I2C multiplexer test failed, no sensors will be "
-        "initialized.");
+        "VL53L0XModule: I2C multiplexer not found, sensor initialization aborted");
     return;
   }
 
   // Initialize each enabled sensor
   uint8_t initialized_count = 0;
+  
   for (uint8_t i = 0; i < ENABLED_SENSORS; i++) {
     if (initializeSensor(i)) {
       initialized_count++;
@@ -86,7 +86,7 @@ void VL53L0XModule::setup() {
 }
 
 void VL53L0XModule::loop() {
-  if (!setup_completed_ || !multiplexer_available_) {
+  if (!setup_completed_) {
     return;  // Skip if setup not completed
   }
 
@@ -156,17 +156,13 @@ bool VL53L0XModule::isSensorInitialized(uint8_t sensor_index) {
 }
 
 void VL53L0XModule::selectSensor(uint8_t sensor_index) {
-  // Only use multiplexer if it's available
-  if (multiplexer_available_) {
-    // Select the appropriate channel on the I2C multiplexer
-    Wire.beginTransmission(I2C_MULTIPLEXER_ADDRESS);
-    Wire.write(1 << sensor_index);
-    Wire.endTransmission();
+  // Select the appropriate channel on the I2C multiplexer
+  Wire.beginTransmission(I2C_MULTIPLEXER_ADDRESS);
+  Wire.write(1 << sensor_index);
+  Wire.endTransmission();
 
-    // Small delay to allow multiplexer to switch
-    delayMicroseconds(100);
-  }
-  // If no multiplexer, assume sensor is connected directly to I2C bus
+  // Small delay to allow multiplexer to switch
+  delayMicroseconds(100);
 }
 
 bool VL53L0XModule::initializeSensor(uint8_t sensor_index) {
