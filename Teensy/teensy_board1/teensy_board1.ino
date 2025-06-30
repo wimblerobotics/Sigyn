@@ -13,11 +13,11 @@
 //     BNO055Module::singleton();  // BNO055 sensor module
 // VL53L8CXModule& vl53l8cx_module =
 //     VL53L8CXModule::singleton();  // VL53L8CX sensor module
-// VL53L0XModule& vl53l0x_module =
-//     VL53L0XModule::singleton();  // VL53L0X sensor module
-SonarModule& sonar_module = SonarModule::singleton();  // Sonar sensor module
-// RoboClawModule& roboclaw_module =
-//     RoboClawModule::singleton();  // RoboClaw motor controller module
+VL53L0XModule& vl53l0x_module =
+    VL53L0XModule::singleton();  // VL53L0X sensor module
+// SonarModule& sonar_module = SonarModule::singleton();  // Sonar sensor module
+RoboClawModule& roboclaw_module =
+    RoboClawModule::singleton();  // RoboClaw motor controller module
 
 void setup() {
   // Wire.begin();
