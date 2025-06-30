@@ -23,8 +23,8 @@
 #define ROBOCLAW_ADDRESS 0x80      // RoboClaw address (default is 128)
 #define ROBOCLAW_TIMEOUT_US 10'000  // RoboClaw communication timeout (10ms)
 #define ROBOCLAW_BAUD_RATE 38400U
-// #define ROBOCLAW_SOFTWARE_VERSION "USB Roboclaw 2x15a v4.2.8\n"
-#define ROBOCLAW_SOFTWARE_VERSION "USB Roboclaw 2x7a v4.2.8\n"
+#define ROBOCLAW_SOFTWARE_VERSION "USB Roboclaw 2x15a v4.2.8\n"
+// #define ROBOCLAW_SOFTWARE_VERSION "USB Roboclaw 2x7a v4.2.8\n"
 #define ROBOCLAW_PUBLISH_STATUS_INTERVAL_MS 1000 // Publish status every 1000ms (1 second)
 
 // Safety and E-Stop
