@@ -29,7 +29,7 @@ public:
     static const uint8_t MAX_SENSORS = 8;
     
     // Number of sensors currently enabled (change this to enable more sensors)
-    static const uint8_t ENABLED_SENSORS = 4;
+    static const uint8_t ENABLED_SENSORS = 1;
     
     // Get singleton instance
     static VL53L0XModule& singleton();
