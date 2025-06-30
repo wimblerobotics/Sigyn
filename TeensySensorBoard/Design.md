@@ -382,3 +382,16 @@ The digital pin number to be used for trigger and echo for each connector is:
 </table>
 </div>
 
+# Miscellaneous connectors
+
+![Miscellaneous connector block](Misc.png)
+
+## RoboClaw Connector
+
+This connector has pin 1 at the top and pin 5 at the bottom. Each pin's function is:
+
+1. 3.3 volts.
+2. Ground.
+3. RX7 (digital pin 20). Should be connected to pin S2 on the RoboClaw.
+4. TX7 (digital pin 21). Should be connected to pin S1 on the RoboClaw.
+5. CRX3 (digital pin 22). Should be connected to pin 
