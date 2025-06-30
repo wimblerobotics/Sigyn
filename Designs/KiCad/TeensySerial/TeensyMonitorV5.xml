@@ -1,0 +1,2055 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<export version="E">
+  <design>
+    <source>/Users/michaelwimble/Library/Mobile Documents/com~apple~CloudDocs/KiCad/TeensyMonitorV5/TeensyMonitorV5.kicad_sch</source>
+    <date/>
+    <tool>Eeschema (6.0.9-0)</tool>
+    <sheet number="1" name="/" tstamps="/">
+      <title_block>
+        <title>Teensy Monitor</title>
+        <company>Wimble Robotics</company>
+        <rev>1</rev>
+        <date>2021-02-08</date>
+        <source>TeensyMonitorV5.kicad_sch</source>
+        <comment number="1" value=""/>
+        <comment number="2" value=""/>
+        <comment number="3" value=""/>
+        <comment number="4" value=""/>
+        <comment number="5" value=""/>
+        <comment number="6" value=""/>
+        <comment number="7" value=""/>
+        <comment number="8" value=""/>
+        <comment number="9" value=""/>
+      </title_block>
+    </sheet>
+    <sheet number="2" name="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/">
+      <title_block>
+        <title>Sonar Sensors</title>
+        <company>Wimble Robotics</company>
+        <rev>1</rev>
+        <date>2021-02-08</date>
+        <source>LevelShifters.kicad_sch</source>
+        <comment number="1" value="3.3v to 5v level shifters for sonar sensors"/>
+        <comment number="2" value=""/>
+        <comment number="3" value=""/>
+        <comment number="4" value=""/>
+        <comment number="5" value=""/>
+        <comment number="6" value=""/>
+        <comment number="7" value=""/>
+        <comment number="8" value=""/>
+        <comment number="9" value=""/>
+      </title_block>
+    </sheet>
+    <sheet number="3" name="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/">
+      <title_block>
+        <title/>
+        <company/>
+        <rev/>
+        <date/>
+        <source>TimeOfFlightSensors.kicad_sch</source>
+        <comment number="1" value=""/>
+        <comment number="2" value=""/>
+        <comment number="3" value=""/>
+        <comment number="4" value=""/>
+        <comment number="5" value=""/>
+        <comment number="6" value=""/>
+        <comment number="7" value=""/>
+        <comment number="8" value=""/>
+        <comment number="9" value=""/>
+      </title_block>
+    </sheet>
+    <sheet number="4" name="/Relays/" tstamps="/00000000-0000-0000-0000-00006221804c/">
+      <title_block>
+        <title>Relay Drivers</title>
+        <company>Wimble Robotics</company>
+        <rev>1</rev>
+        <date>2021-02-09</date>
+        <source>Relays.kicad_sch</source>
+        <comment number="1" value=""/>
+        <comment number="2" value=""/>
+        <comment number="3" value=""/>
+        <comment number="4" value=""/>
+        <comment number="5" value=""/>
+        <comment number="6" value=""/>
+        <comment number="7" value=""/>
+        <comment number="8" value=""/>
+        <comment number="9" value=""/>
+      </title_block>
+    </sheet>
+    <sheet number="5" name="/DisplayAndAnalog/" tstamps="/00000000-0000-0000-0000-0000623525e0/">
+      <title_block>
+        <title>Display and Analog</title>
+        <company>Wimble Robotics</company>
+        <rev>1</rev>
+        <date>2021-02-09</date>
+        <source>DisplayAndAnalog.kicad_sch</source>
+        <comment number="1" value=""/>
+        <comment number="2" value=""/>
+        <comment number="3" value=""/>
+        <comment number="4" value=""/>
+        <comment number="5" value=""/>
+        <comment number="6" value=""/>
+        <comment number="7" value=""/>
+        <comment number="8" value=""/>
+        <comment number="9" value=""/>
+      </title_block>
+    </sheet>
+  </design>
+  <components>
+    <comp ref="C1">
+      <value>0.1</value>
+      <footprint>digikey-footprints:0805</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="C-Device" description=""/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="TeensyMonitorV5.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>00000000-0000-0000-0000-00006031d008</tstamps>
+    </comp>
+    <comp ref="H1">
+      <value>MountingHole</value>
+      <footprint>MountingHole:MountingHole_4.3mm_M4_Pad_Via</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="MountingHole-Mechanical" description=""/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="TeensyMonitorV5.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>00000000-0000-0000-0000-00006081e30a</tstamps>
+    </comp>
+    <comp ref="H2">
+      <value>MountingHole</value>
+      <footprint>MountingHole:MountingHole_4.3mm_M4_Pad_Via</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="MountingHole-Mechanical" description=""/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="TeensyMonitorV5.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>00000000-0000-0000-0000-00006081eeaf</tstamps>
+    </comp>
+    <comp ref="H3">
+      <value>MountingHole</value>
+      <footprint>MountingHole:MountingHole_4.3mm_M4_Pad_Via</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="MountingHole-Mechanical" description=""/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="TeensyMonitorV5.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>00000000-0000-0000-0000-00006081f17d</tstamps>
+    </comp>
+    <comp ref="H4">
+      <value>MountingHole</value>
+      <footprint>MountingHole:MountingHole_4.3mm_M4_Pad_Via</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="MountingHole-Mechanical" description=""/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="TeensyMonitorV5.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>00000000-0000-0000-0000-00006081f3d3</tstamps>
+    </comp>
+    <comp ref="J1">
+      <value>PWR</value>
+      <footprint>TerminalBlock:TerminalBlock_Altech_AK300-2_P5.00mm</footprint>
+      <fields>
+        <field name="LCSC">KF301-5.0-2P</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="Screw_Terminal_01x02-Connector" description=""/>
+      <property name="LCSC" value="KF301-5.0-2P"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="TeensyMonitorV5.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>00000000-0000-0000-0000-00006241280d</tstamps>
+    </comp>
+    <comp ref="J2">
+      <value>5V</value>
+      <footprint>Connector_PinHeader_2.54mm:PinHeader_2x04_P2.54mm_Vertical</footprint>
+      <fields>
+        <field name="LCSC">C124386</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_02x04_Odd_Even-Connector_Generic" description=""/>
+      <property name="LCSC" value="C124386"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="TeensyMonitorV5.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>00000000-0000-0000-0000-0000624189cb</tstamps>
+    </comp>
+    <comp ref="J3">
+      <value>3V3</value>
+      <footprint>Connector_PinHeader_2.54mm:PinHeader_2x04_P2.54mm_Vertical</footprint>
+      <fields>
+        <field name="LCSC">C124386</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_02x04_Odd_Even-Connector_Generic" description=""/>
+      <property name="LCSC" value="C124386"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="TeensyMonitorV5.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>00000000-0000-0000-0000-00006241a719</tstamps>
+    </comp>
+    <comp ref="J4">
+      <value>J1B1211CCD</value>
+      <footprint>WizNet:J1B1211CCD</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="J1B1211CCD-WizNet" description=""/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="TeensyMonitorV5.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>00000000-0000-0000-0000-0000603196fc</tstamps>
+    </comp>
+    <comp ref="J5">
+      <value>MISC</value>
+      <footprint>Connector_PinHeader_2.54mm:PinHeader_2x02_P2.54mm_Vertical</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_02x02_Odd_Even-Connector_Generic" description=""/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="TeensyMonitorV5.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>00000000-0000-0000-0000-00006270ab33</tstamps>
+    </comp>
+    <comp ref="U1">
+      <value>Teensy4.1</value>
+      <footprint>Teensy:Teensy41</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="Teensy4.1-teensy" description=""/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="TeensyMonitorV5.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>00000000-0000-0000-0000-0000603307ff</tstamps>
+    </comp>
+    <comp ref="U2">
+      <value>Teensy4.1</value>
+      <footprint>Teensy:Teensy41</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="Teensy4.1-teensy" description=""/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="TeensyMonitorV5.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>00000000-0000-0000-0000-000060f81b48</tstamps>
+    </comp>
+    <comp ref="C21">
+      <value>10uf</value>
+      <footprint>Capacitor_SMD:C_0805_2012Metric</footprint>
+      <fields>
+        <field name="LCSC">CL21A106KAYNNNE</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="CP1_Small-Device" description=""/>
+      <property name="LCSC" value="CL21A106KAYNNNE"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000062029b4a</tstamps>
+    </comp>
+    <comp ref="C22">
+      <value>10uf</value>
+      <footprint>Capacitor_SMD:C_0805_2012Metric</footprint>
+      <fields>
+        <field name="LCSC">CL21A106KAYNNNE</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="CP1_Small-Device" description=""/>
+      <property name="LCSC" value="CL21A106KAYNNNE"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-0000620b1909</tstamps>
+    </comp>
+    <comp ref="C23">
+      <value>10uf</value>
+      <footprint>Capacitor_SMD:C_0805_2012Metric</footprint>
+      <fields>
+        <field name="LCSC">CL21A106KAYNNNE</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="CP1_Small-Device" description=""/>
+      <property name="LCSC" value="CL21A106KAYNNNE"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-0000604952c4</tstamps>
+    </comp>
+    <comp ref="C24">
+      <value>10uf</value>
+      <footprint>Capacitor_SMD:C_0805_2012Metric</footprint>
+      <fields>
+        <field name="LCSC">CL21A106KAYNNNE</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="CP1_Small-Device" description=""/>
+      <property name="LCSC" value="CL21A106KAYNNNE"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-0000604952e8</tstamps>
+    </comp>
+    <comp ref="J20">
+      <value>SONAR0</value>
+      <footprint>Connector_Molex:533750410</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic" description=""/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-00006030c45a</tstamps>
+    </comp>
+    <comp ref="J21">
+      <value>SONAR1</value>
+      <footprint>Connector_Molex:533750410</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic" description=""/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-0000603627e8</tstamps>
+    </comp>
+    <comp ref="J22">
+      <value>SONAR2</value>
+      <footprint>Connector_Molex:533750410</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic" description=""/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-00006049530d</tstamps>
+    </comp>
+    <comp ref="J23">
+      <value>SONAR3</value>
+      <footprint>Connector_Molex:533750410</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic" description=""/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000060495336</tstamps>
+    </comp>
+    <comp ref="Q21">
+      <value>BSS138</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <datasheet>https://www.onsemi.com/pub/Collateral/BSS138-D.PDF</datasheet>
+      <fields>
+        <field name="LCSC">BSS138LT1G</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="BSS138-Transistor_FET" description=""/>
+      <property name="LCSC" value="BSS138LT1G"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000061d6981e</tstamps>
+    </comp>
+    <comp ref="Q22">
+      <value>BSS138</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <datasheet>https://www.onsemi.com/pub/Collateral/BSS138-D.PDF</datasheet>
+      <fields>
+        <field name="LCSC">BSS138LT1G</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="BSS138-Transistor_FET" description=""/>
+      <property name="LCSC" value="BSS138LT1G"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000061d7fad2</tstamps>
+    </comp>
+    <comp ref="Q23">
+      <value>BSS138</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <datasheet>https://www.onsemi.com/pub/Collateral/BSS138-D.PDF</datasheet>
+      <fields>
+        <field name="LCSC">BSS138LT1G</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="BSS138-Transistor_FET" description=""/>
+      <property name="LCSC" value="BSS138LT1G"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000061d8f9f3</tstamps>
+    </comp>
+    <comp ref="Q24">
+      <value>BSS138</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <datasheet>https://www.onsemi.com/pub/Collateral/BSS138-D.PDF</datasheet>
+      <fields>
+        <field name="LCSC">BSS138LT1G</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="BSS138-Transistor_FET" description=""/>
+      <property name="LCSC" value="BSS138LT1G"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000061d8fc41</tstamps>
+    </comp>
+    <comp ref="Q25">
+      <value>BSS138</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <datasheet>https://www.onsemi.com/pub/Collateral/BSS138-D.PDF</datasheet>
+      <fields>
+        <field name="LCSC">BSS138LT1G</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="BSS138-Transistor_FET" description=""/>
+      <property name="LCSC" value="BSS138LT1G"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000060494f05</tstamps>
+    </comp>
+    <comp ref="Q26">
+      <value>BSS138</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <datasheet>https://www.onsemi.com/pub/Collateral/BSS138-D.PDF</datasheet>
+      <fields>
+        <field name="LCSC">BSS138LT1G</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="BSS138-Transistor_FET" description=""/>
+      <property name="LCSC" value="BSS138LT1G"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000060494ff3</tstamps>
+    </comp>
+    <comp ref="Q27">
+      <value>BSS138</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <datasheet>https://www.onsemi.com/pub/Collateral/BSS138-D.PDF</datasheet>
+      <fields>
+        <field name="LCSC">BSS138LT1G</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="BSS138-Transistor_FET" description=""/>
+      <property name="LCSC" value="BSS138LT1G"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-0000604950e2</tstamps>
+    </comp>
+    <comp ref="Q28">
+      <value>BSS138</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <datasheet>https://www.onsemi.com/pub/Collateral/BSS138-D.PDF</datasheet>
+      <fields>
+        <field name="LCSC">BSS138LT1G</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="BSS138-Transistor_FET" description=""/>
+      <property name="LCSC" value="BSS138LT1G"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-0000604951d0</tstamps>
+    </comp>
+    <comp ref="R1">
+      <value>10K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF1002T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R-Device" description=""/>
+      <property name="LCSC" value="0603WAF1002T5E"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000061d6dbaf</tstamps>
+    </comp>
+    <comp ref="R2">
+      <value>10K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF1002T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R-Device" description=""/>
+      <property name="LCSC" value="0603WAF1002T5E"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000061d6cece</tstamps>
+    </comp>
+    <comp ref="R3">
+      <value>10K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF1002T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R-Device" description=""/>
+      <property name="LCSC" value="0603WAF1002T5E"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000061d7fc46</tstamps>
+    </comp>
+    <comp ref="R4">
+      <value>10K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF1002T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R-Device" description=""/>
+      <property name="LCSC" value="0603WAF1002T5E"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000061d7fc3c</tstamps>
+    </comp>
+    <comp ref="R5">
+      <value>10K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF1002T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R-Device" description=""/>
+      <property name="LCSC" value="0603WAF1002T5E"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000061d8fc23</tstamps>
+    </comp>
+    <comp ref="R6">
+      <value>10K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF1002T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R-Device" description=""/>
+      <property name="LCSC" value="0603WAF1002T5E"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000061d8fc19</tstamps>
+    </comp>
+    <comp ref="R7">
+      <value>10K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF1002T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R-Device" description=""/>
+      <property name="LCSC" value="0603WAF1002T5E"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000061d8fc55</tstamps>
+    </comp>
+    <comp ref="R8">
+      <value>10K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF1002T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R-Device" description=""/>
+      <property name="LCSC" value="0603WAF1002T5E"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000061d8fc4b</tstamps>
+    </comp>
+    <comp ref="R9">
+      <value>10K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF1002T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R-Device" description=""/>
+      <property name="LCSC" value="0603WAF1002T5E"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000060494fcb</tstamps>
+    </comp>
+    <comp ref="R10">
+      <value>10K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF1002T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R-Device" description=""/>
+      <property name="LCSC" value="0603WAF1002T5E"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000060494fb4</tstamps>
+    </comp>
+    <comp ref="R11">
+      <value>10K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF1002T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R-Device" description=""/>
+      <property name="LCSC" value="0603WAF1002T5E"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-0000604950b9</tstamps>
+    </comp>
+    <comp ref="R12">
+      <value>10K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF1002T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R-Device" description=""/>
+      <property name="LCSC" value="0603WAF1002T5E"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-0000604950a2</tstamps>
+    </comp>
+    <comp ref="R13">
+      <value>10K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF1002T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R-Device" description=""/>
+      <property name="LCSC" value="0603WAF1002T5E"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-0000604951a8</tstamps>
+    </comp>
+    <comp ref="R14">
+      <value>10K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF1002T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R-Device" description=""/>
+      <property name="LCSC" value="0603WAF1002T5E"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000060495191</tstamps>
+    </comp>
+    <comp ref="R15">
+      <value>10K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF1002T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R-Device" description=""/>
+      <property name="LCSC" value="0603WAF1002T5E"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-000060495296</tstamps>
+    </comp>
+    <comp ref="R16">
+      <value>10K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF1002T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R-Device" description=""/>
+      <property name="LCSC" value="0603WAF1002T5E"/>
+      <property name="Sheetname" value="LevelShifters"/>
+      <property name="Sheetfile" value="LevelShifters.kicad_sch"/>
+      <sheetpath names="/LevelShifters/" tstamps="/00000000-0000-0000-0000-000061d6939c/"/>
+      <tstamps>00000000-0000-0000-0000-00006049527f</tstamps>
+    </comp>
+    <comp ref="J30">
+      <value>TOF0</value>
+      <footprint>Connector_Molex:533750410</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic" description=""/>
+      <property name="Sheetname" value="TimeOfFlightSensors"/>
+      <property name="Sheetfile" value="TimeOfFlightSensors.kicad_sch"/>
+      <sheetpath names="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/"/>
+      <tstamps>00000000-0000-0000-0000-0000604e05bb</tstamps>
+    </comp>
+    <comp ref="J31">
+      <value>TOF1</value>
+      <footprint>Connector_Molex:533750410</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic" description=""/>
+      <property name="Sheetname" value="TimeOfFlightSensors"/>
+      <property name="Sheetfile" value="TimeOfFlightSensors.kicad_sch"/>
+      <sheetpath names="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/"/>
+      <tstamps>00000000-0000-0000-0000-0000604e807a</tstamps>
+    </comp>
+    <comp ref="J32">
+      <value>TOF2</value>
+      <footprint>Connector_Molex:533750410</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic" description=""/>
+      <property name="Sheetname" value="TimeOfFlightSensors"/>
+      <property name="Sheetfile" value="TimeOfFlightSensors.kicad_sch"/>
+      <sheetpath names="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/"/>
+      <tstamps>00000000-0000-0000-0000-0000604e8ed9</tstamps>
+    </comp>
+    <comp ref="J33">
+      <value>TOF3</value>
+      <footprint>Connector_Molex:533750410</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic" description=""/>
+      <property name="Sheetname" value="TimeOfFlightSensors"/>
+      <property name="Sheetfile" value="TimeOfFlightSensors.kicad_sch"/>
+      <sheetpath names="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/"/>
+      <tstamps>00000000-0000-0000-0000-0000604e932a</tstamps>
+    </comp>
+    <comp ref="J34">
+      <value>TOF4</value>
+      <footprint>Connector_Molex:533750410</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic" description=""/>
+      <property name="Sheetname" value="TimeOfFlightSensors"/>
+      <property name="Sheetfile" value="TimeOfFlightSensors.kicad_sch"/>
+      <sheetpath names="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/"/>
+      <tstamps>00000000-0000-0000-0000-0000604e9673</tstamps>
+    </comp>
+    <comp ref="J35">
+      <value>TOF5</value>
+      <footprint>Connector_Molex:533750410</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic" description=""/>
+      <property name="Sheetname" value="TimeOfFlightSensors"/>
+      <property name="Sheetfile" value="TimeOfFlightSensors.kicad_sch"/>
+      <sheetpath names="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/"/>
+      <tstamps>00000000-0000-0000-0000-0000604e9a40</tstamps>
+    </comp>
+    <comp ref="J36">
+      <value>TOF6</value>
+      <footprint>Connector_Molex:533750410</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic" description=""/>
+      <property name="Sheetname" value="TimeOfFlightSensors"/>
+      <property name="Sheetfile" value="TimeOfFlightSensors.kicad_sch"/>
+      <sheetpath names="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/"/>
+      <tstamps>00000000-0000-0000-0000-0000604e9e96</tstamps>
+    </comp>
+    <comp ref="J37">
+      <value>TOF7</value>
+      <footprint>Connector_Molex:533750410</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic" description=""/>
+      <property name="Sheetname" value="TimeOfFlightSensors"/>
+      <property name="Sheetfile" value="TimeOfFlightSensors.kicad_sch"/>
+      <sheetpath names="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/"/>
+      <tstamps>00000000-0000-0000-0000-0000604ea263</tstamps>
+    </comp>
+    <comp ref="J39a1">
+      <value>I2Ca</value>
+      <footprint>Connector_Molex:533750410</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic" description=""/>
+      <property name="Sheetname" value="TimeOfFlightSensors"/>
+      <property name="Sheetfile" value="TimeOfFlightSensors.kicad_sch"/>
+      <sheetpath names="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/"/>
+      <tstamps>00000000-0000-0000-0000-0000626b1c23</tstamps>
+    </comp>
+    <comp ref="J39b1">
+      <value>I2Cb</value>
+      <footprint>Connector_Molex:533750410</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic" description=""/>
+      <property name="Sheetname" value="TimeOfFlightSensors"/>
+      <property name="Sheetfile" value="TimeOfFlightSensors.kicad_sch"/>
+      <sheetpath names="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/"/>
+      <tstamps>00000000-0000-0000-0000-0000626b29c3</tstamps>
+    </comp>
+    <comp ref="R30">
+      <value>3K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF3001T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R_Small-Device" description=""/>
+      <property name="LCSC" value="0603WAF3001T5E"/>
+      <property name="Sheetname" value="TimeOfFlightSensors"/>
+      <property name="Sheetfile" value="TimeOfFlightSensors.kicad_sch"/>
+      <sheetpath names="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/"/>
+      <tstamps>00000000-0000-0000-0000-00006210c9b6</tstamps>
+    </comp>
+    <comp ref="R31">
+      <value>3K</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">0603WAF3001T5E</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R_Small-Device" description=""/>
+      <property name="LCSC" value="0603WAF3001T5E"/>
+      <property name="Sheetname" value="TimeOfFlightSensors"/>
+      <property name="Sheetfile" value="TimeOfFlightSensors.kicad_sch"/>
+      <sheetpath names="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/"/>
+      <tstamps>00000000-0000-0000-0000-00006210d1e2</tstamps>
+    </comp>
+    <comp ref="RN31">
+      <value>3K</value>
+      <footprint>Resistor_SMD:R_Array_Convex_4x0603</footprint>
+      <fields>
+        <field name="LCSC">RC-ML08W302JT</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R_Pack04-Device" description=""/>
+      <property name="LCSC" value="RC-ML08W302JT"/>
+      <property name="Sheetname" value="TimeOfFlightSensors"/>
+      <property name="Sheetfile" value="TimeOfFlightSensors.kicad_sch"/>
+      <sheetpath names="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/"/>
+      <tstamps>00000000-0000-0000-0000-000062107c15</tstamps>
+    </comp>
+    <comp ref="RN32">
+      <value>3K</value>
+      <footprint>Resistor_SMD:R_Array_Convex_4x0603</footprint>
+      <fields>
+        <field name="LCSC">RC-ML08W302JT</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R_Pack04-Device" description=""/>
+      <property name="LCSC" value="RC-ML08W302JT"/>
+      <property name="Sheetname" value="TimeOfFlightSensors"/>
+      <property name="Sheetfile" value="TimeOfFlightSensors.kicad_sch"/>
+      <sheetpath names="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/"/>
+      <tstamps>00000000-0000-0000-0000-000062117c95</tstamps>
+    </comp>
+    <comp ref="RN33">
+      <value>3K</value>
+      <footprint>Resistor_SMD:R_Array_Convex_4x0603</footprint>
+      <fields>
+        <field name="LCSC">RC-ML08W302JT</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R_Pack04-Device" description=""/>
+      <property name="LCSC" value="RC-ML08W302JT"/>
+      <property name="Sheetname" value="TimeOfFlightSensors"/>
+      <property name="Sheetfile" value="TimeOfFlightSensors.kicad_sch"/>
+      <sheetpath names="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/"/>
+      <tstamps>00000000-0000-0000-0000-000062118efb</tstamps>
+    </comp>
+    <comp ref="RN34">
+      <value>3K</value>
+      <footprint>Resistor_SMD:R_Array_Convex_4x0603</footprint>
+      <fields>
+        <field name="LCSC">RC-ML08W302JT</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R_Pack04-Device" description=""/>
+      <property name="LCSC" value="RC-ML08W302JT"/>
+      <property name="Sheetname" value="TimeOfFlightSensors"/>
+      <property name="Sheetfile" value="TimeOfFlightSensors.kicad_sch"/>
+      <sheetpath names="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/"/>
+      <tstamps>00000000-0000-0000-0000-000062119b0f</tstamps>
+    </comp>
+    <comp ref="U31">
+      <value>TCA9548APWR</value>
+      <footprint>Package_SO:TSSOP-24_4.4x7.8mm_P0.65mm</footprint>
+      <datasheet>http://www.ti.com/lit/ds/symlink/tca9548a.pdf</datasheet>
+      <fields>
+        <field name="LCSC">TCA9548APWR</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="TCA9548APWR-Interface_Expansion" description=""/>
+      <property name="LCSC" value="TCA9548APWR"/>
+      <property name="Sheetname" value="TimeOfFlightSensors"/>
+      <property name="Sheetfile" value="TimeOfFlightSensors.kicad_sch"/>
+      <sheetpath names="/TimeOfFlightSensors/" tstamps="/00000000-0000-0000-0000-0000620ff296/"/>
+      <tstamps>00000000-0000-0000-0000-0000620ff438</tstamps>
+    </comp>
+    <comp ref="J40">
+      <value>RELAYS</value>
+      <footprint>Connector_Molex:533751010</footprint>
+      <fields>
+        <field name="LCSC">C124372</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x10-Connector_Generic" description=""/>
+      <property name="LCSC" value="C124372"/>
+      <property name="Sheetname" value="Relays"/>
+      <property name="Sheetfile" value="Relays.kicad_sch"/>
+      <sheetpath names="/Relays/" tstamps="/00000000-0000-0000-0000-00006221804c/"/>
+      <tstamps>00000000-0000-0000-0000-0000622c8022</tstamps>
+    </comp>
+    <comp ref="Q40">
+      <value>BSS138</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <datasheet>https://www.onsemi.com/pub/Collateral/BSS138-D.PDF</datasheet>
+      <fields>
+        <field name="LCSC">BSS138LT1G</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="BSS138-Transistor_FET" description=""/>
+      <property name="LCSC" value="BSS138LT1G"/>
+      <property name="Sheetname" value="Relays"/>
+      <property name="Sheetfile" value="Relays.kicad_sch"/>
+      <sheetpath names="/Relays/" tstamps="/00000000-0000-0000-0000-00006221804c/"/>
+      <tstamps>00000000-0000-0000-0000-000062218721</tstamps>
+    </comp>
+    <comp ref="Q41">
+      <value>BSS138</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <datasheet>https://www.onsemi.com/pub/Collateral/BSS138-D.PDF</datasheet>
+      <fields>
+        <field name="LCSC">BSS138LT1G</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="BSS138-Transistor_FET" description=""/>
+      <property name="LCSC" value="BSS138LT1G"/>
+      <property name="Sheetname" value="Relays"/>
+      <property name="Sheetfile" value="Relays.kicad_sch"/>
+      <sheetpath names="/Relays/" tstamps="/00000000-0000-0000-0000-00006221804c/"/>
+      <tstamps>00000000-0000-0000-0000-00006221c89b</tstamps>
+    </comp>
+    <comp ref="Q42">
+      <value>BSS138</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <datasheet>https://www.onsemi.com/pub/Collateral/BSS138-D.PDF</datasheet>
+      <fields>
+        <field name="LCSC">BSS138LT1G</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="BSS138-Transistor_FET" description=""/>
+      <property name="LCSC" value="BSS138LT1G"/>
+      <property name="Sheetname" value="Relays"/>
+      <property name="Sheetfile" value="Relays.kicad_sch"/>
+      <sheetpath names="/Relays/" tstamps="/00000000-0000-0000-0000-00006221804c/"/>
+      <tstamps>00000000-0000-0000-0000-000062228e4f</tstamps>
+    </comp>
+    <comp ref="Q43">
+      <value>BSS138</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <datasheet>https://www.onsemi.com/pub/Collateral/BSS138-D.PDF</datasheet>
+      <fields>
+        <field name="LCSC">BSS138LT1G</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="BSS138-Transistor_FET" description=""/>
+      <property name="LCSC" value="BSS138LT1G"/>
+      <property name="Sheetname" value="Relays"/>
+      <property name="Sheetfile" value="Relays.kicad_sch"/>
+      <sheetpath names="/Relays/" tstamps="/00000000-0000-0000-0000-00006221804c/"/>
+      <tstamps>00000000-0000-0000-0000-00006223598d</tstamps>
+    </comp>
+    <comp ref="Q44">
+      <value>BSS138</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <datasheet>https://www.onsemi.com/pub/Collateral/BSS138-D.PDF</datasheet>
+      <fields>
+        <field name="LCSC">BSS138LT1G</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="BSS138-Transistor_FET" description=""/>
+      <property name="LCSC" value="BSS138LT1G"/>
+      <property name="Sheetname" value="Relays"/>
+      <property name="Sheetfile" value="Relays.kicad_sch"/>
+      <sheetpath names="/Relays/" tstamps="/00000000-0000-0000-0000-00006221804c/"/>
+      <tstamps>00000000-0000-0000-0000-00006222cc8b</tstamps>
+    </comp>
+    <comp ref="Q45">
+      <value>BSS138</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <datasheet>https://www.onsemi.com/pub/Collateral/BSS138-D.PDF</datasheet>
+      <fields>
+        <field name="LCSC">BSS138LT1G</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="BSS138-Transistor_FET" description=""/>
+      <property name="LCSC" value="BSS138LT1G"/>
+      <property name="Sheetname" value="Relays"/>
+      <property name="Sheetfile" value="Relays.kicad_sch"/>
+      <sheetpath names="/Relays/" tstamps="/00000000-0000-0000-0000-00006221804c/"/>
+      <tstamps>00000000-0000-0000-0000-00006225c57d</tstamps>
+    </comp>
+    <comp ref="Q46">
+      <value>BSS138</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <datasheet>https://www.onsemi.com/pub/Collateral/BSS138-D.PDF</datasheet>
+      <fields>
+        <field name="LCSC">BSS138LT1G</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="BSS138-Transistor_FET" description=""/>
+      <property name="LCSC" value="BSS138LT1G"/>
+      <property name="Sheetname" value="Relays"/>
+      <property name="Sheetfile" value="Relays.kicad_sch"/>
+      <sheetpath names="/Relays/" tstamps="/00000000-0000-0000-0000-00006221804c/"/>
+      <tstamps>00000000-0000-0000-0000-000062261876</tstamps>
+    </comp>
+    <comp ref="Q47">
+      <value>BSS138</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <datasheet>https://www.onsemi.com/pub/Collateral/BSS138-D.PDF</datasheet>
+      <fields>
+        <field name="LCSC">BSS138LT1G</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="BSS138-Transistor_FET" description=""/>
+      <property name="LCSC" value="BSS138LT1G"/>
+      <property name="Sheetname" value="Relays"/>
+      <property name="Sheetfile" value="Relays.kicad_sch"/>
+      <sheetpath names="/Relays/" tstamps="/00000000-0000-0000-0000-00006221804c/"/>
+      <tstamps>00000000-0000-0000-0000-00006226b08c</tstamps>
+    </comp>
+    <comp ref="J51">
+      <value>ANALOGS</value>
+      <footprint>Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical</footprint>
+      <fields>
+        <field name="LCSC">C124378</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic" description=""/>
+      <property name="LCSC" value="C124378"/>
+      <property name="Sheetname" value="DisplayAndAnalog"/>
+      <property name="Sheetfile" value="DisplayAndAnalog.kicad_sch"/>
+      <sheetpath names="/DisplayAndAnalog/" tstamps="/00000000-0000-0000-0000-0000623525e0/"/>
+      <tstamps>00000000-0000-0000-0000-0000623553a8</tstamps>
+    </comp>
+    <comp ref="J52">
+      <value>3V3</value>
+      <footprint>Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical</footprint>
+      <fields>
+        <field name="LCSC">C124378</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic" description=""/>
+      <property name="LCSC" value="C124378"/>
+      <property name="Sheetname" value="DisplayAndAnalog"/>
+      <property name="Sheetfile" value="DisplayAndAnalog.kicad_sch"/>
+      <sheetpath names="/DisplayAndAnalog/" tstamps="/00000000-0000-0000-0000-0000623525e0/"/>
+      <tstamps>00000000-0000-0000-0000-000062355baf</tstamps>
+    </comp>
+    <comp ref="J53">
+      <value>GND</value>
+      <footprint>Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical</footprint>
+      <fields>
+        <field name="LCSC">C124378</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic" description=""/>
+      <property name="LCSC" value="C124378"/>
+      <property name="Sheetname" value="DisplayAndAnalog"/>
+      <property name="Sheetfile" value="DisplayAndAnalog.kicad_sch"/>
+      <sheetpath names="/DisplayAndAnalog/" tstamps="/00000000-0000-0000-0000-0000623525e0/"/>
+      <tstamps>00000000-0000-0000-0000-00006235656a</tstamps>
+    </comp>
+    <comp ref="J54">
+      <value>MOTOR0</value>
+      <footprint>Connector_Molex:533750510</footprint>
+      <fields>
+        <field name="LCSC">C124379</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x05-Connector_Generic" description=""/>
+      <property name="LCSC" value="C124379"/>
+      <property name="Sheetname" value="DisplayAndAnalog"/>
+      <property name="Sheetfile" value="DisplayAndAnalog.kicad_sch"/>
+      <sheetpath names="/DisplayAndAnalog/" tstamps="/00000000-0000-0000-0000-0000623525e0/"/>
+      <tstamps>00000000-0000-0000-0000-00006235dad1</tstamps>
+    </comp>
+    <comp ref="J55">
+      <value>MOTOR1</value>
+      <footprint>Connector_Molex:533750510</footprint>
+      <fields>
+        <field name="LCSC">C124379</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="Conn_01x05-Connector_Generic" description=""/>
+      <property name="LCSC" value="C124379"/>
+      <property name="Sheetname" value="DisplayAndAnalog"/>
+      <property name="Sheetfile" value="DisplayAndAnalog.kicad_sch"/>
+      <sheetpath names="/DisplayAndAnalog/" tstamps="/00000000-0000-0000-0000-0000623525e0/"/>
+      <tstamps>00000000-0000-0000-0000-00006235ec97</tstamps>
+    </comp>
+    <comp ref="R17">
+      <value>R</value>
+      <footprint>Resistor_SMD:R_0805_2012Metric</footprint>
+      <libsource lib="TeensyMonitorV5-rescue" part="R-Device" description=""/>
+      <property name="Sheetname" value="DisplayAndAnalog"/>
+      <property name="Sheetfile" value="DisplayAndAnalog.kicad_sch"/>
+      <sheetpath names="/DisplayAndAnalog/" tstamps="/00000000-0000-0000-0000-0000623525e0/"/>
+      <tstamps>00000000-0000-0000-0000-000060389f43</tstamps>
+    </comp>
+    <comp ref="R51">
+      <value>100</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="LCSC">C22775</field>
+      </fields>
+      <libsource lib="TeensyMonitorV5-rescue" part="R_Small-Device" description=""/>
+      <property name="LCSC" value="C22775"/>
+      <property name="Sheetname" value="DisplayAndAnalog"/>
+      <property name="Sheetfile" value="DisplayAndAnalog.kicad_sch"/>
+      <sheetpath names="/DisplayAndAnalog/" tstamps="/00000000-0000-0000-0000-0000623525e0/"/>
+      <tstamps>00000000-0000-0000-0000-000062354db7</tstamps>
+    </comp>
+    <comp ref="U50">
+      <value>CR2013-MI2120</value>
+      <footprint>Connector_Molex:Molex-533751410</footprint>
+      <datasheet>http://pan.baidu.com/s/11Y990</datasheet>
+      <libsource lib="TeensyMonitorV5-rescue" part="CR2013-MI2120-Driver_Display" description=""/>
+      <property name="Sheetname" value="DisplayAndAnalog"/>
+      <property name="Sheetfile" value="DisplayAndAnalog.kicad_sch"/>
+      <sheetpath names="/DisplayAndAnalog/" tstamps="/00000000-0000-0000-0000-0000623525e0/"/>
+      <tstamps>00000000-0000-0000-0000-000062354da5</tstamps>
+    </comp>
+  </components>
+  <libparts>
+    <libpart lib="TeensyMonitorV5-rescue" part="BSS138-Transistor_FET">
+      <footprints>
+        <fp>SOT?23*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">Q</field>
+        <field name="Value">BSS138-Transistor_FET</field>
+        <field name="Footprint">Package_TO_SOT_SMD:SOT-23</field>
+      </fields>
+      <pins>
+        <pin num="1" name="G" type="input"/>
+        <pin num="2" name="S" type="passive"/>
+        <pin num="3" name="D" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="TeensyMonitorV5-rescue" part="C-Device">
+      <footprints>
+        <fp>C_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">C</field>
+        <field name="Value">C-Device</field>
+      </fields>
+      <pins>
+        <pin num="1" name="" type="passive"/>
+        <pin num="2" name="" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="TeensyMonitorV5-rescue" part="CP1_Small-Device">
+      <footprints>
+        <fp>CP_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">C</field>
+        <field name="Value">CP1_Small-Device</field>
+      </fields>
+      <pins>
+        <pin num="1" name="" type="passive"/>
+        <pin num="2" name="" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="TeensyMonitorV5-rescue" part="CR2013-MI2120-Driver_Display">
+      <footprints>
+        <fp>*CR2013*MI2120*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">CR2013-MI2120-Driver_Display</field>
+        <field name="Footprint">Display:CR2013-MI2120</field>
+      </fields>
+      <pins>
+        <pin num="1" name="VCC" type="power_in"/>
+        <pin num="2" name="GND" type="power_in"/>
+        <pin num="3" name="~{CS}" type="input"/>
+        <pin num="4" name="RESET" type="input"/>
+        <pin num="5" name="D/~{C}" type="input"/>
+        <pin num="6" name="MOSI" type="input"/>
+        <pin num="7" name="SCK" type="input"/>
+        <pin num="8" name="LED" type="input"/>
+        <pin num="9" name="MISO" type="output"/>
+        <pin num="10" name="T_CLK" type="input"/>
+        <pin num="11" name="T_CS" type="input"/>
+        <pin num="12" name="T_DIN" type="input"/>
+        <pin num="13" name="T_DO" type="input"/>
+        <pin num="14" name="T_IRQ" type="output"/>
+      </pins>
+    </libpart>
+    <libpart lib="TeensyMonitorV5-rescue" part="Conn_01x04-Connector_Generic">
+      <footprints>
+        <fp>Connector*:*_1x??_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">Conn_01x04-Connector_Generic</field>
+      </fields>
+      <pins>
+        <pin num="1" name="Pin_1" type="passive"/>
+        <pin num="2" name="Pin_2" type="passive"/>
+        <pin num="3" name="Pin_3" type="passive"/>
+        <pin num="4" name="Pin_4" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="TeensyMonitorV5-rescue" part="Conn_01x05-Connector_Generic">
+      <footprints>
+        <fp>Connector*:*_1x??_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">Conn_01x05-Connector_Generic</field>
+      </fields>
+      <pins>
+        <pin num="1" name="Pin_1" type="passive"/>
+        <pin num="2" name="Pin_2" type="passive"/>
+        <pin num="3" name="Pin_3" type="passive"/>
+        <pin num="4" name="Pin_4" type="passive"/>
+        <pin num="5" name="Pin_5" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="TeensyMonitorV5-rescue" part="Conn_01x10-Connector_Generic">
+      <footprints>
+        <fp>Connector*:*_1x??_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">Conn_01x10-Connector_Generic</field>
+      </fields>
+      <pins>
+        <pin num="1" name="Pin_1" type="passive"/>
+        <pin num="2" name="Pin_2" type="passive"/>
+        <pin num="3" name="Pin_3" type="passive"/>
+        <pin num="4" name="Pin_4" type="passive"/>
+        <pin num="5" name="Pin_5" type="passive"/>
+        <pin num="6" name="Pin_6" type="passive"/>
+        <pin num="7" name="Pin_7" type="passive"/>
+        <pin num="8" name="Pin_8" type="passive"/>
+        <pin num="9" name="Pin_9" type="passive"/>
+        <pin num="10" name="Pin_10" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="TeensyMonitorV5-rescue" part="Conn_02x02_Odd_Even-Connector_Generic">
+      <footprints>
+        <fp>Connector*:*_2x??_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">Conn_02x02_Odd_Even-Connector_Generic</field>
+      </fields>
+      <pins>
+        <pin num="1" name="Pin_1" type="passive"/>
+        <pin num="2" name="Pin_2" type="passive"/>
+        <pin num="3" name="Pin_3" type="passive"/>
+        <pin num="4" name="Pin_4" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="TeensyMonitorV5-rescue" part="Conn_02x04_Odd_Even-Connector_Generic">
+      <footprints>
+        <fp>Connector*:*_2x??_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">Conn_02x04_Odd_Even-Connector_Generic</field>
+      </fields>
+      <pins>
+        <pin num="1" name="Pin_1" type="passive"/>
+        <pin num="2" name="Pin_2" type="passive"/>
+        <pin num="3" name="Pin_3" type="passive"/>
+        <pin num="4" name="Pin_4" type="passive"/>
+        <pin num="5" name="Pin_5" type="passive"/>
+        <pin num="6" name="Pin_6" type="passive"/>
+        <pin num="7" name="Pin_7" type="passive"/>
+        <pin num="8" name="Pin_8" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="TeensyMonitorV5-rescue" part="J1B1211CCD-WizNet">
+      <footprints>
+        <fp>CONN12_J1B1211CCD_WIZ</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">J1B1211CCD-WizNet</field>
+        <field name="Footprint">CONN12_J1B1211CCD_WIZ</field>
+      </fields>
+      <pins>
+        <pin num="1" name="TX+" type="input"/>
+        <pin num="2" name="TX_CNTR" type="input"/>
+        <pin num="3" name="TX-" type="input"/>
+        <pin num="4" name="RX+" type="output"/>
+        <pin num="5" name="RC_CNTR" type="input"/>
+        <pin num="6" name="RX-" type="output"/>
+        <pin num="7" name="NC" type="no_connect"/>
+        <pin num="8" name="GND" type="power_in"/>
+        <pin num="9" name="LEDGND" type="power_in"/>
+        <pin num="10" name="LED" type="input"/>
+        <pin num="11" name="LED2_GND" type="power_in"/>
+        <pin num="12" name="LED2" type="power_in"/>
+      </pins>
+    </libpart>
+    <libpart lib="TeensyMonitorV5-rescue" part="MountingHole-Mechanical">
+      <footprints>
+        <fp>MountingHole*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">H</field>
+        <field name="Value">MountingHole-Mechanical</field>
+      </fields>
+    </libpart>
+    <libpart lib="TeensyMonitorV5-rescue" part="R-Device">
+      <footprints>
+        <fp>R_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">R</field>
+        <field name="Value">R-Device</field>
+      </fields>
+      <pins>
+        <pin num="1" name="" type="passive"/>
+        <pin num="2" name="" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="TeensyMonitorV5-rescue" part="R_Pack04-Device">
+      <footprints>
+        <fp>DIP*</fp>
+        <fp>SOIC*</fp>
+        <fp>R*Array*Concave*</fp>
+        <fp>R*Array*Convex*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">RN</field>
+        <field name="Value">R_Pack04-Device</field>
+      </fields>
+      <pins>
+        <pin num="1" name="R1.1" type="passive"/>
+        <pin num="2" name="R2.1" type="passive"/>
+        <pin num="3" name="R3.1" type="passive"/>
+        <pin num="4" name="R4.1" type="passive"/>
+        <pin num="5" name="R4.2" type="passive"/>
+        <pin num="6" name="R3.2" type="passive"/>
+        <pin num="7" name="R2.2" type="passive"/>
+        <pin num="8" name="R1.2" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="TeensyMonitorV5-rescue" part="R_Small-Device">
+      <footprints>
+        <fp>R_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">R</field>
+        <field name="Value">R_Small-Device</field>
+      </fields>
+      <pins>
+        <pin num="1" name="" type="passive"/>
+        <pin num="2" name="" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="TeensyMonitorV5-rescue" part="Screw_Terminal_01x02-Connector">
+      <footprints>
+        <fp>TerminalBlock*:*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">Screw_Terminal_01x02-Connector</field>
+      </fields>
+      <pins>
+        <pin num="1" name="Pin_1" type="passive"/>
+        <pin num="2" name="Pin_2" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="TeensyMonitorV5-rescue" part="TCA9548APWR-Interface_Expansion">
+      <footprints>
+        <fp>TSSOP*4.4x7.8mm*P0.65mm*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">TCA9548APWR-Interface_Expansion</field>
+        <field name="Footprint">Package_SO:TSSOP-24_4.4x7.8mm_P0.65mm</field>
+      </fields>
+      <pins>
+        <pin num="1" name="A0" type="input"/>
+        <pin num="2" name="A1" type="input"/>
+        <pin num="3" name="~{RESET}" type="input"/>
+        <pin num="4" name="SD0" type="bidirectional"/>
+        <pin num="5" name="SC0" type="output"/>
+        <pin num="6" name="SD1" type="bidirectional"/>
+        <pin num="7" name="SC1" type="output"/>
+        <pin num="8" name="SD2" type="bidirectional"/>
+        <pin num="9" name="SC2" type="output"/>
+        <pin num="10" name="SD3" type="bidirectional"/>
+        <pin num="11" name="SC3" type="output"/>
+        <pin num="12" name="GND" type="power_in"/>
+        <pin num="13" name="SD4" type="bidirectional"/>
+        <pin num="14" name="SC4" type="output"/>
+        <pin num="15" name="SD5" type="bidirectional"/>
+        <pin num="16" name="SC5" type="output"/>
+        <pin num="17" name="SD6" type="bidirectional"/>
+        <pin num="18" name="SC6" type="output"/>
+        <pin num="19" name="SD7" type="bidirectional"/>
+        <pin num="20" name="SC7" type="output"/>
+        <pin num="21" name="A2" type="input"/>
+        <pin num="22" name="SCL" type="input"/>
+        <pin num="23" name="SDA" type="bidirectional"/>
+        <pin num="24" name="VCC" type="power_in"/>
+      </pins>
+    </libpart>
+    <libpart lib="TeensyMonitorV5-rescue" part="Teensy4.1-teensy">
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">Teensy4.1-teensy</field>
+      </fields>
+      <pins>
+        <pin num="1" name="GND" type="power_in"/>
+        <pin num="2" name="0_RX1_CRX2_CS1" type="bidirectional"/>
+        <pin num="3" name="1_TX1_CTX2_MISO1" type="bidirectional"/>
+        <pin num="4" name="2_OUT2" type="bidirectional"/>
+        <pin num="5" name="3_LRCLK2" type="bidirectional"/>
+        <pin num="6" name="4_BCLK2" type="bidirectional"/>
+        <pin num="7" name="5_IN2" type="bidirectional"/>
+        <pin num="8" name="6_OUT1D" type="bidirectional"/>
+        <pin num="9" name="7_RX2_OUT1A" type="bidirectional"/>
+        <pin num="10" name="8_TX2_IN1" type="bidirectional"/>
+        <pin num="11" name="9_OUT1C" type="bidirectional"/>
+        <pin num="12" name="10_CS_MQSR" type="bidirectional"/>
+        <pin num="13" name="11_MOSI_CTX1" type="bidirectional"/>
+        <pin num="14" name="12_MISO_MQSL" type="bidirectional"/>
+        <pin num="15" name="3V3" type="power_in"/>
+        <pin num="16" name="24_A10_TX6_SCL2" type="bidirectional"/>
+        <pin num="17" name="25_A11_RX6_SDA2" type="bidirectional"/>
+        <pin num="18" name="26_A12_MOSI1" type="bidirectional"/>
+        <pin num="19" name="27_A13_SCK1" type="bidirectional"/>
+        <pin num="20" name="28_RX7" type="bidirectional"/>
+        <pin num="21" name="29_TX7" type="bidirectional"/>
+        <pin num="22" name="30_CRX3" type="bidirectional"/>
+        <pin num="23" name="31_CTX3" type="bidirectional"/>
+        <pin num="24" name="32_OUT1B" type="bidirectional"/>
+        <pin num="25" name="33_MCLK2" type="bidirectional"/>
+        <pin num="26" name="34_RX8" type="bidirectional"/>
+        <pin num="27" name="35_TX8" type="bidirectional"/>
+        <pin num="28" name="36_CS" type="bidirectional"/>
+        <pin num="29" name="37_CS" type="bidirectional"/>
+        <pin num="30" name="38_CS1_IN1" type="bidirectional"/>
+        <pin num="31" name="39_MISO1_OUT1A" type="bidirectional"/>
+        <pin num="32" name="40_A16" type="bidirectional"/>
+        <pin num="33" name="41_A17" type="bidirectional"/>
+        <pin num="34" name="GND" type="power_in"/>
+        <pin num="35" name="13_SCK_LED" type="bidirectional"/>
+        <pin num="36" name="14_A0_TX3_SPDIF_OUT" type="bidirectional"/>
+        <pin num="37" name="15_A1_RX3_SPDIF_IN" type="bidirectional"/>
+        <pin num="38" name="16_A2_RX4_SCL1" type="bidirectional"/>
+        <pin num="39" name="17_A3_TX4_SDA1" type="bidirectional"/>
+        <pin num="40" name="18_A4_SDA" type="bidirectional"/>
+        <pin num="41" name="19_A5_SCL" type="bidirectional"/>
+        <pin num="42" name="20_A6_TX5_LRCLK1" type="bidirectional"/>
+        <pin num="43" name="21_A7_RX5_BCLK1" type="bidirectional"/>
+        <pin num="44" name="22_A8_CTX1" type="bidirectional"/>
+        <pin num="45" name="23_A9_CRX1_MCLK1" type="bidirectional"/>
+        <pin num="46" name="3V3" type="output"/>
+        <pin num="47" name="GND" type="output"/>
+        <pin num="48" name="VIN" type="power_in"/>
+        <pin num="49" name="VUSB" type="no_connect"/>
+        <pin num="50" name="VBAT" type="no_connect"/>
+        <pin num="51" name="3V3" type="no_connect"/>
+        <pin num="52" name="GND" type="no_connect"/>
+        <pin num="53" name="PROGRAM" type="no_connect"/>
+        <pin num="54" name="ON_OFF" type="no_connect"/>
+        <pin num="55" name="5V" type="no_connect"/>
+        <pin num="56" name="D-" type="no_connect"/>
+        <pin num="57" name="D+" type="no_connect"/>
+        <pin num="58" name="GND" type="no_connect"/>
+        <pin num="59" name="GND" type="no_connect"/>
+        <pin num="60" name="R+" type="input"/>
+        <pin num="61" name="LED" type="power_out"/>
+        <pin num="62" name="T-" type="output"/>
+        <pin num="63" name="T+" type="output"/>
+        <pin num="64" name="GND" type="power_in"/>
+        <pin num="65" name="R-" type="input"/>
+        <pin num="66" name="D-" type="no_connect"/>
+        <pin num="67" name="D+" type="no_connect"/>
+      </pins>
+    </libpart>
+  </libparts>
+  <libraries>
+    <library logical="TeensyMonitorV5-rescue">
+      <uri>/Users/michaelwimble/Library/Mobile Documents/com~apple~CloudDocs/KiCad/TeensyMonitorV5/TeensyMonitorV5-rescue.lib</uri>
+    </library>
+  </libraries>
+  <nets>
+    <net code="1" name="3V3">
+      <node ref="C22" pin="1" pintype="passive"/>
+      <node ref="C24" pin="1" pintype="passive"/>
+      <node ref="J3" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J3" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="J3" pin="5" pinfunction="Pin_5" pintype="passive"/>
+      <node ref="J3" pin="7" pinfunction="Pin_7" pintype="passive"/>
+      <node ref="J30" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J31" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J32" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J33" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J34" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J35" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J36" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J37" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J39a1" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J39b1" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J5" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J52" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J52" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="J52" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="J52" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J54" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J55" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="Q21" pin="1" pinfunction="G" pintype="input"/>
+      <node ref="Q22" pin="1" pinfunction="G" pintype="input"/>
+      <node ref="Q23" pin="1" pinfunction="G" pintype="input"/>
+      <node ref="Q24" pin="1" pinfunction="G" pintype="input"/>
+      <node ref="Q25" pin="1" pinfunction="G" pintype="input"/>
+      <node ref="Q26" pin="1" pinfunction="G" pintype="input"/>
+      <node ref="Q27" pin="1" pinfunction="G" pintype="input"/>
+      <node ref="Q28" pin="1" pinfunction="G" pintype="input"/>
+      <node ref="R10" pin="1" pintype="passive"/>
+      <node ref="R12" pin="1" pintype="passive"/>
+      <node ref="R14" pin="1" pintype="passive"/>
+      <node ref="R16" pin="1" pintype="passive"/>
+      <node ref="R17" pin="2" pintype="passive"/>
+      <node ref="R2" pin="1" pintype="passive"/>
+      <node ref="R30" pin="1" pintype="passive"/>
+      <node ref="R31" pin="1" pintype="passive"/>
+      <node ref="R4" pin="1" pintype="passive"/>
+      <node ref="R51" pin="2" pintype="passive"/>
+      <node ref="R6" pin="1" pintype="passive"/>
+      <node ref="R8" pin="1" pintype="passive"/>
+      <node ref="U1" pin="15" pinfunction="3V3" pintype="power_in"/>
+      <node ref="U1" pin="46" pinfunction="3V3" pintype="output"/>
+      <node ref="U2" pin="15" pinfunction="3V3" pintype="power_in"/>
+      <node ref="U2" pin="46" pinfunction="3V3" pintype="output"/>
+      <node ref="U31" pin="24" pinfunction="VCC" pintype="power_in"/>
+      <node ref="U50" pin="4" pinfunction="RESET" pintype="input"/>
+    </net>
+    <net code="2" name="5V">
+      <node ref="C21" pin="1" pintype="passive"/>
+      <node ref="C23" pin="1" pintype="passive"/>
+      <node ref="J1" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J2" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J2" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="J2" pin="5" pinfunction="Pin_5" pintype="passive"/>
+      <node ref="J2" pin="7" pinfunction="Pin_7" pintype="passive"/>
+      <node ref="J20" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J21" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J22" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J23" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J40" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="R1" pin="1" pintype="passive"/>
+      <node ref="R11" pin="1" pintype="passive"/>
+      <node ref="R13" pin="1" pintype="passive"/>
+      <node ref="R15" pin="1" pintype="passive"/>
+      <node ref="R3" pin="1" pintype="passive"/>
+      <node ref="R5" pin="1" pintype="passive"/>
+      <node ref="R7" pin="1" pintype="passive"/>
+      <node ref="R9" pin="1" pintype="passive"/>
+      <node ref="U1" pin="48" pinfunction="VIN" pintype="power_in"/>
+      <node ref="U2" pin="48" pinfunction="VIN" pintype="power_in"/>
+      <node ref="U50" pin="1" pinfunction="VCC" pintype="power_in"/>
+    </net>
+    <net code="3" name="ANLG0">
+      <node ref="J51" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="U1" pin="16" pinfunction="24_A10_TX6_SCL2" pintype="bidirectional"/>
+      <node ref="U2" pin="16" pinfunction="24_A10_TX6_SCL2" pintype="bidirectional"/>
+    </net>
+    <net code="4" name="ANLG1">
+      <node ref="J51" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="U1" pin="17" pinfunction="25_A11_RX6_SDA2" pintype="bidirectional"/>
+      <node ref="U2" pin="17" pinfunction="25_A11_RX6_SDA2" pintype="bidirectional"/>
+    </net>
+    <net code="5" name="ANLG2">
+      <node ref="J51" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="U1" pin="18" pinfunction="26_A12_MOSI1" pintype="bidirectional"/>
+      <node ref="U2" pin="18" pinfunction="26_A12_MOSI1" pintype="bidirectional"/>
+    </net>
+    <net code="6" name="ANLG3">
+      <node ref="J51" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="U1" pin="19" pinfunction="27_A13_SCK1" pintype="bidirectional"/>
+      <node ref="U2" pin="19" pinfunction="27_A13_SCK1" pintype="bidirectional"/>
+    </net>
+    <net code="7" name="CS">
+      <node ref="U1" pin="12" pinfunction="10_CS_MQSR" pintype="bidirectional"/>
+      <node ref="U2" pin="12" pinfunction="10_CS_MQSR" pintype="bidirectional"/>
+      <node ref="U50" pin="3" pinfunction="~{CS}" pintype="input"/>
+    </net>
+    <net code="8" name="DC">
+      <node ref="U1" pin="11" pinfunction="9_OUT1C" pintype="bidirectional"/>
+      <node ref="U2" pin="11" pinfunction="9_OUT1C" pintype="bidirectional"/>
+      <node ref="U50" pin="5" pinfunction="D/~{C}" pintype="input"/>
+    </net>
+    <net code="9" name="ECHO0">
+      <node ref="Q22" pin="2" pinfunction="S" pintype="passive"/>
+      <node ref="R4" pin="2" pintype="passive"/>
+      <node ref="U1" pin="37" pinfunction="15_A1_RX3_SPDIF_IN" pintype="bidirectional"/>
+      <node ref="U2" pin="37" pinfunction="15_A1_RX3_SPDIF_IN" pintype="bidirectional"/>
+    </net>
+    <net code="10" name="ECHO1">
+      <node ref="Q24" pin="2" pinfunction="S" pintype="passive"/>
+      <node ref="R8" pin="2" pintype="passive"/>
+      <node ref="U1" pin="33" pinfunction="41_A17" pintype="bidirectional"/>
+      <node ref="U2" pin="33" pinfunction="41_A17" pintype="bidirectional"/>
+    </net>
+    <net code="11" name="ECHO2">
+      <node ref="Q26" pin="2" pinfunction="S" pintype="passive"/>
+      <node ref="R12" pin="2" pintype="passive"/>
+      <node ref="U1" pin="29" pinfunction="37_CS" pintype="bidirectional"/>
+      <node ref="U2" pin="29" pinfunction="37_CS" pintype="bidirectional"/>
+    </net>
+    <net code="12" name="ECHO3">
+      <node ref="Q28" pin="2" pinfunction="S" pintype="passive"/>
+      <node ref="R16" pin="2" pintype="passive"/>
+      <node ref="U1" pin="27" pinfunction="35_TX8" pintype="bidirectional"/>
+      <node ref="U2" pin="27" pinfunction="35_TX8" pintype="bidirectional"/>
+    </net>
+    <net code="13" name="GND">
+      <node ref="C1" pin="1" pintype="passive"/>
+      <node ref="J1" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="J2" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="J2" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J2" pin="6" pinfunction="Pin_6" pintype="passive"/>
+      <node ref="J2" pin="8" pinfunction="Pin_8" pintype="passive"/>
+      <node ref="J3" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="J3" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J3" pin="6" pinfunction="Pin_6" pintype="passive"/>
+      <node ref="J3" pin="8" pinfunction="Pin_8" pintype="passive"/>
+      <node ref="J30" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J31" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J32" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J33" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J34" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J35" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J36" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J37" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J39a1" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J39b1" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J4" pin="8" pinfunction="GND" pintype="power_in"/>
+      <node ref="J4" pin="9" pinfunction="LEDGND" pintype="power_in"/>
+      <node ref="J40" pin="10" pinfunction="Pin_10" pintype="passive"/>
+      <node ref="J5" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J53" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="J53" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="J53" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="J53" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J54" pin="5" pinfunction="Pin_5" pintype="passive"/>
+      <node ref="J55" pin="5" pinfunction="Pin_5" pintype="passive"/>
+      <node ref="Q40" pin="2" pinfunction="S" pintype="passive"/>
+      <node ref="Q41" pin="2" pinfunction="S" pintype="passive"/>
+      <node ref="Q42" pin="2" pinfunction="S" pintype="passive"/>
+      <node ref="Q43" pin="2" pinfunction="S" pintype="passive"/>
+      <node ref="Q44" pin="2" pinfunction="S" pintype="passive"/>
+      <node ref="Q45" pin="2" pinfunction="S" pintype="passive"/>
+      <node ref="Q46" pin="2" pinfunction="S" pintype="passive"/>
+      <node ref="Q47" pin="2" pinfunction="S" pintype="passive"/>
+      <node ref="U1" pin="1" pinfunction="GND" pintype="power_in"/>
+      <node ref="U1" pin="34" pinfunction="GND" pintype="power_in"/>
+      <node ref="U1" pin="47" pinfunction="GND" pintype="output"/>
+      <node ref="U1" pin="64" pinfunction="GND" pintype="power_in"/>
+      <node ref="U2" pin="1" pinfunction="GND" pintype="power_in"/>
+      <node ref="U2" pin="34" pinfunction="GND" pintype="power_in"/>
+      <node ref="U2" pin="47" pinfunction="GND" pintype="output"/>
+      <node ref="U2" pin="64" pinfunction="GND" pintype="power_in"/>
+      <node ref="U31" pin="1" pinfunction="A0" pintype="input"/>
+      <node ref="U31" pin="12" pinfunction="GND" pintype="power_in"/>
+      <node ref="U31" pin="2" pinfunction="A1" pintype="input"/>
+      <node ref="U31" pin="21" pinfunction="A2" pintype="input"/>
+      <node ref="U50" pin="2" pinfunction="GND" pintype="power_in"/>
+    </net>
+    <net code="14" name="I2CRESET">
+      <node ref="U1" pin="10" pinfunction="8_TX2_IN1" pintype="bidirectional"/>
+      <node ref="U2" pin="10" pinfunction="8_TX2_IN1" pintype="bidirectional"/>
+      <node ref="U31" pin="3" pinfunction="~{RESET}" pintype="input"/>
+    </net>
+    <net code="15" name="LED">
+      <node ref="J4" pin="10" pinfunction="LED" pintype="input"/>
+      <node ref="U1" pin="61" pinfunction="LED" pintype="power_out"/>
+      <node ref="U2" pin="61" pinfunction="LED" pintype="power_out"/>
+    </net>
+    <net code="16" name="MISO">
+      <node ref="J54" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="J55" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="U1" pin="14" pinfunction="12_MISO_MQSL" pintype="bidirectional"/>
+      <node ref="U2" pin="14" pinfunction="12_MISO_MQSL" pintype="bidirectional"/>
+      <node ref="U50" pin="13" pinfunction="T_DO" pintype="input"/>
+      <node ref="U50" pin="9" pinfunction="MISO" pintype="output"/>
+    </net>
+    <net code="17" name="MOSI">
+      <node ref="U1" pin="13" pinfunction="11_MOSI_CTX1" pintype="bidirectional"/>
+      <node ref="U2" pin="13" pinfunction="11_MOSI_CTX1" pintype="bidirectional"/>
+      <node ref="U50" pin="12" pinfunction="T_DIN" pintype="input"/>
+      <node ref="U50" pin="6" pinfunction="MOSI" pintype="input"/>
+    </net>
+    <net code="18" name="MOTOR0">
+      <node ref="J54" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="U1" pin="22" pinfunction="30_CRX3" pintype="bidirectional"/>
+      <node ref="U2" pin="22" pinfunction="30_CRX3" pintype="bidirectional"/>
+    </net>
+    <net code="19" name="MOTOR1">
+      <node ref="J55" pin="1" pinfunction="Pin_1" pintype="passive"/>
+      <node ref="U1" pin="23" pinfunction="31_CTX3" pintype="bidirectional"/>
+      <node ref="U2" pin="23" pinfunction="31_CTX3" pintype="bidirectional"/>
+    </net>
+    <net code="20" name="Net-(C1-Pad2)">
+      <node ref="C1" pin="2" pintype="passive"/>
+      <node ref="J4" pin="2" pinfunction="TX_CNTR" pintype="input"/>
+      <node ref="J4" pin="5" pinfunction="RC_CNTR" pintype="input"/>
+    </net>
+    <net code="21" name="Net-(C21-Pad2)">
+      <node ref="C21" pin="2" pintype="passive"/>
+      <node ref="C22" pin="2" pintype="passive"/>
+      <node ref="J20" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J21" pin="4" pinfunction="Pin_4" pintype="passive"/>
+    </net>
+    <net code="22" name="Net-(C23-Pad2)">
+      <node ref="C23" pin="2" pintype="passive"/>
+      <node ref="C24" pin="2" pintype="passive"/>
+      <node ref="J22" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="J23" pin="4" pinfunction="Pin_4" pintype="passive"/>
+    </net>
+    <net code="23" name="Net-(J5-Pad2)">
+      <node ref="J5" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="U1" pin="44" pinfunction="22_A8_CTX1" pintype="bidirectional"/>
+      <node ref="U2" pin="44" pinfunction="22_A8_CTX1" pintype="bidirectional"/>
+    </net>
+    <net code="24" name="Net-(J5-Pad3)">
+      <node ref="J5" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="U1" pin="45" pinfunction="23_A9_CRX1_MCLK1" pintype="bidirectional"/>
+      <node ref="U2" pin="45" pinfunction="23_A9_CRX1_MCLK1" pintype="bidirectional"/>
+    </net>
+    <net code="25" name="Net-(J20-Pad2)">
+      <node ref="J20" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="Q21" pin="3" pinfunction="D" pintype="passive"/>
+      <node ref="R1" pin="2" pintype="passive"/>
+    </net>
+    <net code="26" name="Net-(J20-Pad3)">
+      <node ref="J20" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="Q22" pin="3" pinfunction="D" pintype="passive"/>
+      <node ref="R3" pin="2" pintype="passive"/>
+    </net>
+    <net code="27" name="Net-(J21-Pad2)">
+      <node ref="J21" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="Q23" pin="3" pinfunction="D" pintype="passive"/>
+      <node ref="R5" pin="2" pintype="passive"/>
+    </net>
+    <net code="28" name="Net-(J21-Pad3)">
+      <node ref="J21" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="Q24" pin="3" pinfunction="D" pintype="passive"/>
+      <node ref="R7" pin="2" pintype="passive"/>
+    </net>
+    <net code="29" name="Net-(J22-Pad2)">
+      <node ref="J22" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="Q25" pin="3" pinfunction="D" pintype="passive"/>
+      <node ref="R9" pin="2" pintype="passive"/>
+    </net>
+    <net code="30" name="Net-(J22-Pad3)">
+      <node ref="J22" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="Q26" pin="3" pinfunction="D" pintype="passive"/>
+      <node ref="R11" pin="2" pintype="passive"/>
+    </net>
+    <net code="31" name="Net-(J23-Pad2)">
+      <node ref="J23" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="Q27" pin="3" pinfunction="D" pintype="passive"/>
+      <node ref="R13" pin="2" pintype="passive"/>
+    </net>
+    <net code="32" name="Net-(J23-Pad3)">
+      <node ref="J23" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="Q28" pin="3" pinfunction="D" pintype="passive"/>
+      <node ref="R15" pin="2" pintype="passive"/>
+    </net>
+    <net code="33" name="Net-(J30-Pad2)">
+      <node ref="J30" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="RN31" pin="3" pinfunction="R3.1" pintype="passive"/>
+      <node ref="U31" pin="5" pinfunction="SC0" pintype="output"/>
+    </net>
+    <net code="34" name="Net-(J30-Pad3)">
+      <node ref="J30" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="RN31" pin="4" pinfunction="R4.1" pintype="passive"/>
+      <node ref="U31" pin="4" pinfunction="SD0" pintype="bidirectional"/>
+    </net>
+    <net code="35" name="Net-(J31-Pad2)">
+      <node ref="J31" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="RN31" pin="1" pinfunction="R1.1" pintype="passive"/>
+      <node ref="U31" pin="7" pinfunction="SC1" pintype="output"/>
+    </net>
+    <net code="36" name="Net-(J31-Pad3)">
+      <node ref="J31" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="RN31" pin="2" pinfunction="R2.1" pintype="passive"/>
+      <node ref="U31" pin="6" pinfunction="SD1" pintype="bidirectional"/>
+    </net>
+    <net code="37" name="Net-(J32-Pad2)">
+      <node ref="J32" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="RN32" pin="4" pinfunction="R4.1" pintype="passive"/>
+      <node ref="U31" pin="9" pinfunction="SC2" pintype="output"/>
+    </net>
+    <net code="38" name="Net-(J32-Pad3)">
+      <node ref="J32" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="RN32" pin="3" pinfunction="R3.1" pintype="passive"/>
+      <node ref="U31" pin="8" pinfunction="SD2" pintype="bidirectional"/>
+    </net>
+    <net code="39" name="Net-(J33-Pad2)">
+      <node ref="J33" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="RN32" pin="2" pinfunction="R2.1" pintype="passive"/>
+      <node ref="U31" pin="11" pinfunction="SC3" pintype="output"/>
+    </net>
+    <net code="40" name="Net-(J33-Pad3)">
+      <node ref="J33" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="RN32" pin="1" pinfunction="R1.1" pintype="passive"/>
+      <node ref="U31" pin="10" pinfunction="SD3" pintype="bidirectional"/>
+    </net>
+    <net code="41" name="Net-(J34-Pad2)">
+      <node ref="J34" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="RN33" pin="3" pinfunction="R3.1" pintype="passive"/>
+      <node ref="U31" pin="14" pinfunction="SC4" pintype="output"/>
+    </net>
+    <net code="42" name="Net-(J34-Pad3)">
+      <node ref="J34" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="RN33" pin="4" pinfunction="R4.1" pintype="passive"/>
+      <node ref="U31" pin="13" pinfunction="SD4" pintype="bidirectional"/>
+    </net>
+    <net code="43" name="Net-(J35-Pad2)">
+      <node ref="J35" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="RN33" pin="1" pinfunction="R1.1" pintype="passive"/>
+      <node ref="U31" pin="16" pinfunction="SC5" pintype="output"/>
+    </net>
+    <net code="44" name="Net-(J35-Pad3)">
+      <node ref="J35" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="RN33" pin="2" pinfunction="R2.1" pintype="passive"/>
+      <node ref="U31" pin="15" pinfunction="SD5" pintype="bidirectional"/>
+    </net>
+    <net code="45" name="Net-(J36-Pad2)">
+      <node ref="J36" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="RN34" pin="3" pinfunction="R3.1" pintype="passive"/>
+      <node ref="U31" pin="18" pinfunction="SC6" pintype="output"/>
+    </net>
+    <net code="46" name="Net-(J36-Pad3)">
+      <node ref="J36" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="RN34" pin="4" pinfunction="R4.1" pintype="passive"/>
+      <node ref="U31" pin="17" pinfunction="SD6" pintype="bidirectional"/>
+    </net>
+    <net code="47" name="Net-(J37-Pad2)">
+      <node ref="J37" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="RN34" pin="2" pinfunction="R2.1" pintype="passive"/>
+      <node ref="U31" pin="20" pinfunction="SC7" pintype="output"/>
+    </net>
+    <net code="48" name="Net-(J37-Pad3)">
+      <node ref="J37" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="RN34" pin="1" pinfunction="R1.1" pintype="passive"/>
+      <node ref="U31" pin="19" pinfunction="SD7" pintype="bidirectional"/>
+    </net>
+    <net code="49" name="Net-(J40-Pad2)">
+      <node ref="J40" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="Q40" pin="3" pinfunction="D" pintype="passive"/>
+    </net>
+    <net code="50" name="Net-(J40-Pad3)">
+      <node ref="J40" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="Q41" pin="3" pinfunction="D" pintype="passive"/>
+    </net>
+    <net code="51" name="Net-(J40-Pad4)">
+      <node ref="J40" pin="4" pinfunction="Pin_4" pintype="passive"/>
+      <node ref="Q42" pin="3" pinfunction="D" pintype="passive"/>
+    </net>
+    <net code="52" name="Net-(J40-Pad5)">
+      <node ref="J40" pin="5" pinfunction="Pin_5" pintype="passive"/>
+      <node ref="Q43" pin="3" pinfunction="D" pintype="passive"/>
+    </net>
+    <net code="53" name="Net-(J40-Pad6)">
+      <node ref="J40" pin="6" pinfunction="Pin_6" pintype="passive"/>
+      <node ref="Q44" pin="3" pinfunction="D" pintype="passive"/>
+    </net>
+    <net code="54" name="Net-(J40-Pad7)">
+      <node ref="J40" pin="7" pinfunction="Pin_7" pintype="passive"/>
+      <node ref="Q45" pin="3" pinfunction="D" pintype="passive"/>
+    </net>
+    <net code="55" name="Net-(J40-Pad8)">
+      <node ref="J40" pin="8" pinfunction="Pin_8" pintype="passive"/>
+      <node ref="Q46" pin="3" pinfunction="D" pintype="passive"/>
+    </net>
+    <net code="56" name="Net-(J40-Pad9)">
+      <node ref="J40" pin="9" pinfunction="Pin_9" pintype="passive"/>
+      <node ref="Q47" pin="3" pinfunction="D" pintype="passive"/>
+    </net>
+    <net code="57" name="Net-(R51-Pad1)">
+      <node ref="R51" pin="1" pintype="passive"/>
+      <node ref="U50" pin="8" pinfunction="LED" pintype="input"/>
+    </net>
+    <net code="58" name="Net-(RN31-Pad5)">
+      <node ref="RN31" pin="5" pinfunction="R4.2" pintype="passive"/>
+      <node ref="RN31" pin="6" pinfunction="R3.2" pintype="passive"/>
+      <node ref="RN31" pin="7" pinfunction="R2.2" pintype="passive"/>
+      <node ref="RN31" pin="8" pinfunction="R1.2" pintype="passive"/>
+      <node ref="RN32" pin="5" pinfunction="R4.2" pintype="passive"/>
+      <node ref="RN32" pin="6" pinfunction="R3.2" pintype="passive"/>
+      <node ref="RN32" pin="7" pinfunction="R2.2" pintype="passive"/>
+      <node ref="RN32" pin="8" pinfunction="R1.2" pintype="passive"/>
+      <node ref="RN33" pin="5" pinfunction="R4.2" pintype="passive"/>
+      <node ref="RN33" pin="6" pinfunction="R3.2" pintype="passive"/>
+      <node ref="RN33" pin="7" pinfunction="R2.2" pintype="passive"/>
+      <node ref="RN33" pin="8" pinfunction="R1.2" pintype="passive"/>
+      <node ref="RN34" pin="5" pinfunction="R4.2" pintype="passive"/>
+      <node ref="RN34" pin="6" pinfunction="R3.2" pintype="passive"/>
+      <node ref="RN34" pin="7" pinfunction="R2.2" pintype="passive"/>
+      <node ref="RN34" pin="8" pinfunction="R1.2" pintype="passive"/>
+    </net>
+    <net code="59" name="R+">
+      <node ref="J4" pin="4" pinfunction="RX+" pintype="output"/>
+      <node ref="U1" pin="60" pinfunction="R+" pintype="input"/>
+      <node ref="U2" pin="60" pinfunction="R+" pintype="input"/>
+    </net>
+    <net code="60" name="R-">
+      <node ref="J4" pin="6" pinfunction="RX-" pintype="output"/>
+      <node ref="U1" pin="65" pinfunction="R-" pintype="input"/>
+      <node ref="U2" pin="65" pinfunction="R-" pintype="input"/>
+    </net>
+    <net code="61" name="RLY0">
+      <node ref="Q40" pin="1" pinfunction="G" pintype="input"/>
+      <node ref="U1" pin="2" pinfunction="0_RX1_CRX2_CS1" pintype="bidirectional"/>
+      <node ref="U2" pin="2" pinfunction="0_RX1_CRX2_CS1" pintype="bidirectional"/>
+    </net>
+    <net code="62" name="RLY1">
+      <node ref="Q41" pin="1" pinfunction="G" pintype="input"/>
+      <node ref="U1" pin="3" pinfunction="1_TX1_CTX2_MISO1" pintype="bidirectional"/>
+      <node ref="U2" pin="3" pinfunction="1_TX1_CTX2_MISO1" pintype="bidirectional"/>
+    </net>
+    <net code="63" name="RLY2">
+      <node ref="Q42" pin="1" pinfunction="G" pintype="input"/>
+      <node ref="U1" pin="4" pinfunction="2_OUT2" pintype="bidirectional"/>
+      <node ref="U2" pin="4" pinfunction="2_OUT2" pintype="bidirectional"/>
+    </net>
+    <net code="64" name="RLY3">
+      <node ref="Q43" pin="1" pinfunction="G" pintype="input"/>
+      <node ref="U1" pin="5" pinfunction="3_LRCLK2" pintype="bidirectional"/>
+      <node ref="U2" pin="5" pinfunction="3_LRCLK2" pintype="bidirectional"/>
+    </net>
+    <net code="65" name="RLY4">
+      <node ref="Q44" pin="1" pinfunction="G" pintype="input"/>
+      <node ref="U1" pin="6" pinfunction="4_BCLK2" pintype="bidirectional"/>
+      <node ref="U2" pin="6" pinfunction="4_BCLK2" pintype="bidirectional"/>
+    </net>
+    <net code="66" name="RLY5">
+      <node ref="Q45" pin="1" pinfunction="G" pintype="input"/>
+      <node ref="U1" pin="7" pinfunction="5_IN2" pintype="bidirectional"/>
+      <node ref="U2" pin="7" pinfunction="5_IN2" pintype="bidirectional"/>
+    </net>
+    <net code="67" name="RLY6">
+      <node ref="Q46" pin="1" pinfunction="G" pintype="input"/>
+      <node ref="U1" pin="8" pinfunction="6_OUT1D" pintype="bidirectional"/>
+      <node ref="U2" pin="8" pinfunction="6_OUT1D" pintype="bidirectional"/>
+    </net>
+    <net code="68" name="RLY7">
+      <node ref="Q47" pin="1" pinfunction="G" pintype="input"/>
+      <node ref="U1" pin="9" pinfunction="7_RX2_OUT1A" pintype="bidirectional"/>
+      <node ref="U2" pin="9" pinfunction="7_RX2_OUT1A" pintype="bidirectional"/>
+    </net>
+    <net code="69" name="SCK">
+      <node ref="J54" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="J55" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="R17" pin="1" pintype="passive"/>
+      <node ref="U1" pin="35" pinfunction="13_SCK_LED" pintype="bidirectional"/>
+      <node ref="U2" pin="35" pinfunction="13_SCK_LED" pintype="bidirectional"/>
+      <node ref="U50" pin="10" pinfunction="T_CLK" pintype="input"/>
+      <node ref="U50" pin="7" pinfunction="SCK" pintype="input"/>
+    </net>
+    <net code="70" name="SCL">
+      <node ref="J39a1" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="J39b1" pin="2" pinfunction="Pin_2" pintype="passive"/>
+      <node ref="R30" pin="2" pintype="passive"/>
+      <node ref="U1" pin="41" pinfunction="19_A5_SCL" pintype="bidirectional"/>
+      <node ref="U2" pin="41" pinfunction="19_A5_SCL" pintype="bidirectional"/>
+      <node ref="U31" pin="22" pinfunction="SCL" pintype="input"/>
+    </net>
+    <net code="71" name="SDA">
+      <node ref="J39a1" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="J39b1" pin="3" pinfunction="Pin_3" pintype="passive"/>
+      <node ref="R31" pin="2" pintype="passive"/>
+      <node ref="U1" pin="40" pinfunction="18_A4_SDA" pintype="bidirectional"/>
+      <node ref="U2" pin="40" pinfunction="18_A4_SDA" pintype="bidirectional"/>
+      <node ref="U31" pin="23" pinfunction="SDA" pintype="bidirectional"/>
+    </net>
+    <net code="72" name="T+">
+      <node ref="J4" pin="1" pinfunction="TX+" pintype="input"/>
+      <node ref="U1" pin="63" pinfunction="T+" pintype="output"/>
+      <node ref="U2" pin="63" pinfunction="T+" pintype="output"/>
+    </net>
+    <net code="73" name="T-">
+      <node ref="J4" pin="3" pinfunction="TX-" pintype="input"/>
+      <node ref="U1" pin="62" pinfunction="T-" pintype="output"/>
+      <node ref="U2" pin="62" pinfunction="T-" pintype="output"/>
+    </net>
+    <net code="74" name="TRG0">
+      <node ref="Q21" pin="2" pinfunction="S" pintype="passive"/>
+      <node ref="R2" pin="2" pintype="passive"/>
+      <node ref="U1" pin="36" pinfunction="14_A0_TX3_SPDIF_OUT" pintype="bidirectional"/>
+      <node ref="U2" pin="36" pinfunction="14_A0_TX3_SPDIF_OUT" pintype="bidirectional"/>
+    </net>
+    <net code="75" name="TRG1">
+      <node ref="Q23" pin="2" pinfunction="S" pintype="passive"/>
+      <node ref="R6" pin="2" pintype="passive"/>
+      <node ref="U1" pin="32" pinfunction="40_A16" pintype="bidirectional"/>
+      <node ref="U2" pin="32" pinfunction="40_A16" pintype="bidirectional"/>
+    </net>
+    <net code="76" name="TRG2">
+      <node ref="Q25" pin="2" pinfunction="S" pintype="passive"/>
+      <node ref="R10" pin="2" pintype="passive"/>
+      <node ref="U1" pin="28" pinfunction="36_CS" pintype="bidirectional"/>
+      <node ref="U2" pin="28" pinfunction="36_CS" pintype="bidirectional"/>
+    </net>
+    <net code="77" name="TRG3">
+      <node ref="Q27" pin="2" pinfunction="S" pintype="passive"/>
+      <node ref="R14" pin="2" pintype="passive"/>
+      <node ref="U1" pin="26" pinfunction="34_RX8" pintype="bidirectional"/>
+      <node ref="U2" pin="26" pinfunction="34_RX8" pintype="bidirectional"/>
+    </net>
+    <net code="78" name="T_CS">
+      <node ref="U1" pin="21" pinfunction="29_TX7" pintype="bidirectional"/>
+      <node ref="U2" pin="21" pinfunction="29_TX7" pintype="bidirectional"/>
+      <node ref="U50" pin="11" pinfunction="T_CS" pintype="input"/>
+    </net>
+    <net code="79" name="T_IRQ">
+      <node ref="U1" pin="20" pinfunction="28_RX7" pintype="bidirectional"/>
+      <node ref="U2" pin="20" pinfunction="28_RX7" pintype="bidirectional"/>
+      <node ref="U50" pin="14" pinfunction="T_IRQ" pintype="output"/>
+    </net>
+    <net code="80" name="unconnected-(J4-Pad7)">
+      <node ref="J4" pin="7" pinfunction="NC" pintype="no_connect"/>
+    </net>
+    <net code="81" name="unconnected-(J4-Pad11)">
+      <node ref="J4" pin="11" pinfunction="LED2_GND" pintype="power_in+no_connect"/>
+    </net>
+    <net code="82" name="unconnected-(J4-Pad12)">
+      <node ref="J4" pin="12" pinfunction="LED2" pintype="power_in+no_connect"/>
+    </net>
+    <net code="83" name="unconnected-(U1-Pad24)">
+      <node ref="U1" pin="24" pinfunction="32_OUT1B" pintype="bidirectional+no_connect"/>
+      <node ref="U2" pin="24" pinfunction="32_OUT1B" pintype="bidirectional+no_connect"/>
+    </net>
+    <net code="84" name="unconnected-(U1-Pad25)">
+      <node ref="U1" pin="25" pinfunction="33_MCLK2" pintype="bidirectional+no_connect"/>
+      <node ref="U2" pin="25" pinfunction="33_MCLK2" pintype="bidirectional+no_connect"/>
+    </net>
+    <net code="85" name="unconnected-(U1-Pad30)">
+      <node ref="U1" pin="30" pinfunction="38_CS1_IN1" pintype="bidirectional+no_connect"/>
+      <node ref="U2" pin="30" pinfunction="38_CS1_IN1" pintype="bidirectional+no_connect"/>
+    </net>
+    <net code="86" name="unconnected-(U1-Pad31)">
+      <node ref="U1" pin="31" pinfunction="39_MISO1_OUT1A" pintype="bidirectional+no_connect"/>
+      <node ref="U2" pin="31" pinfunction="39_MISO1_OUT1A" pintype="bidirectional+no_connect"/>
+    </net>
+    <net code="87" name="unconnected-(U1-Pad38)">
+      <node ref="U1" pin="38" pinfunction="16_A2_RX4_SCL1" pintype="bidirectional+no_connect"/>
+      <node ref="U2" pin="38" pinfunction="16_A2_RX4_SCL1" pintype="bidirectional+no_connect"/>
+    </net>
+    <net code="88" name="unconnected-(U1-Pad39)">
+      <node ref="U1" pin="39" pinfunction="17_A3_TX4_SDA1" pintype="bidirectional+no_connect"/>
+      <node ref="U2" pin="39" pinfunction="17_A3_TX4_SDA1" pintype="bidirectional+no_connect"/>
+    </net>
+    <net code="89" name="unconnected-(U1-Pad42)">
+      <node ref="U1" pin="42" pinfunction="20_A6_TX5_LRCLK1" pintype="bidirectional+no_connect"/>
+      <node ref="U2" pin="42" pinfunction="20_A6_TX5_LRCLK1" pintype="bidirectional+no_connect"/>
+    </net>
+    <net code="90" name="unconnected-(U1-Pad43)">
+      <node ref="U1" pin="43" pinfunction="21_A7_RX5_BCLK1" pintype="bidirectional+no_connect"/>
+      <node ref="U2" pin="43" pinfunction="21_A7_RX5_BCLK1" pintype="bidirectional+no_connect"/>
+    </net>
+    <net code="91" name="unconnected-(U1-Pad49)">
+      <node ref="U1" pin="49" pinfunction="VUSB" pintype="no_connect"/>
+    </net>
+    <net code="92" name="unconnected-(U1-Pad50)">
+      <node ref="U1" pin="50" pinfunction="VBAT" pintype="no_connect"/>
+    </net>
+    <net code="93" name="unconnected-(U1-Pad51)">
+      <node ref="U1" pin="51" pinfunction="3V3" pintype="no_connect"/>
+    </net>
+    <net code="94" name="unconnected-(U1-Pad52)">
+      <node ref="U1" pin="52" pinfunction="GND" pintype="no_connect"/>
+    </net>
+    <net code="95" name="unconnected-(U1-Pad53)">
+      <node ref="U1" pin="53" pinfunction="PROGRAM" pintype="no_connect"/>
+    </net>
+    <net code="96" name="unconnected-(U1-Pad54)">
+      <node ref="U1" pin="54" pinfunction="ON_OFF" pintype="no_connect"/>
+    </net>
+    <net code="97" name="unconnected-(U1-Pad55)">
+      <node ref="U1" pin="55" pinfunction="5V" pintype="no_connect"/>
+    </net>
+    <net code="98" name="unconnected-(U1-Pad56)">
+      <node ref="U1" pin="56" pinfunction="D-" pintype="no_connect"/>
+    </net>
+    <net code="99" name="unconnected-(U1-Pad57)">
+      <node ref="U1" pin="57" pinfunction="D+" pintype="no_connect"/>
+    </net>
+    <net code="100" name="unconnected-(U1-Pad58)">
+      <node ref="U1" pin="58" pinfunction="GND" pintype="no_connect"/>
+    </net>
+    <net code="101" name="unconnected-(U1-Pad59)">
+      <node ref="U1" pin="59" pinfunction="GND" pintype="no_connect"/>
+    </net>
+    <net code="102" name="unconnected-(U1-Pad66)">
+      <node ref="U1" pin="66" pinfunction="D-" pintype="no_connect"/>
+    </net>
+    <net code="103" name="unconnected-(U1-Pad67)">
+      <node ref="U1" pin="67" pinfunction="D+" pintype="no_connect"/>
+    </net>
+    <net code="104" name="unconnected-(U2-Pad49)">
+      <node ref="U2" pin="49" pinfunction="VUSB" pintype="no_connect"/>
+    </net>
+    <net code="105" name="unconnected-(U2-Pad50)">
+      <node ref="U2" pin="50" pinfunction="VBAT" pintype="no_connect"/>
+    </net>
+    <net code="106" name="unconnected-(U2-Pad51)">
+      <node ref="U2" pin="51" pinfunction="3V3" pintype="no_connect"/>
+    </net>
+    <net code="107" name="unconnected-(U2-Pad52)">
+      <node ref="U2" pin="52" pinfunction="GND" pintype="no_connect"/>
+    </net>
+    <net code="108" name="unconnected-(U2-Pad53)">
+      <node ref="U2" pin="53" pinfunction="PROGRAM" pintype="no_connect"/>
+    </net>
+    <net code="109" name="unconnected-(U2-Pad54)">
+      <node ref="U2" pin="54" pinfunction="ON_OFF" pintype="no_connect"/>
+    </net>
+    <net code="110" name="unconnected-(U2-Pad55)">
+      <node ref="U2" pin="55" pinfunction="5V" pintype="no_connect"/>
+    </net>
+    <net code="111" name="unconnected-(U2-Pad56)">
+      <node ref="U2" pin="56" pinfunction="D-" pintype="no_connect"/>
+    </net>
+    <net code="112" name="unconnected-(U2-Pad57)">
+      <node ref="U2" pin="57" pinfunction="D+" pintype="no_connect"/>
+    </net>
+    <net code="113" name="unconnected-(U2-Pad58)">
+      <node ref="U2" pin="58" pinfunction="GND" pintype="no_connect"/>
+    </net>
+    <net code="114" name="unconnected-(U2-Pad59)">
+      <node ref="U2" pin="59" pinfunction="GND" pintype="no_connect"/>
+    </net>
+    <net code="115" name="unconnected-(U2-Pad66)">
+      <node ref="U2" pin="66" pinfunction="D-" pintype="no_connect"/>
+    </net>
+    <net code="116" name="unconnected-(U2-Pad67)">
+      <node ref="U2" pin="67" pinfunction="D+" pintype="no_connect"/>
+    </net>
+  </nets>
+</export>
