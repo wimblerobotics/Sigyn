@@ -29,7 +29,7 @@
 
 // Safety and E-Stop
 #define ROBOCLAW_SERIAL Serial7
-#define E_STOP_PIN 7              // Digital pin connected to RoboClaw E-Stop or relay
+#define E_STOP_PIN 30              // Digital pin connected to RoboClaw E-Stop or relay
 
 // Battery Monitoring
 #define MAIN_BATTERY_PIN 27             // Analog pin for battery voltage sensing
