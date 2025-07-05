@@ -16,11 +16,11 @@ BNO055Module::BNO055Module() : Module() {
     
     // Setup chips
     // chips_.resize(2); // Support 2 BNO055 chips
-    chips_.resize(2); // Support 1 BNO055 chips
+    chips_.resize(1); // Support 1 BNO055 chips
     chips_[0].address = BNO055_ADDRESS_A;
     chips_[0].read_interval_ms = 10; // Read every 10ms
-    chips_[1].address = BNO055_ADDRESS_B;
-    chips_[1].read_interval_ms = 10; // Read every 10ms
+    // chips_[1].address = BNO055_ADDRESS_B;
+    // chips_[1].read_interval_ms = 10; // Read every 10ms
     
     delay(1000); // Give sensors time to power up
     
@@ -66,7 +66,7 @@ void BNO055Module::loop() {
             // Skip reading if not initialized or not time yet
             if (!chip.initialized) {
                 Serial.printf("BNO055 at 0x%02X is not initialized\n", chip.address);
-                delay(10'000); // Wait before retrying
+                // delay(10'000); // Wait before retrying
             } else {
                 // Serial.printf("Skipping read for BNO055 at 0x%02X, not time yet\n", chip.address);
                 // delay(1000); // Wait before retrying

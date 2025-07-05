@@ -33,7 +33,7 @@ void RoboClawModule::doMixedSpeedAccelDist(
     // Reset e-stop once motors are stopped.
     motor_runaway_fault_m1_ = false;
     motor_runaway_fault_m2_ = false;
-    digitalWrite(E_STOP_PIN, LOW);  // LOW = E-Stop not active.
+    digitalWrite(E_STOP_PIN, HIGH);  // LOW = E-Stop not active.
   }
 
   roboclaw_.SpeedAccelDistanceM1M2(
@@ -159,7 +159,7 @@ void RoboClawModule::setM2PID(float p, float i, float d, uint32_t qpps) {
 void RoboClawModule::setup() {
   // Initialize E-Stop pin
   pinMode(E_STOP_PIN, OUTPUT);
-  digitalWrite(E_STOP_PIN, LOW);  // LOW = E-Stop not active.
+  digitalWrite(E_STOP_PIN, HIGH);  // HIGH = E-Stop not active.
   // // Initialize encoder readings
   // bool valid1, valid2;
   // prev_encoder_m1_ = roboclaw_.ReadEncM1(ROBOCLAW_ADDRESS, nullptr,
@@ -606,7 +606,7 @@ bool RoboClawModule::isUnsafe() {
 //     if (!e_stop_active_) {
 //         e_stop_active_ = true;
 //         roboclaw_.SpeedM1M2(ROBOCLAW_ADDRESS, 0, 0); // Command motors to
-//         stop immediately digitalWrite(E_STOP_PIN, HIGH); // Activate E-Stop
+//         stop immediately digitalWrite(E_STOP_PIN, LOW); // Activate E-Stop
 //         (HIGH = power OFF to motors, or trigger relay)
 //         // Serial.print("E-Stop Triggered: "); Serial.println(reason);
 //         serial_manager.SendDiagnosticMessage(String("E-Stop: ") + reason);
@@ -622,7 +622,7 @@ bool RoboClawModule::isUnsafe() {
 //         motor_overcurrent_detected_ = false;
 //         motor_stall_detected_m1_ = false;
 //         motor_stall_detected_m2_ = false;
-//         digitalWrite(E_STOP_PIN, LOW); // Deactivate E-Stop (LOW = power
+//         digitalWrite(E_STOP_PIN, HIGH); // Deactivate E-Stop (LOW = power
 //         ON)
 //         // Serial.println("E-Stop Reset.");
 //         serial_manager.SendDiagnosticMessage("E-Stop Reset");
