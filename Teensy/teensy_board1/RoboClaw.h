@@ -1,11 +1,16 @@
-#ifndef RoboClaw_h
-#define RoboClaw_h
+#pragma once
 
 #include <stdarg.h>
 
 #include <inttypes.h>
-#include <Stream.h>
-#include <HardwareSerial.h>
+#include <Arduino.h>
+#include <cstddef>
+
+#if defined(ARDUINO) && !defined(ARDUINO_ARCH_STM32)
+  #include <HardwareSerial.h>
+#else
+  #include <HardwareSerial.h>
+#endif
 #ifdef __AVR__
 	#include <SoftwareSerial.h>
 #endif
@@ -250,5 +255,3 @@ private:
 	uint8_t Read1(uint8_t address,uint8_t cmd,bool *valid);
 	
 };
-
-#endif

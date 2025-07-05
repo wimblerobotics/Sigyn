@@ -10,19 +10,50 @@
         "${workspaceFolder}",
         "${workspaceFolder}/**",
         "/usr/include/**",
-        "/opt/ros/jazzy/include/**",
-        "/home/ros/Arduino/libraries/**",
-        "/home/ros/Arduino/libraries/BNO055/**",
-        "/home/ros/.arduino15/packages/teensy/hardware/avr/1.59.0/cores/teensy4/**",
-        "/home/ros/Arduino_libraries_SdFat/**"
+        "/opt/ros/jazzy/include/**"
       ],
       "defines": [],
       "intelliSenseMode": "gcc-x64",
       "compilerPath": "/usr/bin/gcc",
       "cStandard": "gnu11",
-      "cppStandard": "c++14",
-      "compileCommands": "${workspaceFolder}/build/compile_commands.json",
-      "configurationProvider": "ms-vscode.cmake-tools"
+      "cppStandard": "c++14"
+    },
+    {
+      "name": "Sigyn_teensy",
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/ros/.arduino15/packages/teensy/hardware/avr/1.59.0/libraries/SdFat/src",
+        "/home/ros/Arduino/libraries/Regexp/src",
+        "/home/ros/.arduino15/packages/teensy/hardware/avr/1.59.0/cores/teensy4",
+        "/home/ros/.arduino15/packages/teensy/tools/teensy-compile/11.3.1/arm/arm-none-eabi/include",
+        "/home/ros/.arduino15/packages/teensy/tools/teensy-compile/11.3.1/arm/arm-none-eabi/include/c++/11.3.1",
+        "/home/ros/.arduino15/packages/teensy/tools/teensy-compile/11.3.1/arm/arm-none-eabi/include/c++/11.3.1/arm-none-eabi",
+        "/home/ros/.arduino15/packages/teensy/hardware/avr/1.59.0/libraries/**",
+        "/home/ros/Arduino/libraries/Regexp",
+        "/home/ros/Arduino/libraries/**",
+        "${workspaceFolder}/Teensy/teensy_board1",
+        "${workspaceFolder}/Teensy/teensy_board2",
+        "${workspaceFolder}/**"
+      ],
+      "defines": [
+        "ARDUINO=10819",
+        "TEENSYDUINO=159",
+        "__IMXRT1062__",
+        "ARDUINO_TEENSY41",
+        "USB_SERIAL",
+        "LAYOUT_US_ENGLISH",
+        "F_CPU=600000000",
+        "ARM_MATH_CM7",
+        "__arm__",
+        "__ARM_ARCH_7EM__"
+      ],
+      "intelliSenseMode": "gcc-arm",
+      "compilerPath": "/home/ros/.arduino15/packages/teensy/tools/teensy-compile/11.3.1/arm/bin/arm-none-eabi-g++",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
     }
   ],
   "version": 4

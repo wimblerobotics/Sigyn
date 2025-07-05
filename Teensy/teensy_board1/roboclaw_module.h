@@ -1,9 +1,10 @@
-#ifndef ROBOCLAWMODULE_H
-#define ROBOCLAWMODULE_H
+#pragma once
+
 
 #include "RoboClaw.h"  // External RoboClaw library
 #include "config.h"
 #include "module.h"
+#include <cmath>
 // #include "utils.h"  // For Pose2D, Twist
 
 // Define RoboClaw serial port if not using default HardwareSerial
@@ -186,4 +187,3 @@ class RoboClawModule : public Module {
   static RoboClawModule* g_singleton_;
 };
 
-#endif  // ROBOCLAWMODULE_H
