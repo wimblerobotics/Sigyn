@@ -1,20 +1,12 @@
 #include <Wire.h>
 
 #include "Arduino.h"
-#include "battery_module.h"  // Battery module for monitoring battery status
+#include "bno055_module.h"
 #include "module.h"
-#include "roboclaw_module.h"
 #include "serial_manager.h"
-#include "vl53l0x_module.h"
-#include "sonar_module.h"
 
-BatteryModule& battery_module =
-    BatteryModule::singleton();  // Battery monitoring module
-VL53L0XModule& vl53l0x_module =
-    VL53L0XModule::singleton();  // VL53L0X sensor module
-// SonarModule& sonar_module = SonarModule::singleton();  // Sonar sensor module
-RoboClawModule& roboclaw_module =
-    RoboClawModule::singleton();  // RoboClaw motor controller module
+BNO055Module& bno055_module =
+    BNO055Module::singleton();  // BNO055 sensor module
 
 void setup() {
   // Wire.begin();
@@ -55,9 +47,9 @@ void handleIncomingMessage(const String& message) {
 
   if (type == "IMU") {
     // Handle IMU commands via BNO055Module
-    // BNO055Module::singleton().handleCommand(data);
+    BNO055Module::singleton().handleCommand(data);
   } else if (type == "TWIST") {
-    roboclaw_module.handleTwistMessage(data);
+    // roboclaw_module.handleTwistMessage(data);
   } else if (type == "SDDIR") {
     // sd_module.handleDirMessage(data);
   } else if (type == "SDFILE") {
