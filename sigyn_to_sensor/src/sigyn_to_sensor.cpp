@@ -13,6 +13,7 @@
 #include <queue>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/battery_state.hpp>
+#include <sensor_msgs/msg/imu.hpp>
 #include <sigyn_interfaces/srv/teensy_sd_get_dir.hpp>
 #include <sigyn_interfaces/srv/teensy_sd_get_file.hpp>
 #include <sstream>
@@ -34,11 +35,18 @@ struct PendingServiceRequest {
 
 class SigynToSensor : public rclcpp::Node {
  public:
-  SigynToSensor() : Node("teensy_to_sensor"), serial_fd_(-1) {
-    // Initialize serial connection
-    if (!initSerial("/dev/teensy_sensor", 921600)) {
+  SigynToSensor() : Node("teensy_to_sensor"), serial_fd_(-1), serial_fd2_(-1) {
+    // Initialize serial connection for first Teensy (motor control)
+    if (!initSerial("/dev/teensy_sensor", 921600, serial_fd_)) {
       RCLCPP_ERROR(this->get_logger(),
-                   "Failed to initialize serial connection");
+                   "Failed to initialize serial connection to /dev/teensy_sensor");
+      return;
+    }
+
+    // Initialize serial connection for second Teensy (IMU sensors)
+    if (!initSerial("/dev/teensy_sensor2", 921600, serial_fd2_)) {
+      RCLCPP_ERROR(this->get_logger(),
+                   "Failed to initialize serial connection to /dev/teensy_sensor2");
       return;
     }
 
@@ -60,6 +68,10 @@ class SigynToSensor : public rclcpp::Node {
         this->create_publisher<std_msgs::msg::String>("teensy_sensor_diagnostics", 10);
     battery_state_pub_ = this->create_publisher<sensor_msgs::msg::BatteryState>(
         "/main_battery_state", 10);
+
+    // Create IMU publishers for the two BNO055 sensors
+    imu0_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu0", 10);
+    imu1_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu1", 10);
 
     // Create service for SD card directory listing with separate callback group
     sd_getdir_service_ =
@@ -85,26 +97,29 @@ class SigynToSensor : public rclcpp::Node {
         std::chrono::milliseconds(10),
         std::bind(&SigynToSensor::serialCommunicationLoop, this));
 
-    RCLCPP_INFO(this->get_logger(), "Teensy to sensor node started");
+    RCLCPP_INFO(this->get_logger(), "Teensy to sensor node started with both Teensy boards");
   }
 
   ~SigynToSensor() {
     if (serial_fd_ >= 0) {
       close(serial_fd_);
     }
+    if (serial_fd2_ >= 0) {
+      close(serial_fd2_);
+    }
   }
 
  private:
-  bool initSerial(const std::string& device, int baud_rate) {
-    serial_fd_ = open(device.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
-    if (serial_fd_ < 0) {
+  bool initSerial(const std::string& device, int baud_rate, int& fd) {
+    fd = open(device.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
+    if (fd < 0) {
       RCLCPP_ERROR(this->get_logger(), "Failed to open serial device: %s",
                    device.c_str());
       return false;
     }
 
     struct termios options;
-    tcgetattr(serial_fd_, &options);
+    tcgetattr(fd, &options);
 
     // Set baud rate
     speed_t speed;
@@ -139,7 +154,7 @@ class SigynToSensor : public rclcpp::Node {
     options.c_cc[VMIN] = 0;
     options.c_cc[VTIME] = 1;
 
-    tcsetattr(serial_fd_, TCSANOW, &options);
+    tcsetattr(fd, TCSANOW, &options);
 
     return true;
   }
@@ -155,41 +170,46 @@ class SigynToSensor : public rclcpp::Node {
 
   // Main serial communication loop - handles all I/O in single thread
   void serialCommunicationLoop() {
-    if (serial_fd_ < 0) {
+    if (serial_fd_ < 0 && serial_fd2_ < 0) {
       RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000, 
-                           "Serial communication loop: serial_fd_ < 0");
+                           "Serial communication loop: both serial connections unavailable");
       return;
     }
 
-    // Read incoming data
-    readSerialData();
+    // Read incoming data from both Teensy boards
+    if (serial_fd_ >= 0) {
+      readSerialData(serial_fd_, serial_buffer_, 1);  // Teensy 1
+    }
+    if (serial_fd2_ >= 0) {
+      readSerialData(serial_fd2_, serial_buffer2_, 2);  // Teensy 2
+    }
 
-    // Send outgoing messages
+    // Send outgoing messages (currently only to Teensy 1)
     sendQueuedMessages();
   }
 
-  void readSerialData() {
-    char buffer[1024];
-    ssize_t bytes_read = read(serial_fd_, buffer, sizeof(buffer) - 1);
+  void readSerialData(int fd, std::string& buffer, int teensy_id) {
+    char read_buffer[1024];
+    ssize_t bytes_read = read(fd, read_buffer, sizeof(read_buffer) - 1);
 
     if (bytes_read > 0) {
-      buffer[bytes_read] = '\0';
-      serial_buffer_ += std::string(buffer);
+      read_buffer[bytes_read] = '\0';
+      buffer += std::string(read_buffer);
 
       // Process complete lines (handle both \n and \r\n)
       size_t pos;
-      while ((pos = serial_buffer_.find('\n')) != std::string::npos) {
-        std::string line = serial_buffer_.substr(0, pos);
+      while ((pos = buffer.find('\n')) != std::string::npos) {
+        std::string line = buffer.substr(0, pos);
         
         // Remove trailing \r if present
         if (!line.empty() && line.back() == '\r') {
           line.pop_back();
         }
         
-        serial_buffer_.erase(0, pos + 1);
+        buffer.erase(0, pos + 1);
         
         if (!line.empty()) {
-          processIncomingMessage(line);
+          processIncomingMessage(line, teensy_id);
         }
       }
     }
@@ -224,35 +244,52 @@ class SigynToSensor : public rclcpp::Node {
     }
   }
 
-  void processIncomingMessage(const std::string& message) {
-    // RCLCPP_INFO(this->get_logger(), "Processing message: %s", message.c_str());
+  void processIncomingMessage(const std::string& message, int teensy_id) {
+    // RCLCPP_INFO(this->get_logger(), "Processing message from Teensy %d: %s", teensy_id, message.c_str());
     
     size_t colon_pos = message.find(':');
     if (colon_pos == std::string::npos) {
-      RCLCPP_WARN(this->get_logger(), "Invalid serial message format: %s",
-                  message.c_str());
+      RCLCPP_WARN(this->get_logger(), "Invalid serial message format from Teensy %d: %s",
+                  teensy_id, message.c_str());
       return;
     }
 
     std::string type = message.substr(0, colon_pos);
     std::string data = message.substr(colon_pos + 1);
 
-    if (type == "ROBOCLAW") {
-      publishRoboClawStatus(data);
-    } else if (type == "BATTERY") {
-      publishBatteryState(data);
-    } else if (type == "DIAG") {
-      publishDiagnostics(data);
-    } else if (type == "SDIR") {
-      handleSdirResponse(data);
-    } else if (type == "SDLINE") {
-      handleSdlineResponse(data);
-    } else if (type == "SDEOF") {
-      handleSdeofResponse(data);
-    } else if (type == "ODOM") {
-      publishOdometry(data);
-    } else {
-      RCLCPP_WARN(this->get_logger(), "Unknown message type: %s", type.c_str());
+    // Handle messages from Teensy 1 (motor control board)
+    if (teensy_id == 1) {
+      if (type == "ROBOCLAW") {
+        publishRoboClawStatus(data);
+      } else if (type == "BATTERY") {
+        publishBatteryState(data);
+      } else if (type == "DIAG") {
+        publishDiagnostics(data);
+      } else if (type == "SDIR") {
+        handleSdirResponse(data);
+      } else if (type == "SDLINE") {
+        handleSdlineResponse(data);
+      } else if (type == "SDEOF") {
+        handleSdeofResponse(data);
+      } else if (type == "ODOM") {
+        publishOdometry(data);
+      } else {
+        RCLCPP_WARN(this->get_logger(), "Unknown message type from Teensy 1: %s", type.c_str());
+      }
+    }
+    // Handle messages from Teensy 2 (IMU board)
+    else if (teensy_id == 2) {
+      if (type == "DIAG") {
+        // Check if this is an IMU data message
+        if (data.substr(0, 9) == "IMU_DATA:") {
+          publishImuData(data.substr(9)); // Remove "IMU_DATA:" prefix
+        } else {
+          // Regular diagnostic message
+          publishTeensy2Diagnostics(data);
+        }
+      } else {
+        RCLCPP_WARN(this->get_logger(), "Unknown message type from Teensy 2: %s", type.c_str());
+      }
     }
   }
 
@@ -287,6 +324,96 @@ class SigynToSensor : public rclcpp::Node {
       // Extract the SDEOF data (everything after "SDEOF:")
       std::string sdeof_data = data.substr(6);
       handleSdeofResponse(sdeof_data);
+    }
+  }
+
+  void publishTeensy2Diagnostics(const std::string& data) {
+    auto msg = std_msgs::msg::String();
+    msg.data = "Teensy2: " + data;
+    teensy_diagnostics_pub_->publish(msg);
+  }
+
+  void publishImuData(const std::string& data) {
+    // Parse IMU data: sensor_id,qx,qy,qz,qw,gx,gy,gz,ax,ay,az,yaw,roll,pitch,read_time
+    std::istringstream iss(data);
+    std::string token;
+    std::vector<std::string> tokens;
+    
+    while (std::getline(iss, token, ',')) {
+      tokens.push_back(token);
+    }
+    
+    if (tokens.size() < 15) {
+      RCLCPP_WARN(this->get_logger(), "Invalid IMU data format: expected 15 fields, got %zu", tokens.size());
+      return;
+    }
+    
+    try {
+      int sensor_id = std::stoi(tokens[0]);
+      
+      // Create IMU message
+      auto imu_msg = sensor_msgs::msg::Imu();
+      imu_msg.header.stamp = this->get_clock()->now();
+      
+      if (sensor_id == 0) {
+        imu_msg.header.frame_id = "imu0";
+      } else if (sensor_id == 1) {
+        imu_msg.header.frame_id = "imu1";
+      } else {
+        RCLCPP_WARN(this->get_logger(), "Invalid IMU sensor ID: %d", sensor_id);
+        return;
+      }
+      
+      // Parse quaternion (x, y, z, w)
+      imu_msg.orientation.x = std::stod(tokens[1]);
+      imu_msg.orientation.y = std::stod(tokens[2]);
+      imu_msg.orientation.z = std::stod(tokens[3]);
+      imu_msg.orientation.w = std::stod(tokens[4]);
+      
+      // Parse angular velocity (rad/s)
+      imu_msg.angular_velocity.x = std::stod(tokens[5]);
+      imu_msg.angular_velocity.y = std::stod(tokens[6]);
+      imu_msg.angular_velocity.z = std::stod(tokens[7]);
+      
+      // Parse linear acceleration (m/s²)
+      imu_msg.linear_acceleration.x = std::stod(tokens[8]);
+      imu_msg.linear_acceleration.y = std::stod(tokens[9]);
+      imu_msg.linear_acceleration.z = std::stod(tokens[10]);
+      
+      // Set covariance matrices based on BNO055 typical values
+      // Orientation covariance (quaternion is quite accurate)
+      std::array<double, 9> orientation_cov = {
+        0.001, 0.0, 0.0,     // Small variance in orientation
+        0.0, 0.001, 0.0,
+        0.0, 0.0, 0.001
+      };
+      std::copy(orientation_cov.begin(), orientation_cov.end(), imu_msg.orientation_covariance.begin());
+      
+      // Angular velocity covariance (gyroscope noise)
+      std::array<double, 9> angular_vel_cov = {
+        0.0001, 0.0, 0.0,    // BNO055 gyro noise ~0.01 rad/s
+        0.0, 0.0001, 0.0,
+        0.0, 0.0, 0.0001
+      };
+      std::copy(angular_vel_cov.begin(), angular_vel_cov.end(), imu_msg.angular_velocity_covariance.begin());
+      
+      // Linear acceleration covariance (accelerometer noise)
+      std::array<double, 9> linear_acc_cov = {
+        0.01, 0.0, 0.0,      // BNO055 accel noise ~0.1 m/s²
+        0.0, 0.01, 0.0,
+        0.0, 0.0, 0.01
+      };
+      std::copy(linear_acc_cov.begin(), linear_acc_cov.end(), imu_msg.linear_acceleration_covariance.begin());
+      
+      // Publish to appropriate topic
+      if (sensor_id == 0) {
+        imu0_pub_->publish(imu_msg);
+      } else if (sensor_id == 1) {
+        imu1_pub_->publish(imu_msg);
+      }
+      
+    } catch (const std::exception& e) {
+      RCLCPP_WARN(this->get_logger(), "Failed to parse IMU data: %s", e.what());
     }
   }
 
@@ -624,15 +751,24 @@ class SigynToSensor : public rclcpp::Node {
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr roboclaw_status_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr teensy_diagnostics_pub_;
   rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr battery_state_pub_;
+  
+  // IMU publishers for BNO055 sensors
+  rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu0_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu1_pub_;
+  
   rclcpp::Service<sigyn_interfaces::srv::TeensySdGetDir>::SharedPtr sd_getdir_service_;
   rclcpp::Service<sigyn_interfaces::srv::TeensySdGetFile>::SharedPtr sd_getfile_service_;
   
   // Single timer for all serial communication
   rclcpp::TimerBase::SharedPtr serial_timer_;
 
-  // Serial communication
+  // Serial communication for first Teensy (motor control)
   int serial_fd_;
   std::string serial_buffer_;
+  
+  // Serial communication for second Teensy (IMU sensors)
+  int serial_fd2_;
+  std::string serial_buffer2_;
   
   // Thread-safe message queue
   std::queue<std::string> outgoing_message_queue_;
