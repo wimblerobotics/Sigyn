@@ -21,7 +21,7 @@
   <!-- <xacro:unless value="$(arg use_ros2_control)">
     <xacro:include filename="gazebo_control.xacro" />
   </xacro:unless> -->
-  
+
   <!-- Make the body-->
   <xacro:sigyn_base body_props="${props.body}" wheels_props="${props.wheels}" />
 
@@ -46,7 +46,7 @@
 
   <!-- <xacro:oakd_link mount_point="elevator_top" /> -->
   <xacro:oakd_joint mount_point="elevator_top">
-    <origin xyz="-0.12 -0.02 1.47" rpy="0 ${(pi / 4)+13*(2.0*pi/360.0)} ${-0*(2.0*pi/360.0)}" /> <!--was 1.45 -->
+    <origin xyz="-0.12 -0.02 1.47" rpy="0 ${(pi / 4)+13*(2.0*pi/360.0)} ${-0*(2.0*pi/360.0)}" />
   </xacro:oakd_joint>
 
   <gazebo>
@@ -124,4 +124,22 @@
 
   <xacro:diff_drive_controller config="${props}" instances1="${props.wheels.instances}"
     instances2="${props.wheels.instances}" />
+
+  <!-- IMU0 - Upside down (components facing down) -->
+  <joint name="imu0_joint" type="fixed">
+    <parent link="base_link" />
+    <child link="imu0_link" />
+    <origin xyz="-0.100 0.180 0.022" rpy="0 3.14159 0" />  <!-- 180° around Y-axis -->
+  </joint>
+
+  <link name="imu0_link" />
+
+  <!-- IMU1 - Right-side up (components facing up) -->
+  <joint name="imu1_joint" type="fixed">
+    <parent link="base_link" />
+    <child link="imu1_link" />
+    <origin xyz="0.085 -0.185 0.022" rpy="0 0 0" />  <!-- No rotation needed -->
+  </joint>
+
+  <link name="imu1_link" />
 </robot>
