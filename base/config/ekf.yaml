@@ -8,7 +8,10 @@ ekf_filter_node:
         odom_frame: odom          
         base_link_frame: base_link
         world_frame: odom 
-        sensor_timeout: 0.05
+        sensor_timeout: 0.1  # Increased timeout for IMU sensor reliability
+        
+        # QoS settings for sensor compatibility
+        dynamic_process_noise_covariance: true
 
         #x     , y     , z,
         #roll  , pitch , yaw,
@@ -22,17 +25,31 @@ ekf_filter_node:
                        false, false, true,
                        false, false, false]
         
-        # imu0: /oakd_top/imu
-        # imu0_config: [false, false, false,
-        #               false, false, false,
-        #               false, false, false,
-        #               false, false, true,   # only yaw rate
-        #               true,  true,  false]  # only ax, ay
-        # imu0_differential: false
-        # imu0_relative: true
-        # imu0_remove_gravitational_acceleration: false
-        # imu0_queue_size: 7
-        # imu0_nodelay: true
+        # IMU0 - BNO055 sensor (upside down, components facing down)
+        imu0: /imu0
+        imu0_config: [false, false, false,
+                      false, false, true,   # Use yaw orientation 
+                      false, false, false,
+                      false, false, true,   # Use yaw rate (angular velocity)
+                      true,  true,  false]  # Use linear acceleration X,Y (no Z due to gravity)
+        imu0_differential: false
+        imu0_relative: false
+        imu0_remove_gravitational_acceleration: true
+        imu0_queue_size: 10
+        imu0_nodelay: true
+        
+        # IMU1 - BNO055 sensor (right-side up, components facing up) 
+        imu1: /imu1
+        imu1_config: [false, false, false,
+                      false, false, true,   # Use yaw orientation
+                      false, false, false, 
+                      false, false, true,   # Use yaw rate (angular velocity)
+                      true,  true,  false]  # Use linear acceleration X,Y (no Z due to gravity)
+        imu1_differential: false
+        imu1_relative: false  
+        imu1_remove_gravitational_acceleration: true
+        imu1_queue_size: 10
+        imu1_nodelay: true
                       
  ### ekf config file ###
         

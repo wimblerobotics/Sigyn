@@ -59,19 +59,40 @@ class SigynToSensor : public rclcpp::Node {
         "cmd_vel", 10,
         std::bind(&SigynToSensor::cmdVelCallback, this, std::placeholders::_1));
 
-    // Create publishers
-    odom_pub_ =
-        this->create_publisher<nav_msgs::msg::Odometry>("wheel_odom", 10);
-    roboclaw_status_pub_ =
-        this->create_publisher<std_msgs::msg::String>("roboclaw_status", 10);
-    teensy_diagnostics_pub_ =
-        this->create_publisher<std_msgs::msg::String>("teensy_sensor_diagnostics", 10);
-    battery_state_pub_ = this->create_publisher<sensor_msgs::msg::BatteryState>(
-        "/main_battery_state", 10);
+    // Create publishers with appropriate QoS profiles
+    
+    // High-frequency sensor data - use BEST_EFFORT for performance
+    auto sensor_qos = rclcpp::QoS(10)
+        .reliability(rclcpp::ReliabilityPolicy::BestEffort)
+        .durability(rclcpp::DurabilityPolicy::Volatile)
+        .history(rclcpp::HistoryPolicy::KeepLast);
+    
+    // Navigation-critical data - use RELIABLE
+    auto nav_qos = rclcpp::QoS(10)
+        .reliability(rclcpp::ReliabilityPolicy::Reliable)
+        .durability(rclcpp::DurabilityPolicy::Volatile)
+        .history(rclcpp::HistoryPolicy::KeepLast);
+    
+    // Status/diagnostic data - use RELIABLE with smaller queue
+    auto status_qos = rclcpp::QoS(5)
+        .reliability(rclcpp::ReliabilityPolicy::Reliable)
+        .durability(rclcpp::DurabilityPolicy::TransientLocal)
+        .history(rclcpp::HistoryPolicy::KeepLast);
 
-    // Create IMU publishers for the two BNO055 sensors
-    imu0_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu0", 10);
-    imu1_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu1", 10);
+    // IMU data - high frequency sensor data, use BEST_EFFORT for low latency
+    imu0_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu0", sensor_qos);
+    imu1_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu1", sensor_qos);
+    
+    // Odometry - navigation critical, use RELIABLE
+    odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("wheel_odom", nav_qos);
+    
+    // Battery state - status data, use RELIABLE with transient local
+    battery_state_pub_ = this->create_publisher<sensor_msgs::msg::BatteryState>(
+        "/main_battery_state", status_qos);
+    
+    // Diagnostic messages - status data
+    roboclaw_status_pub_ = this->create_publisher<std_msgs::msg::String>("roboclaw_status", status_qos);
+    teensy_diagnostics_pub_ = this->create_publisher<std_msgs::msg::String>("teensy_sensor_diagnostics", status_qos);
 
     // Create service for SD card directory listing with separate callback group
     sd_getdir_service_ =
@@ -356,9 +377,9 @@ class SigynToSensor : public rclcpp::Node {
       imu_msg.header.stamp = this->get_clock()->now();
       
       if (sensor_id == 0) {
-        imu_msg.header.frame_id = "imu0";
+        imu_msg.header.frame_id = "imu0_link";
       } else if (sensor_id == 1) {
-        imu_msg.header.frame_id = "imu1";
+        imu_msg.header.frame_id = "imu1_link";
       } else {
         RCLCPP_WARN(this->get_logger(), "Invalid IMU sensor ID: %d", sensor_id);
         return;

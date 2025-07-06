@@ -337,7 +337,13 @@ def generate_launch_description():
         output="both",
         remappings=[("~/robot_description", "/robot_description")],
     )
-    ld.add_action(controller_manager)
+    
+    # Add delay to ensure robot_state_publisher publishes URDF first
+    delayed_controller_manager = TimerAction(
+        period=3.0,  # 3 second delay
+        actions=[controller_manager]
+    )
+    ld.add_action(delayed_controller_manager)
 
     diff_drive_spawner = Node(
         package="controller_manager",
@@ -398,7 +404,7 @@ def generate_launch_description():
  
     # map_path_sim = os.path.join(base_pgk, "maps", "map2.yaml")
     map_path_sim = os.path.join(base_pgk, "maps", "my_map.yaml")
-    map_path_real = os.path.join(base_pgk, "maps", "20241210l.yaml")
+    map_path_real = os.path.join(base_pgk, "maps", "my_map.yaml") # "20241210l.yaml")
     
     nav2_config_path = os.path.join(
         base_pgk, "config", "navigation_sim.yaml"
@@ -608,14 +614,14 @@ def generate_launch_description():
         output="screen",    )
     ld.add_action(sigyn_to_sensor)
     
-    sigyn_to_elevator = Node(
-        package="sigyn_to_elevator",
-        condition=UnlessCondition(use_sim_time),
-        executable="sigyn_to_elevator",
-        name="sigyn_to_elevator",
-        output="screen",
-    )
-    ld.add_action(sigyn_to_elevator)
+    # sigyn_to_elevator = Node(
+    #     package="sigyn_to_elevator",
+    #     condition=UnlessCondition(use_sim_time),
+    #     executable="sigyn_to_elevator",
+    #     name="sigyn_to_elevator",
+    #     output="screen",
+    # )
+    # ld.add_action(sigyn_to_elevator)
 
     rviz_node = Node(
         package="rviz2",
