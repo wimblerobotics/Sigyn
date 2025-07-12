@@ -1,0 +1,48 @@
+  perimeter_roamer:
+  ros__parameters:
+    # Speeds
+    forward_speed: 0.25      # Linear speed when moving forward (m/s)
+    turn_speed: 0.4         # Angular speed when turning (rad/s)
+    max_angular_speed: 0.8  # Max angular speed clamp (rad/s)
+
+    # Wall Following
+    wall_follow_distance: 0.1  # Desired distance from the right wall (m)
+    wall_dist_error_gain: 0.5  # Proportional gain (Kp) for wall distance error
+    side_scan_angle_min_deg: -120.0 # Start angle for right side scan (degrees)
+    side_scan_angle_max_deg: -40.0 # End angle for right side scan (degrees)
+    wall_presence_threshold: 1.0 # How much further than desired_dist is still considered 'wall present' (m)
+
+    # Obstacle Detection (Scan-based - quick check)
+    front_obstacle_distance: 0.1 # Min distance to obstacle in front to trigger turn (m)
+    front_angle_width_deg: 30.0  # Width of front scan sector (degrees, centered at 0)
+
+    # Obstacle Detection (Costmap-based - safer check)
+    costmap_check_distance: 0.3  # How far ahead to check in the costmap (m)
+    costmap_check_points_front: 3 # Number of points across the front to check (e.g., 3 = left, center, right)
+    robot_width: 0.3             # Approx width of robot for costmap checking (m)
+    costmap_lethal_threshold: 253 # Cost value considered lethal/inscribed (check your Nav2 params)
+
+    # State Machine & Control
+    control_frequency: 10.0    # Hz for the main control loop timer
+    goal_tolerance_dist: 0.1   # Distance tolerance for wall following (m)
+
+    # Stuck Detection
+    stuck_timeout: 5.0         # Time interval to check for movement (s)
+    stuck_distance_threshold: 0.02 # Min distance moved to NOT be stuck (m)
+    stuck_angle_threshold_deg: 5.0 # Min angle turned to NOT be stuck (degrees)
+    recovery_backup_dist: -0.1 # Distance to back up during recovery (m, negative)
+    recovery_backup_time: 1.5  # Duration to back up (s)
+    recovery_turn_angle: 1.57  # Angle to turn during recovery (rad, ~90 deg)
+    recovery_turn_time: 2.0    # Max duration for recovery turn (s)
+
+    # TF / Frames
+    robot_base_frame: "base_link"
+    map_frame: "map"           # Frame used by global costmap & AMCL
+    odom_frame: "odom"         # Frame used by odometry
+
+    # Topics
+    scan_topic: "/scan"
+    odom_topic: "/odom"
+    cmd_vel_topic: "/cmd_vel"
+    local_costmap_topic: "/local_costmap/costmap"
+    # global_costmap_topic: "/global_costmap/costmap" # Optional
