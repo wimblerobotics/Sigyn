@@ -2,16 +2,21 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Attach to WifiLogger",
+      "name": "Attach to permiter_roamer",
       "type": "python",
       "request": "attach",
-      "connect": { "host": "localhost", "port": 5678 },
+      "connect": { 
+        "host": "sigyn7900", 
+        "port": 5678 
+      },
       "pathMappings": [
         {
-          "localRoot": "${workspaceFolder}/src/Sigyn/wifi_logger_visualizer/wifi_logger_visualizer",
-          "remoteRoot": "/home/ros/sigyn_ws/src/Sigyn/wifi_logger_visualizer/wifi_logger_visualizer"
+          "localRoot": "${workspaceFolder}/src/Sigyn/perimeter_roamer/perimeter_roamer",
+          "remoteRoot": "/home/ros/sigyn_ws/src/Sigyn/perimeter_roamer/perimeter_roamer"
         }
-      ]
+      ],
+      "justMyCode": false,
+      "redirectOutput": true
     }
   ]
 }
