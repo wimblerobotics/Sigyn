@@ -6,23 +6,26 @@ package_name = 'perimeter_roamer'
 
 setup(
     name=package_name,
-    version='0.0.1',
+    version='0.0.0',
     packages=[package_name],
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        # Install launch files
+        # Add this line to install launch files
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
-        # Install config files
+        # Add this line to install config files
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
     ],
-    install_requires=['setuptools'],
+    install_requires=[
+        'setuptools',
+        'transforms3d',  # For tf_transformations compatibility
+    ],
     zip_safe=True,
     maintainer='Michael Wimble',
-    maintainer_email='your_ema il@example.com',
-    description='ROS 2 package for perimeter roaming using costmaps.',
-    license='Apache License 2.0', # Or your preferred license
+    maintainer_email='mike@wimblerobotics.com',
+    description='Perimeter roaming robot controller',
+    license='MIT',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
