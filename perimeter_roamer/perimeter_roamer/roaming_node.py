@@ -33,22 +33,34 @@ class PerimeterRoamer(Node):
         self.declare_parameters(
             namespace='',
             parameters=[
-                ('forward_speed', 0.15),
+                # Speeds
+                ('forward_speed', 0.2),
                 ('turn_speed', 0.4),
-                ('max_angular_speed', 0.4),
+                ('max_angular_speed', 0.8),
+                # Wall Following
                 ('wall_follow_distance', 0.5),
                 ('wall_dist_error_gain', 0.3),
-                ('side_scan_angle_min_deg', -80.0),
+                ('side_scan_angle_min_deg', -120.0),
                 ('side_scan_angle_max_deg', -40.0),
-                ('wall_presence_threshold', 0.3),
-                ('front_obstacle_distance', 0.3),
-                ('front_angle_width_deg', 20.0),
-                ('costmap_check_distance', 0.2),
+                ('wall_presence_threshold', 0.4),
+                # Obstacle Detection
+                ('front_obstacle_distance', 0.50),
+                ('front_angle_width_deg', 25.0),
+                # Costmap
+                ('costmap_check_distance', 0.5),
                 ('costmap_check_points_front', 3),
-                ('robot_width', 0.3),
+                ('robot_width', 0.46),
                 ('costmap_lethal_threshold', 253),
+                # Robot Dimensions
+                ('robot_radius', 0.23),
+                ('safety_bubble_radius', 0.28),
+                # Corner Avoidance
+                ('corner_lookahead_distance', 0.28),
+                ('corner_check_angle_deg', 45.0),
+                # State Machine & Control
                 ('control_frequency', 10.0),
                 ('goal_tolerance_dist', 0.1),
+                # Stuck Detection
                 ('stuck_timeout', 5.0),
                 ('stuck_distance_threshold', 0.02),
                 ('stuck_angle_threshold_deg', 5.0),
@@ -56,84 +68,112 @@ class PerimeterRoamer(Node):
                 ('recovery_backup_time', 1.5),
                 ('recovery_turn_angle', 1.57),
                 ('recovery_turn_time', 2.0),
+                # TF / Frames
                 ('robot_base_frame', 'base_link'),
                 ('map_frame', 'map'),
                 ('odom_frame', 'odom'),
+                # Topics
                 ('scan_topic', '/scan'),
                 ('odom_topic', '/odom'),
                 ('cmd_vel_topic', '/cmd_vel'),
                 ('local_costmap_topic', '/local_costmap/costmap'),
-                # Doorway navigation parameters
-                ('doorway_width_threshold', 0.8),
+                # Doorway Navigation
+                ('doorway_width_threshold', 0.55),
                 ('doorway_approach_distance', 1.0),
                 ('doorway_passage_speed', 0.1),
-                ('narrow_passage_threshold', 0.6),
+                ('narrow_passage_threshold', 0.7)
             ])
 
-        # Read parameters
-        self.forward_speed = self.get_parameter('forward_speed').value
-        self.turn_speed = self.get_parameter('turn_speed').value
-        self.max_angular_speed = self.get_parameter('max_angular_speed').value
-        self.wall_follow_distance = self.get_parameter('wall_follow_distance').value
-        self.kp_angular = self.get_parameter('wall_dist_error_gain').value
-        self.side_scan_angle_min = math.radians(self.get_parameter('side_scan_angle_min_deg').value)
-        self.side_scan_angle_max = math.radians(self.get_parameter('side_scan_angle_max_deg').value)
-        self.wall_presence_threshold = self.get_parameter('wall_presence_threshold').value
-        self.front_obstacle_distance = self.get_parameter('front_obstacle_distance').value
-        self.front_angle_width = math.radians(self.get_parameter('front_angle_width_deg').value)
-        self.costmap_check_distance = self.get_parameter('costmap_check_distance').value
-        self.costmap_check_points_front = self.get_parameter('costmap_check_points_front').value
-        self.robot_width = self.get_parameter('robot_width').value
-        self.costmap_lethal_threshold = self.get_parameter('costmap_lethal_threshold').value
-        self.control_frequency = self.get_parameter('control_frequency').value
-        self.goal_tolerance_dist = self.get_parameter('goal_tolerance_dist').value
-        self.stuck_timeout_dur = Duration(seconds=self.get_parameter('stuck_timeout').value)
-        self.stuck_distance_threshold = self.get_parameter('stuck_distance_threshold').value
-        self.stuck_angle_threshold = math.radians(self.get_parameter('stuck_angle_threshold_deg').value)
-        self.recovery_backup_dist = self.get_parameter('recovery_backup_dist').value
-        self.recovery_backup_time = self.get_parameter('recovery_backup_time').value
-        self.recovery_turn_angle = self.get_parameter('recovery_turn_angle').value
-        self.recovery_turn_time = self.get_parameter('recovery_turn_time').value
-        self.robot_base_frame = self.get_parameter('robot_base_frame').value
-        self.map_frame = self.get_parameter('map_frame').value
-        self.odom_frame = self.get_parameter('odom_frame').value
-        self.scan_topic = self.get_parameter('scan_topic').value
-        self.odom_topic = self.get_parameter('odom_topic').value
-        self.cmd_vel_topic = self.get_parameter('cmd_vel_topic').value
-        self.local_costmap_topic = self.get_parameter('local_costmap_topic').value
-        
-        # Doorway navigation parameters
-        self.doorway_width_threshold = self.get_parameter('doorway_width_threshold').value
-        self.doorway_approach_distance = self.get_parameter('doorway_approach_distance').value
-        self.doorway_passage_speed = self.get_parameter('doorway_passage_speed').value
-        self.narrow_passage_threshold = self.get_parameter('narrow_passage_threshold').value
+        # Get parameters
+        # Speeds
+        self.forward_speed = self.get_parameter('forward_speed').get_parameter_value().double_value
+        self.turn_speed = self.get_parameter('turn_speed').get_parameter_value().double_value
+        self.max_angular_speed = self.get_parameter('max_angular_speed').get_parameter_value().double_value
+        # Wall Following
+        self.wall_follow_distance = self.get_parameter('wall_follow_distance').get_parameter_value().double_value
+        self.kp_angular = self.get_parameter('wall_dist_error_gain').get_parameter_value().double_value
+        self.side_scan_angle_min = math.radians(self.get_parameter('side_scan_angle_min_deg').get_parameter_value().double_value)
+        self.side_scan_angle_max = math.radians(self.get_parameter('side_scan_angle_max_deg').get_parameter_value().double_value)
+        self.wall_presence_threshold = self.get_parameter('wall_presence_threshold').get_parameter_value().double_value
+        # Obstacle Detection
+        self.front_obstacle_distance = self.get_parameter('front_obstacle_distance').get_parameter_value().double_value
+        self.front_angle_width = math.radians(self.get_parameter('front_angle_width_deg').get_parameter_value().double_value)
+        # Costmap
+        self.costmap_check_distance = self.get_parameter('costmap_check_distance').get_parameter_value().double_value
+        self.costmap_check_points_front = self.get_parameter('costmap_check_points_front').get_parameter_value().integer_value
+        self.robot_width = self.get_parameter('robot_width').get_parameter_value().double_value
+        self.costmap_lethal_threshold = self.get_parameter('costmap_lethal_threshold').get_parameter_value().integer_value
+        # Robot Dimensions
+        self.robot_radius = self.get_parameter('robot_radius').get_parameter_value().double_value
+        self.safety_bubble_radius = self.get_parameter('safety_bubble_radius').get_parameter_value().double_value
+        # Corner Avoidance
+        self.corner_lookahead_distance = self.get_parameter('corner_lookahead_distance').get_parameter_value().double_value
+        self.corner_check_angle = math.radians(self.get_parameter('corner_check_angle_deg').get_parameter_value().double_value)
+        # State Machine & Control
+        self.control_frequency = self.get_parameter('control_frequency').get_parameter_value().double_value
+        self.goal_tolerance_dist = self.get_parameter('goal_tolerance_dist').get_parameter_value().double_value
+        # Stuck Detection
+        self.stuck_timeout_dur = Duration(seconds=self.get_parameter('stuck_timeout').get_parameter_value().double_value)
+        self.stuck_distance_threshold = self.get_parameter('stuck_distance_threshold').get_parameter_value().double_value
+        self.stuck_angle_threshold = math.radians(self.get_parameter('stuck_angle_threshold_deg').get_parameter_value().double_value)
+        self.recovery_backup_dist = self.get_parameter('recovery_backup_dist').get_parameter_value().double_value
+        self.recovery_backup_time = self.get_parameter('recovery_backup_time').get_parameter_value().double_value
+        self.recovery_turn_angle = self.get_parameter('recovery_turn_angle').get_parameter_value().double_value
+        self.recovery_turn_time = self.get_parameter('recovery_turn_time').get_parameter_value().double_value
+        # TF / Frames
+        self.robot_base_frame = self.get_parameter('robot_base_frame').get_parameter_value().string_value
+        self.map_frame = self.get_parameter('map_frame').get_parameter_value().string_value
+        self.odom_frame = self.get_parameter('odom_frame').get_parameter_value().string_value
+        # Topics
+        self.scan_topic = self.get_parameter('scan_topic').get_parameter_value().string_value
+        self.odom_topic = self.get_parameter('odom_topic').get_parameter_value().string_value
+        self.cmd_vel_topic = self.get_parameter('cmd_vel_topic').get_parameter_value().string_value
+        self.local_costmap_topic = self.get_parameter('local_costmap_topic').get_parameter_value().string_value
+        # Doorway Navigation
+        self.doorway_width_threshold = self.get_parameter('doorway_width_threshold').get_parameter_value().double_value
+        self.doorway_approach_distance = self.get_parameter('doorway_approach_distance').get_parameter_value().double_value
+        self.doorway_passage_speed = self.get_parameter('doorway_passage_speed').get_parameter_value().double_value
+        self.narrow_passage_threshold = self.get_parameter('narrow_passage_threshold').get_parameter_value().double_value
 
-        self.get_logger().info(f"Params: FollowDist={self.wall_follow_distance:.2f}, FwdSpeed={self.forward_speed:.2f}, TurnSpeed={self.turn_speed:.2f}")
 
-        # === State & Data ===
+        # Log parameters
+        self.get_logger().info("--- Loaded Parameters ---")
+        self.get_logger().info(f"Speeds: Forward={self.forward_speed}, Turn={self.turn_speed}")
+        self.get_logger().info(f"Wall Following: Distance={self.wall_follow_distance}, Gain={self.kp_angular}")
+        self.get_logger().info(f"Obstacle Avoidance: FrontDist={self.front_obstacle_distance}, FrontWidth={math.degrees(self.front_angle_width)}deg")
+        self.get_logger().info(f"Corner Avoidance: Lookahead={self.corner_lookahead_distance:.2f}m, Angle={math.degrees(self.corner_check_angle)}deg")
+        self.get_logger().info(f"Costmap: CheckDist={self.costmap_check_distance:.2f}, LethalThreshold={self.costmap_lethal_threshold}")
+        self.get_logger().info(f"Robot: BaseFrame='{self.robot_base_frame}', Radius={self.robot_radius:.2f}m, SafetyBubble={self.safety_bubble_radius:.2f}m")
+        self.get_logger().info("-------------------------")
+
+        # --- State Variables ---
         self.state = State.FIND_WALL
         self.last_scan = None
+        self.transformed_scan_data = None
         self.current_odom_pose = None
         self.local_costmap = None
         self.costmap_metadata = None
         self.costmap_frame = ""
+        self.startup_analysis_done = False
 
-        # Stuck detection
-        self.last_pose_check_time = self.get_clock().now()
+        # Stuck detection variables
         self.last_pose_for_stuck_check = None
+        self.last_pose_check_time = self.get_clock().now()
 
-        # Recovery state tracking
+        # Recovery variables
         self.recovery_start_time = None
         self.recovery_start_pose = None
-        
-        # Doorway navigation state
-        self.doorway_target_angle = 0.0
+        self.recovery_start_yaw = None
+        self.recovery_target_yaw = None
 
-        # === TF ===
+        # Doorway navigation variables
+        self.doorway_target_angle = None
+
+        # --- TF2 ---
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
 
-        # === Publishers & Subscribers ===
+        # --- Publishers and Subscribers ---
         self.cmd_vel_pub = self.create_publisher(Twist, self.cmd_vel_topic, 10)
 
         # Define QoS profile for costmap (volatile, last is best)
@@ -167,6 +207,76 @@ class PerimeterRoamer(Node):
     # --- Callbacks ---
     def scan_callback(self, msg):
         self.last_scan = msg
+        
+        # Transform LIDAR data to base_link frame once when received
+        self.transform_scan_to_base_link(msg)
+
+    def transform_scan_to_base_link(self, scan_msg):
+        """Transform the entire LIDAR scan to base_link frame once when received."""
+        try:
+            # Get the transform from laser frame to base_link
+            laser_frame = scan_msg.header.frame_id
+            transform = self.tf_buffer.lookup_transform(
+                self.robot_base_frame,  # target frame (base_link)
+                laser_frame,            # source frame (laser)
+                scan_msg.header.stamp,  # time
+                timeout=Duration(seconds=0.1)
+            )
+            
+            # Debug: Print the transform once
+            if not hasattr(self, '_transform_logged'):
+                trans = transform.transform.translation
+                rot = transform.transform.rotation
+                _, _, yaw = tf_transformations.euler_from_quaternion([rot.x, rot.y, rot.z, rot.w])
+                self.get_logger().info(f"TF: {laser_frame} -> {self.robot_base_frame}")
+                self.get_logger().info(f"  Translation: ({trans.x:.3f}, {trans.y:.3f}, {trans.z:.3f})")
+                self.get_logger().info(f"  Rotation: yaw={math.degrees(yaw):.1f}°")
+                self._transform_logged = True
+                
+        except (LookupException, ConnectivityException, ExtrapolationException) as e:
+            self.get_logger().warn(f"Failed to get transform from {laser_frame} to {self.robot_base_frame}: {e}")
+            self.transformed_scan_data = None
+            return
+        
+        # Transform all scan points to base_link frame
+        trans = transform.transform.translation
+        rot = transform.transform.rotation
+        _, _, yaw = tf_transformations.euler_from_quaternion([rot.x, rot.y, rot.z, rot.w])
+        
+        # Create transformed scan data structure
+        self.transformed_scan_data = {
+            'header': scan_msg.header,
+            'angle_min': scan_msg.angle_min,
+            'angle_max': scan_msg.angle_max,
+            'angle_increment': scan_msg.angle_increment,
+            'range_min': scan_msg.range_min,
+            'range_max': scan_msg.range_max,
+            'ranges': scan_msg.ranges,
+            'base_link_points': []  # List of (x, y, original_angle, range) in base_link frame
+        }
+        
+        # Transform each valid scan point
+        for i, range_value in enumerate(scan_msg.ranges):
+            if scan_msg.range_min < range_value < scan_msg.range_max:
+                # Calculate angle for this index
+                angle_in_laser_frame = scan_msg.angle_min + i * scan_msg.angle_increment
+                
+                # Convert polar to Cartesian in laser frame
+                x_laser = range_value * math.cos(angle_in_laser_frame)
+                y_laser = range_value * math.sin(angle_in_laser_frame)
+                
+                # Transform to base_link frame
+                x_base = x_laser * math.cos(yaw) - y_laser * math.sin(yaw) + trans.x
+                y_base = x_laser * math.sin(yaw) + y_laser * math.cos(yaw) + trans.y
+                
+                # Store the transformed point
+                self.transformed_scan_data['base_link_points'].append({
+                    'x': x_base,
+                    'y': y_base,
+                    'original_angle': angle_in_laser_frame,
+                    'range': range_value,
+                    'index': i
+                })
 
     def odom_callback(self, msg):
         self.current_odom_pose = msg.pose.pose
@@ -184,87 +294,6 @@ class PerimeterRoamer(Node):
 
 
     # --- Utility Functions ---
-    def get_scan_indices(self, angle_min_rad, angle_max_rad):
-        """Calculates laser scan indices corresponding to angle ranges."""
-        if not self.last_scan or self.last_scan.angle_increment == 0.0:
-             return None, None
-
-        angle_min_scan = self.last_scan.angle_min
-        angle_max_scan = self.last_scan.angle_max
-        angle_inc = self.last_scan.angle_increment
-
-        # Ensure requested angles are within scan limits, handle angle wrap if necessary
-        eff_angle_min = max(angle_min_rad, angle_min_scan)
-        eff_angle_max = min(angle_max_rad, angle_max_scan)
-
-        if eff_angle_max < eff_angle_min:
-            # This could happen if the range crosses the 0/2pi boundary, handle if necessary
-            # For typical side/front checks, this isn't usually an issue.
-            return None, None
-
-        start_index = int(math.floor((eff_angle_min - angle_min_scan) / angle_inc))
-        end_index = int(math.ceil((eff_angle_max - angle_min_scan) / angle_inc))
-
-        # Clamp indices to valid range
-        start_index = max(0, start_index)
-        end_index = min(len(self.last_scan.ranges) - 1, end_index)
-
-        if start_index > end_index: return None, None
-
-        return start_index, end_index
-
-    def check_obstacle_in_scan_sector(self, angle_min_rad, angle_max_rad, max_distance):
-        """ Checks for obstacles within a given scan sector and distance. Returns (obstacle_found, min_distance) """
-        if not self.last_scan: return False, float('inf')
-
-        start_idx, end_idx = self.get_scan_indices(angle_min_rad, angle_max_rad)
-        if start_idx is None: return False, float('inf') # No points in angular range
-
-        min_dist_found = float('inf')
-        obstacle_detected = False
-
-        # Ensure indices are within list bounds after calculation
-        num_ranges = len(self.last_scan.ranges)
-        start_idx = min(start_idx, num_ranges - 1)
-        end_idx = min(end_idx, num_ranges - 1)
-
-        relevant_ranges = self.last_scan.ranges[start_idx : end_idx + 1]
-        for r in relevant_ranges:
-            # Check for valid range reading
-            if self.last_scan.range_min < r < self.last_scan.range_max:
-                if r < max_distance:
-                    obstacle_detected = True
-                    min_dist_found = min(min_dist_found, r)
-
-        return obstacle_detected, min_dist_found
-
-    def get_distance_in_scan_sector(self, angle_min_rad, angle_max_rad):
-        """ Calculates the average distance of valid points in a scan sector. Returns (valid_measurement, average_distance) """
-        if not self.last_scan: return False, float('inf')
-
-        start_idx, end_idx = self.get_scan_indices(angle_min_rad, angle_max_rad)
-        if start_idx is None: return False, float('inf')
-
-        distances = []
-        num_ranges = len(self.last_scan.ranges)
-        start_idx = min(start_idx, num_ranges - 1)
-        end_idx = min(end_idx, num_ranges - 1)
-
-
-        relevant_ranges = self.last_scan.ranges[start_idx : end_idx + 1]
-        for r in relevant_ranges:
-             # Use a slightly larger range than wall_follow_distance to ensure we detect the wall even if we are a bit far
-            max_relevant_dist = self.wall_follow_distance + self.wall_presence_threshold + 0.2 # Be generous
-            if self.last_scan.range_min < r < max_relevant_dist:
-                distances.append(r)
-
-        if not distances:
-            return False, float('inf')
-
-        # Optional: Could use median instead of average for robustness to outliers
-        avg_dist = sum(distances) / len(distances)
-        return True, avg_dist
-
     def check_costmap_for_collision(self):
         """ Checks the local costmap ahead of the robot for lethal obstacles. """
         if self.local_costmap is None or self.costmap_metadata is None or not self.costmap_frame:
@@ -380,6 +409,30 @@ class PerimeterRoamer(Node):
 
         return collision_detected
 
+    def check_safety_bubble(self):
+        """
+        Checks if any obstacle has breached the robot's safety bubble.
+        This is a last-resort check to prevent immediate collision.
+        Checks a 360-degree circle around the robot.
+        """
+        if not self.transformed_scan_data:
+            self.get_logger().warn("No transformed scan data for safety bubble check.")
+            return True # Assume breach if no data
+
+        breached, min_dist = self.check_obstacle_in_base_link_sector(
+            -math.pi, # Start angle
+            math.pi,  # End angle
+            self.safety_bubble_radius # Max distance
+        )
+
+        if breached:
+            self.get_logger().fatal(
+                f"SAFETY BUBBLE BREACHED! Obstacle at {min_dist:.2f}m "
+                f"(radius: {self.safety_bubble_radius:.2f}m)"
+            )
+
+        return breached
+
     def is_stuck(self):
         """ Checks if the robot has moved significantly since the last check. """
         now = self.get_clock().now()
@@ -437,17 +490,42 @@ class PerimeterRoamer(Node):
         self.cmd_vel_pub.publish(twist)
         self.get_logger().info("Robot stopped.")
 
+    def check_for_corner_collision(self):
+        """
+        Checks for obstacles in the 'inner corner' sector during a right turn.
+        This is to prevent the robot from cutting a corner too sharply and hitting it.
+        The check is performed in a sector from 0 degrees to a negative angle (the right side).
+        """
+        if not self.transformed_scan_data:
+            self.get_logger().warn("No transformed scan data for corner check.")
+            return True # Assume collision if no data
+
+        # The sector to check is from 0 (straight ahead) to -self.corner_check_angle (to the right)
+        start_angle = -self.corner_check_angle
+        end_angle = 0.0 # Straight ahead
+
+        obstacle_found, min_dist = self.check_obstacle_in_base_link_sector(
+            start_angle,
+            end_angle,
+            self.corner_lookahead_distance
+        )
+
+        if obstacle_found:
+            self.get_logger().warn(f"Potential corner collision DETECTED at {min_dist:.2f}m, which is less than lookahead {self.corner_lookahead_distance:.2f}m.")
+        
+        return obstacle_found
+
     def detect_doorway_ahead(self):
-        """Detects if there's a doorway/opening ahead of the robot."""
-        if not self.last_scan:
+        """Detects if there's a doorway/opening ahead of the robot using transformed data."""
+        if not self.transformed_scan_data:
             return False, 0.0, 0.0
         
-        # Look ahead at different angles to find an opening
-        search_angles = []
+        # Look ahead at different angles to find an opening in base_link frame
         search_distance = self.doorway_approach_distance
         
-        # Create array of angles to check (from left to right)
+        # Create array of angles to check (from left to right) in base_link frame
         num_checks = 20
+        search_angles = []
         for i in range(num_checks):
             angle = math.radians(-45 + (i * 90.0 / (num_checks - 1)))  # -45° to +45°
             search_angles.append(angle)
@@ -458,8 +536,8 @@ class PerimeterRoamer(Node):
         current_opening_start = None
         
         for angle in search_angles:
-            # Check if this angle is clear
-            obstacle_found, dist = self.check_obstacle_in_scan_sector(
+            # Check if this angle is clear using transformed data
+            obstacle_found, dist = self.check_obstacle_in_base_link_sector(
                 angle - math.radians(2), angle + math.radians(2), search_distance)
             
             if not obstacle_found:  # Clear space
@@ -478,14 +556,182 @@ class PerimeterRoamer(Node):
         is_doorway = best_opening_width > self.doorway_width_threshold
         return is_doorway, best_opening_width, best_opening_center
 
+    def debug_front_scan_readings(self):
+        """ Debug method to analyze LIDAR readings in front of the robot using transformed data """
+        if not self.transformed_scan_data:
+            return
+            
+        # Check readings in a 10-degree arc in front (±5 degrees) using transformed data
+        debug_angle_width = math.radians(10.0)  # 10-degree arc
+        front_obstacle, min_dist = self.check_obstacle_in_base_link_sector(
+            -debug_angle_width / 2.0, debug_angle_width / 2.0, 5.0)  # Check up to 5m
+        
+        # Get points in the front sector from transformed data
+        front_points = []
+        for point in self.transformed_scan_data['base_link_points']:
+            angle_in_base = math.atan2(point['y'], point['x'])
+            if -debug_angle_width / 2.0 <= angle_in_base <= debug_angle_width / 2.0:
+                distance = math.sqrt(point['x']**2 + point['y']**2)
+                front_points.append({
+                    'angle_deg': math.degrees(angle_in_base),
+                    'distance': distance,
+                    'x': point['x'],
+                    'y': point['y']
+                })
+        
+        # Sort by angle for display
+        front_points.sort(key=lambda p: p['angle_deg'])
+        
+        # Log sample readings
+        readings = []
+        for i, point in enumerate(front_points):
+            if i % 3 == 0:  # Show every 3rd point to avoid spam
+                readings.append(f"{point['angle_deg']:.1f}°:{point['distance']:.2f}m")
+        
+        self.get_logger().info(f"Front LIDAR (±5° base_link): {' '.join(readings)}, Min={min_dist:.2f}m, ObstacleDetected={front_obstacle}")
+        
+        # Also check the specific front obstacle detection parameters using transformed data
+        config_front_obstacle, config_dist = self.check_obstacle_in_base_link_sector(
+            -self.front_angle_width / 2.0, self.front_angle_width / 2.0, self.front_obstacle_distance)
+        
+        self.get_logger().info(f"Config check (base_link): angle_width={math.degrees(self.front_angle_width):.1f}°, "
+                             f"max_dist={self.front_obstacle_distance:.2f}m, obstacle={config_front_obstacle}, "
+                             f"closest={config_dist:.2f}m")
+        
+        # Debug: Show the actual parameter values being used
+        self.get_logger().info(f"DEBUG: Current parameters - front_obstacle_distance={self.front_obstacle_distance:.2f}m, "
+                             f"front_angle_width_deg={math.degrees(self.front_angle_width):.1f}°")
+
+    def check_obstacle_in_base_link_sector(self, angle_min_rad, angle_max_rad, max_distance):
+        """Check for obstacles using pre-transformed LIDAR data in base_link frame."""
+        if not self.transformed_scan_data or not self.transformed_scan_data['base_link_points']:
+            return False, float('inf')
+        
+        min_dist_found = float('inf')
+        obstacle_detected = False
+        
+        # Check each transformed point
+        for point in self.transformed_scan_data['base_link_points']:
+            x, y = point['x'], point['y']
+            
+            # Calculate angle and distance in base_link frame
+            angle_in_base = math.atan2(y, x)
+            distance_in_base = math.sqrt(x*x + y*y)
+            
+            # Check if this point is within the specified angular sector
+            if angle_min_rad <= angle_in_base <= angle_max_rad:
+                # Check if obstacle is within the specified distance
+                if distance_in_base < max_distance:
+                    obstacle_detected = True
+                    min_dist_found = min(min_dist_found, distance_in_base)
+        
+        return obstacle_detected, min_dist_found
+    
+    def get_distance_in_base_link_sector(self, angle_min_rad, angle_max_rad):
+        """Get average distance in angular sector using pre-transformed data."""
+        if not self.transformed_scan_data or not self.transformed_scan_data['base_link_points']:
+            return False, float('inf')
+        
+        distances = []
+        
+        # Check each transformed point
+        for point in self.transformed_scan_data['base_link_points']:
+            x, y = point['x'], point['y']
+            
+            # Calculate angle and distance in base_link frame
+            angle_in_base = math.atan2(y, x)
+            distance_in_base = math.sqrt(x*x + y*y)
+            
+            # Check if this point is within the specified angular sector
+            if angle_min_rad <= angle_in_base <= angle_max_rad:
+                # Use a reasonable distance threshold for wall detection
+                max_relevant_dist = self.wall_follow_distance + self.wall_presence_threshold + 0.2
+                if distance_in_base < max_relevant_dist:
+                    distances.append(distance_in_base)
+        
+        if not distances:
+            return False, float('inf')
+        
+        avg_dist = sum(distances) / len(distances)
+        return True, avg_dist
+
+    def analyze_startup_lidar_scan(self):
+        """Analyze LIDAR readings at startup to verify expected walls at 0°, 90°, 180°, 270°"""
+        if not self.transformed_scan_data:
+            return
+            
+        self.get_logger().info("=== STARTUP LIDAR ANALYSIS ===")
+        self.get_logger().info(f"Scan frame: {self.transformed_scan_data['header'].frame_id}")
+        self.get_logger().info(f"Transformed points: {len(self.transformed_scan_data['base_link_points'])}")
+        
+        # Expected wall positions in base_link frame: [angle_deg, expected_distance, description]
+        expected_walls = [
+            (0, 1.35, "Front wall"),
+            (90, 1.0, "Left wall"),
+            (180, 0.98, "Back wall"),
+            (270, 2.45, "Right wall")
+        ]
+        
+        for angle_deg, expected_dist, description in expected_walls:
+            angle_rad = math.radians(angle_deg)
+            
+            # Find the closest point to this angle in base_link frame
+            closest_point = None
+            min_angle_diff = float('inf')
+            
+            for point in self.transformed_scan_data['base_link_points']:
+                point_angle = math.atan2(point['y'], point['x'])
+                angle_diff = abs(self.normalize_angle(point_angle - angle_rad))
+                
+                if angle_diff < min_angle_diff:
+                    min_angle_diff = angle_diff
+                    closest_point = point
+            
+            if closest_point:
+                actual_dist = math.sqrt(closest_point['x']**2 + closest_point['y']**2)
+                actual_angle = math.degrees(math.atan2(closest_point['y'], closest_point['x']))
+                
+                self.get_logger().info(f"{description} ({angle_deg}°):")
+                self.get_logger().info(f"  Expected: {expected_dist:.2f}m")
+                self.get_logger().info(f"  Found: {actual_dist:.2f}m at {actual_angle:.1f}° in base_link")
+                self.get_logger().info(f"  Base_link coords: ({closest_point['x']:.2f}, {closest_point['y']:.2f})")
+                self.get_logger().info(f"  Difference: {abs(actual_dist - expected_dist):.2f}m")
+            else:
+                self.get_logger().warn(f"{description}: No points found!")
+        
+        # Test front obstacle detection
+        front_obstacle, front_dist = self.check_obstacle_in_base_link_sector(
+            -math.radians(15), math.radians(15), self.front_obstacle_distance)
+        
+        self.get_logger().info(f"\nFront obstacle detection (threshold {self.front_obstacle_distance:.2f}m):")
+        self.get_logger().info(f"  Obstacle detected: {front_obstacle}")
+        self.get_logger().info(f"  Minimum distance: {front_dist:.2f}m")
+        self.get_logger().info("=== END LIDAR ANALYSIS ===\n")
+
     # --- Main Control Loop ---
     def control_loop(self):
-        if self.last_scan is None or self.current_odom_pose is None:
-            self.get_logger().info("Waiting for sensor data (scan, odom)...", throttle_duration_sec=5)
+        if self.last_scan is None or self.current_odom_pose is None or self.transformed_scan_data is None:
+            self.get_logger().info("Waiting for sensor data (scan, odom, transformed_scan)...", throttle_duration_sec=5)
             return
 
-        # --- Pre-checks (Higher Priority) ---
-        # 1. Costmap Collision Check (most reliable immediate obstacle check)
+        # === STARTUP ANALYSIS ===
+        if not self.startup_analysis_done and self.transformed_scan_data is not None:
+            self.get_logger().info("Performing startup LIDAR analysis...")
+            self.analyze_startup_lidar_scan()
+            self.startup_analysis_done = True
+
+        # --- Pre-checks (Highest Priority) ---
+        # 0. Safety Bubble Check (last resort, immediate stop)
+        if self.state not in [State.RECOVERY_BACKUP, State.RECOVERY_TURN, State.STOPPED]:
+            if self.check_safety_bubble():
+                self.get_logger().error("Safety bubble breached! Initiating recovery.")
+                self.state = State.RECOVERY_BACKUP
+                self.recovery_start_time = self.get_clock().now()
+                self.recovery_start_pose = self.current_odom_pose
+                self.stop_robot() # Stop immediately
+                return
+
+        # 1. Costmap Collision Check (reliable immediate obstacle check)
         if self.state not in [State.RECOVERY_BACKUP, State.RECOVERY_TURN, State.STOPPED]: # Don't override recovery
             if self.check_costmap_for_collision():
                 self.get_logger().warn("Costmap reports imminent collision! Switching to TURN_LEFT.")
@@ -513,25 +759,29 @@ class PerimeterRoamer(Node):
         now = self.get_clock().now()
 
         if self.state == State.FIND_WALL:
-            # Move forward until obstacle detected by SCAN (quicker check) or costmap (handled above)
-            front_obstacle, dist = self.check_obstacle_in_scan_sector(
+            # Move forward until obstacle detected in front (0° in base_link frame)
+            front_obstacle, dist = self.check_obstacle_in_base_link_sector(
                 -self.front_angle_width / 2.0, self.front_angle_width / 2.0, self.front_obstacle_distance)
 
+            # DEBUG: Log detailed front scan information
+            self.debug_front_scan_readings()
+
             if front_obstacle:
-                self.get_logger().info(f"Scan detected obstacle at {dist:.2f}m. Transitioning to TURN_LEFT.")
+                self.get_logger().info(f"Front obstacle detected at {dist:.2f}m. Transitioning to TURN_LEFT.")
                 self.state = State.TURN_LEFT
                 twist.linear.x = 0.0
                 twist.angular.z = self.turn_speed # Start turning left
             else:
                 # Go forward if clear
+                self.get_logger().info(f"No front obstacle detected within {self.front_obstacle_distance:.2f}m. Moving forward.")
                 twist.linear.x = self.forward_speed
                 twist.angular.z = 0.0
 
         elif self.state == State.TURN_LEFT:
             # Turn left until front is clear and wall is detected on the right
-            front_obstacle, _ = self.check_obstacle_in_scan_sector(
+            front_obstacle, _ = self.check_obstacle_in_base_link_sector(
                  -self.front_angle_width / 2.0, self.front_angle_width / 2.0, self.front_obstacle_distance * 1.2) # Slightly larger distance to ensure clearance
-            wall_on_right, right_dist = self.get_distance_in_scan_sector(self.side_scan_angle_min, self.side_scan_angle_max)
+            wall_on_right, right_dist = self.get_distance_in_base_link_sector(self.side_scan_angle_min, self.side_scan_angle_max)
 
             # Check if costmap is also clear in front before proceeding
             costmap_clear = not self.check_costmap_for_collision()
@@ -556,8 +806,8 @@ class PerimeterRoamer(Node):
             # Check for doorway ahead
             is_doorway, opening_width, opening_center = self.detect_doorway_ahead()
             
-            # Primary check: Front obstacle via SCAN
-            front_obstacle, front_dist = self.check_obstacle_in_scan_sector(
+            # Primary check: Front obstacle via transformed scan data
+            front_obstacle, front_dist = self.check_obstacle_in_base_link_sector(
                  -self.front_angle_width / 2.0, self.front_angle_width / 2.0, self.front_obstacle_distance)
 
             if front_obstacle and not is_doorway:
@@ -576,7 +826,7 @@ class PerimeterRoamer(Node):
                 twist.angular.z = opening_center * 0.5  # Gentle turn toward center
             else:
                 # Normal wall following
-                wall_on_right, right_dist = self.get_distance_in_scan_sector(self.side_scan_angle_min, self.side_scan_angle_max)
+                wall_on_right, right_dist = self.get_distance_in_base_link_sector(self.side_scan_angle_min, self.side_scan_angle_max)
 
                 if not wall_on_right or right_dist > self.wall_follow_distance + self.wall_presence_threshold:
                     # Lost the wall - turn right to find it
@@ -602,9 +852,19 @@ class PerimeterRoamer(Node):
                     speed_reduction_factor = 1.0 - min(abs(twist.angular.z) / self.max_angular_speed, 0.7)
                     twist.linear.x = self.forward_speed * speed_reduction_factor * speed_factor
 
+                    # --- Corner Collision Avoidance ---
+                    # If making a right turn (approaching an inner corner), check for collision.
+                    # A small threshold on angular velocity avoids this logic on minor corrections.
+                    if twist.angular.z < -0.1:
+                        if self.check_for_corner_collision():
+                            self.get_logger().warn("Corner collision detected! Overriding wall follower. Turning left to avoid.")
+                            # Stop forward motion and execute a left turn to create space.
+                            twist.linear.x = 0.0
+                            twist.angular.z = self.turn_speed * 0.75 # Turn left at a moderate speed
+
         elif self.state == State.NAVIGATE_DOORWAY:
             # Navigate through the doorway
-            front_obstacle, front_dist = self.check_obstacle_in_scan_sector(
+            front_obstacle, front_dist = self.check_obstacle_in_base_link_sector(
                 -self.front_angle_width / 4.0, self.front_angle_width / 4.0, self.front_obstacle_distance)
             
             if front_obstacle and front_dist < 0.3:
@@ -729,4 +989,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-    
