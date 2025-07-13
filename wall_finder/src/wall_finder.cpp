@@ -53,7 +53,7 @@ private:
         // Load parameters from YAML file if config argument is provided
         if (config_file_path_.empty()) {
             // Use ROS parameters
-            this->declare_parameter<std::string>("costmap_topic", "/global_costmap/costmap");
+            this->declare_parameter<std::string>("costmap_topic", "/global_costmap/static_layer");
             this->declare_parameter<int>("costmap_threshold", 50);
             this->declare_parameter<int>("wall_threshold", 95);
             this->declare_parameter<int>("erosion_size", 5);
