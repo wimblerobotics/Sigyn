@@ -73,7 +73,6 @@ private:
             // Use ROS parameters
             this->declare_parameter<std::string>("costmap_topic", "/global_costmap/static_layer");
             this->declare_parameter<int>("costmap_threshold", 50);
-            this->declare_parameter<int>("wall_threshold", 95);
             this->declare_parameter<int>("erosion_size", 5);
             this->declare_parameter<int>("erosion_iterations", 2);
             this->declare_parameter<double>("min_wall_length_inches", 5.0);
@@ -91,7 +90,6 @@ private:
             
             costmap_topic_ = this->get_parameter("costmap_topic").as_string();
             costmap_threshold_ = this->get_parameter("costmap_threshold").as_int();
-            wall_threshold_ = this->get_parameter("wall_threshold").as_int();
             erosion_size_ = this->get_parameter("erosion_size").as_int();
             erosion_iterations_ = this->get_parameter("erosion_iterations").as_int();
             min_wall_length_inches_ = this->get_parameter("min_wall_length_inches").as_double();
@@ -165,27 +163,36 @@ private:
         // Convert occupancy grid to OpenCV image
         cv::Mat occupancy_image = occupancyGridToImage(msg);
         
-        // Create a mask for only highly occupied areas (actual walls, not inflated areas)
+        // Create a mask for wall detection - use a lower threshold to capture wall edges
         cv::Mat wall_mask;
-        double high_occupancy_threshold = (wall_threshold_ / 100.0) * 255.0;
-        cv::threshold(occupancy_image, wall_mask, high_occupancy_threshold, 255, cv::THRESH_BINARY);
+        double wall_detection_threshold = (costmap_threshold_ / 100.0) * 255.0;
+        cv::threshold(occupancy_image, wall_mask, wall_detection_threshold, 255, cv::THRESH_BINARY);
         
-        // Apply morphological operations to clean up noise
+        // Apply slight morphological operations to clean up noise but preserve edges
         cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
         cv::morphologyEx(wall_mask, wall_mask, cv::MORPH_CLOSE, kernel);
-        cv::morphologyEx(wall_mask, wall_mask, cv::MORPH_OPEN, kernel);
         
-        // Apply thinning/skeletonization to find wall centerlines
-        cv::Mat skeleton = skeletonize(wall_mask);
+        // Apply Gaussian blur to reduce noise before edge detection
+        cv::Mat blurred;
+        cv::GaussianBlur(wall_mask, blurred, cv::Size(3, 3), 0);
         
-        // Apply Hough line detection directly on the skeleton
+        // Apply Canny edge detection to find wall edges
+        cv::Mat edges;
+        cv::Canny(blurred, edges, 50, 150, 3);
+        
+        // Apply slight dilation to make edges more continuous
+        cv::Mat dilated_edges;
+        cv::Mat edge_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+        cv::dilate(edges, dilated_edges, edge_kernel, cv::Point(-1, -1), 1);
+        
+        // Apply Hough line detection on the edges
         std::vector<cv::Vec4i> lines;
-        cv::HoughLinesP(skeleton, lines, hough_rho_, hough_theta_, hough_threshold_, 
+        cv::HoughLinesP(dilated_edges, lines, hough_rho_, hough_theta_, hough_threshold_, 
                        hough_min_line_length_, hough_max_line_gap_);
         
-        RCLCPP_INFO(this->get_logger(), "Using wall threshold: %d%% (%.1f in image space) for high occupancy", 
-                   wall_threshold_, high_occupancy_threshold);
-        RCLCPP_INFO(this->get_logger(), "Detected %zu raw line segments from wall skeletons", lines.size());
+        RCLCPP_INFO(this->get_logger(), "Using wall detection threshold: %d%% (%.1f in image space) for edge detection", 
+                   costmap_threshold_, wall_detection_threshold);
+        RCLCPP_INFO(this->get_logger(), "Detected %zu raw line segments from wall edges", lines.size());
         
         // Convert line segments to wall segments
         std::vector<WallSegment> wall_segments = linesToWallSegments(lines, msg);
@@ -511,34 +518,10 @@ private:
         }
     }
 
-    // Skeletonization function to find centerlines of thick walls
-    cv::Mat skeletonize(const cv::Mat& src) {
-        cv::Mat image = src.clone();
-        cv::Mat skeleton(image.size(), CV_8UC1, cv::Scalar(0));
-        cv::Mat temp;
-        cv::Mat eroded;
-        
-        cv::Mat element = cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3, 3));
-        
-        bool done = false;
-        while (!done) {
-            cv::erode(image, eroded, element);
-            cv::dilate(eroded, temp, element);
-            cv::subtract(image, temp, temp);
-            cv::bitwise_or(skeleton, temp, skeleton);
-            eroded.copyTo(image);
-            
-            done = (cv::countNonZero(image) == 0);
-        }
-        
-        return skeleton;
-    }
-
     // Member variables
     std::string config_file_path_;
     std::string costmap_topic_;
     int costmap_threshold_;
-    int wall_threshold_;
     int erosion_size_;
     int erosion_iterations_;
     double min_wall_length_inches_;

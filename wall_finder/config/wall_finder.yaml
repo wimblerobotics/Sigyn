@@ -3,7 +3,6 @@ wall_finder:
     # Costmap processing parameters
     costmap_topic: "/global_costmap/static_layer"
     costmap_threshold: 50  # Threshold for occupied space (0-100 scale, 50 = 50% occupied)
-    wall_threshold: 80     # Threshold for actual walls (0-100 scale, 80 = 80% occupied)
     erosion_size: 3        # Size of erosion kernel (smaller since static layer is cleaner)
     erosion_iterations: 1  # Number of erosion iterations (fewer needed)
     
