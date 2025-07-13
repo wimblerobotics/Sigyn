@@ -18,9 +18,10 @@ class State(Enum):
     FIND_WALL = 0
     TURN_LEFT = 1
     FOLLOW_WALL = 2
-    RECOVERY_BACKUP = 3
-    RECOVERY_TURN = 4
-    STOPPED = 5
+    NAVIGATE_DOORWAY = 3
+    RECOVERY_BACKUP = 4
+    RECOVERY_TURN = 5
+    STOPPED = 6
 
 class PerimeterRoamer(Node):
     def __init__(self):
@@ -34,15 +35,15 @@ class PerimeterRoamer(Node):
             parameters=[
                 ('forward_speed', 0.15),
                 ('turn_speed', 0.4),
-                ('max_angular_speed', 0.8),
+                ('max_angular_speed', 0.4),
                 ('wall_follow_distance', 0.5),
-                ('wall_dist_error_gain', 1.5),
+                ('wall_dist_error_gain', 0.3),
                 ('side_scan_angle_min_deg', -80.0),
                 ('side_scan_angle_max_deg', -40.0),
                 ('wall_presence_threshold', 0.3),
-                ('front_obstacle_distance', 0.4),
-                ('front_angle_width_deg', 30.0),
-                ('costmap_check_distance', 0.3),
+                ('front_obstacle_distance', 0.3),
+                ('front_angle_width_deg', 20.0),
+                ('costmap_check_distance', 0.2),
                 ('costmap_check_points_front', 3),
                 ('robot_width', 0.3),
                 ('costmap_lethal_threshold', 253),
@@ -62,6 +63,11 @@ class PerimeterRoamer(Node):
                 ('odom_topic', '/odom'),
                 ('cmd_vel_topic', '/cmd_vel'),
                 ('local_costmap_topic', '/local_costmap/costmap'),
+                # Doorway navigation parameters
+                ('doorway_width_threshold', 0.8),
+                ('doorway_approach_distance', 1.0),
+                ('doorway_passage_speed', 0.1),
+                ('narrow_passage_threshold', 0.6),
             ])
 
         # Read parameters
@@ -95,6 +101,12 @@ class PerimeterRoamer(Node):
         self.odom_topic = self.get_parameter('odom_topic').value
         self.cmd_vel_topic = self.get_parameter('cmd_vel_topic').value
         self.local_costmap_topic = self.get_parameter('local_costmap_topic').value
+        
+        # Doorway navigation parameters
+        self.doorway_width_threshold = self.get_parameter('doorway_width_threshold').value
+        self.doorway_approach_distance = self.get_parameter('doorway_approach_distance').value
+        self.doorway_passage_speed = self.get_parameter('doorway_passage_speed').value
+        self.narrow_passage_threshold = self.get_parameter('narrow_passage_threshold').value
 
         self.get_logger().info(f"Params: FollowDist={self.wall_follow_distance:.2f}, FwdSpeed={self.forward_speed:.2f}, TurnSpeed={self.turn_speed:.2f}")
 
@@ -113,6 +125,9 @@ class PerimeterRoamer(Node):
         # Recovery state tracking
         self.recovery_start_time = None
         self.recovery_start_pose = None
+        
+        # Doorway navigation state
+        self.doorway_target_angle = 0.0
 
         # === TF ===
         self.tf_buffer = tf2_ros.Buffer()
@@ -256,6 +271,16 @@ class PerimeterRoamer(Node):
             self.get_logger().warn("Costmap data not available for collision check.")
             return True # Assume collision if no data? Safer option.
 
+        # Be less aggressive about costmap collisions in narrow spaces
+        is_doorway, opening_width, _ = self.detect_doorway_ahead()
+        if is_doorway or opening_width < self.narrow_passage_threshold:
+            # In narrow spaces, only worry about truly lethal obstacles
+            lethal_threshold = 254  # More permissive
+            check_distance = 0.15   # Shorter look-ahead
+        else:
+            lethal_threshold = self.costmap_lethal_threshold
+            check_distance = self.costmap_check_distance
+
         try:
             # Get the robot's current pose in the costmap frame
             transform = self.tf_buffer.lookup_transform(
@@ -279,11 +304,11 @@ class PerimeterRoamer(Node):
         half_width = self.robot_width / 2.0
 
         if num_checks <= 1:
-            check_points_base.append(Point(x=self.costmap_check_distance, y=0.0, z=0.0))
+            check_points_base.append(Point(x=check_distance, y=0.0, z=0.0))
         else:
             for i in range(num_checks):
                 y_offset = half_width - (i * self.robot_width / (num_checks - 1))
-                check_points_base.append(Point(x=self.costmap_check_distance, y=y_offset, z=0.0))
+                check_points_base.append(Point(x=check_distance, y=y_offset, z=0.0))
 
         # Transform check points to costmap frame and check cost
         resolution = self.costmap_metadata.resolution
@@ -327,7 +352,7 @@ class PerimeterRoamer(Node):
                     cost = self.local_costmap[index]
                     # self.get_logger().debug(f"Checking point ({pt_map_x:.2f}, {pt_map_y:.2f}) -> cell ({mx}, {my}), cost={cost}")
 
-                    if cost >= self.costmap_lethal_threshold:
+                    if cost >= lethal_threshold:
                         self.get_logger().warn(f"Costmap collision detected at cell ({mx}, {my}), cost={cost}")
                         collision_detected = True
                         marker.color.r = 1.0; marker.color.g = 0.0; marker.color.b = 0.0 # Red
@@ -412,6 +437,47 @@ class PerimeterRoamer(Node):
         self.cmd_vel_pub.publish(twist)
         self.get_logger().info("Robot stopped.")
 
+    def detect_doorway_ahead(self):
+        """Detects if there's a doorway/opening ahead of the robot."""
+        if not self.last_scan:
+            return False, 0.0, 0.0
+        
+        # Look ahead at different angles to find an opening
+        search_angles = []
+        search_distance = self.doorway_approach_distance
+        
+        # Create array of angles to check (from left to right)
+        num_checks = 20
+        for i in range(num_checks):
+            angle = math.radians(-45 + (i * 90.0 / (num_checks - 1)))  # -45° to +45°
+            search_angles.append(angle)
+        
+        # Find the widest clear opening
+        best_opening_width = 0.0
+        best_opening_center = 0.0
+        current_opening_start = None
+        
+        for angle in search_angles:
+            # Check if this angle is clear
+            obstacle_found, dist = self.check_obstacle_in_scan_sector(
+                angle - math.radians(2), angle + math.radians(2), search_distance)
+            
+            if not obstacle_found:  # Clear space
+                if current_opening_start is None:
+                    current_opening_start = angle
+            else:  # Obstacle found
+                if current_opening_start is not None:
+                    # End of opening - calculate width
+                    opening_width = abs(angle - current_opening_start) * search_distance
+                    if opening_width > best_opening_width:
+                        best_opening_width = opening_width
+                        best_opening_center = (current_opening_start + angle) / 2.0
+                    current_opening_start = None
+        
+        # Check if we have a doorway
+        is_doorway = best_opening_width > self.doorway_width_threshold
+        return is_doorway, best_opening_width, best_opening_center
+
     # --- Main Control Loop ---
     def control_loop(self):
         if self.last_scan is None or self.current_odom_pose is None:
@@ -487,40 +553,82 @@ class PerimeterRoamer(Node):
                 # Optional: If front becomes blocked while turning, maybe stop turning or reverse slightly?
 
         elif self.state == State.FOLLOW_WALL:
-            # Primary check: Front obstacle via SCAN (already handled by costmap check earlier, but good redundancy)
+            # Check for doorway ahead
+            is_doorway, opening_width, opening_center = self.detect_doorway_ahead()
+            
+            # Primary check: Front obstacle via SCAN
             front_obstacle, front_dist = self.check_obstacle_in_scan_sector(
                  -self.front_angle_width / 2.0, self.front_angle_width / 2.0, self.front_obstacle_distance)
 
-            if front_obstacle:
+            if front_obstacle and not is_doorway:
+                # Regular obstacle (not a doorway)
                 self.get_logger().info(f"Obstacle detected ahead ({front_dist:.2f}m) while following wall. Transitioning to TURN_LEFT.")
                 self.state = State.TURN_LEFT
-                twist.linear.x = 0.0 # Stop forward motion
-                twist.angular.z = self.turn_speed # Start turning left (treat as corner)
+                twist.linear.x = 0.0
+                twist.angular.z = self.turn_speed
+            elif is_doorway and opening_width > self.robot_width * 1.5:
+                # Doorway detected and wide enough - navigate through it
+                self.get_logger().info(f"Doorway detected! Width: {opening_width:.2f}m, Center: {math.degrees(opening_center):.1f}°")
+                self.state = State.NAVIGATE_DOORWAY
+                self.doorway_target_angle = opening_center
+                # Slow down and aim for center of opening
+                twist.linear.x = self.doorway_passage_speed
+                twist.angular.z = opening_center * 0.5  # Gentle turn toward center
             else:
-                # Follow wall logic
+                # Normal wall following
                 wall_on_right, right_dist = self.get_distance_in_scan_sector(self.side_scan_angle_min, self.side_scan_angle_max)
 
                 if not wall_on_right or right_dist > self.wall_follow_distance + self.wall_presence_threshold:
-                    # Lost the wall (e.g., external corner) - Turn right to find it again
+                    # Lost the wall - turn right to find it
                     self.get_logger().warn("Lost wall on right. Turning right.")
-                    twist.linear.x = self.forward_speed * 0.3 # Slow down significantly
-                    twist.angular.z = -self.turn_speed * 0.8 # Moderate turn right
-                    # Alternative: Transition back to FIND_WALL or a dedicated SEARCH state?
-
+                    twist.linear.x = self.forward_speed * 0.3
+                    twist.angular.z = -self.turn_speed * 0.8
                 else:
-                    # Wall detected, apply proportional control for distance
+                    # Wall following with gentler control for tight spaces
                     error = self.wall_follow_distance - right_dist
-                    twist.angular.z = self.kp_angular * error
-
-                    # Clamp angular velocity
+                    
+                    # Reduce gain in narrow spaces
+                    if opening_width > 0 and opening_width < self.narrow_passage_threshold:
+                        gain_factor = 0.3  # Much gentler control in narrow spaces
+                        speed_factor = 0.5  # Slower in narrow spaces
+                    else:
+                        gain_factor = 1.0
+                        speed_factor = 1.0
+                    
+                    twist.angular.z = self.kp_angular * error * gain_factor
                     twist.angular.z = max(-self.max_angular_speed, min(self.max_angular_speed, twist.angular.z))
+                    
+                    # Adjust speed based on turning
+                    speed_reduction_factor = 1.0 - min(abs(twist.angular.z) / self.max_angular_speed, 0.7)
+                    twist.linear.x = self.forward_speed * speed_reduction_factor * speed_factor
 
-                    # Maintain forward speed (maybe reduce speed slightly if turning sharply?)
-                    # Example: Reduce speed based on absolute angular velocity
-                    speed_reduction_factor = 1.0 - min(abs(twist.angular.z) / self.max_angular_speed, 0.7) # Reduce up to 70%
-                    twist.linear.x = self.forward_speed * speed_reduction_factor
-
-                    # self.get_logger().debug(f"Following wall. Dist={right_dist:.2f}, Err={error:.2f}, AngZ={twist.angular.z:.2f}, LinX={twist.linear.x:.2f}")
+        elif self.state == State.NAVIGATE_DOORWAY:
+            # Navigate through the doorway
+            front_obstacle, front_dist = self.check_obstacle_in_scan_sector(
+                -self.front_angle_width / 4.0, self.front_angle_width / 4.0, self.front_obstacle_distance)
+            
+            if front_obstacle and front_dist < 0.3:
+                # Too close to obstacle while in doorway
+                self.get_logger().warn("Obstacle too close while navigating doorway. Starting recovery.")
+                self.state = State.RECOVERY_BACKUP
+                self.recovery_start_time = self.get_clock().now()
+                self.recovery_start_pose = self.current_odom_pose
+                twist.linear.x = 0.0
+                twist.angular.z = 0.0
+            else:
+                # Continue through doorway
+                is_doorway, opening_width, opening_center = self.detect_doorway_ahead()
+                
+                if is_doorway and opening_width > self.robot_width * 1.2:
+                    # Still in doorway - aim for center
+                    twist.linear.x = self.doorway_passage_speed
+                    twist.angular.z = opening_center * 0.3  # Gentle correction
+                else:
+                    # Exited doorway - return to wall following
+                    self.get_logger().info("Exited doorway. Returning to wall following.")
+                    self.state = State.FOLLOW_WALL
+                    twist.linear.x = self.forward_speed * 0.5
+                    twist.angular.z = 0.0
 
         elif self.state == State.RECOVERY_BACKUP:
              if self.recovery_start_time is None: # Should have been set when entering state
