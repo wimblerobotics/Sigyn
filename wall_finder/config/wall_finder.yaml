@@ -25,5 +25,8 @@ wall_finder:
     # Database parameters
     database_path: "walls.db"     # Path to SQLite database file (relative to package)
     
+    # Visualization parameters
+    publish_walls_costmap: true   # Publish detected walls as a costmap for visualization
+    
     # TF frame
     map_frame: "map"

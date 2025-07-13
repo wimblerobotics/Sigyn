@@ -45,7 +45,25 @@ public:
             costmap_topic_, 10,
             std::bind(&WallFinder::costmapCallback, this, std::placeholders::_1));
         
+        // Set up publisher for walls costmap visualization
+        if (publish_walls_costmap_) {
+            walls_costmap_publisher_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>(
+                "/walls_costmap", 10);
+            
+            // Create timer to publish walls costmap continuously (1 Hz)
+            walls_costmap_timer_ = this->create_wall_timer(
+                std::chrono::milliseconds(1000),
+                std::bind(&WallFinder::publishStoredWallsCostmap, this));
+        }
+        
         RCLCPP_INFO(this->get_logger(), "Wall Finder node initialized. Waiting for costmap...");
+    }
+
+    ~WallFinder() {
+        if (db_) {
+            sqlite3_close(db_);
+            RCLCPP_INFO(this->get_logger(), "Database connection closed.");
+        }
     }
 
 private:
@@ -69,6 +87,7 @@ private:
             this->declare_parameter<double>("distance_tolerance", 0.1);
             this->declare_parameter<std::string>("database_path", "walls.db");
             this->declare_parameter<std::string>("map_frame", "map");
+            this->declare_parameter<bool>("publish_walls_costmap", true);
             
             costmap_topic_ = this->get_parameter("costmap_topic").as_string();
             costmap_threshold_ = this->get_parameter("costmap_threshold").as_int();
@@ -86,6 +105,7 @@ private:
             distance_tolerance_ = this->get_parameter("distance_tolerance").as_double();
             database_path_ = this->get_parameter("database_path").as_string();
             map_frame_ = this->get_parameter("map_frame").as_string();
+            publish_walls_costmap_ = this->get_parameter("publish_walls_costmap").as_bool();
         }
     }
 
@@ -124,11 +144,21 @@ private:
     void costmapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
         RCLCPP_INFO(this->get_logger(), "Received costmap with size %dx%d", msg->info.width, msg->info.height);
         
-        // Process the costmap once and then shutdown
+        // Process the costmap once only
+        static bool processed = false;
+        if (processed) {
+            return; // Don't process again
+        }
+        processed = true;
+        
         processOccupancyGrid(msg);
         
-        RCLCPP_INFO(this->get_logger(), "Wall detection completed. Shutting down...");
-        rclcpp::shutdown();
+        if (!publish_walls_costmap_) {
+            RCLCPP_INFO(this->get_logger(), "Wall detection completed. Shutting down...");
+            rclcpp::shutdown();
+        } else {
+            RCLCPP_INFO(this->get_logger(), "Wall detection completed. Continuing to publish walls costmap...");
+        }
     }
 
     void processOccupancyGrid(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
@@ -168,12 +198,14 @@ private:
         
         RCLCPP_INFO(this->get_logger(), "Found %zu wall segments after processing", filtered_walls.size());
         
-        // Clear database and store new walls
+        // Publish walls as costmap for visualization
+        publishWallsCostmap(filtered_walls, msg);
+        
+        // Store walls to database (only once)
         clearDatabase();
         storeWalls(filtered_walls);
         
-        // Close database connection
-        sqlite3_close(db_);
+        RCLCPP_INFO(this->get_logger(), "Wall detection completed. Database populated with %zu walls.", filtered_walls.size());
     }
 
     cv::Mat occupancyGridToImage(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
@@ -399,6 +431,86 @@ private:
         RCLCPP_INFO(this->get_logger(), "Stored %zu wall segments to database", walls.size());
     }
 
+    void publishWallsCostmap(const std::vector<WallSegment>& walls, 
+                             const nav_msgs::msg::OccupancyGrid::SharedPtr original_msg) {
+        if (!publish_walls_costmap_ || !walls_costmap_publisher_) {
+            return;
+        }
+        
+        // Create a new occupancy grid message
+        stored_walls_costmap_ = std::make_shared<nav_msgs::msg::OccupancyGrid>();
+        
+        // Copy header and info from original message
+        stored_walls_costmap_->header = original_msg->header;
+        stored_walls_costmap_->info = original_msg->info;
+        
+        // Initialize data with free space (0)
+        stored_walls_costmap_->data.resize(original_msg->info.width * original_msg->info.height, 0);
+        
+        // Draw walls as occupied cells (100)
+        for (const auto& wall : walls) {
+            drawLineOnGrid(stored_walls_costmap_, wall.start_point, wall.end_point);
+        }
+        
+        // Publish the costmap immediately
+        walls_costmap_publisher_->publish(*stored_walls_costmap_);
+        
+        RCLCPP_INFO(this->get_logger(), "Published walls costmap with %zu walls", walls.size());
+    }
+    
+    void publishStoredWallsCostmap() {
+        if (!publish_walls_costmap_ || !walls_costmap_publisher_ || !stored_walls_costmap_) {
+            return;
+        }
+        
+        // Update timestamp
+        stored_walls_costmap_->header.stamp = this->get_clock()->now();
+        
+        // Publish the stored costmap
+        walls_costmap_publisher_->publish(*stored_walls_costmap_);
+    }
+    
+    void drawLineOnGrid(std::shared_ptr<nav_msgs::msg::OccupancyGrid> grid,
+                        const geometry_msgs::msg::Point& start,
+                        const geometry_msgs::msg::Point& end) {
+        // Convert world coordinates to grid coordinates
+        int start_x = static_cast<int>((start.x - grid->info.origin.position.x) / grid->info.resolution);
+        int start_y = static_cast<int>((start.y - grid->info.origin.position.y) / grid->info.resolution);
+        int end_x = static_cast<int>((end.x - grid->info.origin.position.x) / grid->info.resolution);
+        int end_y = static_cast<int>((end.y - grid->info.origin.position.y) / grid->info.resolution);
+        
+        // Use Bresenham's line algorithm to draw the line
+        int dx = std::abs(end_x - start_x);
+        int dy = std::abs(end_y - start_y);
+        int sx = (start_x < end_x) ? 1 : -1;
+        int sy = (start_y < end_y) ? 1 : -1;
+        int err = dx - dy;
+        
+        int x = start_x;
+        int y = start_y;
+        
+        while (true) {
+            // Check bounds and set pixel
+            if (x >= 0 && x < static_cast<int>(grid->info.width) && 
+                y >= 0 && y < static_cast<int>(grid->info.height)) {
+                int index = y * grid->info.width + x;
+                grid->data[index] = 100; // Mark as occupied
+            }
+            
+            if (x == end_x && y == end_y) break;
+            
+            int e2 = 2 * err;
+            if (e2 > -dy) {
+                err -= dy;
+                x += sx;
+            }
+            if (e2 < dx) {
+                err += dx;
+                y += sy;
+            }
+        }
+    }
+
     // Skeletonization function to find centerlines of thick walls
     cv::Mat skeletonize(const cv::Mat& src) {
         cv::Mat image = src.clone();
@@ -440,9 +552,15 @@ private:
     double distance_tolerance_;
     std::string database_path_;
     std::string map_frame_;
+    bool publish_walls_costmap_;
     
     sqlite3* db_;
     rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr costmap_subscription_;
+    rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr walls_costmap_publisher_;
+    rclcpp::TimerBase::SharedPtr walls_costmap_timer_;
+    
+    // Store the walls costmap for continuous publishing
+    nav_msgs::msg::OccupancyGrid::SharedPtr stored_walls_costmap_;
 };
 
 void processConfiguration(int argc, char* argv[], std::string& config_file_path) {
