@@ -1,0 +1,29 @@
+wall_finder:
+  ros__parameters:
+    # Costmap processing parameters
+    costmap_topic: "/global_costmap/costmap"
+    costmap_threshold: 80  # Threshold for occupied space (0-100 scale, 80 = 80% occupied)
+    wall_threshold: 95     # Threshold for actual walls (0-100 scale, 95 = 95% occupied)
+    erosion_size: 5        # Size of erosion kernel to move away from inflated edges
+    erosion_iterations: 2  # Number of erosion iterations
+    
+    # Wall detection parameters
+    min_wall_length_inches: 5.0
+    min_wall_length_meters: 0.127  # 5 inches in meters
+    
+    # Hough line detection parameters
+    hough_rho: 1.0                # Distance resolution (pixels)
+    hough_theta: 0.017453292519943295  # Angle resolution (1 degree in radians)
+    hough_threshold: 50           # Minimum votes for line detection
+    hough_min_line_length: 25     # Minimum line length in pixels
+    hough_max_line_gap: 10        # Maximum gap between line segments
+    
+    # Line merging parameters
+    angle_tolerance: 0.087266462599716477  # 5 degrees in radians
+    distance_tolerance: 0.1       # 10 cm tolerance for merging parallel lines
+    
+    # Database parameters
+    database_path: "walls.db"     # Path to SQLite database file (relative to package)
+    
+    # TF frame
+    map_frame: "map"
