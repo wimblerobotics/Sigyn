@@ -1,11 +1,11 @@
 wall_finder:
   ros__parameters:
     # Costmap processing parameters
-    costmap_topic: "/global_costmap/costmap"
-    costmap_threshold: 80  # Threshold for occupied space (0-100 scale, 80 = 80% occupied)
-    wall_threshold: 95     # Threshold for actual walls (0-100 scale, 95 = 95% occupied)
-    erosion_size: 5        # Size of erosion kernel to move away from inflated edges
-    erosion_iterations: 2  # Number of erosion iterations
+    costmap_topic: "/global_costmap/static_layer"
+    costmap_threshold: 50  # Threshold for occupied space (0-100 scale, 50 = 50% occupied)
+    wall_threshold: 80     # Threshold for actual walls (0-100 scale, 80 = 80% occupied)
+    erosion_size: 3        # Size of erosion kernel (smaller since static layer is cleaner)
+    erosion_iterations: 1  # Number of erosion iterations (fewer needed)
     
     # Wall detection parameters
     min_wall_length_inches: 5.0
