@@ -82,8 +82,9 @@ private:
             this->declare_parameter<int>("hough_threshold", 50);
             this->declare_parameter<int>("hough_min_line_length", 25);
             this->declare_parameter<int>("hough_max_line_gap", 10);
-            this->declare_parameter<double>("angle_tolerance", 0.087266462599716477);
-            this->declare_parameter<double>("distance_tolerance", 0.1);
+            this->declare_parameter<double>("angle_tolerance", 0.174532925);
+            this->declare_parameter<double>("distance_tolerance", 0.2);
+            this->declare_parameter<double>("proximity_tolerance", 0.15);
             this->declare_parameter<std::string>("database_path", "walls.db");
             this->declare_parameter<std::string>("map_frame", "map");
             this->declare_parameter<bool>("publish_walls_costmap", true);
@@ -101,6 +102,7 @@ private:
             hough_max_line_gap_ = this->get_parameter("hough_max_line_gap").as_int();
             angle_tolerance_ = this->get_parameter("angle_tolerance").as_double();
             distance_tolerance_ = this->get_parameter("distance_tolerance").as_double();
+            proximity_tolerance_ = this->get_parameter("proximity_tolerance").as_double();
             database_path_ = this->get_parameter("database_path").as_string();
             map_frame_ = this->get_parameter("map_frame").as_string();
             publish_walls_costmap_ = this->get_parameter("publish_walls_costmap").as_bool();
@@ -163,47 +165,75 @@ private:
         // Convert occupancy grid to OpenCV image
         cv::Mat occupancy_image = occupancyGridToImage(msg);
         
+        // Save debug images to understand what's happening
+        cv::imwrite("/tmp/debug_01_original.png", occupancy_image);
+        
         // Create a mask for wall detection - use a lower threshold to capture wall edges
         cv::Mat wall_mask;
         double wall_detection_threshold = (costmap_threshold_ / 100.0) * 255.0;
         cv::threshold(occupancy_image, wall_mask, wall_detection_threshold, 255, cv::THRESH_BINARY);
+        cv::imwrite("/tmp/debug_02_thresholded.png", wall_mask);
         
-        // Apply slight morphological operations to clean up noise but preserve edges
-        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-        cv::morphologyEx(wall_mask, wall_mask, cv::MORPH_CLOSE, kernel);
+        // For perfect hand-drawn maps, let's try a completely different approach
+        // Instead of complex morphological operations, let's be more conservative
         
-        // Apply Gaussian blur to reduce noise before edge detection
-        cv::Mat blurred;
-        cv::GaussianBlur(wall_mask, blurred, cv::Size(3, 3), 0);
+        // First, let's try to identify if this is indeed a clean hand-drawn map
+        // by checking for mostly horizontal/vertical edges
+        cv::Mat simple_edges;
+        cv::Canny(wall_mask, simple_edges, 100, 200, 3);
+        cv::imwrite("/tmp/debug_03_simple_edges.png", simple_edges);
         
-        // Apply Canny edge detection to find wall edges
-        cv::Mat edges;
-        cv::Canny(blurred, edges, 50, 150, 3);
-        
-        // Apply slight dilation to make edges more continuous
-        cv::Mat dilated_edges;
-        cv::Mat edge_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-        cv::dilate(edges, dilated_edges, edge_kernel, cv::Point(-1, -1), 1);
-        
-        // Apply Hough line detection on the edges
+        // For hand-drawn maps, try using probabilistic Hough with very permissive parameters
+        // to capture long lines even if they have small gaps
         std::vector<cv::Vec4i> lines;
-        cv::HoughLinesP(dilated_edges, lines, hough_rho_, hough_theta_, hough_threshold_, 
-                       hough_min_line_length_, hough_max_line_gap_);
+        cv::HoughLinesP(simple_edges, lines, 
+                       1.0,                    // rho: 1 pixel resolution
+                       CV_PI/180,              // theta: 1 degree resolution
+                       10,                     // threshold: very low for clean maps
+                       5,                      // min line length: very short
+                       50);                    // max gap: large gap tolerance for hand-drawn
         
-        RCLCPP_INFO(this->get_logger(), "Using wall detection threshold: %d%% (%.1f in image space) for edge detection", 
+        RCLCPP_INFO(this->get_logger(), "DEBUG: Original image size: %dx%d", occupancy_image.cols, occupancy_image.rows);
+        RCLCPP_INFO(this->get_logger(), "DEBUG: Wall detection threshold: %d%% (%.1f in image space)", 
                    costmap_threshold_, wall_detection_threshold);
-        RCLCPP_INFO(this->get_logger(), "Detected %zu raw line segments from wall edges", lines.size());
+        RCLCPP_INFO(this->get_logger(), "DEBUG: Detected %zu raw line segments", lines.size());
+        
+        // Draw all detected lines on a debug image
+        cv::Mat debug_lines = cv::Mat::zeros(occupancy_image.size(), CV_8UC3);
+        for (size_t i = 0; i < lines.size(); i++) {
+            cv::Vec4i line = lines[i];
+            cv::line(debug_lines, cv::Point(line[0], line[1]), cv::Point(line[2], line[3]), 
+                    cv::Scalar(0, 255, 0), 2);
+        }
+        cv::imwrite("/tmp/debug_04_detected_lines.png", debug_lines);
         
         // Convert line segments to wall segments
         std::vector<WallSegment> wall_segments = linesToWallSegments(lines, msg);
         
-        // Merge similar wall segments
-        std::vector<WallSegment> merged_walls = mergeWallSegments(wall_segments);
+        // Apply very aggressive coalescing for hand-drawn maps
+        std::vector<WallSegment> coalesced_walls = coalesceForHandDrawnMaps(wall_segments);
         
         // Filter walls by minimum length
-        std::vector<WallSegment> filtered_walls = filterWallsByLength(merged_walls);
+        std::vector<WallSegment> filtered_walls = filterWallsByLength(coalesced_walls);
         
-        RCLCPP_INFO(this->get_logger(), "Found %zu wall segments after processing", filtered_walls.size());
+        RCLCPP_INFO(this->get_logger(), "DEBUG: %zu raw segments -> %zu coalesced -> %zu filtered", 
+                   wall_segments.size(), coalesced_walls.size(), filtered_walls.size());
+        
+        // Draw final walls on debug image
+        cv::Mat debug_final = cv::Mat::zeros(occupancy_image.size(), CV_8UC3);
+        for (const auto& wall : filtered_walls) {
+            // Convert back to pixel coordinates for debug
+            int start_x = static_cast<int>((wall.start_point.x - msg->info.origin.position.x) / msg->info.resolution);
+            int start_y = static_cast<int>((wall.start_point.y - msg->info.origin.position.y) / msg->info.resolution);
+            int end_x = static_cast<int>((wall.end_point.x - msg->info.origin.position.x) / msg->info.resolution);
+            int end_y = static_cast<int>((wall.end_point.y - msg->info.origin.position.y) / msg->info.resolution);
+            
+            cv::line(debug_final, cv::Point(start_x, start_y), cv::Point(end_x, end_y), 
+                    cv::Scalar(0, 0, 255), 3);
+        }
+        cv::imwrite("/tmp/debug_05_final_walls.png", debug_final);
+        
+        RCLCPP_INFO(this->get_logger(), "DEBUG: Saved debug images to /tmp/debug_*.png");
         
         // Publish walls as costmap for visualization
         publishWallsCostmap(filtered_walls, msg);
@@ -279,17 +309,24 @@ private:
         return point;
     }
 
-    std::vector<WallSegment> mergeWallSegments(const std::vector<WallSegment>& segments) {
-        std::vector<WallSegment> merged;
+    std::vector<WallSegment> coalesceWallSegmentsWallAware(const std::vector<WallSegment>& segments) {
+        RCLCPP_INFO(this->get_logger(), "Starting wall-aware coalescing with %zu segments", segments.size());
+        
+        std::vector<WallSegment> coalesced;
         std::vector<bool> used(segments.size(), false);
+        
+        // Typical wall thickness in meters (4-8 inches)
+        double min_wall_thickness = 0.10; // 4 inches
+        double max_wall_thickness = 0.25; // 10 inches
         
         for (size_t i = 0; i < segments.size(); i++) {
             if (used[i]) continue;
             
-            WallSegment merged_segment = segments[i];
+            std::vector<WallSegment> cluster;
+            cluster.push_back(segments[i]);
             used[i] = true;
             
-            // Find segments that can be merged with this one
+            // Find segments that can be merged with this one (same-side wall segments)
             bool found_merge = true;
             while (found_merge) {
                 found_merge = false;
@@ -297,22 +334,40 @@ private:
                 for (size_t j = 0; j < segments.size(); j++) {
                     if (used[j]) continue;
                     
-                    if (canMergeSegments(merged_segment, segments[j])) {
-                        merged_segment = mergeTwoSegments(merged_segment, segments[j]);
+                    // Check if this segment can be merged with any segment in the cluster
+                    bool can_merge = false;
+                    for (const auto& cluster_seg : cluster) {
+                        if (canCoalesceWallAware(cluster_seg, segments[j], min_wall_thickness, max_wall_thickness)) {
+                            can_merge = true;
+                            break;
+                        }
+                    }
+                    
+                    if (can_merge) {
+                        cluster.push_back(segments[j]);
                         used[j] = true;
                         found_merge = true;
                     }
                 }
             }
             
-            merged.push_back(merged_segment);
+            // Fit a single line to all segments in the cluster
+            if (cluster.size() > 1) {
+                WallSegment fitted_line = fitLineToSegmentsRobust(cluster);
+                coalesced.push_back(fitted_line);
+                RCLCPP_DEBUG(this->get_logger(), "Coalesced %zu segments into single wall line", cluster.size());
+            } else {
+                coalesced.push_back(cluster[0]);
+            }
         }
         
-        return merged;
+        RCLCPP_INFO(this->get_logger(), "Wall-aware coalescing: %zu segments -> %zu walls", segments.size(), coalesced.size());
+        return coalesced;
     }
 
-    bool canMergeSegments(const WallSegment& seg1, const WallSegment& seg2) {
-        // Check if angles are similar
+    bool canCoalesceWallAware(const WallSegment& seg1, const WallSegment& seg2, 
+                              double min_wall_thickness, double max_wall_thickness) {
+        // Check if angles are similar (within tolerance)
         double angle_diff = std::abs(seg1.angle - seg2.angle);
         if (angle_diff > M_PI) {
             angle_diff = 2 * M_PI - angle_diff;
@@ -322,13 +377,369 @@ private:
             return false;
         }
         
-        // Check if segments are collinear and close enough
-        double distance = distanceBetweenSegments(seg1, seg2);
-        return distance < distance_tolerance_;
+        // Check if segments are close enough (endpoint proximity)
+        double endpoint_distance = minEndpointDistance(seg1, seg2);
+        if (endpoint_distance > proximity_tolerance_) {
+            return false;
+        }
+        
+        // Check if segments are roughly collinear
+        double collinearity_distance = distanceToLine(seg1, seg2);
+        if (collinearity_distance > distance_tolerance_) {
+            return false;
+        }
+        
+        // CRITICAL: Check if segments are on the same side of a wall
+        // Calculate the perpendicular distance between the parallel segments
+        double perpendicular_distance = perpendicularDistanceBetweenSegments(seg1, seg2);
+        
+        // If segments are too far apart perpendicular to their direction,
+        // they might be on opposite sides of a thick wall - don't merge
+        if (perpendicular_distance > max_wall_thickness) {
+            RCLCPP_DEBUG(this->get_logger(), "Rejecting merge: perpendicular distance %.3f > max wall thickness %.3f", 
+                        perpendicular_distance, max_wall_thickness);
+            return false;
+        }
+        
+        // If segments are very close perpendicular to their direction,
+        // they're likely on the same wall edge - merge them
+        if (perpendicular_distance < min_wall_thickness) {
+            return true;
+        }
+        
+        // For intermediate distances, be more conservative
+        // Check if the segments are roughly aligned (not offset significantly)
+        double alignment_score = calculateAlignmentScore(seg1, seg2);
+        if (alignment_score < 0.7) { // Threshold for good alignment
+            RCLCPP_DEBUG(this->get_logger(), "Rejecting merge: poor alignment score %.3f", alignment_score);
+            return false;
+        }
+        
+        return true;
     }
 
-    double distanceBetweenSegments(const WallSegment& seg1, const WallSegment& seg2) {
-        // Calculate minimum distance between two line segments
+    double perpendicularDistanceBetweenSegments(const WallSegment& seg1, const WallSegment& seg2) {
+        // Calculate the perpendicular distance between two roughly parallel segments
+        
+        // Get the direction vector of seg1
+        double dx1 = seg1.end_point.x - seg1.start_point.x;
+        double dy1 = seg1.end_point.y - seg1.start_point.y;
+        double len1 = std::sqrt(dx1*dx1 + dy1*dy1);
+        
+        if (len1 == 0) return distance_tolerance_ + 1; // Invalid segment
+        
+        // Normalize direction vector
+        dx1 /= len1;
+        dy1 /= len1;
+        
+        // Calculate perpendicular vector
+        double perp_x = -dy1;
+        double perp_y = dx1;
+        
+        // Get vector from seg1 start to seg2 start
+        double vec_x = seg2.start_point.x - seg1.start_point.x;
+        double vec_y = seg2.start_point.y - seg1.start_point.y;
+        
+        // Project onto perpendicular direction
+        double perp_distance = std::abs(vec_x * perp_x + vec_y * perp_y);
+        
+        return perp_distance;
+    }
+
+    double calculateAlignmentScore(const WallSegment& seg1, const WallSegment& seg2) {
+        // Calculate how well two segments are aligned (0 = poor, 1 = perfect)
+        
+        // Check overlap in the direction of the segments
+        double overlap_score = calculateOverlapScore(seg1, seg2);
+        
+        // Check parallelism
+        double angle_diff = std::abs(seg1.angle - seg2.angle);
+        if (angle_diff > M_PI) angle_diff = 2 * M_PI - angle_diff;
+        double parallelism_score = 1.0 - (angle_diff / angle_tolerance_);
+        
+        // Check collinearity
+        double collinearity_distance = distanceToLine(seg1, seg2);
+        double collinearity_score = 1.0 - (collinearity_distance / distance_tolerance_);
+        
+        // Combined score
+        return (overlap_score * 0.4 + parallelism_score * 0.3 + collinearity_score * 0.3);
+    }
+
+    double calculateOverlapScore(const WallSegment& seg1, const WallSegment& seg2) {
+        // Project both segments onto the direction of seg1 and calculate overlap
+        
+        double dx = seg1.end_point.x - seg1.start_point.x;
+        double dy = seg1.end_point.y - seg1.start_point.y;
+        double len = std::sqrt(dx*dx + dy*dy);
+        
+        if (len == 0) return 0;
+        
+        // Normalize direction
+        dx /= len;
+        dy /= len;
+        
+        // Project all points onto this direction
+        double seg1_start_proj = 0; // seg1 start is our reference
+        double seg1_end_proj = len;
+        
+        double seg2_start_proj = (seg2.start_point.x - seg1.start_point.x) * dx + 
+                                (seg2.start_point.y - seg1.start_point.y) * dy;
+        double seg2_end_proj = (seg2.end_point.x - seg1.start_point.x) * dx + 
+                              (seg2.end_point.y - seg1.start_point.y) * dy;
+        
+        // Ensure seg2 projections are ordered
+        if (seg2_start_proj > seg2_end_proj) {
+            std::swap(seg2_start_proj, seg2_end_proj);
+        }
+        
+        // Calculate overlap
+        double overlap_start = std::max(seg1_start_proj, seg2_start_proj);
+        double overlap_end = std::min(seg1_end_proj, seg2_end_proj);
+        double overlap_length = std::max(0.0, overlap_end - overlap_start);
+        
+        // Calculate total span
+        double total_start = std::min(seg1_start_proj, seg2_start_proj);
+        double total_end = std::max(seg1_end_proj, seg2_end_proj);
+        double total_length = total_end - total_start;
+        
+        if (total_length == 0) return 0;
+        
+        return overlap_length / total_length;
+    }
+
+    WallSegment fitLineToSegmentsRobust(const std::vector<WallSegment>& segments) {
+        // More robust line fitting using RANSAC-like approach
+        if (segments.empty()) {
+            return WallSegment(); // Empty segment
+        }
+        
+        if (segments.size() == 1) {
+            return segments[0];
+        }
+        
+        // Collect all endpoints
+        std::vector<geometry_msgs::msg::Point> points;
+        for (const auto& seg : segments) {
+            points.push_back(seg.start_point);
+            points.push_back(seg.end_point);
+        }
+        
+        // Find the two points that are farthest apart
+        geometry_msgs::msg::Point best_start, best_end;
+        double max_distance = 0;
+        
+        for (size_t i = 0; i < points.size(); i++) {
+            for (size_t j = i + 1; j < points.size(); j++) {
+                double distance = pointToPointDistance(points[i], points[j]);
+                if (distance > max_distance) {
+                    max_distance = distance;
+                    best_start = points[i];
+                    best_end = points[j];
+                }
+            }
+        }
+        
+        // Create the fitted wall segment
+        WallSegment fitted;
+        fitted.start_point = best_start;
+        fitted.end_point = best_end;
+        fitted.length = max_distance;
+        fitted.angle = std::atan2(best_end.y - best_start.y, best_end.x - best_start.x);
+        fitted.room_name = "undefined";
+        fitted.wall_name = "undefined";
+        
+        return fitted;
+    }
+
+    std::vector<WallSegment> coalesceForHandDrawnMaps(const std::vector<WallSegment>& segments) {
+        RCLCPP_INFO(this->get_logger(), "Starting hand-drawn map coalescing with %zu segments", segments.size());
+        
+        std::vector<WallSegment> coalesced;
+        std::vector<bool> used(segments.size(), false);
+        
+        for (size_t i = 0; i < segments.size(); i++) {
+            if (used[i]) continue;
+            
+            std::vector<WallSegment> cluster;
+            cluster.push_back(segments[i]);
+            used[i] = true;
+            
+            // For hand-drawn maps, be very aggressive about merging segments
+            // that are roughly aligned and close together
+            bool found_merge = true;
+            while (found_merge) {
+                found_merge = false;
+                
+                for (size_t j = 0; j < segments.size(); j++) {
+                    if (used[j]) continue;
+                    
+                    // Check if this segment can be merged with any segment in the cluster
+                    bool can_merge = false;
+                    for (const auto& cluster_seg : cluster) {
+                        if (canMergeHandDrawn(cluster_seg, segments[j])) {
+                            can_merge = true;
+                            break;
+                        }
+                    }
+                    
+                    if (can_merge) {
+                        cluster.push_back(segments[j]);
+                        used[j] = true;
+                        found_merge = true;
+                    }
+                }
+            }
+            
+            // Fit a single line to all segments in the cluster
+            if (cluster.size() > 1) {
+                WallSegment fitted_line = fitLineToCluster(cluster);
+                coalesced.push_back(fitted_line);
+                RCLCPP_INFO(this->get_logger(), "Merged %zu segments into single wall line (length: %.2fm)", 
+                           cluster.size(), fitted_line.length);
+            } else {
+                coalesced.push_back(cluster[0]);
+            }
+        }
+        
+        RCLCPP_INFO(this->get_logger(), "Hand-drawn coalescing: %zu segments -> %zu walls", segments.size(), coalesced.size());
+        return coalesced;
+    }
+
+    bool canMergeHandDrawn(const WallSegment& seg1, const WallSegment& seg2) {
+        // For hand-drawn maps, be very permissive about angles
+        // Check if angles are similar (within 5 degrees for hand-drawn)
+        double angle_diff = std::abs(seg1.angle - seg2.angle);
+        if (angle_diff > M_PI) {
+            angle_diff = 2 * M_PI - angle_diff;
+        }
+        
+        // Allow up to 10 degrees difference for hand-drawn maps
+        double max_angle_diff = 0.174533; // 10 degrees in radians
+        if (angle_diff > max_angle_diff) {
+            return false;
+        }
+        
+        // Check if segments are roughly on the same line (collinear)
+        double collinearity_distance = distanceToLine(seg1, seg2);
+        if (collinearity_distance > 0.3) { // 30cm tolerance for hand-drawn
+            return false;
+        }
+        
+        // Check if segments are close enough (be very permissive)
+        double endpoint_distance = minEndpointDistance(seg1, seg2);
+        if (endpoint_distance > 1.0) { // 1 meter tolerance for gaps
+            return false;
+        }
+        
+        // Check if segments overlap or are close in their direction
+        double projection_gap = calculateProjectionGap(seg1, seg2);
+        if (projection_gap > 0.5) { // 50cm gap tolerance
+            return false;
+        }
+        
+        return true;
+    }
+
+    double calculateProjectionGap(const WallSegment& seg1, const WallSegment& seg2) {
+        // Project both segments onto the direction of seg1 and find the gap
+        double dx = seg1.end_point.x - seg1.start_point.x;
+        double dy = seg1.end_point.y - seg1.start_point.y;
+        double len = std::sqrt(dx*dx + dy*dy);
+        
+        if (len == 0) return 1000; // Invalid segment
+        
+        // Normalize direction
+        dx /= len;
+        dy /= len;
+        
+        // Project all points onto this direction
+        double seg1_start_proj = 0; // seg1 start is our reference
+        double seg1_end_proj = len;
+        
+        double seg2_start_proj = (seg2.start_point.x - seg1.start_point.x) * dx + 
+                                (seg2.start_point.y - seg1.start_point.y) * dy;
+        double seg2_end_proj = (seg2.end_point.x - seg1.start_point.x) * dx + 
+                              (seg2.end_point.y - seg1.start_point.y) * dy;
+        
+        // Ensure seg2 projections are ordered
+        if (seg2_start_proj > seg2_end_proj) {
+            std::swap(seg2_start_proj, seg2_end_proj);
+        }
+        
+        // Calculate gap between the segments
+        double gap = 0;
+        if (seg2_start_proj > seg1_end_proj) {
+            // seg2 is after seg1
+            gap = seg2_start_proj - seg1_end_proj;
+        } else if (seg1_start_proj > seg2_end_proj) {
+            // seg1 is after seg2
+            gap = seg1_start_proj - seg2_end_proj;
+        }
+        // If gap is 0, segments overlap or touch
+        
+        return gap;
+    }
+
+    WallSegment fitLineToCluster(const std::vector<WallSegment>& segments) {
+        if (segments.empty()) {
+            return WallSegment();
+        }
+        
+        if (segments.size() == 1) {
+            return segments[0];
+        }
+        
+        // Collect all endpoints
+        std::vector<geometry_msgs::msg::Point> points;
+        for (const auto& seg : segments) {
+            points.push_back(seg.start_point);
+            points.push_back(seg.end_point);
+        }
+        
+        // Find the overall span by projecting all points onto the average direction
+        double avg_angle = 0;
+        for (const auto& seg : segments) {
+            avg_angle += seg.angle;
+        }
+        avg_angle /= segments.size();
+        
+        // Project all points onto this average direction
+        double min_proj = std::numeric_limits<double>::max();
+        double max_proj = std::numeric_limits<double>::lowest();
+        geometry_msgs::msg::Point ref_point = points[0];
+        
+        double cos_angle = std::cos(avg_angle);
+        double sin_angle = std::sin(avg_angle);
+        
+        for (const auto& point : points) {
+            double dx = point.x - ref_point.x;
+            double dy = point.y - ref_point.y;
+            double projection = dx * cos_angle + dy * sin_angle;
+            
+            min_proj = std::min(min_proj, projection);
+            max_proj = std::max(max_proj, projection);
+        }
+        
+        // Create the fitted line endpoints
+        WallSegment fitted;
+        fitted.start_point.x = ref_point.x + min_proj * cos_angle;
+        fitted.start_point.y = ref_point.y + min_proj * sin_angle;
+        fitted.start_point.z = 0;
+        
+        fitted.end_point.x = ref_point.x + max_proj * cos_angle;
+        fitted.end_point.y = ref_point.y + max_proj * sin_angle;
+        fitted.end_point.z = 0;
+        
+        fitted.length = max_proj - min_proj;
+        fitted.angle = avg_angle;
+        fitted.room_name = "undefined";
+        fitted.wall_name = "undefined";
+        
+        return fitted;
+    }
+
+    double minEndpointDistance(const WallSegment& seg1, const WallSegment& seg2) {
+        // Calculate minimum distance between endpoints of two line segments
         double d1 = pointToPointDistance(seg1.start_point, seg2.start_point);
         double d2 = pointToPointDistance(seg1.start_point, seg2.end_point);
         double d3 = pointToPointDistance(seg1.end_point, seg2.start_point);
@@ -337,47 +748,52 @@ private:
         return std::min({d1, d2, d3, d4});
     }
 
+    double distanceToLine(const WallSegment& seg1, const WallSegment& seg2) {
+        // Calculate distance from seg2 endpoints to the line formed by seg1
+        double dist1 = pointToLineDistance(seg2.start_point, seg1.start_point, seg1.end_point);
+        double dist2 = pointToLineDistance(seg2.end_point, seg1.start_point, seg1.end_point);
+        return std::max(dist1, dist2);
+    }
+
+    double pointToLineDistance(const geometry_msgs::msg::Point& point, 
+                               const geometry_msgs::msg::Point& line_start,
+                               const geometry_msgs::msg::Point& line_end) {
+        // Calculate distance from point to line segment
+        double A = point.x - line_start.x;
+        double B = point.y - line_start.y;
+        double C = line_end.x - line_start.x;
+        double D = line_end.y - line_start.y;
+        
+        double dot = A * C + B * D;
+        double len_sq = C * C + D * D;
+        
+        if (len_sq == 0) {
+            return std::sqrt(A * A + B * B);
+        }
+        
+        double param = dot / len_sq;
+        
+        double xx, yy;
+        if (param < 0) {
+            xx = line_start.x;
+            yy = line_start.y;
+        } else if (param > 1) {
+            xx = line_end.x;
+            yy = line_end.y;
+        } else {
+            xx = line_start.x + param * C;
+            yy = line_start.y + param * D;
+        }
+        
+        double dx = point.x - xx;
+        double dy = point.y - yy;
+        return std::sqrt(dx * dx + dy * dy);
+    }
+
     double pointToPointDistance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2) {
         double dx = p1.x - p2.x;
         double dy = p1.y - p2.y;
         return std::sqrt(dx * dx + dy * dy);
-    }
-
-    WallSegment mergeTwoSegments(const WallSegment& seg1, const WallSegment& seg2) {
-        WallSegment merged;
-        
-        // Find the endpoints that are farthest apart
-        double d1 = pointToPointDistance(seg1.start_point, seg2.start_point);
-        double d2 = pointToPointDistance(seg1.start_point, seg2.end_point);
-        double d3 = pointToPointDistance(seg1.end_point, seg2.start_point);
-        double d4 = pointToPointDistance(seg1.end_point, seg2.end_point);
-        
-        double max_distance = std::max({d1, d2, d3, d4});
-        
-        if (max_distance == d1) {
-            merged.start_point = seg1.start_point;
-            merged.end_point = seg2.start_point;
-        } else if (max_distance == d2) {
-            merged.start_point = seg1.start_point;
-            merged.end_point = seg2.end_point;
-        } else if (max_distance == d3) {
-            merged.start_point = seg1.end_point;
-            merged.end_point = seg2.start_point;
-        } else {
-            merged.start_point = seg1.end_point;
-            merged.end_point = seg2.end_point;
-        }
-        
-        // Recalculate length and angle
-        double dx = merged.end_point.x - merged.start_point.x;
-        double dy = merged.end_point.y - merged.start_point.y;
-        merged.length = std::sqrt(dx * dx + dy * dy);
-        merged.angle = std::atan2(dy, dx);
-        
-        merged.room_name = "undefined";
-        merged.wall_name = "undefined";
-        
-        return merged;
     }
 
     std::vector<WallSegment> filterWallsByLength(const std::vector<WallSegment>& segments) {
@@ -533,6 +949,7 @@ private:
     int hough_max_line_gap_;
     double angle_tolerance_;
     double distance_tolerance_;
+    double proximity_tolerance_;
     std::string database_path_;
     std::string map_frame_;
     bool publish_walls_costmap_;
