@@ -583,37 +583,46 @@ private:
             return false;
         }
         
-        // Check if segments are collinear with reasonable tolerance
-        double collinearity_distance = distanceToLine(seg1, seg2);
-        if (collinearity_distance > 0.08) { // 8cm tolerance - strict for hand-drawn
-            return false;
-        }
-        
         // Check if segments are reasonably close
         double endpoint_distance = minEndpointDistance(seg1, seg2);
-        if (endpoint_distance > 0.5) { // 50cm tolerance for coalescing
+        if (endpoint_distance > 0.8) { // Increased to 80cm tolerance for coalescing
             return false;
         }
         
         // Check if segments overlap or are close in their direction
         double projection_gap = calculateProjectionGap(seg1, seg2);
-        if (projection_gap > 0.3) { // 30cm gap tolerance
+        if (projection_gap > 0.5) { // Increased to 50cm gap tolerance for broken segments
             return false;
         }
         
-        // CRITICAL: Prevent merging parallel wall edges by using extremely strict perpendicular distance
-        // Wall thickness in hand-drawn maps is typically 10-20cm, but we see pairs as close as 5cm
-        double perp_distance = calculatePerpendicularOffset(seg1, seg2);
-        if (perp_distance > 0.015) { // 1.5cm tolerance - extremely strict to prevent merging wall edges
-            // Debug: Log when we reject due to perpendicular distance
-            if (perp_distance < 0.1) { // Only log if reasonably close
+        // CRITICAL: Use collinearity distance as the primary criterion
+        // This is the distance from segment endpoints to the line formed by the other segment
+        double collinearity_distance = distanceToLine(seg1, seg2);
+        
+        // For truly collinear segments (fireplace hearth, cabinet edges), be more permissive
+        if (collinearity_distance <= 0.15) { // Increased to 15cm tolerance for hand-drawn imperfections
+            // Additional check: make sure perpendicular distance isn't too large (to avoid merging parallel walls)
+            double perp_distance = calculatePerpendicularOffset(seg1, seg2);
+            
+            // If perpendicular distance is reasonable, allow merging
+            if (perp_distance <= 0.12) { // 12cm tolerance for collinear segments with some offset
+                return true;
+            } else {
                 RCLCPP_DEBUG(rclcpp::get_logger("wall_finder"), 
-                           "Rejected merge due to perpendicular distance: %.2fcm", perp_distance * 100);
+                           "Rejected collinear merge - too much perpendicular offset: %.2fcm", 
+                           perp_distance * 100);
+                return false;
             }
+        }
+        
+        // If collinearity distance is large, reject (not on same line)
+        if (collinearity_distance > 0.15) {
+            RCLCPP_DEBUG(rclcpp::get_logger("wall_finder"), 
+                       "Rejected merge - not collinear: %.2fcm", collinearity_distance * 100);
             return false;
         }
         
-        // If we get here, segments are truly on the same line and can be merged
+        // If we get here, segments are close enough to merge
         return true;
     }
 
@@ -655,6 +664,46 @@ private:
         // If gap is 0, segments overlap or touch
         
         return gap;
+    }
+
+    double calculateProjectionOverlap(const WallSegment& seg1, const WallSegment& seg2) {
+        // Calculate the overlap ratio between two segments when projected onto the same line
+        double dx = seg1.end_point.x - seg1.start_point.x;
+        double dy = seg1.end_point.y - seg1.start_point.y;
+        double len = std::sqrt(dx*dx + dy*dy);
+        
+        if (len == 0) return 0.0; // Invalid segment
+        
+        // Normalize direction
+        dx /= len;
+        dy /= len;
+        
+        // Project all points onto this direction
+        double seg1_start_proj = 0; // seg1 start is our reference
+        double seg1_end_proj = len;
+        
+        double seg2_start_proj = (seg2.start_point.x - seg1.start_point.x) * dx + 
+                                (seg2.start_point.y - seg1.start_point.y) * dy;
+        double seg2_end_proj = (seg2.end_point.x - seg1.start_point.x) * dx + 
+                              (seg2.end_point.y - seg1.start_point.y) * dy;
+        
+        // Ensure seg2 projections are ordered
+        if (seg2_start_proj > seg2_end_proj) {
+            std::swap(seg2_start_proj, seg2_end_proj);
+        }
+        
+        // Calculate overlap
+        double overlap_start = std::max(seg1_start_proj, seg2_start_proj);
+        double overlap_end = std::min(seg1_end_proj, seg2_end_proj);
+        
+        if (overlap_start >= overlap_end) {
+            return 0.0; // No overlap
+        }
+        
+        double overlap_length = overlap_end - overlap_start;
+        double total_length = std::max(seg1_end_proj, seg2_end_proj) - std::min(seg1_start_proj, seg2_start_proj);
+        
+        return overlap_length / total_length;
     }
 
     WallSegment fitLineToCluster(const std::vector<WallSegment>& segments) {
