@@ -601,10 +601,15 @@ private:
             return false;
         }
         
-        // CRITICAL: Prevent merging parallel wall edges by using very strict perpendicular distance
-        // Wall thickness in hand-drawn maps is typically 10-20cm, so we need to be much stricter
+        // CRITICAL: Prevent merging parallel wall edges by using extremely strict perpendicular distance
+        // Wall thickness in hand-drawn maps is typically 10-20cm, but we see pairs as close as 5cm
         double perp_distance = calculatePerpendicularOffset(seg1, seg2);
-        if (perp_distance > 0.05) { // 5cm tolerance - very strict to prevent merging wall edges
+        if (perp_distance > 0.015) { // 1.5cm tolerance - extremely strict to prevent merging wall edges
+            // Debug: Log when we reject due to perpendicular distance
+            if (perp_distance < 0.1) { // Only log if reasonably close
+                RCLCPP_DEBUG(rclcpp::get_logger("wall_finder"), 
+                           "Rejected merge due to perpendicular distance: %.2fcm", perp_distance * 100);
+            }
             return false;
         }
         
