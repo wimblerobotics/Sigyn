@@ -58,6 +58,19 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}/
 )
 
+# Install Python scripts from model_to_wall_db
+install(PROGRAMS
+  model_to_wall_db/model_to_wall_db/extract_walls.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME extract_walls
+)
+
+install(PROGRAMS
+  model_to_wall_db/scripts/query_walls.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME query_walls
+)
+
 install(TARGETS
   motor_characterization
   DESTINATION lib/${PROJECT_NAME})
