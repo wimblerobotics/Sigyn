@@ -56,6 +56,18 @@ public:
                 std::bind(&WallFinder::publishStoredWallsCostmap, this));
         }
         
+        // Initialize Canny parameters
+        canny_low_threshold_ = this->get_parameter("canny_low_threshold").as_int();
+        canny_high_threshold_ = this->get_parameter("canny_high_threshold").as_int();
+        canny_aperture_size_ = this->get_parameter("canny_aperture_size").as_int();
+
+        // Initialize Hough parameters
+        hough_rho_ = this->get_parameter("hough_rho").as_double();
+        hough_theta_ = this->get_parameter("hough_theta").as_double();
+        hough_threshold_ = this->get_parameter("hough_threshold").as_int();
+        hough_min_line_length_ = this->get_parameter("hough_min_line_length").as_int();
+        hough_max_line_gap_ = this->get_parameter("hough_max_line_gap").as_int();
+        
         RCLCPP_INFO(this->get_logger(), "Wall Finder node initialized. Waiting for costmap...");
     }
 
@@ -89,6 +101,12 @@ private:
             this->declare_parameter<std::string>("map_frame", "map");
             this->declare_parameter<bool>("publish_walls_costmap", true);
             
+            // Canny edge detection parameters
+            this->declare_parameter<int>("canny_low_threshold", 50);
+            this->declare_parameter<int>("canny_high_threshold", 150);
+            this->declare_parameter<int>("canny_aperture_size", 3);
+
+            // Hough line detection parameters
             costmap_topic_ = this->get_parameter("costmap_topic").as_string();
             costmap_threshold_ = this->get_parameter("costmap_threshold").as_int();
             erosion_size_ = this->get_parameter("erosion_size").as_int();
@@ -106,6 +124,18 @@ private:
             database_path_ = this->get_parameter("database_path").as_string();
             map_frame_ = this->get_parameter("map_frame").as_string();
             publish_walls_costmap_ = this->get_parameter("publish_walls_costmap").as_bool();
+            
+            // Canny edge detection parameters
+            canny_low_threshold_ = this->get_parameter("canny_low_threshold").as_int();
+            canny_high_threshold_ = this->get_parameter("canny_high_threshold").as_int();
+            canny_aperture_size_ = this->get_parameter("canny_aperture_size").as_int();
+
+            // Initialize Hough parameters
+            hough_rho_ = this->get_parameter("hough_rho").as_double();
+            hough_theta_ = this->get_parameter("hough_theta").as_double();
+            hough_threshold_ = this->get_parameter("hough_threshold").as_int();
+            hough_min_line_length_ = this->get_parameter("hough_min_line_length").as_int();
+            hough_max_line_gap_ = this->get_parameter("hough_max_line_gap").as_int();
         }
     }
 
@@ -162,36 +192,105 @@ private:
     }
 
     void processOccupancyGrid(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
+        // Debug: Analyze the occupancy grid values to understand the data
+        std::map<int8_t, int> value_counts;
+        int total_pixels = msg->info.width * msg->info.height;
+        
+        for (unsigned int i = 0; i < msg->data.size(); i++) {
+            value_counts[msg->data[i]]++;
+        }
+        
+        RCLCPP_INFO(this->get_logger(), "DEBUG: Occupancy grid analysis:");
+        for (const auto& pair : value_counts) {
+            double percentage = (double)pair.second / total_pixels * 100.0;
+            RCLCPP_INFO(this->get_logger(), "DEBUG: Value %d: %d pixels (%.1f%%)", 
+                       (int)pair.first, pair.second, percentage);
+        }
+        
         // Convert occupancy grid to OpenCV image
         cv::Mat occupancy_image = occupancyGridToImage(msg);
         
         // Save debug images to understand what's happening
         cv::imwrite("/tmp/debug_01_original.png", occupancy_image);
         
-        // Create a mask for wall detection - use a lower threshold to capture wall edges
+        // Create a mask for wall detection - try multiple thresholds to capture all edges
         cv::Mat wall_mask;
         double wall_detection_threshold = (costmap_threshold_ / 100.0) * 255.0;
-        cv::threshold(occupancy_image, wall_mask, wall_detection_threshold, 255, cv::THRESH_BINARY);
+        
+        // Try a lower threshold first to capture weak walls
+        cv::Mat wall_mask_low, wall_mask_high;
+        cv::threshold(occupancy_image, wall_mask_low, wall_detection_threshold * 0.7, 255, cv::THRESH_BINARY);
+        cv::threshold(occupancy_image, wall_mask_high, wall_detection_threshold * 1.3, 255, cv::THRESH_BINARY);
+        
+        // Combine both thresholds to get more comprehensive wall detection
+        cv::bitwise_or(wall_mask_low, wall_mask_high, wall_mask);
+        
         cv::imwrite("/tmp/debug_02_thresholded.png", wall_mask);
         
-        // For perfect hand-drawn maps, let's try a completely different approach
-        // Instead of complex morphological operations, let's be more conservative
+        // For perfect hand-drawn maps, use multiple complementary edge detection approaches
         
-        // First, let's try to identify if this is indeed a clean hand-drawn map
-        // by checking for mostly horizontal/vertical edges
+        // Approach 1: Multiple Canny edge detection with different parameters
+        cv::Mat edges1, edges2, edges3;
+        cv::Canny(wall_mask, edges1, canny_low_threshold_, canny_high_threshold_, canny_aperture_size_);
+        cv::Canny(wall_mask, edges2, canny_low_threshold_ * 0.3, canny_high_threshold_ * 0.5, canny_aperture_size_);
+        cv::Canny(wall_mask, edges3, canny_low_threshold_ * 1.5, canny_high_threshold_ * 1.5, canny_aperture_size_);
+        
+        // Approach 2: Morphological edge detection to catch thick walls
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+        cv::Mat eroded, dilated, morph_edges;
+        cv::erode(wall_mask, eroded, kernel);
+        cv::dilate(wall_mask, dilated, kernel);
+        cv::subtract(dilated, eroded, morph_edges);
+        
+        // Approach 3: Gradient-based edge detection for different orientations
+        cv::Mat grad_x, grad_y, grad_edges;
+        cv::Sobel(wall_mask, grad_x, CV_16S, 1, 0, 3);
+        cv::Sobel(wall_mask, grad_y, CV_16S, 0, 1, 3);
+        cv::convertScaleAbs(grad_x, grad_x);
+        cv::convertScaleAbs(grad_y, grad_y);
+        cv::addWeighted(grad_x, 0.5, grad_y, 0.5, 0, grad_edges);
+        cv::threshold(grad_edges, grad_edges, 50, 255, cv::THRESH_BINARY);
+        
+        // Combine all edge detection methods
         cv::Mat simple_edges;
-        cv::Canny(wall_mask, simple_edges, 100, 200, 3);
+        cv::bitwise_or(edges1, edges2, simple_edges);
+        cv::bitwise_or(simple_edges, edges3, simple_edges);
+        cv::bitwise_or(simple_edges, morph_edges, simple_edges);
+        cv::bitwise_or(simple_edges, grad_edges, simple_edges);
+        
         cv::imwrite("/tmp/debug_03_simple_edges.png", simple_edges);
         
-        // For hand-drawn maps, try using probabilistic Hough with more conservative parameters
-        // to capture both sides of walls and avoid false connections
+        // For hand-drawn maps, use more sensitive Hough parameters to detect both wall sides
         std::vector<cv::Vec4i> lines;
+        
+        // Try multiple Hough parameter combinations to ensure we catch all lines
+        RCLCPP_INFO(this->get_logger(), "DEBUG: Running HoughLinesP with threshold=%d, min_length=%d, max_gap=%d", 
+                   hough_threshold_, hough_min_line_length_, hough_max_line_gap_);
+        
         cv::HoughLinesP(simple_edges, lines, 
-                       1.0,                    // rho: 1 pixel resolution
-                       CV_PI/180,              // theta: 1 degree resolution
-                       8,                      // threshold: lower for both wall sides
-                       3,                      // min line length: very short to catch small segments
-                       15);                    // max gap: smaller gap tolerance to avoid false connections
+                       hough_rho_,             // rho: from config
+                       hough_theta_,           // theta: from config
+                       hough_threshold_,       // threshold: from config
+                       hough_min_line_length_, // min line length: from config
+                       hough_max_line_gap_);   // max gap: from config
+        
+        RCLCPP_INFO(this->get_logger(), "DEBUG: First Hough pass detected %zu lines", lines.size());
+        
+        // If we didn't get enough lines, try with even more aggressive parameters
+        if (lines.size() < 50) {
+            std::vector<cv::Vec4i> additional_lines;
+            cv::HoughLinesP(simple_edges, additional_lines, 
+                           hough_rho_,             
+                           hough_theta_,           
+                           1,                      // threshold: even more aggressive
+                           1,                      // min line length: minimum possible
+                           hough_max_line_gap_ + 10); // max gap: even more tolerant
+            
+            RCLCPP_INFO(this->get_logger(), "DEBUG: Second Hough pass detected %zu additional lines", additional_lines.size());
+            
+            // Merge the two sets of lines
+            lines.insert(lines.end(), additional_lines.begin(), additional_lines.end());
+        }
         
         RCLCPP_INFO(this->get_logger(), "DEBUG: Original image size: %dx%d", occupancy_image.cols, occupancy_image.rows);
         RCLCPP_INFO(this->get_logger(), "DEBUG: Wall detection threshold: %d%% (%.1f in image space)", 
@@ -209,6 +308,67 @@ private:
         
         // Convert line segments to wall segments
         std::vector<WallSegment> wall_segments = linesToWallSegments(lines, msg);
+        
+        // Debug: Analyze the detected segments for parallel wall detection
+        int horizontal_segments = 0;
+        int vertical_segments = 0;
+        int short_segments = 0;
+        int long_segments = 0;
+        
+        // Debug: Look for parallel wall pairs that might represent wall thickness
+        int parallel_pairs = 0;
+        double parallel_tolerance = 0.087; // 5 degrees in radians
+        double distance_tolerance = 0.30;  // 30cm - reasonable wall thickness range
+        
+        for (const auto& segment : wall_segments) {
+            double angle_deg = segment.angle * 180.0 / M_PI;
+            // Normalize angle to [0, 180)
+            while (angle_deg < 0) angle_deg += 180;
+            while (angle_deg >= 180) angle_deg -= 180;
+            
+            // Check if horizontal (within 15 degrees of 0 or 180)
+            if (angle_deg <= 15 || angle_deg >= 165) {
+                horizontal_segments++;
+            }
+            // Check if vertical (within 15 degrees of 90)
+            else if (angle_deg >= 75 && angle_deg <= 105) {
+                vertical_segments++;
+            }
+            
+            // Check length categories
+            if (segment.length < 1.0) {
+                short_segments++;
+            } else {
+                long_segments++;
+            }
+        }
+        
+        RCLCPP_INFO(this->get_logger(), "DEBUG: Segment analysis - Horizontal: %d, Vertical: %d, Short(<1m): %d, Long(>=1m): %d", 
+                   horizontal_segments, vertical_segments, short_segments, long_segments);
+        
+        // Debug: Look for parallel wall pairs that might represent wall thickness
+        
+        for (size_t i = 0; i < wall_segments.size(); i++) {
+            for (size_t j = i + 1; j < wall_segments.size(); j++) {
+                const auto& seg1 = wall_segments[i];
+                const auto& seg2 = wall_segments[j];
+                
+                // Check if segments are parallel
+                double angle_diff = std::abs(seg1.angle - seg2.angle);
+                if (angle_diff > M_PI) angle_diff = 2 * M_PI - angle_diff;
+                
+                if (angle_diff <= parallel_tolerance) {
+                    // Check if they're at reasonable distance (wall thickness)
+                    double perp_distance = calculatePerpendicularOffset(seg1, seg2);
+                    if (perp_distance <= distance_tolerance && perp_distance > 0.05) { // 5cm minimum
+                        parallel_pairs++;
+                        RCLCPP_INFO(this->get_logger(), "DEBUG: Found parallel pair at distance %.2fcm", perp_distance * 100);
+                    }
+                }
+            }
+        }
+        
+        RCLCPP_INFO(this->get_logger(), "DEBUG: Found %d potential parallel wall pairs", parallel_pairs);
         
         // Apply more conservative coalescing for hand-drawn maps
         std::vector<WallSegment> coalesced_walls = coalesceForHandDrawnMaps(wall_segments);
@@ -315,17 +475,24 @@ private:
         std::vector<WallSegment> coalesced;
         std::vector<bool> used(segments.size(), false);
         
+        // Debug: Track coalescing statistics
+        int total_merges = 0;
+        int total_clusters = 0;
+        
         for (size_t i = 0; i < segments.size(); i++) {
             if (used[i]) continue;
             
             std::vector<WallSegment> cluster;
             cluster.push_back(segments[i]);
             used[i] = true;
+            total_clusters++;
             
             // For hand-drawn maps, be more conservative about merging segments
             bool found_merge = true;
-            while (found_merge) {
+            int merge_attempts = 0;
+            while (found_merge && merge_attempts < 100) { // Prevent infinite loops
                 found_merge = false;
+                merge_attempts++;
                 
                 for (size_t j = 0; j < segments.size(); j++) {
                     if (used[j]) continue;
@@ -343,6 +510,13 @@ private:
                         cluster.push_back(segments[j]);
                         used[j] = true;
                         found_merge = true;
+                        total_merges++;
+                        
+                        // Debug: Log significant merges
+                        if (cluster.size() % 5 == 0) {
+                            RCLCPP_INFO(this->get_logger(), "DEBUG: Cluster %d now has %zu segments", 
+                                       total_clusters, cluster.size());
+                        }
                     }
                 }
             }
@@ -358,12 +532,44 @@ private:
             }
         }
         
-        RCLCPP_INFO(this->get_logger(), "Hand-drawn coalescing: %zu segments -> %zu walls", segments.size(), coalesced.size());
+        RCLCPP_INFO(this->get_logger(), "Hand-drawn coalescing: %zu segments -> %zu walls (%d total merges, %d clusters)", 
+                   segments.size(), coalesced.size(), total_merges, total_clusters);
         return coalesced;
     }
 
+    double calculatePerpendicularOffset(const WallSegment& seg1, const WallSegment& seg2) {
+        // Get direction vectors
+        double dx1 = seg1.end_point.x - seg1.start_point.x;
+        double dy1 = seg1.end_point.y - seg1.start_point.y;
+        double dx2 = seg2.end_point.x - seg2.start_point.x;
+        double dy2 = seg2.end_point.y - seg2.start_point.y;
+        
+        // Normalize direction vectors
+        double len1 = std::sqrt(dx1*dx1 + dy1*dy1);
+        double len2 = std::sqrt(dx2*dx2 + dy2*dy2);
+        if (len1 < 1e-6 || len2 < 1e-6) return 0.0;
+        
+        dx1 /= len1; dy1 /= len1;
+        dx2 /= len2; dy2 /= len2;
+        
+        // Calculate perpendicular distance between line centers
+        double mid1_x = (seg1.start_point.x + seg1.end_point.x) / 2.0;
+        double mid1_y = (seg1.start_point.y + seg1.end_point.y) / 2.0;
+        double mid2_x = (seg2.start_point.x + seg2.end_point.x) / 2.0;
+        double mid2_y = (seg2.start_point.y + seg2.end_point.y) / 2.0;
+        
+        double diff_x = mid2_x - mid1_x;
+        double diff_y = mid2_y - mid1_y;
+        
+        // Project difference onto perpendicular direction
+        double perp_x = -dy1;  // Perpendicular to direction
+        double perp_y = dx1;
+        
+        return std::fabs(diff_x * perp_x + diff_y * perp_y);
+    }
+
     bool canMergeHandDrawn(const WallSegment& seg1, const WallSegment& seg2) {
-        // For hand-drawn maps, be more conservative to avoid false connections
+        // For hand-drawn maps, prevent merging parallel wall edges while allowing collinear segment merging
         
         // Check if angles are similar (within 5 degrees for hand-drawn)
         double angle_diff = std::abs(seg1.angle - seg2.angle);
@@ -371,30 +577,38 @@ private:
             angle_diff = 2 * M_PI - angle_diff;
         }
         
-        // Allow up to 5 degrees difference for hand-drawn maps (more conservative)
+        // Stricter angle tolerance to ensure we're on the same line
         double max_angle_diff = 0.087266; // 5 degrees in radians
         if (angle_diff > max_angle_diff) {
             return false;
         }
         
-        // Check if segments are roughly on the same line (collinear) - be more strict
+        // Check if segments are collinear with reasonable tolerance
         double collinearity_distance = distanceToLine(seg1, seg2);
-        if (collinearity_distance > 0.15) { // 15cm tolerance (more strict)
+        if (collinearity_distance > 0.08) { // 8cm tolerance - strict for hand-drawn
             return false;
         }
         
-        // Check if segments are close enough - be more conservative
+        // Check if segments are reasonably close
         double endpoint_distance = minEndpointDistance(seg1, seg2);
-        if (endpoint_distance > 0.6) { // 60cm tolerance (more conservative)
+        if (endpoint_distance > 0.5) { // 50cm tolerance for coalescing
             return false;
         }
         
-        // Check if segments overlap or are close in their direction - be more strict
+        // Check if segments overlap or are close in their direction
         double projection_gap = calculateProjectionGap(seg1, seg2);
-        if (projection_gap > 0.3) { // 30cm gap tolerance (more strict)
+        if (projection_gap > 0.3) { // 30cm gap tolerance
             return false;
         }
         
+        // CRITICAL: Prevent merging parallel wall edges by using very strict perpendicular distance
+        // Wall thickness in hand-drawn maps is typically 10-20cm, so we need to be much stricter
+        double perp_distance = calculatePerpendicularOffset(seg1, seg2);
+        if (perp_distance > 0.05) { // 5cm tolerance - very strict to prevent merging wall edges
+            return false;
+        }
+        
+        // If we get here, segments are truly on the same line and can be merged
         return true;
     }
 
@@ -711,6 +925,11 @@ private:
     std::string database_path_;
     std::string map_frame_;
     bool publish_walls_costmap_;
+    
+    // Canny edge detection parameters
+    int canny_low_threshold_;
+    int canny_high_threshold_;
+    int canny_aperture_size_;
     
     sqlite3* db_;
     rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr costmap_subscription_;
