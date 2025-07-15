@@ -23,7 +23,7 @@
   <!-- Navigation dependencies -->
   <depend>nav2_msgs</depend>
   <depend>nav2_behavior_tree</depend>
-  <depend>behaviortree_cpp_v3</depend>
+  <depend>behaviortree_cpp</depend>
   <depend>nav2_core</depend>
   <depend>nav2_util</depend>
 
@@ -41,6 +41,7 @@
   <depend>lifecycle_msgs</depend>
   <depend>ament_index_cpp</depend>
   <depend>pcl_conversions</depend>
+  <depend>vision_msgs</depend>
 
   <!-- Testing dependencies -->
   <test_depend>ament_lint_auto</test_depend>
@@ -50,4 +51,6 @@
   <export>
     <build_type>ament_cmake</build_type>
   </export>
+  
+  <member_of_group>rosidl_interface_packages</member_of_group>
 </package>

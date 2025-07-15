@@ -1,19 +1,20 @@
 #include "sigyn_house_patroller/behavior_tree/behavior_tree_manager.hpp"
+
+#include <string>
+#include <vector>
+#include <memory>
 #include <filesystem>
-#include <fstream>
-#include <ament_index_cpp/get_package_share_directory.hpp>
 
-namespace sigyn_house_patroller {
+#include "behaviortree_cpp/bt_factory.h"
+#include "ament_index_cpp/get_package_share_directory.hpp"
 
-BehaviorTreeManager::BehaviorTreeManager(const rclcpp::NodeOptions& options)
-    : Node("behavior_tree_manager", options),
-      current_state_(BehaviorTreeState::NORMAL_PATROL),
-      is_switching_(false),
-      system_health_score_(1.0),
-      threat_level_(0),
-      battery_critical_(false),
-      maintenance_mode_(false) {
-  
+namespace sigyn_house_patroller
+{
+
+BehaviorTreeManager::BehaviorTreeManager(const rclcpp::NodeOptions & options)
+: rclcpp::Node("behavior_tree_manager", options),
+  maintenance_mode_(false)
+{
   // Declare parameters
   declare_parameter("config_directory", "config/behavior_trees");
   declare_parameter("default_behavior_tree", "normal_patrol.xml");
@@ -47,8 +48,8 @@ BehaviorTreeManager::BehaviorTreeManager(const rclcpp::NodeOptions& options)
     "/sigyn_house_patroller/system_health", rclcpp::QoS(10).reliable(),
     std::bind(&BehaviorTreeManager::SystemHealthCallback, this, std::placeholders::_1));
   
-  patrol_state_sub_ = create_subscription<msg::PatrolState>(
-    "/sigyn_house_patroller/patrol_state", rclcpp::QoS(10).reliable(),
+  patrol_state_sub_ = create_subscription<msg::PatrolStatus>(
+    "/sigyn_house_patroller/patrol_status", rclcpp::QoS(10).reliable(),
     std::bind(&BehaviorTreeManager::PatrolStateCallback, this, std::placeholders::_1));
   
   // Service clients
@@ -58,7 +59,7 @@ BehaviorTreeManager::BehaviorTreeManager(const rclcpp::NodeOptions& options)
   set_params_client_ = create_client<rcl_interfaces::srv::SetParameters>(
     "/bt_navigator/set_parameters");
   
-  change_state_client_ = create_client<lifecycles_msgs::srv::ChangeState>(
+  change_state_client_ = create_client<lifecycle_msgs::srv::ChangeState>(
     "/bt_navigator/change_state");
   
   // Service server
@@ -134,11 +135,11 @@ void BehaviorTreeManager::ThreatAlertCallback(const msg::ThreatAlert::SharedPtr 
   std::lock_guard<std::mutex> lock(state_mutex_);
   
   // Update threat level based on alert severity
-  if (msg->severity == msg::ThreatAlert::SEVERITY_CRITICAL) {
+  if (msg->severity_level == msg::ThreatAlert::SEVERITY_CRITICAL) {
     threat_level_ = 3;
-  } else if (msg->severity == msg::ThreatAlert::SEVERITY_HIGH) {
+  } else if (msg->severity_level == msg::ThreatAlert::SEVERITY_WARNING) {
     threat_level_ = 2;
-  } else if (msg->severity == msg::ThreatAlert::SEVERITY_WARNING) {
+  } else if (msg->severity_level == msg::ThreatAlert::SEVERITY_WARNING) {
     threat_level_ = 1;
   }
   
@@ -155,25 +156,26 @@ void BehaviorTreeManager::SystemHealthCallback(const msg::SystemHealth::SharedPt
   system_health_score_ = msg->overall_health;
   
   // Check for critical battery
-  for (const auto& status : msg->component_status) {
-    if (status.find("battery") != std::string::npos && 
-        status.find("CRITICAL") != std::string::npos) {
+  battery_critical_ = false; // Reset before checking
+  for (size_t i = 0; i < msg->component_names.size(); ++i) {
+    if (msg->component_names[i].find("battery") != std::string::npos && 
+        msg->component_health_status[i] == msg::SystemHealth::HEALTH_FAILED) {
       battery_critical_ = true;
       break;
     }
   }
   
   // Trigger behavior tree evaluation if health is degraded
-  if (system_health_score_ < 0.8) {
+  if (system_health_score_ < msg::SystemHealth::HEALTH_HEALTHY) {
     DetermineOptimalBehaviorTree();
   }
 }
 
-void BehaviorTreeManager::PatrolStateCallback(const msg::PatrolState::SharedPtr msg) {
+void BehaviorTreeManager::PatrolStateCallback(const msg::PatrolStatus::SharedPtr msg) {
   std::lock_guard<std::mutex> lock(state_mutex_);
   
   // Update maintenance mode based on patrol state
-  maintenance_mode_ = (msg->current_state == "maintenance");
+  maintenance_mode_ = (msg->patrol_mode == "maintenance");
   
   DetermineOptimalBehaviorTree();
 }

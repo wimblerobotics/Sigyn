@@ -40,17 +40,18 @@ BT::NodeStatus SendThreatAlert::tick() {
   alert.threat_type = threat_type_;
   alert.description = threat_description_;
   alert.confidence = threat_confidence_;
-  alert.timestamp = node_->now();
+  alert.header.stamp = node_->now();
+  alert.header.frame_id = "map";
   
   // Map severity
   if (threat_severity_ == "CRITICAL") {
-    alert.severity = msg::ThreatAlert::SEVERITY_CRITICAL;
+    alert.severity_level = msg::ThreatAlert::SEVERITY_CRITICAL;
   } else if (threat_severity_ == "HIGH") {
-    alert.severity = msg::ThreatAlert::SEVERITY_HIGH;
+    alert.severity_level = msg::ThreatAlert::SEVERITY_WARNING;
   } else if (threat_severity_ == "WARNING") {
-    alert.severity = msg::ThreatAlert::SEVERITY_WARNING;
+    alert.severity_level = msg::ThreatAlert::SEVERITY_WARNING;
   } else {
-    alert.severity = msg::ThreatAlert::SEVERITY_INFO;
+    alert.severity_level = msg::ThreatAlert::SEVERITY_INFO;
   }
   
   // Get optional location information
@@ -62,7 +63,7 @@ BT::NodeStatus SendThreatAlert::tick() {
   // Get optional sensor data
   std::string sensor_data = "{}";
   getInput("sensor_data", sensor_data);
-  alert.sensor_data = sensor_data;
+  alert.sensor_data_json = sensor_data;
   
   // Publish the alert
   threat_pub_->publish(alert);
@@ -70,7 +71,7 @@ BT::NodeStatus SendThreatAlert::tick() {
   // Set output values
   setOutput("alert_sent", true);
   setOutput("alert_id", alert.threat_id);
-  setOutput("alert_timestamp", alert.timestamp);
+  setOutput("alert_timestamp", rclcpp::Time(alert.header.stamp).seconds());
   
   RCLCPP_INFO(node_->get_logger(), 
               "SendThreatAlert: Sent %s alert - %s (confidence: %.2f)", 

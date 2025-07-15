@@ -3,19 +3,22 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <unordered_map>
 #include <chrono>
 #include <mutex>
+#include <atomic>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
+#include <std_msgs/msg/bool.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <nav2_msgs/action/navigate_to_pose.hpp>
-#include <tf2_ros/buffer.h>
-#include <tf2_ros/transform_listener.h>
 
+#include "sigyn_house_patroller/core/waypoint_manager.hpp"
+#include "sigyn_house_patroller/core/threat_detection_manager.hpp"
+#include "sigyn_house_patroller/core/navigation_coordinator.hpp"
+
+// Custom message, service, and action includes
 #include "sigyn_house_patroller/msg/patrol_status.hpp"
-#include "sigyn_house_patroller/msg/threat_alert.hpp"
 #include "sigyn_house_patroller/msg/system_health.hpp"
 #include "sigyn_house_patroller/srv/set_patrol_mode.hpp"
 #include "sigyn_house_patroller/action/patrol_to_waypoint.hpp"
@@ -23,177 +26,82 @@
 namespace sigyn_house_patroller {
 
 /**
- * @brief Main coordinator for the house patrol system
- * 
- * This class orchestrates all patrol activities, manages waypoint navigation,
- * coordinates with feature recognizers, and handles threat responses.
+ * @brief Defines the different operational modes for the patrol manager.
+ */
+enum class PatrolMode {
+  IDLE,
+  FULL_PATROL,
+  ROOM_INSPECTION,
+  EMERGENCY_RESPONSE
+};
+
+// Forward declarations
+class WaypointManager;
+class ThreatDetectionManager;
+
+/**
+ * @brief Manages patrol logic, modes, and coordination
  */
 class PatrolManager : public rclcpp::Node {
 public:
-  /**
-   * @brief Patrol modes enumeration
-   */
-  enum class PatrolMode {
-    kIdle,
-    kPatrolling,
-    kInvestigating,
-    kCharging,
-    kEmergency
-  };
+  using SetPatrolModeSrv = sigyn_house_patroller::srv::SetPatrolMode;
+  using PatrolToWaypointAction = sigyn_house_patroller::action::PatrolToWaypoint;
+  using GoalHandlePatrol = rclcpp_action::ServerGoalHandle<PatrolToWaypointAction>;
 
-  /**
-   * @brief Waypoint priority levels
-   */
-  enum class WaypointPriority {
-    kLow = 1,
-    kMedium = 2,
-    kHigh = 3,
-    kCritical = 4
-  };
+  explicit PatrolManager(
+      const std::string& node_name,
+      rclcpp::NodeOptions options,
+      std::shared_ptr<WaypointManager> waypoint_manager,
+      std::shared_ptr<NavigationCoordinator> navigation_coordinator,
+      std::shared_ptr<ThreatDetectionManager> threat_detector);
 
-  /**
-   * @brief Waypoint information structure
-   */
-  struct WaypointInfo {
-    std::string name;
-    geometry_msgs::msg::PoseStamped pose;
-    std::string room_name;
-    WaypointPriority priority;
-    std::vector<std::string> required_checks;
-    std::chrono::system_clock::time_point last_visited;
-    double visit_frequency_hours;
-    bool is_critical_point;
-  };
-
-  explicit PatrolManager(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
-  
-  ~PatrolManager() = default;
-
-  /**
-   * @brief Start the patrol system
-   * @param mode Initial patrol mode
-   * @param waypoint_set Name of waypoint set to use
-   * @return True if successfully started
-   */
-  bool StartPatrol(PatrolMode mode, const std::string& waypoint_set = "default");
-
-  /**
-   * @brief Stop the patrol system
-   */
+  void StartFullPatrol();
+  void StartRoomInspection(const std::string& room_name);
   void StopPatrol();
 
-  /**
-   * @brief Get current patrol status
-   * @return Current patrol status message
-   */
-  msg::PatrolStatus GetPatrolStatus() const;
-
-  /**
-   * @brief Handle incoming threat alert
-   * @param threat_alert The threat alert to process
-   */
-  void HandleThreatAlert(const msg::ThreatAlert& threat_alert);
-
-  /**
-   * @brief Get current patrol mode
-   * @return Current patrol mode
-   */
-  PatrolMode GetCurrentMode() const { return current_mode_; }
-
 private:
-  // Core functionality
-  void InitializeWaypoints();
-  void LoadWaypointConfiguration();
-  void UpdatePatrolStatus();
-  void ProcessThreatAlerts();
-  void ManageWaypointQueue();
-  void NavigateToNextWaypoint();
-  void HandleNavigationResult();
-  void CheckSystemHealth();
-  void HandleEmergencyMode();
-  void HandleChargingMode();
-  void UpdateLocationTracking();
-  
-  // Callback functions
-  void PatrolTimerCallback();
-  void StatusTimerCallback();
-  void ThreatAlertCallback(const msg::ThreatAlert::SharedPtr msg);
-  void SystemHealthCallback(const msg::SystemHealth::SharedPtr msg);
-  void SetPatrolModeCallback(
-    const std::shared_ptr<srv::SetPatrolMode::Request> request,
-    std::shared_ptr<srv::SetPatrolMode::Response> response);
-  void NavigationGoalResponseCallback(
-    const rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr& goal_handle);
-  void NavigationResultCallback(
-    const rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::WrappedResult& result);
-  void NavigationFeedbackCallback(
-    rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr,
-    const std::shared_ptr<const nav2_msgs::action::NavigateToPose::Feedback> feedback);
+  // Patrol execution
+  void ExecuteFullPatrol();
+  void ExecuteRoomInspection();
 
-  // Utility functions
-  std::string PatrolModeToString(PatrolMode mode) const;
-  PatrolMode StringToPatrolMode(const std::string& mode_str) const;
-  WaypointInfo* GetNextWaypoint();
-  bool IsWaypointDue(const WaypointInfo& waypoint) const;
-  double CalculateWaypointPriority(const WaypointInfo& waypoint) const;
-  void UpdateWaypointVisitTime(const std::string& waypoint_name);
-  bool IsAtWaypoint(const WaypointInfo& waypoint, double tolerance = 0.5) const;
-  geometry_msgs::msg::PoseStamped GetCurrentPose() const;
-  std::string GetCurrentRoom() const;
+  // Callbacks
+  void OnWaypointNavigationComplete(const NavigationResult& result);
+
+  void SetPatrolModeCallback(const std::shared_ptr<SetPatrolModeSrv::Request> request,
+                             std::shared_ptr<SetPatrolModeSrv::Response> response);
+  void StatusTimerCallback();
+  void HealthTimerCallback();
+
+  rclcpp_action::GoalResponse PatrolGoalCallback(
+      const rclcpp_action::GoalUUID& uuid,
+      std::shared_ptr<const PatrolToWaypointAction::Goal> goal);
+
+  rclcpp_action::CancelResponse PatrolCancelCallback(
+      const std::shared_ptr<GoalHandlePatrol> goal_handle);
+
+  void PatrolAcceptedCallback(const std::shared_ptr<GoalHandlePatrol> goal_handle);
+  void ExecutePatrolAction(const std::shared_ptr<GoalHandlePatrol> goal_handle);
+
 
   // Member variables
+  std::shared_ptr<WaypointManager> waypoint_manager_;
+  std::shared_ptr<NavigationCoordinator> navigation_coordinator_;
+  std::shared_ptr<ThreatDetectionManager> threat_detector_;
+
   PatrolMode current_mode_;
-  std::string current_waypoint_set_;
-  std::unordered_map<std::string, std::vector<WaypointInfo>> waypoint_sets_;
-  std::vector<WaypointInfo*> waypoint_queue_;
-  WaypointInfo* current_waypoint_;
-  msg::PatrolStatus patrol_status_;
-  msg::SystemHealth system_health_;
-  std::vector<msg::ThreatAlert> recent_threats_;
-  
-  // Threading and synchronization
-  mutable std::mutex status_mutex_;
-  mutable std::mutex waypoint_mutex_;
-  mutable std::mutex threat_mutex_;
-  
-  // ROS2 infrastructure
-  rclcpp::TimerBase::SharedPtr patrol_timer_;
+  std::vector<PatrolWaypoint> patrol_waypoints_;
+  int patrol_index_;
+  bool is_patrolling_;
+
+  // ROS2 components
+  rclcpp::Service<SetPatrolModeSrv>::SharedPtr set_patrol_mode_service_;
+  rclcpp_action::Server<PatrolToWaypointAction>::SharedPtr patrol_action_server_;
+  rclcpp::Publisher<sigyn_house_patroller::msg::PatrolStatus>::SharedPtr patrol_status_publisher_;
+  rclcpp::Publisher<sigyn_house_patroller::msg::SystemHealth>::SharedPtr system_health_publisher_;
   rclcpp::TimerBase::SharedPtr status_timer_;
-  
-  // Publishers and subscribers
-  rclcpp::Publisher<msg::PatrolStatus>::SharedPtr status_pub_;
-  rclcpp::Publisher<msg::ThreatAlert>::SharedPtr threat_response_pub_;
-  rclcpp::Subscription<msg::ThreatAlert>::SharedPtr threat_alert_sub_;
-  rclcpp::Subscription<msg::SystemHealth>::SharedPtr system_health_sub_;
-  
-  // Services
-  rclcpp::Service<srv::SetPatrolMode>::SharedPtr set_patrol_mode_service_;
-  
-  // Action clients
-  rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SharedPtr nav_client_;
-  rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr nav_goal_handle_;
-  
-  // TF2
-  std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
-  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
-  
-  // Configuration parameters
-  double patrol_frequency_hz_;
-  double status_frequency_hz_;
-  double waypoint_tolerance_;
-  double navigation_timeout_;
-  double battery_critical_level_;
-  double battery_low_level_;
-  std::string base_frame_;
-  std::string map_frame_;
-  bool use_perimeter_following_;
-  
-  // Statistics
-  std::chrono::system_clock::time_point patrol_start_time_;
-  uint32_t waypoints_completed_;
-  uint32_t threats_detected_;
-  uint32_t alerts_sent_;
-  uint32_t navigation_failures_;
+  rclcpp::TimerBase::SharedPtr health_timer_;
+
+  std::string PatrolModeToString(PatrolMode mode);
 };
 
 }  // namespace sigyn_house_patroller

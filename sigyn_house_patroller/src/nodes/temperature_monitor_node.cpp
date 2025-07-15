@@ -58,13 +58,13 @@ public:
     temperature_healthy_ = true;
     
     // Publishers
-    threat_alert_pub_ = create_publisher<msg::ThreatAlert>(
+    threat_alert_pub_ = create_publisher<sigyn_house_patroller::msg::ThreatAlert>(
       "~/threat_alerts", rclcpp::QoS(10).reliable());
     
     temp_status_pub_ = create_publisher<std_msgs::msg::Float64>(
       "~/temperature", rclcpp::QoS(10).reliable());
     
-    health_pub_ = create_publisher<msg::SystemHealth>(
+    health_pub_ = create_publisher<sigyn_house_patroller::msg::SystemHealth>(
       "~/health", rclcpp::QoS(10).reliable());
     
     // Subscribers
@@ -72,7 +72,7 @@ public:
       temperature_topic_, rclcpp::QoS(10).reliable(),
       std::bind(&TemperatureMonitorNode::TemperatureCallback, this, std::placeholders::_1));
     
-    room_id_sub_ = create_subscription<msg::RoomIdentification>(
+    room_id_sub_ = create_subscription<sigyn_house_patroller::msg::RoomIdentification>(
       "/sigyn_house_patroller/room_identification", rclcpp::QoS(10).reliable(),
       std::bind(&TemperatureMonitorNode::RoomIdentificationCallback, this, std::placeholders::_1));
     
@@ -90,6 +90,12 @@ public:
   }
 
 private:
+  // Add missing member variables
+  std::unordered_map<std::string, std::chrono::steady_clock::time_point> last_anomaly_alerts_;
+  std::unordered_map<std::string, std::chrono::steady_clock::time_point> last_trend_alerts_;
+  std::unordered_map<std::string, std::chrono::steady_clock::time_point> last_comm_alerts_;
+  std::unordered_map<std::string, std::chrono::steady_clock::time_point> last_stale_alerts_;
+
   void TemperatureCallback(const sensor_msgs::msg::Temperature::SharedPtr msg) {
     std::lock_guard<std::mutex> lock(temp_mutex_);
     
@@ -138,7 +144,7 @@ private:
     }
   }
   
-  void RoomIdentificationCallback(const msg::RoomIdentification::SharedPtr msg) {
+  void RoomIdentificationCallback(const sigyn_house_patroller::msg::RoomIdentification::SharedPtr msg) {
     std::lock_guard<std::mutex> lock(temp_mutex_);
     
     if (msg->confidence > 0.7) {  // Only update if confident
@@ -148,33 +154,34 @@ private:
   
   void MonitoringTimerCallback() {
     std::lock_guard<std::mutex> lock(temp_mutex_);
-    
-    // Check if we've lost temperature data
     auto now = std::chrono::steady_clock::now();
-    auto time_since_update = std::chrono::duration_cast<std::chrono::seconds>(
-      now - last_temp_update_).count();
-    
-    if (time_since_update > temperature_timeout_) {
-      temperature_healthy_ = false;
-      
-      // Send communication loss alert
-      msg::ThreatAlert alert;
-      alert.header.stamp = this->now();
-      alert.header.frame_id = "base_link";
-      alert.threat_id = "temp_comm_loss";
-      alert.threat_type = "communication_failure";
-      alert.severity = msg::ThreatAlert::SEVERITY_WARNING;
-      alert.description = "Temperature sensor communication lost for " + 
-                         std::to_string(time_since_update) + " seconds";
-      alert.confidence = 1.0;
-      alert.timestamp = this->now();
-      alert.sensor_data = "{}";
-      
-      threat_alert_pub_->publish(alert);
-      
-      RCLCPP_ERROR(get_logger(), "Temperature communication lost for %ld seconds", time_since_update);
-    } else {
-      temperature_healthy_ = true;
+
+    for (const auto& [room_id, baseline] : room_baselines_) {
+        (void)baseline; // baseline is not used, suppress warning
+        auto it = room_histories_.find(room_id);
+        if (it == room_histories_.end() || it->second.empty()) {
+            continue;
+        }
+
+        const auto& last_reading = it->second.back();
+        auto time_since_update = std::chrono::duration_cast<std::chrono::seconds>(now - last_reading.timestamp).count();
+
+        if (time_since_update > temperature_timeout_) {
+            auto& last_stale_alert_time = last_stale_alerts_[room_id];
+            auto time_since_last_stale_alert = std::chrono::duration_cast<std::chrono::seconds>(now - last_stale_alert_time).count();
+
+            if (time_since_last_stale_alert > alert_cooldown_) {
+                sigyn_house_patroller::msg::ThreatAlert alert;
+                alert.header.stamp = this->now();
+                alert.threat_id = "temp_monitor_stale_" + room_id + "_" + std::to_string(this->now().seconds());
+                alert.threat_type = "temp_monitor_stale";
+                alert.severity_level = 2; // WARNING
+                alert.description = "Temperature monitor for room " + room_id + " is not receiving updates. Last update was " + std::to_string(time_since_update) + "s ago.";
+                alert.sensor_data_json = "{\"room\": \"" + room_id + "\"}";
+                threat_alert_pub_->publish(alert);
+                last_stale_alert_time = now;
+            }
+        }
     }
   }
   
@@ -196,55 +203,36 @@ private:
     if (temperature_diff > anomaly_threshold_) {
       // Check alert cooldown
       auto now = std::chrono::steady_clock::now();
-      auto last_alert_it = last_alerts_.find(current_room_);
-      
-      if (last_alert_it != last_alerts_.end()) {
-        auto time_since_alert = std::chrono::duration_cast<std::chrono::seconds>(
-          now - last_alert_it->second).count();
+      auto& last_alert_time = last_anomaly_alerts_[current_room_];
+      auto time_since_last_alert = std::chrono::duration_cast<std::chrono::seconds>(now - last_alert_time).count();
+
+      if (time_since_last_alert > alert_cooldown_) {
+        // Send threat alert
+        sigyn_house_patroller::msg::ThreatAlert alert;
+        alert.header.stamp = this->now();
+        alert.threat_id = "temp_anomaly_" + current_room_ + "_" + std::to_string(this->now().seconds());
+        alert.threat_type = "temperature_anomaly";
+        alert.severity_level = 2; // WARNING
+        alert.description = "Temperature anomaly detected in " + current_room_ + 
+                           ". Current: " + std::to_string(current_temperature_) + 
+                           "C, Baseline: " + std::to_string(baseline_temp) + "C.";
+        alert.confidence = std::min(1.0, temperature_diff / (anomaly_threshold_ * 2));
+        alert.sensor_data_json = "{\"room\": \"" + current_room_ + 
+                              "\", \"current_temp\": " + std::to_string(current_temperature_) + 
+                              ", \"baseline_temp\": " + std::to_string(baseline_temp) + "}";
         
-        if (time_since_alert < alert_cooldown_) {
-          return;  // Still in cooldown period
-        }
+        threat_alert_pub_->publish(alert);
+        
+        last_alert_time = now;
+        
+        RCLCPP_WARN(get_logger(), "Temperature anomaly in %s: %.1fC (Baseline: %.1fC)", 
+                    current_room_.c_str(), current_temperature_, baseline_temp);
       }
-      
-      // Determine severity based on magnitude
-      int severity = msg::ThreatAlert::SEVERITY_WARNING;
-      if (temperature_diff > anomaly_threshold_ * 2) {
-        severity = msg::ThreatAlert::SEVERITY_CRITICAL;
-      }
-      
-      msg::ThreatAlert alert;
-      alert.header.stamp = this->now();
-      alert.header.frame_id = "base_link";
-      alert.threat_id = "temp_anomaly_" + current_room_;
-      alert.threat_type = "temperature_anomaly";
-      alert.severity = severity;
-      alert.location.x = 0.0;  // Would need localization for exact position
-      alert.location.y = 0.0;
-      alert.location.z = 0.0;
-      alert.description = "Temperature anomaly in " + current_room_ + 
-                         ": " + std::to_string(current_temperature_) + "°C " +
-                         "(baseline: " + std::to_string(baseline_temp) + "°C, " +
-                         "diff: " + std::to_string(temperature_diff) + "°C)";
-      alert.confidence = std::min(1.0, temperature_diff / (anomaly_threshold_ * 2));
-      alert.timestamp = this->now();
-      alert.sensor_data = "{\"temperature\": " + std::to_string(current_temperature_) + 
-                         ", \"baseline\": " + std::to_string(baseline_temp) + 
-                         ", \"difference\": " + std::to_string(temperature_diff) + 
-                         ", \"room\": \"" + current_room_ + "\"}";
-      
-      threat_alert_pub_->publish(alert);
-      
-      // Update last alert time
-      last_alerts_[current_room_] = now;
-      
-      RCLCPP_WARN(get_logger(), "Temperature anomaly in %s: %.1f°C (baseline: %.1f°C)", 
-                  current_room_.c_str(), current_temperature_, baseline_temp);
     }
   }
   
   void PerformTrendAnalysis() {
-    if (temperature_history_.size() < 10) {
+    if (current_room_ == "unknown" || temperature_history_.size() < 10) {
       return;  // Need more data for trend analysis
     }
     
@@ -286,23 +274,28 @@ private:
     double temp_change_per_minute = slope * 60.0;
     
     if (std::abs(temp_change_per_minute) > 0.5) {  // More than 0.5°C per minute
-      msg::ThreatAlert alert;
-      alert.header.stamp = this->now();
-      alert.header.frame_id = "base_link";
-      alert.threat_id = "temp_trend_" + current_room_;
-      alert.threat_type = "temperature_trend";
-      alert.severity = msg::ThreatAlert::SEVERITY_WARNING;
-      alert.description = "Rapid temperature change in " + current_room_ + 
-                         ": " + std::to_string(temp_change_per_minute) + "°C/min";
-      alert.confidence = 0.8;
-      alert.timestamp = this->now();
-      alert.sensor_data = "{\"trend_rate\": " + std::to_string(temp_change_per_minute) + 
-                         ", \"room\": \"" + current_room_ + "\"}";
-      
-      threat_alert_pub_->publish(alert);
-      
-      RCLCPP_WARN(get_logger(), "Rapid temperature change in %s: %.2f°C/min", 
-                  current_room_.c_str(), temp_change_per_minute);
+      auto& last_trend_alert_time = last_trend_alerts_[current_room_];
+      auto time_since_last_trend_alert = std::chrono::duration_cast<std::chrono::seconds>(now - last_trend_alert_time).count();
+
+      if (time_since_last_trend_alert > alert_cooldown_) {
+        sigyn_house_patroller::msg::ThreatAlert alert;
+        alert.header.stamp = this->now();
+        alert.threat_id = "temp_trend_" + current_room_ + "_" + std::to_string(this->now().seconds());
+        alert.threat_type = "temperature_trend";
+        alert.severity_level = 1; // INFO
+        alert.description = "Rapid temperature increase detected in " + current_room_ + 
+                           ". Trend: " + std::to_string(temp_change_per_minute) + " C/min.";
+        alert.confidence = std::min(1.0, temp_change_per_minute / 1.0); // Normalize by 1.0 C/min trend
+        alert.sensor_data_json = "{\"room\": \"" + current_room_ + 
+                              "\", \"trend_slope\": " + std::to_string(temp_change_per_minute) + "}";
+        
+        threat_alert_pub_->publish(alert);
+        
+        last_trend_alerts_[current_room_] = now;
+        
+        RCLCPP_INFO(get_logger(), "Temperature trend detected in %s: %.2f C/min", 
+                    current_room_.c_str(), temp_change_per_minute);
+      }
     }
   }
   
@@ -340,22 +333,55 @@ private:
   }
   
   void HealthTimerCallback() {
-    msg::SystemHealth health;
-    health.header.stamp = this->now();
-    health.header.frame_id = "base_link";
-    health.overall_health = temperature_healthy_ ? 1.0 : 0.0;
-    health.navigation_health = 1.0;  // Not applicable
-    health.detection_health = temperature_healthy_ ? 1.0 : 0.0;
+    std::lock_guard<std::mutex> lock(temp_mutex_);
     
-    health.component_status.push_back("temperature_monitor: " + 
-                                     (temperature_healthy_ ? "OK" : "ERROR"));
-    health.component_status.push_back("current_temperature: " + 
-                                     std::to_string(current_temperature_) + "°C");
-    health.component_status.push_back("current_room: " + current_room_);
-    health.component_status.push_back("baselines_loaded: " + 
-                                     std::to_string(room_baselines_.size()));
+    sigyn_house_patroller::msg::SystemHealth health_msg;
+    health_msg.header.stamp = this->now();
     
-    health_pub_->publish(health);
+    // Check overall temperature sensor health
+    auto now = std::chrono::steady_clock::now();
+    auto time_since_update = std::chrono::duration_cast<std::chrono::seconds>(now - last_temp_update_).count();
+    
+    if (time_since_update > temperature_timeout_) {
+      temperature_healthy_ = false;
+    } else {
+      temperature_healthy_ = true;
+    }
+    
+    health_msg.overall_health = temperature_healthy_ ? 1 : 2; // 1=HEALTHY, 2=DEGRADED
+    health_msg.system_status_description = temperature_healthy_ ? 
+                         "System nominal." : 
+                         "System degraded.";
+
+    health_msg.component_names.push_back(this->get_name());
+    health_msg.component_health_status.push_back(temperature_healthy_ ? 1 : 3); // 1=HEALTHY, 3=UNHEALTHY
+    health_msg.component_descriptions.push_back(temperature_healthy_ ? 
+                         "Temperature sensor is online." : 
+                         "Temperature sensor is offline. Last update " + std::to_string(time_since_update) + "s ago.");
+    health_msg.last_update_times.push_back(rclcpp::Time(last_temp_update_.time_since_epoch().count()));
+
+    health_pub_->publish(health_msg);
+  }
+
+  void SendCommunicationAlert(const std::string& sensor_name, double time_since_update) {
+    auto now = std::chrono::steady_clock::now();
+    auto& last_alert_time_ref = last_comm_alerts_[sensor_name];
+    auto time_since_last_alert = std::chrono::duration_cast<std::chrono::seconds>(now - last_alert_time_ref).count();
+
+    if (time_since_last_alert > alert_cooldown_) {
+        sigyn_house_patroller::msg::ThreatAlert alert;
+        alert.header.stamp = this->now();
+        alert.threat_id = "comm_loss_" + sensor_name + "_" + std::to_string(this->now().seconds());
+        alert.threat_type = "communication_loss";
+        alert.severity_level = 3; // CRITICAL
+        alert.description = "Communication lost with " + sensor_name + " sensor. No data for " + 
+                           std::to_string(time_since_update) + " seconds.";
+        alert.confidence = 1.0;
+        alert.sensor_data_json = "{\"sensor\": \"" + sensor_name + "\"}";
+        
+        threat_alert_pub_->publish(alert);
+        last_alert_time_ref = now;
+    }
   }
   
   struct TemperatureReading {
@@ -385,14 +411,13 @@ private:
   std::vector<TemperatureReading> temperature_history_;
   std::unordered_map<std::string, std::vector<TemperatureReading>> room_histories_;
   std::unordered_map<std::string, double> room_baselines_;
-  std::unordered_map<std::string, std::chrono::steady_clock::time_point> last_alerts_;
   
   // ROS2 interfaces
-  rclcpp::Publisher<msg::ThreatAlert>::SharedPtr threat_alert_pub_;
+  rclcpp::Publisher<sigyn_house_patroller::msg::ThreatAlert>::SharedPtr threat_alert_pub_;
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr temp_status_pub_;
-  rclcpp::Publisher<msg::SystemHealth>::SharedPtr health_pub_;
+  rclcpp::Publisher<sigyn_house_patroller::msg::SystemHealth>::SharedPtr health_pub_;
   rclcpp::Subscription<sensor_msgs::msg::Temperature>::SharedPtr temperature_sub_;
-  rclcpp::Subscription<msg::RoomIdentification>::SharedPtr room_id_sub_;
+  rclcpp::Subscription<sigyn_house_patroller::msg::RoomIdentification>::SharedPtr room_id_sub_;
   rclcpp::TimerBase::SharedPtr monitoring_timer_;
   rclcpp::TimerBase::SharedPtr health_timer_;
   

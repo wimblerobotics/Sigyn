@@ -62,6 +62,17 @@ BT::NodeStatus CheckBatteryLevel::tick() {
   }
 }
 
+BT::PortsList CheckBatteryLevel::providedPorts() {
+    return {
+      BT::InputPort<rclcpp::Node::SharedPtr>("node", "ROS2 node for subscriptions"),
+      BT::InputPort<double>("min_battery_level", 20.0, "Minimum battery level percentage"),
+      BT::InputPort<double>("timeout_seconds", 5.0, "Timeout for battery data"),
+      BT::OutputPort<double>("battery_level", "Current battery level percentage"),
+      BT::OutputPort<double>("battery_voltage", "Current battery voltage"),
+      BT::OutputPort<bool>("is_charging", "Whether battery is charging")
+    };
+}
+
 }  // namespace sigyn_house_patroller
 
 #include "behaviortree_cpp/bt_factory.h"

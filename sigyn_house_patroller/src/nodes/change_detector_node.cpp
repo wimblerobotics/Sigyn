@@ -1,18 +1,13 @@
-#include <memory>
-#include <chrono>
-#include <vector>
-#include <unordered_map>
-#include <opencv2/opencv.hpp>
 #include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/msg/point_cloud2.hpp>
-#include <sensor_msgs/msg/image.hpp>
-#include <cv_bridge/cv_bridge.h>
+#include <memory>
+#include <string>
+#include <vector>
+#include <opencv2/opencv.hpp>
+#include <cv_bridge/cv_bridge.hpp>
+#include <image_transport/image_transport.hpp>
+#include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <pcl_conversions/pcl_conversions.h>
-#include <pcl/common/common.h>
-#include <pcl/filters/statistical_outlier_removal.h>
-#include <pcl/registration/icp.h>
 
 #include "sigyn_house_patroller/msg/threat_alert.hpp"
 #include "sigyn_house_patroller/msg/system_health.hpp"
@@ -102,7 +97,7 @@ public:
     
     reference_update_timer_ = create_wall_timer(
       std::chrono::seconds(static_cast<int>(reference_update_interval_)),
-      std::bind(&ChangeDetectorNode::ReferenceUpdateTimerCallback, this));
+      std::bind(&ChangeDetectorNode::UpdateReferenceModels, this));
     
     RCLCPP_INFO(get_logger(), "Change detector started - Visual: %s, 3D: %s", 
                 enable_visual_diff_ ? "enabled" : "disabled",
@@ -218,7 +213,8 @@ private:
     
     if (change_score > change_threshold_) {
       // Check alert cooldown
-      if (IsAlertCooldownActive(current_room_ + "_3d_change")) {
+      auto now = std::chrono::steady_clock::now();
+      if (IsAlertCooldownActive(current_room_ + "_3d_change", now)) {
         return;
       }
       
@@ -229,7 +225,7 @@ private:
                      ", \"threshold\": " + std::to_string(change_threshold_) + 
                      ", \"room\": \"" + current_room_ + "\"}");
       
-      UpdateAlertCooldown(current_room_ + "_3d_change");
+      UpdateAlertCooldown(current_room_ + "_3d_change", now);
       
       RCLCPP_WARN(get_logger(), "3D change detected in %s: %.2f", 
                   current_room_.c_str(), change_score);
@@ -265,7 +261,8 @@ private:
     
     if (change_score > change_threshold_) {
       // Check alert cooldown
-      if (IsAlertCooldownActive(current_room_ + "_visual_change")) {
+      auto now = std::chrono::steady_clock::now();
+      if (IsAlertCooldownActive(current_room_ + "_visual_change", now)) {
         return;
       }
       
@@ -280,7 +277,7 @@ private:
                      ", \"threshold\": " + std::to_string(change_threshold_) + 
                      ", \"room\": \"" + current_room_ + "\"}");
       
-      UpdateAlertCooldown(current_room_ + "_visual_change");
+      UpdateAlertCooldown(current_room_ + "_visual_change", now);
       
       RCLCPP_WARN(get_logger(), "Visual change detected in %s: %.2f", 
                   current_room_.c_str(), change_score);
@@ -372,6 +369,34 @@ private:
     return change_percentage;
   }
   
+  void UpdateReferenceModels() {
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    if (current_room_ != "unknown") {
+      RCLCPP_INFO(get_logger(), "Updating reference models for room: %s", current_room_.c_str());
+      if (enable_3d_diff_) {
+        CreateReferencePointCloud(current_room_);
+      }
+      if (enable_visual_diff_) {
+        CreateReferenceImage(current_room_);
+      }
+    }
+  }
+
+  bool IsAlertCooldownActive(const std::string& alert_key, const std::chrono::steady_clock::time_point& now) {
+    auto it = alert_cooldowns_.find(alert_key);
+    if (it != alert_cooldowns_.end()) {
+      auto time_since_last_alert = std::chrono::duration_cast<std::chrono::seconds>(now - it->second).count();
+      if (time_since_last_alert < alert_cooldown_) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void UpdateAlertCooldown(const std::string& alert_key, const std::chrono::steady_clock::time_point& now) {
+    alert_cooldowns_[alert_key] = now;
+  }
+
   cv::Mat CreateChangeVisualization(const cv::Mat& current, const cv::Mat& reference) {
     cv::Mat visualization;
     
@@ -452,91 +477,54 @@ private:
     alert.header.frame_id = "camera_link";
     alert.threat_id = threat_type + "_" + current_room_;
     alert.threat_type = threat_type;
-    alert.severity = (change_score > change_threshold_ * 2) ? 
-                     msg::ThreatAlert::SEVERITY_WARNING : 
-                     msg::ThreatAlert::SEVERITY_INFO;
+    alert.severity_level = (change_score > change_threshold_ * 2) ? 2 : 1; // 2=WARNING, 1=INFO
     alert.description = description;
     alert.confidence = std::min(1.0, change_score / change_threshold_);
-    alert.timestamp = this->now();
-    alert.sensor_data = sensor_data;
+    alert.sensor_data_json = sensor_data;
     
     threat_alert_pub_->publish(alert);
   }
-  
-  void SendCommunicationAlert(const std::string& sensor_type, long seconds_since_update) {
-    msg::ThreatAlert alert;
-    alert.header.stamp = this->now();
-    alert.header.frame_id = "camera_link";
-    alert.threat_id = sensor_type + "_comm_loss";
-    alert.threat_type = "communication_failure";
-    alert.severity = msg::ThreatAlert::SEVERITY_WARNING;
-    alert.description = sensor_type + " communication lost for " + 
-                       std::to_string(seconds_since_update) + " seconds";
-    alert.confidence = 1.0;
-    alert.timestamp = this->now();
-    alert.sensor_data = "{}";
-    
-    threat_alert_pub_->publish(alert);
-  }
-  
-  bool IsAlertCooldownActive(const std::string& alert_key) {
-    auto it = last_alerts_.find(alert_key);
-    if (it == last_alerts_.end()) {
-      return false;
-    }
-    
+
+  void SendCommunicationAlert(const std::string& sensor_type, double time_since_update) {
     auto now = std::chrono::steady_clock::now();
-    auto time_since_alert = std::chrono::duration_cast<std::chrono::seconds>(
-      now - it->second).count();
-    
-    return time_since_alert < alert_cooldown_;
+    auto& last_alert_time = last_comm_alerts_[sensor_type];
+    auto time_since_last_alert = std::chrono::duration_cast<std::chrono::seconds>(now - last_alert_time).count();
+
+    if (time_since_last_alert > alert_cooldown_) {
+        msg::ThreatAlert alert;
+        alert.header.stamp = this->now();
+        alert.threat_id = "comm_loss_" + sensor_type;
+        alert.threat_type = "communication_failure";
+        alert.severity_level = 3; // CRITICAL
+        alert.description = "Communication lost with " + sensor_type + " sensor. No data for " + 
+                           std::to_string(time_since_update) + " seconds.";
+        alert.confidence = 1.0;
+        alert.sensor_data_json = "{\"sensor\": \"" + sensor_type + "\"}";
+        
+        threat_alert_pub_->publish(alert);
+        last_alert_time = now;
+    }
   }
-  
-  void UpdateAlertCooldown(const std::string& alert_key) {
-    last_alerts_[alert_key] = std::chrono::steady_clock::now();
-  }
-  
-  void ReferenceUpdateTimerCallback() {
+
+  void HealthTimerCallback() {
     std::lock_guard<std::mutex> lock(data_mutex_);
     
-    if (current_room_ != "unknown") {
-      RCLCPP_INFO(get_logger(), "Updating reference models for room: %s", current_room_.c_str());
-      
-      if (enable_3d_diff_ && current_pointcloud_) {
-        CreateReferencePointCloud(current_room_);
-      }
-      
-      if (enable_visual_diff_ && current_image_) {
-        CreateReferenceImage(current_room_);
-      }
-    }
-  }
-  
-  void HealthTimerCallback() {
-    msg::SystemHealth health;
-    health.header.stamp = this->now();
-    health.header.frame_id = "camera_link";
+    msg::SystemHealth health_msg;
+    health_msg.header.stamp = this->now();
     
-    bool overall_healthy = true;
-    if (enable_3d_diff_) overall_healthy &= pointcloud_healthy_;
-    if (enable_visual_diff_) overall_healthy &= image_healthy_;
+    bool is_healthy = pointcloud_healthy_ && image_healthy_;
     
-    health.overall_health = overall_healthy ? 1.0 : 0.0;
-    health.navigation_health = 1.0;  // Not applicable
-    health.detection_health = overall_healthy ? 1.0 : 0.0;
+    health_msg.overall_health = is_healthy ? 1 : 2; // 1=HEALTHY, 2=DEGRADED
+    health_msg.system_status_description = is_healthy ? "System nominal." : "System degraded.";
+
+    health_msg.component_names.push_back(this->get_name());
+    health_msg.component_health_status.push_back(is_healthy ? 1 : 3); // 1=HEALTHY, 3=UNHEALTHY
+    health_msg.component_descriptions.push_back(
+        "Pointcloud: " + std::string(pointcloud_healthy_ ? "OK" : "FAIL") +
+        ", Image: " + std::string(image_healthy_ ? "OK" : "FAIL"));
+    health_msg.last_update_times.push_back(this->now());
     
-    health.component_status.push_back("change_detector: " + 
-                                     (overall_healthy ? "OK" : "ERROR"));
-    health.component_status.push_back("current_room: " + current_room_);
-    health.component_status.push_back("visual_diff: " + 
-                                     (enable_visual_diff_ ? "enabled" : "disabled"));
-    health.component_status.push_back("3d_diff: " + 
-                                     (enable_3d_diff_ ? "enabled" : "disabled"));
-    health.component_status.push_back("reference_models: " + 
-                                     std::to_string(room_reference_images_.size()) + "/" + 
-                                     std::to_string(room_reference_clouds_.size()));
-    
-    health_pub_->publish(health);
+    health_pub_->publish(health_msg);
   }
   
   // Parameters
@@ -561,13 +549,14 @@ private:
   std::string current_room_;
   std::chrono::steady_clock::time_point last_pointcloud_update_;
   std::chrono::steady_clock::time_point last_image_update_;
-  
-  // Data storage
+  std::unordered_map<std::string, std::chrono::steady_clock::time_point> last_comm_alerts_;
+
+  // Data
   sensor_msgs::msg::PointCloud2::SharedPtr current_pointcloud_;
   sensor_msgs::msg::Image::SharedPtr current_image_;
   std::unordered_map<std::string, sensor_msgs::msg::PointCloud2> room_reference_clouds_;
   std::unordered_map<std::string, sensor_msgs::msg::Image> room_reference_images_;
-  std::unordered_map<std::string, std::chrono::steady_clock::time_point> last_alerts_;
+  std::unordered_map<std::string, std::chrono::steady_clock::time_point> alert_cooldowns_;
   
   // ROS2 interfaces
   rclcpp::Publisher<msg::ThreatAlert>::SharedPtr threat_alert_pub_;

@@ -22,18 +22,7 @@ public:
   
   BT::NodeStatus tick() override;
   
-  static BT::PortsList providedPorts() {
-    return {
-      BT::InputPort<rclcpp::Node::SharedPtr>("node", "ROS2 node for subscriptions"),
-      BT::InputPort<std::string>("door_name", "Name of the door to check"),
-      BT::InputPort<double>("expected_angle", 0.0, "Expected angle to door in radians"),
-      BT::InputPort<double>("distance_tolerance", 0.1, "Distance tolerance for door detection"),
-      BT::InputPort<double>("timeout_seconds", 5.0, "Timeout for laser scan data"),
-      BT::OutputPort<double>("door_distance", "Measured distance to door"),
-      BT::OutputPort<bool>("door_open", "True if door is open"),
-      BT::OutputPort<bool>("door_closed", "True if door is closed")
-    };
-  }
+  static BT::PortsList providedPorts();
 
 private:
   rclcpp::Node::SharedPtr node_;
