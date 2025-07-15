@@ -27,7 +27,12 @@ def generate_launch_description():
             'default_behavior_tree': 'normal_patrol.xml',
             'switch_cooldown': 10.0,
             'monitoring_frequency': 1.0,
-            'status_frequency': 2.0
+            'status_frequency': 2.0,
+            'threat_level_threshold': 2,
+            'battery_critical_threshold': 0.15,
+            'system_health_threshold': 0.5,
+            'enable_auto_switching': True,
+            'enable_nav2_integration': True,
         }],
         output='screen'
     )
