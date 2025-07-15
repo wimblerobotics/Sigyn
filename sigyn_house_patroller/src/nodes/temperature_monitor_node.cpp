@@ -111,7 +111,7 @@ private:
     temperature_history_.push_back(reading);
     
     // Maintain history size
-    if (temperature_history_.size() > history_size_) {
+    if (temperature_history_.size() > static_cast<size_t>(history_size_)) {
       temperature_history_.erase(temperature_history_.begin());
     }
     
@@ -120,12 +120,12 @@ private:
       auto& room_history = room_histories_[current_room_];
       room_history.push_back(reading);
       
-      if (room_history.size() > history_size_) {
+      if (room_history.size() > static_cast<size_t>(history_size_)) {
         room_history.erase(room_history.begin());
       }
       
       // Update baseline if we're still learning
-      if (room_history.size() <= baseline_learning_samples_) {
+      if (room_history.size() <= static_cast<size_t>(baseline_learning_samples_)) {
         UpdateRoomBaseline(current_room_);
       }
     }

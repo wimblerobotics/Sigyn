@@ -74,6 +74,10 @@ BT::NodeStatus NavigateToWaypoint::onStart() {
         RCLCPP_WARN(node_->get_logger(), "NavigateToWaypoint: Navigation canceled");
         navigation_result_ = BT::NodeStatus::FAILURE;
         break;
+      default:
+        RCLCPP_ERROR(node_->get_logger(), "NavigateToWaypoint: Unknown result code");
+        navigation_result_ = BT::NodeStatus::FAILURE;
+        break;
     }
   };
   
