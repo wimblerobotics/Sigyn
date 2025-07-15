@@ -28,6 +28,8 @@ find_package(cv_bridge REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(pcl_ros REQUIRED)
 find_package(pcl_conversions REQUIRED)
+find_package(lifecycle_msgs REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(sqlite3_vendor REQUIRED)
 find_package(PkgConfig REQUIRED)
 
@@ -80,10 +82,44 @@ ament_target_dependencies(sigyn_house_patroller_core
   image_transport
   pcl_ros
   pcl_conversions
+  lifecycle_msgs
+  ament_index_cpp
 )
 
 target_link_libraries(sigyn_house_patroller_core ${SQLITE3_LIBRARIES})
 target_include_directories(sigyn_house_patroller_core PUBLIC ${SQLITE3_INCLUDE_DIRS})
+
+# Behavior tree manager
+add_library(sigyn_behavior_tree_manager
+  src/behavior_tree/behavior_tree_manager.cpp
+  src/behavior_tree/check_battery_level.cpp
+  src/behavior_tree/check_door_state.cpp
+  src/behavior_tree/check_temperature.cpp
+  src/behavior_tree/navigate_to_waypoint.cpp
+  src/behavior_tree/perform_room_check.cpp
+  src/behavior_tree/send_threat_alert.cpp
+)
+ament_target_dependencies(sigyn_behavior_tree_manager
+  rclcpp
+  std_msgs
+  geometry_msgs
+  nav_msgs
+  sensor_msgs
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+  nav2_msgs
+  nav2_behavior_tree
+  behaviortree_cpp_v3
+  nav2_core
+  nav2_util
+  cv_bridge
+  image_transport
+  pcl_ros
+  pcl_conversions
+  lifecycle_msgs
+  ament_index_cpp
+)
 
 # Feature recognizer nodes
 add_executable(battery_monitor_node src/nodes/battery_monitor_node.cpp)
@@ -95,6 +131,7 @@ add_executable(localization_corrector_node src/nodes/localization_corrector_node
 # Main patrol nodes
 add_executable(patrol_coordinator_node src/nodes/patrol_coordinator_node.cpp)
 add_executable(threat_response_node src/nodes/threat_response_node.cpp)
+add_executable(behavior_tree_manager_node src/nodes/behavior_tree_manager_node.cpp)
 
 # Behavior tree plugins
 add_library(sigyn_patrol_bt_plugins SHARED
@@ -115,6 +152,7 @@ set(EXEC_TARGETS
   localization_corrector_node
   patrol_coordinator_node
   threat_response_node
+  behavior_tree_manager_node
 )
 
 foreach(target ${EXEC_TARGETS})
@@ -170,6 +208,27 @@ ament_target_dependencies(sigyn_patrol_bt_plugins
 
 target_link_libraries(sigyn_patrol_bt_plugins sigyn_house_patroller_core)
 
+# Behavior tree manager dependencies
+ament_target_dependencies(behavior_tree_manager_node
+  rclcpp
+  std_msgs
+  geometry_msgs
+  nav_msgs
+  sensor_msgs
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+  nav2_msgs
+  nav2_behavior_tree
+  behaviortree_cpp_v3
+  nav2_core
+  nav2_util
+  lifecycle_msgs
+  ament_index_cpp
+)
+
+target_link_libraries(behavior_tree_manager_node sigyn_behavior_tree_manager)
+
 # Install targets
 install(TARGETS sigyn_house_patroller_core
   EXPORT export_${PROJECT_NAME}
@@ -180,6 +239,13 @@ install(TARGETS sigyn_house_patroller_core
 
 install(TARGETS ${EXEC_TARGETS}
   DESTINATION lib/${PROJECT_NAME}
+)
+
+install(TARGETS sigyn_behavior_tree_manager
+  EXPORT export_${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
 )
 
 install(TARGETS sigyn_patrol_bt_plugins
