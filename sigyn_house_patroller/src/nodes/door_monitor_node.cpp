@@ -82,10 +82,10 @@ public:
     scan_healthy_ = true;
     
     // Publishers
-    threat_alert_pub_ = create_publisher<msg::ThreatAlert>(
+    threat_publisher_ = create_publisher<msg::ThreatAlert>(
       "~/threat_alerts", rclcpp::QoS(10).reliable());
     
-    health_pub_ = create_publisher<msg::SystemHealth>(
+    system_health_publisher_ = create_publisher<msg::SystemHealth>(
       "~/health", rclcpp::QoS(10).reliable());
     
     // Subscribers
@@ -124,7 +124,11 @@ private:
     double learned_open_distance;
     bool learning_complete;
     
-    DoorConfig() : learning_complete(false) {}
+    // State tracking
+    std::chrono::steady_clock::time_point last_state_change_time;
+    double min_notification_interval;  // seconds
+    
+    DoorConfig() : learning_complete(false), min_notification_interval(10.0) {}
   };
   
   void LaserScanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
@@ -146,34 +150,20 @@ private:
   }
   
   void MonitoringTimerCallback() {
-    std::lock_guard<std::mutex> lock(scan_mutex_);
-    
-    // Check if we've lost scan data
-    auto now = std::chrono::steady_clock::now();
-    auto time_since_update = std::chrono::duration_cast<std::chrono::seconds>(
-      now - last_scan_update_).count();
-    
-    if (time_since_update > scan_timeout_) {
-      scan_healthy_ = false;
-      
-      // Send communication loss alert
-      msg::ThreatAlert alert;
-      alert.header.stamp = this->now();
-      alert.header.frame_id = robot_frame_;
-      alert.threat_id = "scan_comm_loss";
-      alert.threat_type = "communication_failure";
-      alert.severity = msg::ThreatAlert::SEVERITY_WARNING;
-      alert.description = "Laser scan communication lost for " + 
-                         std::to_string(time_since_update) + " seconds";
-      alert.confidence = 1.0;
-      alert.timestamp = this->now();
-      alert.sensor_data = "{}";
-      
-      threat_alert_pub_->publish(alert);
-      
-      RCLCPP_ERROR(get_logger(), "Laser scan communication lost for %ld seconds", time_since_update);
-    } else {
-      scan_healthy_ = true;
+    if (!scan_healthy_) {
+      if (last_threat_time_ == rclcpp::Time(0, 0, RCL_ROS_TIME) ||
+          (this->now() - last_threat_time_).seconds() > 60) {
+        msg::ThreatAlert alert;
+        alert.header.stamp = this->now();
+        alert.threat_id = "door_monitor_stale_" + std::to_string(this->now().seconds());
+        alert.threat_type = "door_monitor_stale";
+        alert.severity_level = 2; // WARNING
+        alert.description = "Door monitor is not receiving laser scan updates.";
+        alert.room_name = current_room_;
+        alert.sensor_data_json = "{}";
+        threat_publisher_->publish(alert);
+        last_threat_time_ = this->now();
+      }
     }
   }
   
@@ -240,24 +230,23 @@ private:
       if (door_is_open != config.expected_open) {
         msg::ThreatAlert alert;
         alert.header.stamp = this->now();
-        alert.header.frame_id = robot_frame_;
         alert.threat_id = "door_state_" + door_id;
         alert.threat_type = "door_state_change";
-        alert.severity = msg::ThreatAlert::SEVERITY_WARNING;
+        alert.severity_level = 2; // WARNING
         alert.description = config.name + " is " + actual_state + 
                            " (expected: " + expected_state + ")" +
                            " - Distance: " + std::to_string(measured_distance) + "m" +
                            " (expected: " + std::to_string(expected_distance) + "m)";
         alert.confidence = std::min(1.0, distance_diff / config.tolerance);
-        alert.timestamp = this->now();
-        alert.sensor_data = "{\"door_id\": \"" + door_id + 
+        alert.room_name = current_room_;
+        alert.sensor_data_json = "{\"door_id\": \"" + door_id + 
                            "\", \"measured_distance\": " + std::to_string(measured_distance) + 
                            ", \"expected_distance\": " + std::to_string(expected_distance) + 
                            ", \"difference\": " + std::to_string(distance_diff) + 
                            ", \"actual_state\": \"" + actual_state + 
                            "\", \"expected_state\": \"" + expected_state + "\"}";
         
-        threat_alert_pub_->publish(alert);
+        threat_publisher_->publish(alert);
         
         // Update last alert time
         last_alerts_[door_id] = now;
@@ -361,29 +350,33 @@ private:
   void HealthTimerCallback() {
     msg::SystemHealth health;
     health.header.stamp = this->now();
-    health.header.frame_id = robot_frame_;
-    health.overall_health = scan_healthy_ ? 1.0 : 0.0;
-    health.navigation_health = 1.0;  // Not applicable
-    health.detection_health = scan_healthy_ ? 1.0 : 0.0;
-    
-    health.component_status.push_back("door_monitor: " + 
-                                     (scan_healthy_ ? "OK" : "ERROR"));
-    health.component_status.push_back("doors_configured: " + 
-                                     std::to_string(door_configs_.size()));
-    health.component_status.push_back("current_room: " + current_room_);
-    
-    // Add learning status
-    int learning_complete = 0;
-    for (const auto& [door_id, config] : door_configs_) {
-      if (config.learning_complete) {
-        learning_complete++;
-      }
+    health.overall_health = scan_healthy_ ? 1 : 2; // HEALTHY : DEGRADED
+    health.system_status_description = scan_healthy_ ? "OK" : "Door monitor not receiving laser scan updates";
+
+    health.component_names.push_back("door_monitor");
+    health.component_health_status.push_back(scan_healthy_ ? 1 : 2); // HEALTHY : DEGRADED
+    health.component_descriptions.push_back(std::string("door_monitor: ") + (scan_healthy_ ? "OK" : "ERROR"));
+    health.last_update_times.push_back(this->now());
+
+    health.component_names.push_back("doors_configured");
+    health.component_health_status.push_back(1); // HEALTHY
+    health.component_descriptions.push_back("doors_configured: " + std::to_string(door_configs_.size()));
+    health.last_update_times.push_back(this->now());
+
+    health.component_names.push_back("current_room");
+    health.component_health_status.push_back(1); // HEALTHY
+    health.component_descriptions.push_back("current_room: " + current_room_);
+    health.last_update_times.push_back(this->now());
+
+    for (auto const& [door_id, config] : door_configs_) {
+      bool learning_complete = config.distance_history.size() >= learning_samples_;
+      health.component_names.push_back("door_" + door_id);
+      health.component_health_status.push_back(learning_complete ? 1 : 2); // HEALTHY : DEGRADED
+      health.component_descriptions.push_back("learning_complete: " + std::string(learning_complete ? "YES" : "NO"));
+      health.last_update_times.push_back(this->now());
     }
-    health.component_status.push_back("learning_complete: " + 
-                                     std::to_string(learning_complete) + "/" + 
-                                     std::to_string(door_configs_.size()));
-    
-    health_pub_->publish(health);
+
+    system_health_publisher_->publish(health);
   }
   
   // Parameters
@@ -402,10 +395,11 @@ private:
   bool scan_healthy_;
   std::string current_room_;
   std::chrono::steady_clock::time_point last_scan_update_;
+  rclcpp::Time last_threat_time_{0, 0, RCL_ROS_TIME};
+  std::unordered_map<std::string, std::chrono::steady_clock::time_point> last_alerts_;
   
   // Data
   std::unordered_map<std::string, DoorConfig> door_configs_;
-  std::unordered_map<std::string, std::chrono::steady_clock::time_point> last_alerts_;
   sensor_msgs::msg::LaserScan::SharedPtr current_scan_;
   
   // TF2
@@ -413,8 +407,8 @@ private:
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
   
   // ROS2 interfaces
-  rclcpp::Publisher<msg::ThreatAlert>::SharedPtr threat_alert_pub_;
-  rclcpp::Publisher<msg::SystemHealth>::SharedPtr health_pub_;
+  rclcpp::Publisher<msg::ThreatAlert>::SharedPtr threat_publisher_;
+  rclcpp::Publisher<msg::SystemHealth>::SharedPtr system_health_publisher_;
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr laser_sub_;
   rclcpp::Subscription<msg::RoomIdentification>::SharedPtr room_id_sub_;
   rclcpp::TimerBase::SharedPtr monitoring_timer_;

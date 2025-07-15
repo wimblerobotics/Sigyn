@@ -9,14 +9,14 @@
 #include <std_srvs/srv/set_bool.hpp>
 #include <nav2_msgs/srv/manage_lifecycle_nodes.hpp>
 #include <nav2_msgs/srv/load_map.hpp>
-#include <lifecycles_msgs/msg/state.hpp>
-#include <lifecycles_msgs/srv/change_state.hpp>
+#include <lifecycle_msgs/msg/state.hpp>
+#include <lifecycle_msgs/srv/change_state.hpp>
 #include <rcl_interfaces/msg/parameter.hpp>
 #include <rcl_interfaces/srv/set_parameters.hpp>
 
 #include "sigyn_house_patroller/msg/threat_alert.hpp"
 #include "sigyn_house_patroller/msg/system_health.hpp"
-#include "sigyn_house_patroller/msg/patrol_state.hpp"
+#include "sigyn_house_patroller/msg/patrol_status.hpp"
 
 namespace sigyn_house_patroller {
 
@@ -67,12 +67,12 @@ private:
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr bt_status_pub_;
   rclcpp::Subscription<msg::ThreatAlert>::SharedPtr threat_alert_sub_;
   rclcpp::Subscription<msg::SystemHealth>::SharedPtr system_health_sub_;
-  rclcpp::Subscription<msg::PatrolState>::SharedPtr patrol_state_sub_;
+  rclcpp::Subscription<msg::PatrolStatus>::SharedPtr patrol_state_sub_;
   
   // Service clients for Nav2 lifecycle management
   rclcpp::Client<nav2_msgs::srv::ManageLifecycleNodes>::SharedPtr lifecycle_client_;
   rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedPtr set_params_client_;
-  rclcpp::Client<lifecycles_msgs::srv::ChangeState>::SharedPtr change_state_client_;
+  rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedPtr change_state_client_;
 
   // Service server for manual BT switching
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr switch_service_;
@@ -92,18 +92,18 @@ private:
   bool is_switching_;
   std::chrono::steady_clock::time_point last_switch_time_;
   double switch_cooldown_;
-  std::mutex state_mutex_;
+  mutable std::mutex state_mutex_;
+  bool maintenance_mode_;
   
   // Health monitoring
   double system_health_score_;
   int threat_level_;
   bool battery_critical_;
-  bool maintenance_mode_;
   
   // Callback functions
   void ThreatAlertCallback(const msg::ThreatAlert::SharedPtr msg);
   void SystemHealthCallback(const msg::SystemHealth::SharedPtr msg);
-  void PatrolStateCallback(const msg::PatrolState::SharedPtr msg);
+  void PatrolStateCallback(const msg::PatrolStatus::SharedPtr msg);
   void MonitoringTimerCallback();
   void StatusTimerCallback();
   

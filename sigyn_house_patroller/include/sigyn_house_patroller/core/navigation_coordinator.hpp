@@ -12,7 +12,6 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <nav2_msgs/action/navigate_to_pose.hpp>
 #include <nav2_msgs/srv/get_costmap.hpp>
-#include <nav2_msgs/srv/clear_costmap.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
@@ -239,7 +238,6 @@ private:
   
   // Service clients
   rclcpp::Client<nav2_msgs::srv::GetCostmap>::SharedPtr get_costmap_client_;
-  rclcpp::Client<nav2_msgs::srv::ClearCostmap>::SharedPtr clear_costmap_client_;
   
   // Navigation state
   NavigationStatus current_status_;

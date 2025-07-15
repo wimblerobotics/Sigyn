@@ -20,16 +20,7 @@ public:
   
   BT::NodeStatus tick() override;
   
-  static BT::PortsList providedPorts() {
-    return {
-      BT::InputPort<rclcpp::Node::SharedPtr>("node", "ROS2 node for subscriptions"),
-      BT::InputPort<double>("min_battery_level", 20.0, "Minimum battery level percentage"),
-      BT::InputPort<double>("timeout_seconds", 5.0, "Timeout for battery data"),
-      BT::OutputPort<double>("battery_level", "Current battery level percentage"),
-      BT::OutputPort<double>("battery_voltage", "Current battery voltage"),
-      BT::OutputPort<bool>("is_charging", "Whether battery is charging")
-    };
-  }
+  static BT::PortsList providedPorts();
 
 private:
   rclcpp::Node::SharedPtr node_;

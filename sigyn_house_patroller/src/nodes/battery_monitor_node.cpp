@@ -107,7 +107,21 @@ private:
   }
   
   void MonitoringTimerCallback() {
-    std::lock_guard<std::mutex> lock(battery_mutex_);
+    if (!battery_healthy_) {
+      if (last_threat_time_ == rclcpp::Time(0, 0, RCL_ROS_TIME) ||
+          (this->now() - last_threat_time_).seconds() > 60) {
+        msg::ThreatAlert alert;
+        alert.header.stamp = this->now();
+        alert.threat_id = "battery_monitor_unhealthy_" + std::to_string(this->now().seconds());
+        alert.threat_type = "battery_monitor_unhealthy";
+        alert.severity_level = 2; // WARNING
+        alert.description = "Battery monitor is not receiving updates.";
+        alert.room_name = "System";
+        alert.sensor_data_json = "{}";
+        threat_alert_pub_->publish(alert);
+        last_threat_time_ = this->now();
+      }
+    }
     
     // Check if we've lost battery data
     auto now = std::chrono::steady_clock::now();
@@ -120,14 +134,12 @@ private:
       // Send communication loss alert
       msg::ThreatAlert alert;
       alert.header.stamp = this->now();
-      alert.header.frame_id = "base_link";
       alert.threat_id = "battery_comm_loss";
       alert.threat_type = "communication_failure";
-      alert.severity = msg::ThreatAlert::SEVERITY_WARNING;
+      alert.severity_level = 2; // WARNING
       alert.description = "Battery communication lost for " + std::to_string(time_since_update) + " seconds";
-      alert.confidence = 1.0;
-      alert.timestamp = this->now();
-      alert.sensor_data = "{}";
+      alert.room_name = "System";
+      alert.sensor_data_json = "{}";
       
       threat_alert_pub_->publish(alert);
       
@@ -148,44 +160,35 @@ private:
     }
     
     // Critical battery level
-    if (current_battery_level_ <= critical_level_) {
-      msg::ThreatAlert alert;
-      alert.header.stamp = this->now();
-      alert.header.frame_id = "base_link";
-      alert.threat_id = "critical_battery";
-      alert.threat_type = "battery_critical";
-      alert.severity = msg::ThreatAlert::SEVERITY_CRITICAL;
-      alert.description = "Battery level critically low: " + 
-                         std::to_string(static_cast<int>(current_battery_level_ * 100)) + "%";
-      alert.confidence = 1.0;
-      alert.timestamp = this->now();
-      
-      // Add battery state as JSON
-      alert.sensor_data = "{\"level\": " + std::to_string(current_battery_level_) + 
-                         ", \"voltage\": " + std::to_string(current_battery_state_.voltage) + 
-                         ", \"current\": " + std::to_string(current_battery_state_.current) + "}";
-      
-      threat_alert_pub_->publish(alert);
-      
-      RCLCPP_ERROR(get_logger(), "CRITICAL BATTERY: %.1f%%", current_battery_level_ * 100);
-    }
-    // Low battery level
-    else if (current_battery_level_ <= low_level_) {
-      msg::ThreatAlert alert;
-      alert.header.stamp = this->now();
-      alert.header.frame_id = "base_link";
-      alert.threat_id = "low_battery";
-      alert.threat_type = "battery_low";
-      alert.severity = msg::ThreatAlert::SEVERITY_WARNING;
-      alert.description = "Battery level low: " + 
-                         std::to_string(static_cast<int>(current_battery_level_ * 100)) + "%";
-      alert.confidence = 1.0;
-      alert.timestamp = this->now();
-      alert.sensor_data = "{\"level\": " + std::to_string(current_battery_level_) + "}";
-      
-      threat_alert_pub_->publish(alert);
-      
-      RCLCPP_WARN(get_logger(), "Low battery: %.1f%%", current_battery_level_ * 100);
+    if (current_battery_level_ < critical_level_) {
+      if (last_critical_threat_time_ == rclcpp::Time(0, 0, RCL_ROS_TIME) ||
+          (this->now() - last_critical_threat_time_).seconds() > 300) {
+        msg::ThreatAlert alert;
+        alert.header.stamp = this->now();
+        alert.threat_id = "battery_critical_" + std::to_string(this->now().seconds());
+        alert.threat_type = "battery_critical";
+        alert.severity_level = 3; // CRITICAL
+        alert.description = "Battery level is critically low.";
+        alert.room_name = "System";
+        alert.sensor_data_json = "{\"level\": " + std::to_string(current_battery_level_) +
+                                  "}";
+        threat_alert_pub_->publish(alert);
+        last_critical_threat_time_ = this->now();
+      }
+    } else if (current_battery_level_ < low_level_) {
+      if (last_low_threat_time_ == rclcpp::Time(0, 0, RCL_ROS_TIME) ||
+          (this->now() - last_low_threat_time_).seconds() > 600) {
+        msg::ThreatAlert alert;
+        alert.header.stamp = this->now();
+        alert.threat_id = "battery_low_" + std::to_string(this->now().seconds());
+        alert.threat_type = "battery_low";
+        alert.severity_level = 2; // WARNING
+        alert.description = "Battery level is low.";
+        alert.room_name = "System";
+        alert.sensor_data_json = "{\"level\": " + std::to_string(current_battery_level_) + "}";
+        threat_alert_pub_->publish(alert);
+        last_low_threat_time_ = this->now();
+      }
     }
   }
   
@@ -229,41 +232,45 @@ private:
     double time_to_critical = (current_battery_level_ - critical_level_) / (-discharge_rate);
     
     // Alert if we'll hit critical level soon
-    if (time_to_critical < 600 && time_to_critical > 0) {  // Less than 10 minutes
-      msg::ThreatAlert alert;
-      alert.header.stamp = this->now();
-      alert.header.frame_id = "base_link";
-      alert.threat_id = "battery_prediction";
-      alert.threat_type = "battery_prediction";
-      alert.severity = msg::ThreatAlert::SEVERITY_WARNING;
-      alert.description = "Battery predicted to reach critical level in " + 
-                         std::to_string(static_cast<int>(time_to_critical / 60)) + " minutes";
-      alert.confidence = 0.8;
-      alert.timestamp = this->now();
-      alert.sensor_data = "{\"predicted_time\": " + std::to_string(time_to_critical) + 
-                         ", \"discharge_rate\": " + std::to_string(discharge_rate) + "}";
-      
-      threat_alert_pub_->publish(alert);
-      
-      RCLCPP_WARN(get_logger(), "Battery predicted to reach critical level in %.1f minutes", 
-                  time_to_critical / 60);
+    if (time_to_critical > 0 && time_to_critical < prediction_window_) {
+      if (last_prediction_threat_time_ == rclcpp::Time(0, 0, RCL_ROS_TIME) ||
+          (this->now() - last_prediction_threat_time_).seconds() > 600) {
+        msg::ThreatAlert alert;
+        alert.header.stamp = this->now();
+        alert.threat_id = "battery_prediction_" + std::to_string(this->now().seconds());
+        alert.threat_type = "battery_prediction";
+        alert.severity_level = 2; // WARNING
+        alert.description = "Predicted to reach critical battery level soon.";
+        alert.room_name = "System";
+        alert.sensor_data_json = "{\"predicted_time\": " + std::to_string(time_to_critical) +
+                                  "}";
+        threat_alert_pub_->publish(alert);
+        last_prediction_threat_time_ = this->now();
+      }
     }
   }
   
   void HealthTimerCallback() {
     msg::SystemHealth health;
     health.header.stamp = this->now();
-    health.header.frame_id = "base_link";
-    health.overall_health = battery_healthy_ ? 1.0 : 0.0;
-    health.navigation_health = 1.0;  // Not applicable
-    health.detection_health = battery_healthy_ ? 1.0 : 0.0;
-    
-    health.component_status.push_back("battery_monitor: " + 
-                                     (battery_healthy_ ? "OK" : "ERROR"));
-    health.component_status.push_back("battery_level: " + 
-                                     std::to_string(static_cast<int>(current_battery_level_ * 100)) + "%");
-    health.component_status.push_back("charging: " + std::string(is_charging_ ? "YES" : "NO"));
-    
+    health.overall_health = battery_healthy_ ? 1 : 2; // HEALTHY : DEGRADED
+    health.system_status_description = battery_healthy_ ? "OK" : "Battery monitor not receiving updates";
+
+    health.component_names.push_back("battery_monitor");
+    health.component_health_status.push_back(battery_healthy_ ? 1 : 2); // HEALTHY : DEGRADED
+    health.component_descriptions.push_back(std::string("battery_monitor: ") + (battery_healthy_ ? "OK" : "ERROR"));
+    health.last_update_times.push_back(this->now());
+
+    health.component_names.push_back("battery_level");
+    health.component_health_status.push_back(1); // HEALTHY
+    health.component_descriptions.push_back("battery_level: " + std::to_string(current_battery_level_));
+    health.last_update_times.push_back(this->now());
+
+    health.component_names.push_back("charging_state");
+    health.component_health_status.push_back(1); // HEALTHY
+    health.component_descriptions.push_back("charging: " + std::string(is_charging_ ? "YES" : "NO"));
+    health.last_update_times.push_back(this->now());
+
     health_pub_->publish(health);
   }
   
@@ -291,6 +298,10 @@ private:
   sensor_msgs::msg::BatteryState current_battery_state_;
   std::chrono::steady_clock::time_point last_battery_update_;
   std::vector<BatteryReading> battery_history_;
+  rclcpp::Time last_threat_time_{0, 0, RCL_ROS_TIME};
+  rclcpp::Time last_critical_threat_time_{0, 0, RCL_ROS_TIME};
+  rclcpp::Time last_low_threat_time_{0, 0, RCL_ROS_TIME};
+  rclcpp::Time last_prediction_threat_time_{0, 0, RCL_ROS_TIME};
   
   // ROS2 interfaces
   rclcpp::Publisher<msg::ThreatAlert>::SharedPtr threat_alert_pub_;

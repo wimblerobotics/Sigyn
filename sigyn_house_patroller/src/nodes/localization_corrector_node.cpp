@@ -1,14 +1,21 @@
-#include <memory>
-#include <chrono>
-#include <vector>
 #include <rclcpp/rclcpp.hpp>
+#include <memory>
+#include <string>
+#include <vector>
+#include <cmath>
+#include <algorithm>
+
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
-#include <geometry_msgs/msg/pose_stamped.hpp>
-#include <nav_msgs/msg/occupancy_grid.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/registration/icp.h>
+#include <nav_msgs/msg/occupancy_grid.hpp>
 
 #include "sigyn_house_patroller/msg/threat_alert.hpp"
 #include "sigyn_house_patroller/msg/system_health.hpp"
@@ -18,9 +25,8 @@ namespace sigyn_house_patroller {
 class LocalizationCorrectorNode : public rclcpp::Node {
 public:
   explicit LocalizationCorrectorNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions())
-      : Node("localization_corrector", options),
-        last_pose_update_(std::chrono::steady_clock::now()),
-        last_scan_update_(std::chrono::steady_clock::now()) {
+      : Node("localization_corrector", options)
+        {
     
     // Declare parameters
     declare_parameter("monitoring_frequency", 2.0);
@@ -68,14 +74,17 @@ public:
     pose_healthy_ = true;
     scan_healthy_ = true;
     localization_quality_ = 1.0;
-    last_correction_time_ = std::chrono::steady_clock::now() - 
-                           std::chrono::seconds(static_cast<int>(correction_cooldown_));
-    
+    last_correction_time_ = this->get_clock()->now() - rclcpp::Duration::from_seconds(correction_cooldown_);
+    last_pose_update_ = this->get_clock()->now();
+    last_scan_update_ = this->get_clock()->now();
+    last_jump_threat_time_ = rclcpp::Time(0, 0, RCL_ROS_TIME);
+    last_scan_quality_threat_time_ = rclcpp::Time(0, 0, RCL_ROS_TIME);
+
     // Publishers
-    threat_alert_pub_ = create_publisher<msg::ThreatAlert>(
+    threat_alert_pub_ = create_publisher<sigyn_house_patroller::msg::ThreatAlert>(
       "~/threat_alerts", rclcpp::QoS(10).reliable());
     
-    health_pub_ = create_publisher<msg::SystemHealth>(
+    health_pub_ = create_publisher<sigyn_house_patroller::msg::SystemHealth>(
       "~/health", rclcpp::QoS(10).reliable());
     
     initialpose_pub_ = create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
@@ -108,34 +117,32 @@ public:
   }
 
 private:
+    // Add missing member variables
+    std::unordered_map<std::string, rclcpp::Time> last_comm_alerts_;
+    std::unordered_map<std::string, rclcpp::Time> last_localization_alerts_;
+
   void PoseCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
-    std::lock_guard<std::mutex> lock(data_mutex_);
-    
-    // Store previous pose for jump detection
-    if (current_pose_) {
-      previous_pose_ = *current_pose_;
-    }
-    
     current_pose_ = msg;
-    last_pose_update_ = std::chrono::steady_clock::now();
-    
-    // Check pose quality
-    CheckPoseQuality();
-    
-    // Check for pose jumps
+    pose_healthy_ = true;
+    last_pose_update_ = this->get_clock()->now();
+
     if (previous_pose_) {
       CheckPoseJumps();
     }
+
+    CheckPoseQuality();
     
-    // Update pose history
-    UpdatePoseHistory();
+    if (previous_pose_ == nullptr) {
+      previous_pose_ = std::make_shared<geometry_msgs::msg::PoseWithCovarianceStamped>();
+    }
+    *previous_pose_ = *current_pose_;
   }
-  
+
   void ScanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     
     current_scan_ = msg;
-    last_scan_update_ = std::chrono::steady_clock::now();
+    last_scan_update_ = this->get_clock()->now();
     
     // Check scan quality
     CheckScanQuality();
@@ -157,38 +164,33 @@ private:
   void MonitoringTimerCallback() {
     std::lock_guard<std::mutex> lock(data_mutex_);
     
-    auto now = std::chrono::steady_clock::now();
+    auto now = this->get_clock()->now();
     
     // Check pose communication health
-    auto pose_time_since_update = std::chrono::duration_cast<std::chrono::seconds>(
-      now - last_pose_update_).count();
+    auto pose_time_since_update = (now - last_pose_update_).seconds();
     
     if (pose_time_since_update > pose_timeout_) {
       pose_healthy_ = false;
       
       if (pose_time_since_update > pose_timeout_ * 2) {
-        SendCommunicationAlert("pose", pose_time_since_update);
+        SendCommunicationAlert("pose", last_pose_update_);
       }
     } else {
       pose_healthy_ = true;
     }
     
     // Check scan communication health
-    auto scan_time_since_update = std::chrono::duration_cast<std::chrono::seconds>(
-      now - last_scan_update_).count();
+    auto scan_time_since_update = (now - last_scan_update_).seconds();
     
     if (scan_time_since_update > scan_timeout_) {
       scan_healthy_ = false;
       
       if (scan_time_since_update > scan_timeout_ * 2) {
-        SendCommunicationAlert("scan", scan_time_since_update);
+        SendCommunicationAlert("scan", last_scan_update_);
       }
     } else {
       scan_healthy_ = true;
     }
-    
-    // Update overall localization quality
-    UpdateLocalizationQuality();
   }
   
   void CheckPoseQuality() {
@@ -209,18 +211,17 @@ private:
         orient_uncertainty > pose_covariance_threshold_) {
       
       // Send localization quality alert
-      msg::ThreatAlert alert;
+      sigyn_house_patroller::msg::ThreatAlert alert;
       alert.header.stamp = this->now();
       alert.header.frame_id = map_frame_;
       alert.threat_id = "poor_localization";
       alert.threat_type = "localization_quality";
-      alert.severity = msg::ThreatAlert::SEVERITY_WARNING;
+      alert.severity_level = alert.SEVERITY_WARNING;
       alert.description = "Poor localization quality - Position uncertainty: " + 
                          std::to_string(pos_uncertainty) + "m, " +
                          "Orientation uncertainty: " + std::to_string(orient_uncertainty) + "rad";
       alert.confidence = 1.0;
-      alert.timestamp = this->now();
-      alert.sensor_data = "{\"position_uncertainty\": " + std::to_string(pos_uncertainty) + 
+      alert.sensor_data_json = "{\"position_uncertainty\": " + std::to_string(pos_uncertainty) + 
                          ", \"orientation_uncertainty\": " + std::to_string(orient_uncertainty) + "}";
       
       threat_alert_pub_->publish(alert);
@@ -235,56 +236,26 @@ private:
   }
   
   void CheckPoseJumps() {
-    if (!current_pose_ || !previous_pose_) {
-      return;
-    }
-    
-    // Calculate position jump
-    double dx = current_pose_->pose.pose.position.x - previous_pose_->pose.pose.position.x;
-    double dy = current_pose_->pose.pose.position.y - previous_pose_->pose.pose.position.y;
-    double position_jump = std::sqrt(dx*dx + dy*dy);
-    
-    // Calculate orientation jump
+    if (!previous_pose_) return;
+
+    double position_diff =
+        std::sqrt(std::pow(current_pose_->pose.pose.position.x - previous_pose_->pose.pose.position.x, 2) +
+                  std::pow(current_pose_->pose.pose.position.y - previous_pose_->pose.pose.position.y, 2));
+
     tf2::Quaternion current_q, previous_q;
     tf2::fromMsg(current_pose_->pose.pose.orientation, current_q);
     tf2::fromMsg(previous_pose_->pose.pose.orientation, previous_q);
-    
-    double orientation_jump = std::abs(tf2::getYaw(current_q) - tf2::getYaw(previous_q));
-    
-    // Normalize orientation jump to [-pi, pi]
-    while (orientation_jump > M_PI) orientation_jump -= 2*M_PI;
-    while (orientation_jump < -M_PI) orientation_jump += 2*M_PI;
-    orientation_jump = std::abs(orientation_jump);
-    
-    if (position_jump > position_jump_threshold_ || 
-        orientation_jump > orientation_jump_threshold_) {
-      
-      // Send pose jump alert
-      msg::ThreatAlert alert;
-      alert.header.stamp = this->now();
-      alert.header.frame_id = map_frame_;
-      alert.threat_id = "pose_jump";
-      alert.threat_type = "localization_jump";
-      alert.severity = msg::ThreatAlert::SEVERITY_WARNING;
-      alert.description = "Pose jump detected - Position: " + std::to_string(position_jump) + 
-                         "m, Orientation: " + std::to_string(orientation_jump) + "rad";
-      alert.confidence = 1.0;
-      alert.timestamp = this->now();
-      alert.sensor_data = "{\"position_jump\": " + std::to_string(position_jump) + 
-                         ", \"orientation_jump\": " + std::to_string(orientation_jump) + "}";
-      
-      threat_alert_pub_->publish(alert);
-      
-      RCLCPP_WARN(get_logger(), "Pose jump detected: %.2fm, %.2frad", 
-                  position_jump, orientation_jump);
-      
-      // Attempt correction if enabled
-      if (enable_auto_correction_) {
-        AttemptLocalizationCorrection();
-      }
+
+    double orientation_diff = current_q.angleShortestPath(previous_q);
+
+    if (position_diff > position_jump_threshold_ || orientation_diff > orientation_jump_threshold_) {
+      SendLocalizationAlert("pose_jump", position_diff,
+                            "Pose jump detected.",
+                            "{\"position_diff\": " + std::to_string(position_diff) +
+                            ", \"orientation_diff\": " + std::to_string(orientation_diff) + "}");
     }
   }
-  
+
   void CheckScanQuality() {
     if (!current_scan_) {
       return;
@@ -299,23 +270,12 @@ private:
     }
     
     if (valid_points < min_scan_points_) {
-      msg::ThreatAlert alert;
-      alert.header.stamp = this->now();
-      alert.header.frame_id = robot_frame_;
-      alert.threat_id = "poor_scan_quality";
-      alert.threat_type = "sensor_quality";
-      alert.severity = msg::ThreatAlert::SEVERITY_WARNING;
-      alert.description = "Poor scan quality - Valid points: " + 
-                         std::to_string(valid_points) + "/" + 
-                         std::to_string(current_scan_->ranges.size());
-      alert.confidence = 1.0;
-      alert.timestamp = this->now();
-      alert.sensor_data = "{\"valid_points\": " + std::to_string(valid_points) + 
-                         ", \"total_points\": " + std::to_string(current_scan_->ranges.size()) + "}";
-      
-      threat_alert_pub_->publish(alert);
-      
-      RCLCPP_WARN(get_logger(), "Poor scan quality: %d valid points", valid_points);
+      scan_healthy_ = false;
+      SendLocalizationAlert("low_scan_points", valid_points,
+                            "Low number of valid scan points.",
+                            "{\"valid_points\": " + std::to_string(valid_points) + "}");
+    } else {
+      scan_healthy_ = true;
     }
   }
   
@@ -337,169 +297,132 @@ private:
     double match_score = 0.9;  // Placeholder
     
     if (match_score < scan_match_threshold_) {
-      msg::ThreatAlert alert;
-      alert.header.stamp = this->now();
-      alert.header.frame_id = map_frame_;
-      alert.threat_id = "poor_scan_match";
-      alert.threat_type = "scan_match_failure";
-      alert.severity = msg::ThreatAlert::SEVERITY_WARNING;
-      alert.description = "Poor scan match - Score: " + std::to_string(match_score);
-      alert.confidence = 1.0;
-      alert.timestamp = this->now();
-      alert.sensor_data = "{\"match_score\": " + std::to_string(match_score) + "}";
+      localization_quality_ = std::min(localization_quality_, match_score);
+      SendLocalizationAlert("poor_scan_match", scan_match_score_,
+                            "Poor scan match against map.",
+                            "{\"scan_match_score\": " + std::to_string(scan_match_score_) + "}");
       
-      threat_alert_pub_->publish(alert);
-      
-      RCLCPP_WARN(get_logger(), "Poor scan match detected: %.2f", match_score);
-      
-      // Attempt correction if enabled
-      if (enable_auto_correction_) {
+      // Attempt to correct localization if score is very low
+      if (scan_match_score_ < 0.5) {
         AttemptLocalizationCorrection();
       }
     }
   }
   
-  void UpdatePoseHistory() {
-    if (!current_pose_) {
+  void AttemptLocalizationCorrection() {
+    if (!enable_auto_correction_) return;
+
+    auto now = this->get_clock()->now();
+    if ((now - last_correction_time_).seconds() < correction_cooldown_) {
+        return; // Cooldown active
+    }
+
+    RCLCPP_WARN(get_logger(), "Attempting to re-localize robot due to poor localization quality.");
+    RelocalizeRobot();
+    last_correction_time_ = now;
+  }
+
+  void RelocalizeRobot() {
+    if (!current_pose_ || !enable_auto_correction_) {
       return;
     }
     
-    PoseHistoryEntry entry;
-    entry.timestamp = std::chrono::steady_clock::now();
-    entry.pose = current_pose_->pose.pose;
+    // Publish current pose with zero covariance to trigger immediate relocalization
+    geometry_msgs::msg::PoseWithCovarianceStamped init_pose;
+    init_pose.header.stamp = this->now();
+    init_pose.header.frame_id = map_frame_;
+    init_pose.pose.pose = current_pose_->pose.pose;
     
-    pose_history_.push_back(entry);
-    
-    // Keep only recent history
-    const size_t max_history = 100;
-    if (pose_history_.size() > max_history) {
-      pose_history_.erase(pose_history_.begin());
+    // Set covariance to zero to indicate high certainty
+    for (int i = 0; i < 36; ++i) {
+      init_pose.pose.covariance[i] = 0.0;
     }
+    
+    initialpose_pub_->publish(init_pose);
+    
+    RCLCPP_INFO(get_logger(), "Relocalization triggered");
+
+    // For now, we just publish a threat to notify the system
+    SendLocalizationAlert("relocalization_needed", 1.0,
+                          "Robot requires relocalization.", "{}");
   }
-  
-  void UpdateLocalizationQuality() {
-    // Calculate overall localization quality based on multiple factors
-    double quality = 1.0;
+
+  void HealthTimerCallback() {
+    std::lock_guard<std::mutex> lock(data_mutex_);
     
-    // Factor 1: Communication health
-    if (!pose_healthy_ || !scan_healthy_) {
-      quality *= 0.5;
-    }
+    sigyn_house_patroller::msg::SystemHealth health_msg;
+    health_msg.header.stamp = this->get_clock()->now();
     
-    // Factor 2: Pose uncertainty
-    if (current_pose_) {
-      const auto& cov = current_pose_->pose.covariance;
-      double pos_uncertainty = std::sqrt(cov[0] + cov[7]);
-      quality *= std::max(0.1, 1.0 - pos_uncertainty);
-    }
+    bool is_healthy = pose_healthy_ && scan_healthy_ && (localization_quality_ > 0.5);
     
-    // Factor 3: Scan quality
-    if (current_scan_) {
-      int valid_points = 0;
-      for (const auto& range : current_scan_->ranges) {
-        if (range >= current_scan_->range_min && range <= current_scan_->range_max) {
-          valid_points++;
-        }
-      }
-      double scan_quality = std::min(1.0, static_cast<double>(valid_points) / min_scan_points_);
-      quality *= scan_quality;
-    }
+    health_msg.overall_health = is_healthy ? 1 : 2; // 1=HEALTHY, 2=DEGRADED
     
-    localization_quality_ = quality;
+    std::string message = "Pose: " + std::string(pose_healthy_ ? "OK" : "FAIL") +
+                          ", Scan: " + std::string(scan_healthy_ ? "OK" : "FAIL") +
+                          ", Quality: " + std::to_string(localization_quality_);
+    health_msg.system_status_description = message;
+    
+    health_msg.component_names.push_back(this->get_name());
+    health_msg.component_health_status.push_back(is_healthy ? 1 : 3); // 1=HEALTHY, 3=UNHEALTHY
+    health_msg.component_descriptions.push_back(message);
+    health_msg.last_update_times.push_back(this->get_clock()->now());
+
+    health_pub_->publish(health_msg);
   }
-  
-  void AttemptLocalizationCorrection() {
-    auto now = std::chrono::steady_clock::now();
-    auto time_since_correction = std::chrono::duration_cast<std::chrono::seconds>(
-      now - last_correction_time_).count();
-    
-    if (time_since_correction < correction_cooldown_) {
-      return;  // Still in cooldown period
+
+  void SendCommunicationAlert(const std::string& sensor_name, const rclcpp::Time& last_update_time) {
+    auto now = this->get_clock()->now();
+    auto time_since_update = (now - last_update_time).seconds();
+
+    // Check cooldown
+    auto& last_alert_time = last_comm_alerts_[sensor_name];
+    if ((now - last_alert_time).seconds() < correction_cooldown_) {
+        return;
     }
-    
-    // Attempt to reinitialize localization
-    // This is a simple approach - in practice, you might use more sophisticated methods
-    
-    if (current_pose_) {
-      // Publish current pose with high uncertainty to trigger relocalization
-      geometry_msgs::msg::PoseWithCovarianceStamped init_pose;
-      init_pose.header.stamp = this->now();
-      init_pose.header.frame_id = map_frame_;
-      init_pose.pose.pose = current_pose_->pose.pose;
-      
-      // Set high covariance to trigger particle filter spreading
-      for (int i = 0; i < 36; ++i) {
-        init_pose.pose.covariance[i] = 0.0;
-      }
-      init_pose.pose.covariance[0] = 0.5;   // x variance
-      init_pose.pose.covariance[7] = 0.5;   // y variance
-      init_pose.pose.covariance[35] = 0.1;  // yaw variance
-      
-      initialpose_pub_->publish(init_pose);
-      
-      last_correction_time_ = now;
-      
-      RCLCPP_INFO(get_logger(), "Attempted localization correction");
-      
-      // Send correction alert
-      msg::ThreatAlert alert;
-      alert.header.stamp = this->now();
-      alert.header.frame_id = map_frame_;
-      alert.threat_id = "localization_correction";
-      alert.threat_type = "localization_correction";
-      alert.severity = msg::ThreatAlert::SEVERITY_INFO;
-      alert.description = "Attempted automatic localization correction";
-      alert.confidence = 0.8;
-      alert.timestamp = this->now();
-      alert.sensor_data = "{}";
-      
-      threat_alert_pub_->publish(alert);
-    }
-  }
-  
-  void SendCommunicationAlert(const std::string& sensor_type, long seconds_since_update) {
-    msg::ThreatAlert alert;
-    alert.header.stamp = this->now();
-    alert.header.frame_id = robot_frame_;
-    alert.threat_id = sensor_type + "_comm_loss";
-    alert.threat_type = "communication_failure";
-    alert.severity = msg::ThreatAlert::SEVERITY_WARNING;
-    alert.description = sensor_type + " communication lost for " + 
-                       std::to_string(seconds_since_update) + " seconds";
+
+    sigyn_house_patroller::msg::ThreatAlert alert;
+    alert.header.stamp = now;
+    alert.threat_id = "comm_loss_" + sensor_name + "_" + std::to_string(now.seconds());
+    alert.threat_type = "communication_loss";
+    alert.severity_level = 3; // CRITICAL
+    alert.description = "Communication lost with " + sensor_name + " sensor. No data for " + 
+                       std::to_string(time_since_update) + " seconds.";
     alert.confidence = 1.0;
-    alert.timestamp = this->now();
-    alert.sensor_data = "{}";
+    alert.sensor_data_json = "{\"sensor\": \"" + sensor_name + "\"}";
     
     threat_alert_pub_->publish(alert);
+    last_alert_time = now;
   }
-  
-  void HealthTimerCallback() {
-    msg::SystemHealth health;
-    health.header.stamp = this->now();
-    health.header.frame_id = robot_frame_;
-    health.overall_health = localization_quality_;
-    health.navigation_health = localization_quality_;
-    health.detection_health = (pose_healthy_ && scan_healthy_) ? 1.0 : 0.0;
+
+  void SendLocalizationAlert(const std::string& alert_type, double value,
+                             const std::string& description, const std::string& sensor_data) {
+    auto now = this->get_clock()->now();
+
+    // Check cooldown for this specific alert type
+    auto& last_alert_time = last_localization_alerts_[alert_type];
+    if ((now - last_alert_time).seconds() < correction_cooldown_) {
+        return;
+    }
+
+    sigyn_house_patroller::msg::ThreatAlert alert;
+    alert.header.stamp = now;
+    alert.threat_id = "localization_" + alert_type + "_" + std::to_string(now.seconds());
+    alert.threat_type = "localization_error";
+    alert.severity_level = 2; // WARNING
+    alert.description = description;
+    alert.confidence = std::min(1.0, value / 10.0); // Normalize value somewhat arbitrarily
+    alert.sensor_data_json = sensor_data;
     
-    health.component_status.push_back("localization_corrector: " + 
-                                     (pose_healthy_ && scan_healthy_ ? "OK" : "ERROR"));
-    health.component_status.push_back("localization_quality: " + 
-                                     std::to_string(localization_quality_));
-    health.component_status.push_back("pose_healthy: " + 
-                                     (pose_healthy_ ? "OK" : "ERROR"));
-    health.component_status.push_back("scan_healthy: " + 
-                                     (scan_healthy_ ? "OK" : "ERROR"));
-    health.component_status.push_back("auto_correction: " + 
-                                     (enable_auto_correction_ ? "enabled" : "disabled"));
-    
-    health_pub_->publish(health);
+    if (current_pose_) {
+        alert.location = current_pose_->pose.pose.position;
+    }
+
+    threat_alert_pub_->publish(alert);
+    last_alert_time = now;
+
+    RCLCPP_WARN(get_logger(), "Localization Alert (%s): %s", alert_type.c_str(), description.c_str());
   }
-  
-  struct PoseHistoryEntry {
-    std::chrono::steady_clock::time_point timestamp;
-    geometry_msgs::msg::Pose pose;
-  };
-  
+
   // Parameters
   double monitoring_frequency_;
   double pose_timeout_;
@@ -523,24 +446,26 @@ private:
   bool pose_healthy_;
   bool scan_healthy_;
   double localization_quality_;
-  std::chrono::steady_clock::time_point last_pose_update_;
-  std::chrono::steady_clock::time_point last_scan_update_;
-  std::chrono::steady_clock::time_point last_correction_time_;
+  rclcpp::Time last_pose_update_;
+  rclcpp::Time last_scan_update_;
+  rclcpp::Time last_correction_time_;
+  rclcpp::Time last_jump_threat_time_;
+  rclcpp::Time last_scan_quality_threat_time_;
   
   // Data
   geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr current_pose_;
   geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr previous_pose_;
   sensor_msgs::msg::LaserScan::SharedPtr current_scan_;
   nav_msgs::msg::OccupancyGrid::SharedPtr current_map_;
-  std::vector<PoseHistoryEntry> pose_history_;
+  double scan_match_score_;
   
   // TF2
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
   
   // ROS2 interfaces
-  rclcpp::Publisher<msg::ThreatAlert>::SharedPtr threat_alert_pub_;
-  rclcpp::Publisher<msg::SystemHealth>::SharedPtr health_pub_;
+  rclcpp::Publisher<sigyn_house_patroller::msg::ThreatAlert>::SharedPtr threat_alert_pub_;
+  rclcpp::Publisher<sigyn_house_patroller::msg::SystemHealth>::SharedPtr health_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr initialpose_pub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;

@@ -7,6 +7,7 @@
 #include <nav2_msgs/action/navigate_to_pose.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <std_msgs/msg/bool.hpp>
 
 #include "sigyn_house_patroller/msg/threat_alert.hpp"
 #include "sigyn_house_patroller/msg/system_health.hpp"
@@ -123,13 +124,13 @@ private:
     std::lock_guard<std::mutex> lock(response_mutex_);
     
     RCLCPP_INFO(get_logger(), "Received threat alert: %s (severity: %d)", 
-                msg->threat_type.c_str(), msg->severity);
+                msg->threat_type.c_str(), msg->severity_level);
     
     // Update current threat level
-    current_threat_level_ = std::max(current_threat_level_, msg->severity);
+    current_threat_level_ = std::max(current_threat_level_, (int)msg->severity_level);
     
     // Check if we should respond to this threat
-    if (msg->severity >= threat_priority_threshold_) {
+    if (msg->severity_level >= threat_priority_threshold_) {
       ProcessThreatAlert(*msg);
     }
   }
@@ -139,7 +140,7 @@ private:
     auto it = active_responses_.find(alert.threat_id);
     if (it != active_responses_.end()) {
       // Update existing response
-      it->second.severity = std::max(it->second.severity, alert.severity);
+      it->second.severity = std::max(it->second.severity, (int)alert.severity_level);
       return;
     }
     
@@ -147,7 +148,7 @@ private:
     ThreatResponse response;
     response.threat_id = alert.threat_id;
     response.threat_type = alert.threat_type;
-    response.severity = alert.severity;
+    response.severity = alert.severity_level;
     response.location = alert.location;
     response.detected_time = std::chrono::system_clock::now();
     response.state = ResponseState::kAssessing;
@@ -219,7 +220,7 @@ private:
     response.response_actions = "Navigate to charging station";
     
     // Set patrol mode to emergency response
-    SetPatrolMode(3);  // Emergency response mode
+    SetPatrolMode("emergency");
     
     // Navigate to entry point (presumably near charging station)
     NavigateToResponseWaypoint(response.response_waypoint);
@@ -255,7 +256,7 @@ private:
     response.response_actions = "Investigate motion/change detection";
     
     // If severity is high, trigger emergency stop
-    if (response.severity >= msg::ThreatAlert::SEVERITY_EMERGENCY) {
+    if (response.severity >= msg::ThreatAlert::SEVERITY_CRITICAL) {
       TriggerEmergencyStop();
       response.response_actions += " - EMERGENCY STOP TRIGGERED";
     } else {
@@ -285,7 +286,7 @@ private:
     }
     
     auto goal = action::PatrolToWaypoint::Goal();
-    goal.waypoint_id = waypoint_id;
+    goal.waypoint_name = waypoint_id;
     
     auto send_goal_options = rclcpp_action::Client<action::PatrolToWaypoint>::SendGoalOptions();
     send_goal_options.goal_response_callback =
@@ -300,22 +301,22 @@ private:
     RCLCPP_INFO(get_logger(), "Navigating to response waypoint: %s", waypoint_id.c_str());
   }
   
-  void SetPatrolMode(int mode) {
+  void SetPatrolMode(const std::string& mode) {
     if (!patrol_mode_client_->wait_for_service(std::chrono::seconds(5))) {
       RCLCPP_ERROR(get_logger(), "Patrol mode service not available");
       return;
     }
     
     auto request = std::make_shared<srv::SetPatrolMode::Request>();
-    request->mode = mode;
+    request->requested_mode = mode;
     
     auto result = patrol_mode_client_->async_send_request(request);
     
-    RCLCPP_INFO(get_logger(), "Set patrol mode to: %d", mode);
+    RCLCPP_INFO(get_logger(), "Set patrol mode to: %s", mode.c_str());
   }
   
   void TriggerEmergencyStop() {
-    std_msgs::msg::Bool emergency_msg;
+    auto emergency_msg = std_msgs::msg::Bool();
     emergency_msg.data = true;
     emergency_stop_pub_->publish(emergency_msg);
     
@@ -338,11 +339,11 @@ private:
     // For now, just log the email content
     
     std::string email_subject = "Sigyn Security Alert: " + alert.threat_type;
-    std::string email_body = "Threat detected:\n" +
+    std::string email_body = std::string("Threat detected:\n") +
                            "Type: " + alert.threat_type + "\n" +
-                           "Severity: " + std::to_string(alert.severity) + "\n" +
+                           "Severity: " + std::to_string(alert.severity_level) + "\n" +
                            "Description: " + alert.description + "\n" +
-                           "Time: " + std::to_string(alert.timestamp.sec) + "\n" +
+                           "Time: " + std::to_string(alert.header.stamp.sec) + "\n" +
                            "Location: (" + std::to_string(alert.location.x) + ", " + 
                                           std::to_string(alert.location.y) + ")\n" +
                            "Confidence: " + std::to_string(alert.confidence);
@@ -523,18 +524,27 @@ private:
     msg::SystemHealth health;
     health.header.stamp = this->now();
     health.header.frame_id = "base_link";
-    health.overall_health = is_responding_ ? 0.8 : 1.0;
-    health.navigation_health = 1.0;  // Not directly applicable
-    health.detection_health = 1.0;
+    health.overall_health = is_responding_ ? msg::SystemHealth::HEALTH_DEGRADED : msg::SystemHealth::HEALTH_HEALTHY;
     
-    health.component_status.push_back("threat_response: " + 
-                                     (is_responding_ ? "RESPONDING" : "IDLE"));
-    health.component_status.push_back("current_threat_level: " + 
-                                     std::to_string(current_threat_level_));
-    health.component_status.push_back("active_responses: " + 
-                                     std::to_string(active_responses_.size()));
-    health.component_status.push_back("auto_response: " + 
-                                     (enable_auto_response_ ? "enabled" : "disabled"));
+    health.component_names.push_back("threat_response");
+    health.component_health_status.push_back(is_responding_ ? msg::SystemHealth::HEALTH_DEGRADED : msg::SystemHealth::HEALTH_HEALTHY);
+    health.component_descriptions.push_back(is_responding_ ? "RESPONDING" : "IDLE");
+    health.last_update_times.push_back(this->now());
+
+    health.component_names.push_back("threat_level");
+    health.component_health_status.push_back(msg::SystemHealth::HEALTH_HEALTHY);
+    health.component_descriptions.push_back(std::to_string(current_threat_level_));
+    health.last_update_times.push_back(this->now());
+
+    health.component_names.push_back("active_responses");
+    health.component_health_status.push_back(msg::SystemHealth::HEALTH_HEALTHY);
+    health.component_descriptions.push_back(std::to_string(active_responses_.size()));
+    health.last_update_times.push_back(this->now());
+
+    health.component_names.push_back("auto_response");
+    health.component_health_status.push_back(msg::SystemHealth::HEALTH_HEALTHY);
+    health.component_descriptions.push_back(enable_auto_response_ ? "enabled" : "disabled");
+    health.last_update_times.push_back(this->now());
     
     health_pub_->publish(health);
   }
