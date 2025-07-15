@@ -9,8 +9,8 @@ on a costmap topic, allowing navigation through the walls with keyboard input.
 import sqlite3
 import sys
 import select
-import termios
-import tty
+import os
+import signal
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
@@ -68,12 +68,6 @@ class WallVisualizer(Node):
         
         # Set up a timer to check for input
         self.input_timer = self.create_timer(0.1, self.check_input)
-        
-        # Set up terminal for non-blocking input
-        self.old_settings = None
-        if sys.stdin.isatty():
-            self.old_settings = termios.tcgetattr(sys.stdin)
-            tty.setraw(sys.stdin.fileno())
         
     def load_walls_from_database(self) -> List[Dict[str, Any]]:
         """Load walls from the SQLite database."""
@@ -146,6 +140,7 @@ class WallVisualizer(Node):
         wall_y = wall['y']
         wall_width = wall['width']
         wall_length = wall['length']
+        wall_x += 0.1016 ####
         
         # Calculate grid coordinates for the wall rectangle  
         # Use the wall's (x, y) as the corner and draw a rectangle from there
@@ -168,10 +163,13 @@ class WallVisualizer(Node):
         self.get_logger().info(f"This should draw {grid_width} pixels horizontally, {grid_height} pixels vertically")
         
         # Check if wall is within costmap bounds
-        if (grid_x_start < 0 or grid_x_start >= self.map_width or 
-            grid_y_start < 0 or grid_y_start >= self.map_height):
-            self.get_logger().warn(f"Wall '{wall['name']}' is outside costmap bounds!")
-            self.get_logger().warn(f"Grid start: ({grid_x_start}, {grid_y_start}), Map size: ({self.map_width}, {self.map_height})")
+        if (grid_x_start >= self.map_width or 
+            grid_y_start >= self.map_height or
+            grid_x_start + grid_width <= 0 or
+            grid_y_start + grid_height <= 0):
+            self.get_logger().warn(f"Wall '{wall['name']}' is completely outside costmap bounds!")
+            self.get_logger().warn(f"Grid start: ({grid_x_start}, {grid_y_start}), size: ({grid_width}, {grid_height})")
+            self.get_logger().warn(f"Map size: ({self.map_width}, {self.map_height})")
             return
         
         # Convert costmap.data to a mutable list
@@ -232,7 +230,7 @@ class WallVisualizer(Node):
         grid_l = max(1, int(wall['length'] / self.resolution))
         print(f"Grid coords: ({grid_x}, {grid_y}) size {grid_w}x{grid_l} pixels")
         
-        print("Commands: [Enter]=Next, [b]=Previous, [s]=Start, [q]=Quit")
+        print("Commands: [Enter]=Next, [b+Enter]=Previous, [s+Enter]=Start, [q+Enter]=Quit")
         print("Command: ", end="", flush=True)
     
     def check_input(self):
@@ -243,31 +241,42 @@ class WallVisualizer(Node):
         try:
             # Check if input is available
             if sys.stdin.isatty() and select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-                command = sys.stdin.read(1).lower()
+                # Read a line of input
+                line = sys.stdin.readline().strip()
                 
-                if command == 'q':
-                    self.get_logger().info("Quitting...")
-                    self.cleanup_and_exit()
-                elif command == 'b':
-                    # Go to previous wall
-                    self.current_index = (self.current_index - 1) % len(self.walls)
-                    self.display_current_wall()
-                elif command == 's':
-                    # Go to start (first wall)
-                    self.current_index = 0
-                    self.display_current_wall()
-                elif command == '\n' or command == '\r' or command == ' ':
-                    # Go to next wall (Enter, space, or other)
+                # Handle empty line (just Enter pressed)
+                if not line:
+                    # Go to next wall for Enter key
                     self.current_index = (self.current_index + 1) % len(self.walls)
                     self.display_current_wall()
+                else:
+                    # Handle commands
+                    command = line[0].lower()
                     
+                    if command == 'q':
+                        self.get_logger().info("Quitting...")
+                        self.cleanup_and_exit()
+                    elif command == 'b':
+                        # Go to previous wall
+                        self.current_index = (self.current_index - 1) % len(self.walls)
+                        self.display_current_wall()
+                    elif command == 's':
+                        # Go to start (first wall)
+                        self.current_index = 0
+                        self.display_current_wall()
+                    else:
+                        # Go to next wall for any other input
+                        self.current_index = (self.current_index + 1) % len(self.walls)
+                        self.display_current_wall()
+                    
+        except KeyboardInterrupt:
+            self.get_logger().info("Keyboard interrupt received, quitting...")
+            self.cleanup_and_exit()
         except Exception as e:
             self.get_logger().error(f"Input handling error: {e}")
             
     def cleanup_and_exit(self):
-        """Clean up terminal settings and exit."""
-        if self.old_settings:
-            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)
+        """Clean up and exit."""
         self.running = False
         rclpy.shutdown()
     
@@ -350,26 +359,43 @@ class WallVisualizer(Node):
         try:
             rclpy.spin(self)
         except KeyboardInterrupt:
-            pass
+            self.get_logger().info("Keyboard interrupt received, shutting down...")
+            self.cleanup_and_exit()
         finally:
             self.running = False
-            if self.old_settings:
-                termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)
 
 
 def main(args=None):
     """Main entry point."""
     rclpy.init(args=args)
     
+    visualizer = None
+    
+    def signal_handler(signum, frame):
+        """Handle signal interrupts."""
+        print("\nReceived interrupt signal, shutting down...")
+        if visualizer:
+            visualizer.cleanup_and_exit()
+        else:
+            rclpy.shutdown()
+            sys.exit(0)
+    
+    # Set up signal handlers
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
     try:
         visualizer = WallVisualizer()
         visualizer.run()
     except KeyboardInterrupt:
-        pass
+        print("\nKeyboard interrupt received, shutting down...")
     except Exception as e:
         print(f"Error: {e}")
     finally:
-        rclpy.shutdown()
+        if visualizer:
+            visualizer.cleanup_and_exit()
+        else:
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':
