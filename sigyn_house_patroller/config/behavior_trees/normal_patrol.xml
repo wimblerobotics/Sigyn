@@ -1,0 +1,99 @@
+<!--
+  Normal patrol behavior tree - Standard house patrolling with basic monitoring
+-->
+<root BTCPP_format="4" main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <ReactiveSequence name="NormalPatrol">
+      
+      <!-- Emergency checks (high priority) -->
+      <ReactiveFallback name="EmergencyChecks">
+        <CheckBatteryLevel name="battery_check" min_battery_level="15.0" />
+        <Sequence name="BatteryEmergency">
+          <SendThreatAlert name="battery_alert" 
+                          threat_type="battery_critical" 
+                          threat_description="Battery critically low during patrol" 
+                          threat_severity="CRITICAL" 
+                          threat_confidence="1.0" />
+          <AlwaysFailure />
+        </Sequence>
+      </ReactiveFallback>
+
+      <!-- Main patrol sequence -->
+      <Repeat name="PatrolLoop" num_cycles="-1">
+        <Sequence name="PatrolSequence">
+          
+          <!-- Room 1: Living Room -->
+          <Sequence name="LivingRoomPatrol">
+            <NavigateToWaypoint name="go_to_living_room" 
+                               waypoint_name="living_room"
+                               target_pose="3.0;5.0;0.0;map" />
+            <PerformRoomCheck name="check_living_room" 
+                             room_name="living_room" 
+                             check_duration="20.0" 
+                             min_observations="5" />
+            <CheckTemperature name="temp_check" 
+                             min_temperature="18.0" 
+                             max_temperature="26.0" />
+            <CheckDoorState name="front_door_check" 
+                           door_name="front_door" 
+                           expected_angle="0.0" 
+                           distance_tolerance="0.1" />
+          </Sequence>
+
+          <!-- Room 2: Kitchen -->
+          <Sequence name="KitchenPatrol">
+            <NavigateToWaypoint name="go_to_kitchen" 
+                               waypoint_name="kitchen"
+                               target_pose="8.0;3.0;0.0;map" />
+            <PerformRoomCheck name="check_kitchen" 
+                             room_name="kitchen" 
+                             check_duration="15.0" 
+                             min_observations="4" />
+            <CheckTemperature name="kitchen_temp_check" 
+                             min_temperature="16.0" 
+                             max_temperature="30.0" />
+          </Sequence>
+
+          <!-- Room 3: Bedroom -->
+          <Sequence name="BedroomPatrol">
+            <NavigateToWaypoint name="go_to_bedroom" 
+                               waypoint_name="bedroom"
+                               target_pose="12.0;8.0;0.0;map" />
+            <PerformRoomCheck name="check_bedroom" 
+                             room_name="bedroom" 
+                             check_duration="15.0" 
+                             min_observations="3" />
+            <CheckDoorState name="bedroom_door_check" 
+                           door_name="bedroom_door" 
+                           expected_angle="1.57" 
+                           distance_tolerance="0.1" />
+          </Sequence>
+
+          <!-- Room 4: Bathroom -->
+          <Sequence name="BathroomPatrol">
+            <NavigateToWaypoint name="go_to_bathroom" 
+                               waypoint_name="bathroom"
+                               target_pose="10.0;12.0;0.0;map" />
+            <PerformRoomCheck name="check_bathroom" 
+                             room_name="bathroom" 
+                             check_duration="10.0" 
+                             min_observations="3" />
+            <CheckDoorState name="bathroom_door_check" 
+                           door_name="bathroom_door" 
+                           expected_angle="-1.57" 
+                           distance_tolerance="0.1" />
+          </Sequence>
+
+          <!-- Return to base -->
+          <NavigateToWaypoint name="return_to_base" 
+                             waypoint_name="base_station"
+                             target_pose="1.0;1.0;0.0;map" />
+          
+          <!-- Wait between patrol cycles -->
+          <Wait name="patrol_interval" wait_duration="60.0" />
+        </Sequence>
+      </Repeat>
+      
+    </ReactiveSequence>
+  </BehaviorTree>
+</root>
