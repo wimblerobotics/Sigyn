@@ -71,6 +71,12 @@ install(PROGRAMS
   RENAME query_walls
 )
 
+install(PROGRAMS
+  model_to_wall_db/model_to_wall_db/visualize_db.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME visualize_db
+)
+
 install(TARGETS
   motor_characterization
   DESTINATION lib/${PROJECT_NAME})

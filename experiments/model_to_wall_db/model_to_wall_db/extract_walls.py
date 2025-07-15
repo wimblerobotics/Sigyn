@@ -166,13 +166,17 @@ class WallExtractor(Node):
             x_start = x_pos - (length / 2.0)
             y_start = y_pos - (width / 2.0)
             
+            # Determine if wall is vertical based on dimensions
+            # If length < width, it's a vertical wall (shorter than wide)
+            is_vertical = length < width
+            
             return {
                 'name': name,
                 'width': width,
                 'length': length,
                 'x': x_start,
                 'y': y_start,
-                'rotation': yaw  # z-rotation from pose
+                'vertical': is_vertical
             }
             
         except Exception as e:
@@ -193,30 +197,32 @@ class WallExtractor(Node):
             # Ensure the directory exists
             self.database_path.parent.mkdir(parents=True, exist_ok=True)
             
-            # Connect to SQLite database
+            # Delete existing database file to ensure clean start
+            if self.database_path.exists():
+                self.database_path.unlink()
+                self.get_logger().info(f"Deleted existing database: {self.database_path}")
+            
+            # Connect to SQLite database (will create new one)
             conn = sqlite3.connect(str(self.database_path))
             cursor = conn.cursor()
             
-            # Create table if it doesn't exist
+            # Create table with new schema
             cursor.execute('''
-                CREATE TABLE IF NOT EXISTS walls (
+                CREATE TABLE walls (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL,
                     width REAL NOT NULL,
                     length REAL NOT NULL,
                     x REAL NOT NULL,
                     y REAL NOT NULL,
-                    rotation REAL NOT NULL DEFAULT 0.0
+                    vertical BOOLEAN NOT NULL DEFAULT 0
                 )
             ''')
-            
-            # Clear existing data
-            cursor.execute('DELETE FROM walls')
             
             # Insert wall data
             for wall in walls:
                 cursor.execute('''
-                    INSERT INTO walls (name, width, length, x, y, rotation)
+                    INSERT INTO walls (name, width, length, x, y, vertical)
                     VALUES (?, ?, ?, ?, ?, ?)
                 ''', (
                     wall['name'],
@@ -224,7 +230,7 @@ class WallExtractor(Node):
                     wall['length'],
                     wall['x'],
                     wall['y'],
-                    wall['rotation']
+                    wall['vertical']
                 ))
             
             conn.commit()
@@ -245,18 +251,19 @@ class WallExtractor(Node):
             walls: List of wall parameter dictionaries
         """
         self.get_logger().info(f"Extracted {len(walls)} walls:")
-        self.get_logger().info("=" * 90)
-        self.get_logger().info(f"{'Name':<20} {'Width(m)':<10} {'Length(m)':<10} {'X(m)':<10} {'Y(m)':<10} {'Rotation(rad)':<12}")
-        self.get_logger().info("=" * 90)
+        self.get_logger().info("=" * 85)
+        self.get_logger().info(f"{'Name':<20} {'Width(m)':<10} {'Length(m)':<10} {'X(m)':<10} {'Y(m)':<10} {'Vertical':<8}")
+        self.get_logger().info("=" * 85)
         
         for wall in walls:
+            vertical_str = "Yes" if wall['vertical'] else "No"
             self.get_logger().info(
                 f"{wall['name']:<20} "
                 f"{wall['width']:<10.3f} "
                 f"{wall['length']:<10.3f} "
                 f"{wall['x']:<10.3f} "
                 f"{wall['y']:<10.3f} "
-                f"{wall['rotation']:<12.3f}"
+                f"{vertical_str:<8}"
             )
     
     def run(self) -> None:
