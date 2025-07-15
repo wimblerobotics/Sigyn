@@ -30,22 +30,33 @@ def query_wall_database():
             return
         
         print(f"Found {len(walls)} walls in database:")
-        print("=" * 95)
-        print(f"{'ID':<5} {'Name':<20} {'Width(m)':<10} {'Length(m)':<10} {'X(m)':<10} {'Y(m)':<10} {'Rotation(rad)':<12}")
-        print("=" * 95)
+        print("=" * 85)
+        print(f"{'ID':<5} {'Name':<20} {'Width(m)':<10} {'Length(m)':<10} {'X(m)':<10} {'Y(m)':<10} {'Vertical':<8}")
+        print("=" * 85)
         
         total_length = 0
+        vertical_count = 0
+        horizontal_count = 0
+        
         for wall in walls:
-            if len(wall) == 7:  # New format with rotation
-                wall_id, name, width, length, x, y, rotation = wall
-                print(f"{wall_id:<5} {name:<20} {width:<10.3f} {length:<10.3f} {x:<10.3f} {y:<10.3f} {rotation:<12.3f}")
-            else:  # Old format without rotation - handle gracefully
+            if len(wall) == 7:  # New format with vertical
+                wall_id, name, width, length, x, y, vertical = wall
+                vertical_str = "Yes" if vertical else "No"
+                if vertical:
+                    vertical_count += 1
+                else:
+                    horizontal_count += 1
+                print(f"{wall_id:<5} {name:<20} {width:<10.3f} {length:<10.3f} {x:<10.3f} {y:<10.3f} {vertical_str:<8}")
+            else:  # Old format without vertical - handle gracefully
                 wall_id, name, width, length, x, y = wall
-                print(f"{wall_id:<5} {name:<20} {width:<10.3f} {length:<10.3f} {x:<10.3f} {y:<10.3f} {'0.000':<12}")
+                vertical_str = "Yes" if length < width else "No"
+                print(f"{wall_id:<5} {name:<20} {width:<10.3f} {length:<10.3f} {x:<10.3f} {y:<10.3f} {vertical_str:<8}")
             total_length += length
         
-        print("=" * 95)
+        print("=" * 85)
         print(f"Total wall length: {total_length:.3f} meters")
+        if len(walls) > 0 and len(walls[0]) == 7:
+            print(f"Vertical walls: {vertical_count}, Horizontal walls: {horizontal_count}")
         
         conn.close()
         
