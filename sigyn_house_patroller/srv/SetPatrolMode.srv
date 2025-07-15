@@ -1,0 +1,18 @@
+# SetPatrolMode.srv
+# Service to change patrol mode and configuration
+
+# Request
+string requested_mode  # "idle", "patrolling", "investigating", "charging", "emergency"
+string waypoint_set  # "morning", "evening", "security_sweep", "custom"
+string[] custom_waypoints  # Used when waypoint_set is "custom"
+bool immediate_mode_change  # If true, interrupt current task
+string configuration_json  # Additional configuration parameters
+
+---
+
+# Response
+bool success
+string current_mode
+string message
+string[] available_modes
+string[] available_waypoint_sets
