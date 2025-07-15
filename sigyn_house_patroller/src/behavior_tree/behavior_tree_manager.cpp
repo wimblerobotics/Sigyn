@@ -23,6 +23,11 @@ BehaviorTreeManager::BehaviorTreeManager(const rclcpp::NodeOptions & options)
   declare_parameter("lifecycle_manager_node", "lifecycle_manager_navigation");
   declare_parameter("monitoring_frequency", 2.0);
   declare_parameter("status_frequency", 0.5);
+  declare_parameter("threat_level_threshold", 2);
+  declare_parameter("battery_critical_threshold", 0.15);
+  declare_parameter("system_health_threshold", 0.5);
+  declare_parameter("enable_auto_switching", true);
+  declare_parameter("enable_nav2_integration", true);
   
   // Get parameters
   config_directory_ = get_parameter("config_directory").as_string();

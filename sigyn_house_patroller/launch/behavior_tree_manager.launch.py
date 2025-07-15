@@ -63,7 +63,6 @@ def generate_launch_description():
             {'system_health_threshold': 0.5},
             {'enable_auto_switching': True},
             {'enable_nav2_integration': True},
-            LaunchConfiguration('config_file'),
         ],
         arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')],
         remappings=[

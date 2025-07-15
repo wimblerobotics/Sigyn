@@ -59,7 +59,6 @@ def generate_launch_description():
             {'response_waypoints.door_state_change': 'front_door_check'},
             {'response_waypoints.motion_detection': 'living_room_center'},
             {'response_waypoints.default': 'hallway_center'},
-            LaunchConfiguration('config_file'),
         ],
         arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')],
         remappings=[

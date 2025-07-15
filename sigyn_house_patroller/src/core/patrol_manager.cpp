@@ -18,6 +18,20 @@ PatrolManager::PatrolManager(
       is_patrolling_(false) {
   RCLCPP_INFO(this->get_logger(), "PatrolManager initialized");
 
+  // Declare parameters
+  this->declare_parameter<std::string>("patrol_config_file", "");
+  this->declare_parameter<std::string>("waypoint_config_file", "");
+  this->declare_parameter<std::string>("room_config_file", "");
+  this->declare_parameter<double>("patrol_frequency_hz", 1.0);
+  this->declare_parameter<double>("status_frequency_hz", 2.0);
+  this->declare_parameter<double>("waypoint_tolerance", 0.5);
+  this->declare_parameter<double>("navigation_timeout", 300.0);
+  this->declare_parameter<double>("battery_critical_level", 0.15);
+  this->declare_parameter<double>("battery_low_level", 0.25);
+  this->declare_parameter<std::string>("base_frame", "base_link");
+  this->declare_parameter<std::string>("map_frame", "map");
+  this->declare_parameter<bool>("use_perimeter_following", false);
+
   // Service for setting patrol mode
   set_patrol_mode_service_ = create_service<SetPatrolModeSrv>(
       "set_patrol_mode",
