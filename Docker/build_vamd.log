@@ -1,0 +1,85 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from SigynVAmd
+#1 transferring dockerfile: 3.73kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/ubuntu:22.04
+#2 DONE 1.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [ 1/18] FROM docker.io/library/ubuntu:22.04@sha256:01a3ee0b5e413cefaaffc6abe68c9c37879ae3cced56a8e088b1649e5b269eee
+#4 DONE 0.0s
+
+#5 [ 3/18] RUN apt-get update && apt-get install -y --allow-unauthenticated     curl     gnupg     lsb-release     software-properties-common
+#5 CACHED
+
+#6 [ 4/18] RUN curl -sS "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x871920D1991BC93C" | gpg --batch --yes --dearmor -o /etc/apt/trusted.gpg.d/ubuntu-key.gpg
+#6 CACHED
+
+#7 [ 2/18] RUN echo 'Acquire::AllowInsecureRepositories "true";' > /etc/apt/apt.conf.d/99-insecure
+#7 CACHED
+
+#8 [ 5/18] RUN rm /etc/apt/apt.conf.d/99-insecure
+#8 CACHED
+
+#9 [ 6/18] RUN apt-get update
+#9 0.665 Get:1 http://security.ubuntu.com/ubuntu jammy-security InRelease [129 kB]
+#9 0.665 Get:2 http://archive.ubuntu.com/ubuntu jammy InRelease [270 kB]
+#9 1.309 Get:3 http://archive.ubuntu.com/ubuntu jammy-updates InRelease [128 kB]
+#9 1.465 Get:4 http://archive.ubuntu.com/ubuntu jammy-backports InRelease [127 kB]
+#9 2.689 Err:1 http://security.ubuntu.com/ubuntu jammy-security InRelease
+#9 2.689   The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 871920D1991BC93C
+#9 4.263 Err:2 http://archive.ubuntu.com/ubuntu jammy InRelease
+#9 4.263   The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 871920D1991BC93C
+#9 5.812 Err:3 http://archive.ubuntu.com/ubuntu jammy-updates InRelease
+#9 5.812   The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 871920D1991BC93C
+#9 7.335 Err:4 http://archive.ubuntu.com/ubuntu jammy-backports InRelease
+#9 7.335   The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 871920D1991BC93C
+#9 7.361 Reading package lists...
+#9 10.95 W: http://security.ubuntu.com/ubuntu/dists/jammy-security/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-key.gpg are ignored as the file has an unsupported filetype.
+#9 10.95 W: http://security.ubuntu.com/ubuntu/dists/jammy-security/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-keyring-2012-cdimage.gpg are ignored as the file has an unsupported filetype.
+#9 10.95 W: http://security.ubuntu.com/ubuntu/dists/jammy-security/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg are ignored as the file has an unsupported filetype.
+#9 10.95 W: GPG error: http://security.ubuntu.com/ubuntu jammy-security InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 871920D1991BC93C
+#9 10.95 E: The repository 'http://security.ubuntu.com/ubuntu jammy-security InRelease' is not signed.
+#9 10.95 W: http://archive.ubuntu.com/ubuntu/dists/jammy/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-key.gpg are ignored as the file has an unsupported filetype.
+#9 10.95 W: http://archive.ubuntu.com/ubuntu/dists/jammy/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-keyring-2012-cdimage.gpg are ignored as the file has an unsupported filetype.
+#9 10.95 W: http://archive.ubuntu.com/ubuntu/dists/jammy/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg are ignored as the file has an unsupported filetype.
+#9 10.95 W: GPG error: http://archive.ubuntu.com/ubuntu jammy InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 871920D1991BC93C
+#9 10.95 E: The repository 'http://archive.ubuntu.com/ubuntu jammy InRelease' is not signed.
+#9 10.95 W: http://archive.ubuntu.com/ubuntu/dists/jammy-updates/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-key.gpg are ignored as the file has an unsupported filetype.
+#9 10.95 W: http://archive.ubuntu.com/ubuntu/dists/jammy-updates/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-keyring-2012-cdimage.gpg are ignored as the file has an unsupported filetype.
+#9 10.95 W: http://archive.ubuntu.com/ubuntu/dists/jammy-updates/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg are ignored as the file has an unsupported filetype.
+#9 10.95 W: GPG error: http://archive.ubuntu.com/ubuntu jammy-updates InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 871920D1991BC93C
+#9 10.95 E: The repository 'http://archive.ubuntu.com/ubuntu jammy-updates InRelease' is not signed.
+#9 10.95 W: http://archive.ubuntu.com/ubuntu/dists/jammy-backports/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-key.gpg are ignored as the file has an unsupported filetype.
+#9 10.95 W: http://archive.ubuntu.com/ubuntu/dists/jammy-backports/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-keyring-2012-cdimage.gpg are ignored as the file has an unsupported filetype.
+#9 10.95 W: http://archive.ubuntu.com/ubuntu/dists/jammy-backports/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg are ignored as the file has an unsupported filetype.
+#9 10.95 W: GPG error: http://archive.ubuntu.com/ubuntu jammy-backports InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 871920D1991BC93C
+#9 10.95 E: The repository 'http://archive.ubuntu.com/ubuntu jammy-backports InRelease' is not signed.
+#9 ERROR: process "/bin/sh -c apt-get update" did not complete successfully: exit code: 100
+------
+ > [ 6/18] RUN apt-get update:
+10.95 W: http://archive.ubuntu.com/ubuntu/dists/jammy-updates/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-key.gpg are ignored as the file has an unsupported filetype.
+10.95 W: http://archive.ubuntu.com/ubuntu/dists/jammy-updates/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-keyring-2012-cdimage.gpg are ignored as the file has an unsupported filetype.
+10.95 W: http://archive.ubuntu.com/ubuntu/dists/jammy-updates/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg are ignored as the file has an unsupported filetype.
+10.95 W: GPG error: http://archive.ubuntu.com/ubuntu jammy-updates InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 871920D1991BC93C
+10.95 E: The repository 'http://archive.ubuntu.com/ubuntu jammy-updates InRelease' is not signed.
+10.95 W: http://archive.ubuntu.com/ubuntu/dists/jammy-backports/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-key.gpg are ignored as the file has an unsupported filetype.
+10.95 W: http://archive.ubuntu.com/ubuntu/dists/jammy-backports/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-keyring-2012-cdimage.gpg are ignored as the file has an unsupported filetype.
+10.95 W: http://archive.ubuntu.com/ubuntu/dists/jammy-backports/InRelease: The key(s) in the keyring /etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg are ignored as the file has an unsupported filetype.
+10.95 W: GPG error: http://archive.ubuntu.com/ubuntu jammy-backports InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 871920D1991BC93C
+10.95 E: The repository 'http://archive.ubuntu.com/ubuntu jammy-backports InRelease' is not signed.
+------
+SigynVAmd:31
+--------------------
+  29 |     # 5. Run a final, fully secure update to confirm the base image is fixed.
+  30 |     #    This step is crucial. It must pass without any GPG errors.
+  31 | >>> RUN apt-get update
+  32 |     
+  33 |     # --- STAGE 2: Install ROS 2 and other dependencies ---
+--------------------
+ERROR: failed to solve: process "/bin/sh -c apt-get update" did not complete successfully: exit code: 100
