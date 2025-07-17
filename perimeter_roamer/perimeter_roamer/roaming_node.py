@@ -1,27 +1,34 @@
-import debugpy
 import rclpy
 from rclpy.node import Node
-from rclpy.duration import Duration
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
+from rclpy.duration import Duration
+import math
 import tf2_ros
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
-import tf_transformations # sudo apt install python3-transforms3d
-import math
-from enum import Enum
-
-from geometry_msgs.msg import Twist, Point, PoseStamped, Quaternion
+import tf_transformations
+from geometry_msgs.msg import Twist, Point
 from sensor_msgs.msg import LaserScan
-from nav_msgs.msg import Odometry, OccupancyGrid, MapMetaData
-from visualization_msgs.msg import Marker, MarkerArray # For debugging
+from nav_msgs.msg import Odometry, OccupancyGrid
+from map_msgs.msg import OccupancyGridUpdate
+from visualization_msgs.msg import Marker, MarkerArray
+from enum import Enum
+import sys # For main function
 
 class State(Enum):
     FIND_WALL = 0
-    TURN_LEFT = 1
-    FOLLOW_WALL = 2
-    NAVIGATE_DOORWAY = 3
-    RECOVERY_BACKUP = 4
-    RECOVERY_TURN = 5
-    STOPPED = 6
+    FOLLOW_WALL = 1
+    AVOID_OBSTACLE = 2
+    RECOVERY_BACKUP = 3
+    RECOVERY_TURN = 4
+    NAVIGATE_DOORWAY = 5
+
+class DoorwayStatus(Enum):
+    """ Represents the result of a doorway check. """
+    NONE = 0
+    FULL_DOORWAY = 1  # Obstacles on both sides, forming a clear passage
+    LEFT_WALL_ONLY = 2 # Obstacle on the left, open on the right
+    RIGHT_WALL_ONLY = 3 # Obstacle on the right, open on the left
+
 
 class PerimeterRoamer(Node):
     def __init__(self):
@@ -29,111 +36,156 @@ class PerimeterRoamer(Node):
 
         self.get_logger().info("Perimeter Roamer Node Starting Up...")
 
-        # === Parameters ===
-        self.declare_parameters(
-            namespace='',
-            parameters=[
-                ('forward_speed', 0.15),
-                ('turn_speed', 0.4),
-                ('max_angular_speed', 0.4),
-                ('wall_follow_distance', 0.5),
-                ('wall_dist_error_gain', 0.3),
-                ('side_scan_angle_min_deg', -80.0),
-                ('side_scan_angle_max_deg', -40.0),
-                ('wall_presence_threshold', 0.3),
-                ('front_obstacle_distance', 0.3),
-                ('front_angle_width_deg', 20.0),
-                ('costmap_check_distance', 0.2),
-                ('costmap_check_points_front', 3),
-                ('robot_width', 0.3),
-                ('costmap_lethal_threshold', 253),
-                ('control_frequency', 10.0),
-                ('goal_tolerance_dist', 0.1),
-                ('stuck_timeout', 5.0),
-                ('stuck_distance_threshold', 0.02),
-                ('stuck_angle_threshold_deg', 5.0),
-                ('recovery_backup_dist', -0.1),
-                ('recovery_backup_time', 1.5),
-                ('recovery_turn_angle', 1.57),
-                ('recovery_turn_time', 2.0),
-                ('robot_base_frame', 'base_link'),
-                ('map_frame', 'map'),
-                ('odom_frame', 'odom'),
-                ('scan_topic', '/scan'),
-                ('odom_topic', '/odom'),
-                ('cmd_vel_topic', '/cmd_vel'),
-                ('local_costmap_topic', '/local_costmap/costmap'),
-                # Doorway navigation parameters
-                ('doorway_width_threshold', 0.8),
-                ('doorway_approach_distance', 1.0),
-                ('doorway_passage_speed', 0.1),
-                ('narrow_passage_threshold', 0.6),
-            ])
+        # --- ROS2 Parameters ---
+        self.declare_parameter('forward_speed', 0.2)
+        self.declare_parameter('turn_speed', 0.4)
+        self.declare_parameter('wall_distance_setpoint', 0.5)
+        self.declare_parameter('wall_following_gain', 0.3)
+        self.declare_parameter('obstacle_distance_threshold', 0.5)
+        self.declare_parameter('corner_lookahead_distance', 0.3)
+        self.declare_parameter('corner_lookahead_angle', math.pi / 4)
+        self.declare_parameter('costmap_check_distance', 0.5)
+        self.declare_parameter('costmap_lethal_threshold', 254)
+        self.declare_parameter('costmap_inscribed_threshold', 99)
+        self.declare_parameter('robot_radius', 0.25)
+        self.declare_parameter('safety_bubble_distance', 0.3)
+        self.declare_parameter('base_frame', 'base_link')
+        self.declare_parameter('odom_frame', 'odom')
+        self.declare_parameter('max_angular_speed', 1.0)
+        # --- Additional configuration parameters that were missing ---
+        self.declare_parameter('cmd_vel_topic', '/cmd_vel')
+        self.declare_parameter('scan_topic', '/scan')
+        self.declare_parameter('odom_topic', '/odom')
+        self.declare_parameter('local_costmap_topic', '/local_costmap/costmap')
+        self.declare_parameter('control_frequency', 10.0)
+        self.declare_parameter('robot_width', 0.3)
+        self.declare_parameter('costmap_check_points_front', 5)
+        self.declare_parameter('stuck_timeout', 5.0)
+        self.declare_parameter('stuck_distance_threshold', 0.02)
+        self.declare_parameter('stuck_angle_threshold', 0.1) # In radians
+        self.declare_parameter('corner_check_angle', 0.785) # 45 degrees
+        self.declare_parameter('wall_presence_threshold', 0.2)
+        self.declare_parameter('kp_angular', 1.5)
+        self.declare_parameter('recovery_backup_time', 2.0)
+        self.declare_parameter('recovery_backup_speed', -0.1)
+        self.declare_parameter('recovery_turn_time', 2.5)
+        self.declare_parameter('recovery_turn_angle', 1.57) # 90 degrees
+        # --- Parameters for Doorway Navigation ---
+        self.declare_parameter('doorway_detection_width', 0.8) # Max width to be considered a doorway (m)
+        self.declare_parameter('doorway_detection_skew', 0.2) # Skew for doorway detection
+        self.declare_parameter('doorway_forward_speed', 0.15) # Slower speed for safety
+        self.declare_parameter('doorway_kp_angular', 2.0) # Proportional gain for centering
+        self.declare_parameter('doorway_scan_angle_start', 1.047) # 60 degrees
+        self.declare_parameter('doorway_scan_angle_end', 2.094) # 120 degrees
+        self.declare_parameter('doorway_aim_distance', 0.5) # How far ahead to project the target point
+        self.declare_parameter('doorway_safety_bubble_distance', 0.15) # Smaller bubble for tight spaces
+        self.declare_parameter('doorway_costmap_check_distance', 0.25) # Shorter lookahead in doorways
+        self.declare_parameter('doorway_cost_threshold', 180) # Higher cost threshold for traversing inflated areas in doorways
+        self.declare_parameter('doorway_max_angle_for_full_speed', math.radians(45)) # Max angle for full speed in doorway (radians)
+        self.declare_parameter('doorway_commit_time', 2.0) # How long to commit to a doorway before re-checking
 
-        # Read parameters
-        self.forward_speed = self.get_parameter('forward_speed').value
-        self.turn_speed = self.get_parameter('turn_speed').value
-        self.max_angular_speed = self.get_parameter('max_angular_speed').value
-        self.wall_follow_distance = self.get_parameter('wall_follow_distance').value
-        self.kp_angular = self.get_parameter('wall_dist_error_gain').value
-        self.side_scan_angle_min = math.radians(self.get_parameter('side_scan_angle_min_deg').value)
-        self.side_scan_angle_max = math.radians(self.get_parameter('side_scan_angle_max_deg').value)
-        self.wall_presence_threshold = self.get_parameter('wall_presence_threshold').value
-        self.front_obstacle_distance = self.get_parameter('front_obstacle_distance').value
-        self.front_angle_width = math.radians(self.get_parameter('front_angle_width_deg').value)
-        self.costmap_check_distance = self.get_parameter('costmap_check_distance').value
-        self.costmap_check_points_front = self.get_parameter('costmap_check_points_front').value
-        self.robot_width = self.get_parameter('robot_width').value
-        self.costmap_lethal_threshold = self.get_parameter('costmap_lethal_threshold').value
-        self.control_frequency = self.get_parameter('control_frequency').value
-        self.goal_tolerance_dist = self.get_parameter('goal_tolerance_dist').value
-        self.stuck_timeout_dur = Duration(seconds=self.get_parameter('stuck_timeout').value)
-        self.stuck_distance_threshold = self.get_parameter('stuck_distance_threshold').value
-        self.stuck_angle_threshold = math.radians(self.get_parameter('stuck_angle_threshold_deg').value)
-        self.recovery_backup_dist = self.get_parameter('recovery_backup_dist').value
-        self.recovery_backup_time = self.get_parameter('recovery_backup_time').value
-        self.recovery_turn_angle = self.get_parameter('recovery_turn_angle').value
-        self.recovery_turn_time = self.get_parameter('recovery_turn_time').value
-        self.robot_base_frame = self.get_parameter('robot_base_frame').value
-        self.map_frame = self.get_parameter('map_frame').value
-        self.odom_frame = self.get_parameter('odom_frame').value
-        self.scan_topic = self.get_parameter('scan_topic').value
-        self.odom_topic = self.get_parameter('odom_topic').value
-        self.cmd_vel_topic = self.get_parameter('cmd_vel_topic').value
-        self.local_costmap_topic = self.get_parameter('local_costmap_topic').value
-        
-        # Doorway navigation parameters
-        self.doorway_width_threshold = self.get_parameter('doorway_width_threshold').value
-        self.doorway_approach_distance = self.get_parameter('doorway_approach_distance').value
-        self.doorway_passage_speed = self.get_parameter('doorway_passage_speed').value
-        self.narrow_passage_threshold = self.get_parameter('narrow_passage_threshold').value
+        # Get parameters
+        self.forward_speed = self.get_parameter('forward_speed').get_parameter_value().double_value
+        self.turn_speed = self.get_parameter('turn_speed').get_parameter_value().double_value
+        self.wall_distance_setpoint = self.get_parameter('wall_distance_setpoint').get_parameter_value().double_value
+        self.wall_following_gain = self.get_parameter('wall_following_gain').get_parameter_value().double_value
+        self.obstacle_distance_threshold = self.get_parameter('obstacle_distance_threshold').get_parameter_value().double_value
+        self.corner_lookahead_distance = self.get_parameter('corner_lookahead_distance').get_parameter_value().double_value
+        self.corner_lookahead_angle = self.get_parameter('corner_lookahead_angle').get_parameter_value().double_value
+        self.costmap_check_distance = self.get_parameter('costmap_check_distance').get_parameter_value().double_value
+        self.costmap_lethal_threshold = self.get_parameter('costmap_lethal_threshold').get_parameter_value().integer_value
+        self.costmap_inscribed_threshold = self.get_parameter('costmap_inscribed_threshold').get_parameter_value().integer_value
+        # Robot Dimensions
+        self.robot_radius = self.get_parameter('robot_radius').get_parameter_value().double_value
+        self.safety_bubble_radius = self.get_parameter('safety_bubble_distance').get_parameter_value().double_value
+        self.robot_base_frame = self.get_parameter('base_frame').get_parameter_value().string_value
+        self.odom_frame = self.get_parameter('odom_frame').get_parameter_value().string_value
+        self.max_angular_speed = self.get_parameter('max_angular_speed').get_parameter_value().double_value
 
-        self.get_logger().info(f"Params: FollowDist={self.wall_follow_distance:.2f}, FwdSpeed={self.forward_speed:.2f}, TurnSpeed={self.turn_speed:.2f}")
+        # --- Initialize state variables that are used in logging ---
+        self.costmap_frame = "" # Will be populated from costmap message header
 
-        # === State & Data ===
+        # --- Get additional configuration parameters ---
+        self.cmd_vel_topic = self.get_parameter('cmd_vel_topic').get_parameter_value().string_value
+        self.scan_topic = self.get_parameter('scan_topic').get_parameter_value().string_value
+        self.odom_topic = self.get_parameter('odom_topic').get_parameter_value().string_value
+        self.local_costmap_topic = self.get_parameter('local_costmap_topic').get_parameter_value().string_value
+        self.control_frequency = self.get_parameter('control_frequency').get_parameter_value().double_value
+        self.robot_width = self.get_parameter('robot_width').get_parameter_value().double_value
+        self.costmap_check_points_front = self.get_parameter('costmap_check_points_front').get_parameter_value().integer_value
+        stuck_timeout_sec = self.get_parameter('stuck_timeout').get_parameter_value().double_value
+        self.stuck_timeout_dur = Duration(seconds=stuck_timeout_sec)
+        self.stuck_distance_threshold = self.get_parameter('stuck_distance_threshold').get_parameter_value().double_value
+        self.stuck_angle_threshold = self.get_parameter('stuck_angle_threshold').get_parameter_value().double_value
+        self.corner_check_angle = self.get_parameter('corner_check_angle').get_parameter_value().double_value
+        self.wall_presence_threshold = self.get_parameter('wall_presence_threshold').get_parameter_value().double_value
+        self.kp_angular = self.get_parameter('kp_angular').get_parameter_value().double_value
+        self.recovery_backup_time = self.get_parameter('recovery_backup_time').get_parameter_value().double_value
+        self.recovery_backup_speed = self.get_parameter('recovery_backup_speed').get_parameter_value().double_value
+        self.recovery_turn_time = self.get_parameter('recovery_turn_time').get_parameter_value().double_value
+        self.recovery_turn_angle = self.get_parameter('recovery_turn_angle').get_parameter_value().double_value
+        # --- Get Doorway Navigation Parameters ---
+        self.doorway_detection_width = self.get_parameter('doorway_detection_width').get_parameter_value().double_value
+        self.doorway_detection_skew = self.get_parameter('doorway_detection_skew').get_parameter_value().double_value
+        self.doorway_forward_speed = self.get_parameter('doorway_forward_speed').get_parameter_value().double_value
+        self.doorway_kp_angular = self.get_parameter('doorway_kp_angular').get_parameter_value().double_value
+        self.doorway_scan_angle_start = self.get_parameter('doorway_scan_angle_start').get_parameter_value().double_value
+        self.doorway_scan_angle_end = self.get_parameter('doorway_scan_angle_end').get_parameter_value().double_value
+        self.doorway_aim_distance = self.get_parameter('doorway_aim_distance').get_parameter_value().double_value
+        self.doorway_safety_bubble_distance = self.get_parameter('doorway_safety_bubble_distance').get_parameter_value().double_value
+        self.doorway_costmap_check_distance = self.get_parameter('doorway_costmap_check_distance').get_parameter_value().double_value
+        self.doorway_cost_threshold = self.get_parameter('doorway_cost_threshold').get_parameter_value().integer_value
+        self.doorway_max_angle_for_full_speed = self.get_parameter('doorway_max_angle_for_full_speed').get_parameter_value().double_value
+        self.doorway_commit_time = self.get_parameter('doorway_commit_time').get_parameter_value().double_value # How long to commit to a doorway before re-checking
+
+        self.get_logger().info('--- Loaded Parameters ---')
+        self.get_logger().info(f"Robot Base Frame: {self.robot_base_frame}, Odom Frame: {self.odom_frame}")
+        self.get_logger().info(f"Speeds: Forward={self.forward_speed}, Turn={self.turn_speed}, MaxAngular={self.max_angular_speed}")
+        self.get_logger().info(f"Wall Following: Distance={self.wall_distance_setpoint}, Gain={self.wall_following_gain}, Kp={self.kp_angular}")
+        self.get_logger().info(f"Obstacle Avoidance: FrontDist(Legacy)={self.obstacle_distance_threshold}")
+        self.get_logger().info(f"Corner Avoidance: Lookahead={self.corner_lookahead_distance}m, Angle={math.degrees(self.corner_lookahead_angle)}deg")
+        self.get_logger().info(f"Costmap: CheckDist={self.costmap_check_distance:.2f}, LethalThreshold={self.costmap_lethal_threshold}, InscribedThreshold={self.costmap_inscribed_threshold}")
+        self.get_logger().info(f"Robot: BaseFrame='{self.robot_base_frame}', Radius={self.robot_radius}m, SafetyBubble={self.safety_bubble_radius}m, Width={self.robot_width}m")
+        self.get_logger().info(f"Topics: cmd_vel='{self.cmd_vel_topic}', costmap='{self.local_costmap_topic}'")
+        self.get_logger().info(f"Stuck Detection: Timeout={stuck_timeout_sec}s, Dist={self.stuck_distance_threshold}m, Angle={math.degrees(self.stuck_angle_threshold)}deg")
+        self.get_logger().info(f"Recovery: BackupTime={self.recovery_backup_time}s, BackupSpeed={self.recovery_backup_speed}m/s, TurnTime={self.recovery_turn_time}s")
+        self.get_logger().info(f"Doorway Nav: DetectWidth={self.doorway_detection_width}m, Speed={self.doorway_forward_speed}m/s, Kp={self.doorway_kp_angular}")
+        self.get_logger().info(f"Doorway Scan: Start={math.degrees(self.doorway_scan_angle_start)}deg, End={math.degrees(self.doorway_scan_angle_end)}deg, AimDist={self.doorway_aim_distance}m")
+        self.get_logger().info(f"Doorway Safety: BubbleDist={self.doorway_safety_bubble_distance}m, CheckDist={self.doorway_costmap_check_distance}m, CostThreshold={self.doorway_cost_threshold}")
+        self.get_logger().info(f"Doorway Turn: MaxAngleForFullSpeed={math.degrees(self.doorway_max_angle_for_full_speed)}deg")
+        self.get_logger().info(f"Doorway Commit Time: {self.doorway_commit_time}s")
+        self.get_logger().info('-------------------------')
+
+        # --- State Variables ---
         self.state = State.FIND_WALL
-        self.last_scan = None
+        self.last_scan = None # Still useful for potential future logic or debugging
         self.current_odom_pose = None
         self.local_costmap = None
         self.costmap_metadata = None
-        self.costmap_frame = ""
+        # self.costmap_frame has been moved up to be initialized before logging statements
 
-        # Stuck detection
-        self.last_pose_check_time = self.get_clock().now()
+        # Stuck detection variables
         self.last_pose_for_stuck_check = None
+        self.last_pose_check_time = self.get_clock().now()
+        self.last_state_change_time = self.get_clock().now() # For state timeouts
 
-        # Recovery state tracking
+        # Recovery variables
         self.recovery_start_time = None
-        self.recovery_start_pose = None
-        
-        # Doorway navigation state
-        self.doorway_target_angle = 0.0
+        # Doorway navigation variables
+        self.doorway_target_point = None # The point to aim for in the doorway
+        self.doorway_status = DoorwayStatus.NONE
+        self.doorway_target_point = None # Will be a Point msg
+        self.doorway_entry_time = None # Timestamp when we enter the doorway state
 
-        # === TF ===
+        # For stuck detection
+        self.last_pose_for_stuck_check = None
+        self.last_pose_check_time = self.get_clock().now()
+
+        # --- TF2 ---
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
 
-        # === Publishers & Subscribers ===
+        # --- Publishers and Subscribers ---
         self.cmd_vel_pub = self.create_publisher(Twist, self.cmd_vel_topic, 10)
 
         # Define QoS profile for costmap (volatile, last is best)
@@ -153,6 +205,13 @@ class PerimeterRoamer(Node):
         self.scan_sub = self.create_subscription(LaserScan, self.scan_topic, self.scan_callback, scan_qos)
         self.odom_sub = self.create_subscription(Odometry, self.odom_topic, self.odom_callback, 10)
         self.costmap_sub = self.create_subscription(OccupancyGrid, self.local_costmap_topic, self.costmap_callback, costmap_qos)
+        # Add a subscription to the costmap updates
+        self.costmap_update_sub = self.create_subscription(
+            OccupancyGridUpdate,
+            self.local_costmap_topic + '_updates', # Topic is often costmap_topic + "_updates"
+            self.costmap_update_callback,
+            costmap_qos)
+
 
         # Optional: Marker publisher for debugging costmap check points
         self.marker_pub = self.create_publisher(MarkerArray, '~/costmap_check_points', 1)
@@ -177,138 +236,105 @@ class PerimeterRoamer(Node):
 
 
     def costmap_callback(self, msg):
+        """Callback for the full costmap topic."""
+        # This is the unified variable for costmap data
         self.local_costmap = msg.data
         self.costmap_metadata = msg.info
-        self.costmap_frame = msg.header.frame_id # Store the frame_id
-        # self.get_logger().debug(f"Costmap updated: Res={msg.info.resolution:.3f}, W={msg.info.width}, H={msg.info.height}, Frame='{self.costmap_frame}'")
+        self.costmap_frame = msg.header.frame_id
+        # self.get_logger().debug(f"Full costmap received. Frame: {self.costmap_frame}")
+
+    def costmap_update_callback(self, msg):
+        """Callback to handle OccupancyGridUpdate messages."""
+        if self.local_costmap is None or self.costmap_metadata is None:
+            self.get_logger().warn("Received costmap update before full costmap. Ignoring.")
+            return
+
+        # The data in OccupancyGridUpdate is a 1D array for a rectangular region
+        # of the costmap.
+        map_width = self.costmap_metadata.width
+        
+        # Update the relevant part of the local_costmap
+        for y in range(msg.height):
+            for x in range(msg.width):
+                # Calculate index in the update data
+                update_index = y * msg.width + x
+                # Calculate index in the full costmap
+                map_x = msg.x + x
+                map_y = msg.y + y
+                map_index = map_y * map_width + map_x
+                
+                if 0 <= map_index < len(self.local_costmap):
+                    self.local_costmap[map_index] = msg.data[update_index]
+                else:
+                    self.get_logger().warn(f"Costmap update index [{map_index}] out of bounds for map size [{len(self.local_costmap)}].")
+
+    def change_state(self, new_state):
+        """ Handles state transitions and associated logic. """
+        if self.state == new_state:
+            return # No change
+
+        self.get_logger().info(f"STATE CHANGE: {self.state.name} -> {new_state.name}")
+        self.state = new_state
+        self.recovery_start_time = None # Reset recovery timer on any state change
+
+        # Special handling for entering NAVIGATE_DOORWAY
+        if new_state == State.NAVIGATE_DOORWAY:
+            self.doorway_entry_time = self.get_clock().now()
+            self.get_logger().info(f"Committing to doorway navigation for {self.doorway_commit_time}s.")
 
 
     # --- Utility Functions ---
-    def get_scan_indices(self, angle_min_rad, angle_max_rad):
-        """Calculates laser scan indices corresponding to angle ranges."""
-        if not self.last_scan or self.last_scan.angle_increment == 0.0:
-             return None, None
 
-        angle_min_scan = self.last_scan.angle_min
-        angle_max_scan = self.last_scan.angle_max
-        angle_inc = self.last_scan.angle_increment
-
-        # Ensure requested angles are within scan limits, handle angle wrap if necessary
-        eff_angle_min = max(angle_min_rad, angle_min_scan)
-        eff_angle_max = min(angle_max_rad, angle_max_scan)
-
-        if eff_angle_max < eff_angle_min:
-            # This could happen if the range crosses the 0/2pi boundary, handle if necessary
-            # For typical side/front checks, this isn't usually an issue.
-            return None, None
-
-        start_index = int(math.floor((eff_angle_min - angle_min_scan) / angle_inc))
-        end_index = int(math.ceil((eff_angle_max - angle_min_scan) / angle_inc))
-
-        # Clamp indices to valid range
-        start_index = max(0, start_index)
-        end_index = min(len(self.last_scan.ranges) - 1, end_index)
-
-        if start_index > end_index: return None, None
-
-        return start_index, end_index
-
-    def check_obstacle_in_scan_sector(self, angle_min_rad, angle_max_rad, max_distance):
-        """ Checks for obstacles within a given scan sector and distance. Returns (obstacle_found, min_distance) """
-        if not self.last_scan: return False, float('inf')
-
-        start_idx, end_idx = self.get_scan_indices(angle_min_rad, angle_max_rad)
-        if start_idx is None: return False, float('inf') # No points in angular range
-
-        min_dist_found = float('inf')
-        obstacle_detected = False
-
-        # Ensure indices are within list bounds after calculation
-        num_ranges = len(self.last_scan.ranges)
-        start_idx = min(start_idx, num_ranges - 1)
-        end_idx = min(end_idx, num_ranges - 1)
-
-        relevant_ranges = self.last_scan.ranges[start_idx : end_idx + 1]
-        for r in relevant_ranges:
-            # Check for valid range reading
-            if self.last_scan.range_min < r < self.last_scan.range_max:
-                if r < max_distance:
-                    obstacle_detected = True
-                    min_dist_found = min(min_dist_found, r)
-
-        return obstacle_detected, min_dist_found
-
-    def get_distance_in_scan_sector(self, angle_min_rad, angle_max_rad):
-        """ Calculates the average distance of valid points in a scan sector. Returns (valid_measurement, average_distance) """
-        if not self.last_scan: return False, float('inf')
-
-        start_idx, end_idx = self.get_scan_indices(angle_min_rad, angle_max_rad)
-        if start_idx is None: return False, float('inf')
-
-        distances = []
-        num_ranges = len(self.last_scan.ranges)
-        start_idx = min(start_idx, num_ranges - 1)
-        end_idx = min(end_idx, num_ranges - 1)
-
-
-        relevant_ranges = self.last_scan.ranges[start_idx : end_idx + 1]
-        for r in relevant_ranges:
-             # Use a slightly larger range than wall_follow_distance to ensure we detect the wall even if we are a bit far
-            max_relevant_dist = self.wall_follow_distance + self.wall_presence_threshold + 0.2 # Be generous
-            if self.last_scan.range_min < r < max_relevant_dist:
-                distances.append(r)
-
-        if not distances:
-            return False, float('inf')
-
-        # Optional: Could use median instead of average for robustness to outliers
-        avg_dist = sum(distances) / len(distances)
-        return True, avg_dist
+    def euler_from_quaternion(self, quaternion):
+        """Converts a quaternion message to euler angles."""
+        # Correction: euler_from_quaternion expects a list/tuple, not individual args
+        q = [quaternion.x, quaternion.y, quaternion.z, quaternion.w]
+        return tf_transformations.euler_from_quaternion(q)
 
     def check_costmap_for_collision(self):
-        """ Checks the local costmap ahead of the robot for lethal obstacles. """
+        """
+        Checks the local costmap ahead of the robot for obstacles using TF for precision.
+        This is the primary forward-checking function.
+        """
         if self.local_costmap is None or self.costmap_metadata is None or not self.costmap_frame:
-            self.get_logger().warn("Costmap data not available for collision check.")
-            return True # Assume collision if no data? Safer option.
-
-        # Be less aggressive about costmap collisions in narrow spaces
-        is_doorway, opening_width, _ = self.detect_doorway_ahead()
-        if is_doorway or opening_width < self.narrow_passage_threshold:
-            # In narrow spaces, only worry about truly lethal obstacles
-            lethal_threshold = 254  # More permissive
-            check_distance = 0.15   # Shorter look-ahead
-        else:
-            lethal_threshold = self.costmap_lethal_threshold
-            check_distance = self.costmap_check_distance
+            self.get_logger().warn("Costmap data not available for collision check.", throttle_duration_sec=5)
+            return True # Assume collision if no data
 
         try:
             # Get the robot's current pose in the costmap frame
             transform = self.tf_buffer.lookup_transform(
-                self.costmap_frame, # Target frame
-                self.robot_base_frame, # Source frame
-                rclpy.time.Time(), # Get latest available
-                timeout=Duration(seconds=0.1)) # Small timeout
+                self.costmap_frame,       # Target frame
+                self.robot_base_frame,    # Source frame
+                rclpy.time.Time(),        # Get latest available
+                timeout=Duration(seconds=0.1))
         except (LookupException, ConnectivityException, ExtrapolationException) as e:
-            self.get_logger().error(f"TF lookup failed from {self.robot_base_frame} to {self.costmap_frame}: {e}")
+            self.get_logger().error(f"TF lookup failed from '{self.robot_base_frame}' to '{self.costmap_frame}': {e}")
             return True # Assume collision if transform fails
 
         # Robot's position and orientation in costmap frame
         robot_x = transform.transform.translation.x
         robot_y = transform.transform.translation.y
-        q = transform.transform.rotation
-        _, _, robot_theta = tf_transformations.euler_from_quaternion([q.x, q.y, q.z, q.w])
+        # Use the corrected helper function call
+        _, _, robot_theta = self.euler_from_quaternion(transform.transform.rotation)
+
+        # --- State-dependent check distance ---
+        check_dist = self.doorway_costmap_check_distance if self.state == State.NAVIGATE_DOORWAY else self.costmap_check_distance
+        # --- State-dependent cost threshold ---
+        collision_threshold = self.doorway_cost_threshold if self.state == State.NAVIGATE_DOORWAY else self.costmap_inscribed_threshold
+
 
         # Define check points relative to the robot's base_link frame
         check_points_base = []
         num_checks = self.costmap_check_points_front
         half_width = self.robot_width / 2.0
 
+        # Create a line of check points in front of the robot
         if num_checks <= 1:
-            check_points_base.append(Point(x=check_distance, y=0.0, z=0.0))
+            check_points_base.append(Point(x=check_dist, y=0.0, z=0.0))
         else:
             for i in range(num_checks):
                 y_offset = half_width - (i * self.robot_width / (num_checks - 1))
-                check_points_base.append(Point(x=check_distance, y=y_offset, z=0.0))
+                check_points_base.append(Point(x=check_dist, y=y_offset, z=0.0))
 
         # Transform check points to costmap frame and check cost
         resolution = self.costmap_metadata.resolution
@@ -317,11 +343,8 @@ class PerimeterRoamer(Node):
         width = self.costmap_metadata.width
         height = self.costmap_metadata.height
 
-        markers = MarkerArray() # For visualization
-        collision_detected = False
-
-        for i, pt_base in enumerate(check_points_base):
-            # Manual 2D transformation
+        for pt_base in check_points_base:
+            # Manual 2D transformation from robot frame to costmap frame
             pt_map_x = robot_x + pt_base.x * math.cos(robot_theta) - pt_base.y * math.sin(robot_theta)
             pt_map_y = robot_y + pt_base.x * math.sin(robot_theta) + pt_base.y * math.cos(robot_theta)
 
@@ -329,56 +352,141 @@ class PerimeterRoamer(Node):
             mx = int((pt_map_x - origin_x) / resolution)
             my = int((pt_map_y - origin_y) / resolution)
 
-            marker = Marker()
-            marker.header.frame_id = self.costmap_frame
-            marker.header.stamp = self.get_clock().now().to_msg()
-            marker.ns = "costmap_checks"
-            marker.id = i
-            marker.type = Marker.SPHERE
-            marker.action = Marker.ADD
-            marker.pose.position.x = pt_map_x
-            marker.pose.position.y = pt_map_y
-            marker.pose.position.z = 0.1 # Slightly above ground
-            marker.pose.orientation.w = 1.0
-            marker.scale.x = 0.1
-            marker.scale.y = 0.1
-            marker.scale.z = 0.1
-            marker.color.a = 0.8
-
             # Check if cell is within map bounds
             if 0 <= mx < width and 0 <= my < height:
                 index = my * width + mx
-                try:
-                    cost = self.local_costmap[index]
-                    # self.get_logger().debug(f"Checking point ({pt_map_x:.2f}, {pt_map_y:.2f}) -> cell ({mx}, {my}), cost={cost}")
-
-                    if cost >= lethal_threshold:
-                        self.get_logger().warn(f"Costmap collision detected at cell ({mx}, {my}), cost={cost}")
-                        collision_detected = True
-                        marker.color.r = 1.0; marker.color.g = 0.0; marker.color.b = 0.0 # Red
-                    else:
-                         marker.color.r = 0.0; marker.color.g = 1.0; marker.color.b = 0.0 # Green
-
-                except IndexError:
-                    self.get_logger().warn(f"Costmap index out of bounds: ({mx}, {my}), index={index}, size={len(self.local_costmap)}")
-                    marker.color.r = 1.0; marker.color.g = 1.0; marker.color.b = 0.0 # Yellow (Error)
-                    collision_detected = True # Treat index error as potential collision
+                cost = self.local_costmap[index]
+                if cost >= collision_threshold:
+                    self.get_logger().warning(f"Collision check: Obstacle detected at costmap cell ({mx},{my}) with cost {cost} (threshold: {collision_threshold})")
+                    return True # Collision detected
             else:
-                # Point is outside the local costmap - could be dangerous depending on setup
-                self.get_logger().warn(f"Check point ({pt_map_x:.2f}, {pt_map_y:.2f}) outside local costmap bounds.")
-                marker.color.r = 0.0; marker.color.g = 0.0; marker.color.b = 1.0 # Blue (Outside)
-                # Decide if this constitutes a collision - maybe if robot is moving fast?
-                # For now, let's NOT treat being outside the *local* costmap as collision,
-                # as the robot might just be turning near the edge.
-                # collision_detected = True
+                # Point is outside the local costmap, which is risky.
+                self.get_logger().warning("Collision check: Check point is outside local costmap bounds.")
+                return True # Treat as collision
 
-            markers.markers.append(marker)
+        return False # Path is clear
 
-        # Publish markers for debugging
-        if markers.markers:
-            self.marker_pub.publish(markers)
+    def is_path_clear(self, linear_vel, angular_vel, state_name_for_log=""):
+        """
+        Predicts the robot's path for a short duration and checks for collisions along it.
+        Returns True if the path is clear, False otherwise.
+        """
+        if self.local_costmap is None or self.costmap_metadata is None or not self.costmap_frame:
+            self.get_logger().warn(f"({state_name_for_log}) Path check skipped: No costmap.", throttle_duration_sec=5)
+            return False # Assume not clear if no data
 
-        return collision_detected
+        try:
+            transform = self.tf_buffer.lookup_transform(
+                self.costmap_frame, self.robot_base_frame, rclpy.time.Time(), timeout=Duration(seconds=0.1))
+        except (LookupException, ConnectivityException, ExtrapolationException) as e:
+            self.get_logger().error(f"({state_name_for_log}) TF lookup for path check failed: {e}")
+            return False
+
+        robot_x = transform.transform.translation.x
+        robot_y = transform.transform.translation.y
+        _, _, robot_theta = self.euler_from_quaternion(transform.transform.rotation)
+
+        resolution = self.costmap_metadata.resolution
+        origin_x = self.costmap_metadata.origin.position.x
+        origin_y = self.costmap_metadata.origin.position.y
+        width = self.costmap_metadata.width
+        height = self.costmap_metadata.height
+
+        # State-dependent thresholds
+        collision_threshold = self.doorway_cost_threshold if self.state == State.NAVIGATE_DOORWAY else self.costmap_inscribed_threshold
+        prediction_time = 0.5 # How far in the future to check (seconds)
+        num_steps = 5 # Number of points to check along the path
+
+        for i in range(1, num_steps + 1):
+            dt = (prediction_time / num_steps) * i
+            
+            # Simple kinematic model for path prediction (arc)
+            if abs(angular_vel) > 1e-3:
+                radius = linear_vel / angular_vel
+                d_theta = angular_vel * dt
+                dx_robot = radius * math.sin(d_theta)
+                dy_robot = radius * (1 - math.cos(d_theta))
+            else: # Straight line
+                d_theta = 0
+                dx_robot = linear_vel * dt
+                dy_robot = 0
+
+            # Transform predicted point from robot frame to costmap frame
+            pt_map_x = robot_x + (dx_robot * math.cos(robot_theta) - dy_robot * math.sin(robot_theta))
+            pt_map_y = robot_y + (dx_robot * math.sin(robot_theta) + dy_robot * math.cos(robot_theta))
+
+            # Convert to map cell and check cost
+            mx = int((pt_map_x - origin_x) / resolution)
+            my = int((pt_map_y - origin_y) / resolution)
+
+            if 0 <= mx < width and 0 <= my < height:
+                index = my * width + mx
+                cost = self.local_costmap[index]
+                if cost >= collision_threshold:
+                    self.get_logger().warning(f"({state_name_for_log}) Predicted collision at cell ({mx},{my}), cost={cost}, threshold={collision_threshold}")
+                    return False
+            else:
+                self.get_logger().warning(f"({state_name_for_log}) Predicted path goes off costmap.")
+                return False # Path goes into unknown territory
+
+        return True # Path is clear
+
+    def check_safety_bubble(self):
+        """
+        Checks if any obstacle has breached the robot's safety bubble using the costmap.
+        """
+        if self.local_costmap is None or self.costmap_metadata is None or not self.costmap_frame:
+            self.get_logger().warn("No costmap data for safety bubble check.", throttle_duration_sec=5)
+            return True # Assume breach if no data
+
+        try:
+            transform = self.tf_buffer.lookup_transform(
+                self.costmap_frame, self.robot_base_frame, rclpy.time.Time(), timeout=Duration(seconds=0.1))
+        except (LookupException, ConnectivityException, ExtrapolationException) as e:
+            self.get_logger().error(f"TF lookup for safety bubble failed: {e}")
+            return True
+
+        robot_x = transform.transform.translation.x
+        robot_y = transform.transform.translation.y
+
+        resolution = self.costmap_metadata.resolution
+        origin_x = self.costmap_metadata.origin.position.x
+        origin_y = self.costmap_metadata.origin.position.y
+        width = self.costmap_metadata.width
+        height = self.costmap_metadata.height
+
+        # --- State-dependent safety bubble radius ---
+        bubble_radius = self.doorway_safety_bubble_distance if self.state == State.NAVIGATE_DOORWAY else self.safety_bubble_radius
+        # --- State-dependent cost threshold ---
+        collision_threshold = self.doorway_cost_threshold if self.state == State.NAVIGATE_DOORWAY else self.costmap_inscribed_threshold
+
+        if self.state == State.NAVIGATE_DOORWAY:
+            self.get_logger().debug(f"Using smaller doorway safety bubble: {bubble_radius}m and threshold: {collision_threshold}")
+
+
+        # Check a circular region around the robot.
+        check_radius_in_cells = int(bubble_radius / resolution)
+        robot_mx = int((robot_x - origin_x) / resolution)
+        robot_my = int((robot_y - origin_y) / resolution)
+
+        for my_offset in range(-check_radius_in_cells, check_radius_in_cells + 1):
+            for mx_offset in range(-check_radius_in_cells, check_radius_in_cells + 1):
+                # Check if the point is within the circular bubble
+                if mx_offset**2 + my_offset**2 > check_radius_in_cells**2:
+                    continue
+
+                mx = robot_mx + mx_offset
+                my = robot_my + my_offset
+
+                if 0 <= mx < width and 0 <= my < height:
+                    index = my * width + mx
+                    cost = self.local_costmap[index]
+                    if cost >= collision_threshold: # Use state-dependent threshold
+                        self.get_logger().fatal(
+                            f"SAFETY BUBBLE BREACHED! Obstacle with cost ({cost}) at cell ({mx}, {my}) vs threshold ({collision_threshold})."
+                        )
+                        return True # Breach detected
+        return False # No breach
 
     def is_stuck(self):
         """ Checks if the robot has moved significantly since the last check. """
@@ -401,15 +509,10 @@ class PerimeterRoamer(Node):
         dy = curr.position.y - last.position.y
         dist_moved = math.sqrt(dx*dx + dy*dy)
 
-        curr_q = curr.orientation
-        last_q = last.orientation
-        # Ensure quaternions are valid
-        if all(hasattr(q, attr) for q in [curr_q, last_q] for attr in ['x','y','z','w']):
-            curr_yaw = tf_transformations.euler_from_quaternion([curr_q.x, curr_q.y, curr_q.z, curr_q.w])[2]
-            last_yaw = tf_transformations.euler_from_quaternion([last_q.x, last_q.y, last_q.z, last_q.w])[2]
-            angle_moved = abs(self.normalize_angle(curr_yaw - last_yaw))
-        else:
-            angle_moved = 0 # Cannot calculate if orientations are invalid
+        # Use the helper function for quaternion to euler conversion
+        curr_yaw = self.euler_from_quaternion(curr.orientation)[2]
+        last_yaw = self.euler_from_quaternion(last.orientation)[2]
+        angle_moved = abs(self.normalize_angle(curr_yaw - last_yaw))
 
         # Reset for next check
         self.last_pose_for_stuck_check = self.current_odom_pose
@@ -437,296 +540,473 @@ class PerimeterRoamer(Node):
         self.cmd_vel_pub.publish(twist)
         self.get_logger().info("Robot stopped.")
 
-    def detect_doorway_ahead(self):
-        """Detects if there's a doorway/opening ahead of the robot."""
-        if not self.last_scan:
-            return False, 0.0, 0.0
+    def check_for_corner_collision(self):
+        """
+        Checks for obstacles in the 'inner corner' sector during a right turn using the costmap.
+        """
+        if self.local_costmap is None or self.costmap_metadata is None:
+            return True # Assume collision
+
+        try:
+            transform = self.tf_buffer.lookup_transform(
+                self.costmap_frame, self.robot_base_frame, rclpy.time.Time(), timeout=Duration(seconds=0.1))
+        except (LookupException, ConnectivityException, ExtrapolationException) as e:
+            self.get_logger().error(f"TF lookup for corner check failed: {e}")
+            return True
+
+        robot_x = transform.transform.translation.x
+        robot_y = transform.transform.translation.y
+        _, _, robot_theta = self.euler_from_quaternion(transform.transform.rotation)
+
+        # Define a check point angled into the corner
+        check_x_base = self.corner_lookahead_distance * math.cos(-self.corner_check_angle / 2)
+        check_y_base = self.corner_lookahead_distance * math.sin(-self.corner_check_angle / 2)
+
+        # Transform check point to costmap frame
+        pt_map_x = robot_x + check_x_base * math.cos(robot_theta) - check_y_base * math.sin(robot_theta)
+        pt_map_y = robot_y + check_x_base * math.sin(robot_theta) + check_y_base * math.cos(robot_theta)
+
+        # Convert to map cell and check cost
+        resolution = self.costmap_metadata.resolution
+        origin_x = self.costmap_metadata.origin.position.x
+        origin_y = self.costmap_metadata.origin.position.y
+        width = self.costmap_metadata.width
+        height = self.costmap_metadata.height
+        # --- State-dependent cost threshold ---
+        collision_threshold = self.doorway_cost_threshold if self.state == State.NAVIGATE_DOORWAY else self.costmap_inscribed_threshold
+
+
+        mx = int((pt_map_x - origin_x) / resolution)
+        my = int((pt_map_y - origin_y) / resolution)
+
+        if 0 <= mx < width and 0 <= my < height:
+            index = my * width + mx
+            cost = self.local_costmap[index]
+            if cost >= collision_threshold: # Use state-dependent threshold
+                self.get_logger().warn(f"Potential corner collision DETECTED via costmap at cell ({mx}, {my}), cost={cost}, threshold={collision_threshold}")
+                return True
+        else:
+            self.get_logger().warn("Corner check point is outside the local costmap.")
+            # This could be risky, so maybe treat as a collision
+            return True
+
+        return False
+
+    def check_obstacle_in_front(self):
+        """
+        Primary obstacle check using the costmap. This replaces the old LIDAR-based check.
+        """
+        return self.check_costmap_for_collision()
+
+    def get_obstacle_distance_at_angle(self, robot_pose_stamped, angle_rad, collision_threshold_override=None):
+        """
+        Calculates distance to the first obstacle along a ray at a specific angle
+        relative to the robot's forward direction. Reuses a given transform.
+        Returns a tuple of (distance, point_in_costmap_frame) or (inf, None).
+        """
+        if self.local_costmap is None or self.costmap_metadata is None:
+            return float('inf'), None
+
+        robot_x = robot_pose_stamped.transform.translation.x
+        robot_y = robot_pose_stamped.transform.translation.y
+        _, _, robot_theta = self.euler_from_quaternion(robot_pose_stamped.transform.rotation)
+
+        resolution = self.costmap_metadata.resolution
+        origin_x = self.costmap_metadata.origin.position.x
+        origin_y = self.costmap_metadata.origin.position.y
+        width = self.costmap_metadata.width
+        height = self.costmap_metadata.height
         
-        # Look ahead at different angles to find an opening
-        search_angles = []
-        search_distance = self.doorway_approach_distance
+        # --- State-dependent cost threshold ---
+        if collision_threshold_override is not None:
+            collision_threshold = collision_threshold_override
+        else:
+            collision_threshold = self.doorway_cost_threshold if self.state == State.NAVIGATE_DOORWAY else self.costmap_inscribed_threshold
+
+
+        # The absolute angle in the costmap frame
+        check_angle = self.normalize_angle(robot_theta + angle_rad)
+        max_search_dist = self.doorway_detection_width * 1.5 # Search further than the expected width
+
+        if resolution <= 0: return float('inf'), None
+
+        for step in range(1, int(max_search_dist / resolution)):
+            dist = step * resolution
+            check_x = robot_x + dist * math.cos(check_angle)
+            check_y = robot_y + dist * math.sin(check_angle)
+
+            mx = int((check_x - origin_x) / resolution)
+            my = int((check_y - origin_y) / resolution)
+
+            if 0 <= mx < width and 0 <= my < height:
+                index = my * width + mx
+                if self.local_costmap[index] >= collision_threshold:
+                    # Found an obstacle at this distance
+                    point = Point(x=check_x, y=check_y, z=0.0)
+                    return dist, point
+            else:
+                # Ray has gone off the map, stop searching along this ray
+                return float('inf'), None
+
+        return float('inf'), None
+
+    def scan_arc_for_obstacle(self, robot_pose_stamped, start_angle, end_angle, num_rays=5, collision_threshold_override=None):
+        """
+        Scans an arc for the nearest obstacle point.
+        Returns the point in the costmap frame or None.
+        """
+        min_dist = float('inf')
+        nearest_point = None
         
-        # Create array of angles to check (from left to right)
-        num_checks = 20
-        for i in range(num_checks):
-            angle = math.radians(-45 + (i * 90.0 / (num_checks - 1)))  # -45° to +45°
-            search_angles.append(angle)
+        if num_rays < 2: num_rays = 2 # Need at least 2 rays for an arc
+
+        for i in range(num_rays):
+            angle = start_angle + (end_angle - start_angle) * i / (num_rays -1)
+            dist, point = self.get_obstacle_distance_at_angle(robot_pose_stamped, angle, collision_threshold_override)
+            if dist < min_dist:
+                min_dist = dist
+                nearest_point = point
         
-        # Find the widest clear opening
-        best_opening_width = 0.0
-        best_opening_center = 0.0
-        current_opening_start = None
+        return nearest_point
+
+    def get_side_wall_distance(self, side='right'):
+        """
+        Calculates the distance to a wall on the specified side using the costmap.
+        'side' can be 'right' or 'left'.
+        Returns the distance, or float('inf') if no wall is detected.
+        """
+        if self.local_costmap is None or self.costmap_metadata is None:
+            return float('inf')
+
+        try:
+            transform = self.tf_buffer.lookup_transform(
+                self.costmap_frame, self.robot_base_frame, rclpy.time.Time(), timeout=Duration(seconds=0.1))
+        except (LookupException, ConnectivityException, ExtrapolationException) as e:
+            self.get_logger().error(f"TF lookup for side wall check failed: {e}")
+            return float('inf')
+
+        if side == 'right':
+            angle = -math.pi / 2 # -90 degrees
+        else: # left
+            angle = math.pi / 2 # +90 degrees
         
-        for angle in search_angles:
-            # Check if this angle is clear
-            obstacle_found, dist = self.check_obstacle_in_scan_sector(
-                angle - math.radians(2), angle + math.radians(2), search_distance)
-            
-            if not obstacle_found:  # Clear space
-                if current_opening_start is None:
-                    current_opening_start = angle
-            else:  # Obstacle found
-                if current_opening_start is not None:
-                    # End of opening - calculate width
-                    opening_width = abs(angle - current_opening_start) * search_distance
-                    if opening_width > best_opening_width:
-                        best_opening_width = opening_width
-                        best_opening_center = (current_opening_start + angle) / 2.0
-                    current_opening_start = None
+        dist, _ = self.get_obstacle_distance_at_angle(transform, angle)
+        return dist
+
+
+    def is_wall_on_right(self):
+        """
+        Checks if there is a wall on the right within a certain threshold using the costmap.
+        """
+        dist = self.get_side_wall_distance(side='right')
+        # Check if the distance is less than the follow distance plus a threshold
+        return dist < (self.wall_distance_setpoint + self.wall_presence_threshold)
+
+    def check_for_doorway(self):
+        """
+        Detects if the robot is in a narrow corridor or doorway by scanning arcs.
+        If a doorway is found, it calculates and stores the target point to aim for.
+        This logic can handle detecting both sides of a passage, or just one side ("skimming").
+        Returns a tuple (DoorwayStatus, target_point), where target_point is a Point msg.
+        """
+        try:
+            transform = self.tf_buffer.lookup_transform(
+                self.costmap_frame, self.robot_base_frame, rclpy.time.Time(), timeout=Duration(seconds=0.1))
+        except (LookupException, ConnectivityException, ExtrapolationException) as e:
+            self.get_logger().error(f"TF lookup for doorway check failed: {e}")
+            return DoorwayStatus.NONE, None
+
+        # When checking for a doorway, use the higher threshold to see past inflation
+        doorway_check_threshold = self.doorway_cost_threshold
+
+        # Scan for an obstacle on the left side (e.g., from 45 to 135 degrees)
+        left_obstacle_point = self.scan_arc_for_obstacle(
+            transform,
+            self.doorway_scan_angle_start,      # e.g., 45 deg
+            self.doorway_scan_angle_end,        # e.g., 135 deg
+            num_rays=5, # More rays for a wider arc
+            collision_threshold_override=doorway_check_threshold
+        )
+
+        # Scan for an obstacle on the right side (e.g., from -135 to -45 degrees)
+        right_obstacle_point = self.scan_arc_for_obstacle(
+            transform,
+            -self.doorway_scan_angle_end,       # e.g., -135 deg
+            -self.doorway_scan_angle_start,     # e.g., -45 deg
+            num_rays=5, # More rays for a wider arc
+            collision_threshold_override=doorway_check_threshold
+        )
+
+        # Get robot's current orientation for target point calculation
+        _, _, robot_theta = self.euler_from_quaternion(transform.transform.rotation)
         
-        # Check if we have a doorway
-        is_doorway = best_opening_width > self.doorway_width_threshold
-        return is_doorway, best_opening_width, best_opening_center
+        # Case 1: Both sides detected (classic doorway)
+        if left_obstacle_point and right_obstacle_point:
+            dist = math.sqrt(
+                (left_obstacle_point.x - right_obstacle_point.x)**2 +
+                (left_obstacle_point.y - right_obstacle_point.y)**2
+            )
+            self.get_logger().debug(f"Doorway check (Both Sides): LeftPt=({left_obstacle_point.x:.2f}, {left_obstacle_point.y:.2f}), RightPt=({right_obstacle_point.x:.2f}, {right_obstacle_point.y:.2f}), MeasuredWidth={dist:.2f}m")
+
+            if dist < self.doorway_detection_width:
+                # Midpoint between the two detected obstacles
+                mid_x = (left_obstacle_point.x + right_obstacle_point.x) / 2.0
+                mid_y = (left_obstacle_point.y + right_obstacle_point.y) / 2.0
+                target_point = Point(x=mid_x, y=mid_y, z=0.0)
+                self.get_logger().info(f"Doorway detected (Centering). Width: {dist:.2f}m. Target: ({mid_x:.2f}, {mid_y:.2f})")
+                return DoorwayStatus.FULL_DOORWAY, target_point
+        
+        # Case 2: Only one side is detected (skimming behavior)
+        elif right_obstacle_point:
+            # This logic allows the robot to navigate around a corner into a doorway
+            # by "skimming" the one wall it can see.
+            # Wall is on the right, so we want to aim to the left of it.
+            # The offset is perpendicular to the robot's heading (robot_theta + pi/2)
+            offset_angle = robot_theta + math.pi / 2.0
+            target_x = right_obstacle_point.x + self.doorway_detection_skew * math.cos(offset_angle)
+            target_y = right_obstacle_point.y + self.doorway_detection_skew * math.sin(offset_angle)
+            target_point = Point(x=target_x, y=target_y, z=0.0)
+            self.get_logger().info(f"Doorway detected (Skimming Right Wall). Target: ({target_x:.2f}, {target_y:.2f})")
+            return DoorwayStatus.RIGHT_WALL_ONLY, target_point
+
+        elif left_obstacle_point:
+            # Wall is on the left, so we want to aim to the right of it.
+            # The offset is perpendicular to the robot's heading (robot_theta - pi/2)
+            offset_angle = robot_theta - math.pi / 2.0
+            target_x = left_obstacle_point.x + self.doorway_detection_skew * math.cos(offset_angle)
+            target_y = left_obstacle_point.y + self.doorway_detection_skew * math.sin(offset_angle)
+            target_point = Point(x=target_x, y=target_y, z=0.0)
+            self.get_logger().info(f"Doorway detected (Skimming Left Wall). Target: ({target_x:.2f}, {target_y:.2f})")
+            return DoorwayStatus.LEFT_WALL_ONLY, target_point
+
+        # No passage detected
+        return DoorwayStatus.NONE, None
+
 
     # --- Main Control Loop ---
     def control_loop(self):
-        if self.last_scan is None or self.current_odom_pose is None:
-            self.get_logger().info("Waiting for sensor data (scan, odom)...", throttle_duration_sec=5)
+        """ Main state machine and control logic """
+        if self.current_odom_pose is None or self.local_costmap is None:
+            self.get_logger().info("Waiting for odom and costmap data...", throttle_duration_sec=5)
             return
 
-        # --- Pre-checks (Higher Priority) ---
-        # 1. Costmap Collision Check (most reliable immediate obstacle check)
-        if self.state not in [State.RECOVERY_BACKUP, State.RECOVERY_TURN, State.STOPPED]: # Don't override recovery
-            if self.check_costmap_for_collision():
-                self.get_logger().warn("Costmap reports imminent collision! Switching to TURN_LEFT.")
-                self.state = State.TURN_LEFT
-                twist = Twist()
-                twist.linear.x = 0.0
-                twist.angular.z = self.turn_speed # Turn left away from obstacle
-                self.cmd_vel_pub.publish(twist)
-                return # Skip rest of loop
+        # --- High-priority safety checks that can override the current state ---
+        # 1. Safety Bubble (immediate stop)
+        if self.check_safety_bubble():
+            self.change_state(State.RECOVERY_BACKUP)
+            self.stop_robot() # Stop immediately
+            return
 
-        # 2. Stuck Check
-        if self.state not in [State.RECOVERY_BACKUP, State.RECOVERY_TURN, State.STOPPED]:
-             if self.is_stuck():
-                  self.get_logger().warn("Stuck detected. Initiating recovery.")
-                  self.state = State.RECOVERY_BACKUP
-                  self.recovery_start_time = self.get_clock().now()
-                  self.recovery_start_pose = self.current_odom_pose # Store pose before backing up
-                  # Stop robot before starting recovery sequence
-                  self.stop_robot()
-                  return
-
+        # 2. Stuck Detection
+        if self.state not in [State.RECOVERY_BACKUP, State.RECOVERY_TURN] and self.is_stuck():
+            self.change_state(State.RECOVERY_BACKUP)
+            return
 
         # --- State Machine Logic ---
         twist = Twist()
-        now = self.get_clock().now()
 
+        # --- State: FIND_WALL ---
         if self.state == State.FIND_WALL:
-            # Move forward until obstacle detected by SCAN (quicker check) or costmap (handled above)
-            front_obstacle, dist = self.check_obstacle_in_scan_sector(
-                -self.front_angle_width / 2.0, self.front_angle_width / 2.0, self.front_obstacle_distance)
-
-            if front_obstacle:
-                self.get_logger().info(f"Scan detected obstacle at {dist:.2f}m. Transitioning to TURN_LEFT.")
-                self.state = State.TURN_LEFT
-                twist.linear.x = 0.0
-                twist.angular.z = self.turn_speed # Start turning left
+            # Use costmap to check for front obstacle
+            if self.check_obstacle_in_front():
+                self.get_logger().info("Obstacle detected while finding wall, turning left.")
+                twist.angular.z = self.turn_speed
             else:
-                # Go forward if clear
+                # Move forward until a wall is on the right
                 twist.linear.x = self.forward_speed
-                twist.angular.z = 0.0
+                # Use costmap to check for wall on the right
+                if self.is_wall_on_right():
+                    self.get_logger().info("Wall found on the right. Switching to FOLLOW_WALL.")
+                    self.change_state(State.FOLLOW_WALL)
+                    self.stop_robot() # Stop briefly to ensure a clean transition
+                else:
+                    # Gently curve right to find a wall if none is in front
+                    twist.angular.z = -self.turn_speed * 0.5
 
-        elif self.state == State.TURN_LEFT:
-            # Turn left until front is clear and wall is detected on the right
-            front_obstacle, _ = self.check_obstacle_in_scan_sector(
-                 -self.front_angle_width / 2.0, self.front_angle_width / 2.0, self.front_obstacle_distance * 1.2) # Slightly larger distance to ensure clearance
-            wall_on_right, right_dist = self.get_distance_in_scan_sector(self.side_scan_angle_min, self.side_scan_angle_max)
-
-            # Check if costmap is also clear in front before proceeding
-            costmap_clear = not self.check_costmap_for_collision()
-
-            # Condition to switch to FOLLOW_WALL:
-            # - Wall must be detected on the right within a reasonable range
-            # - Front must be clear according to both scan and costmap
-            if wall_on_right and (self.wall_follow_distance - self.goal_tolerance_dist < right_dist < self.wall_follow_distance + self.wall_presence_threshold) \
-               and not front_obstacle and costmap_clear:
-                self.get_logger().info(f"Aligned with wall on right (dist {right_dist:.2f}m). Transitioning to FOLLOW_WALL.")
-                self.state = State.FOLLOW_WALL
-                # Start moving forward slowly, wall following logic will adjust speed/angle
-                twist.linear.x = self.forward_speed * 0.5
-                twist.angular.z = 0.0
-            else:
-                # Continue turning left
-                twist.linear.x = 0.0
-                twist.angular.z = self.turn_speed
-                # Optional: If front becomes blocked while turning, maybe stop turning or reverse slightly?
-
+        # --- State: FOLLOW_WALL ---
         elif self.state == State.FOLLOW_WALL:
-            # Check for doorway ahead
-            is_doorway, opening_width, opening_center = self.detect_doorway_ahead()
-            
-            # Primary check: Front obstacle via SCAN
-            front_obstacle, front_dist = self.check_obstacle_in_scan_sector(
-                 -self.front_angle_width / 2.0, self.front_angle_width / 2.0, self.front_obstacle_distance)
+            # Highest priority in this state: check for a doorway to navigate through
+            doorway_status, doorway_target = self.check_for_doorway()
+            if doorway_status != DoorwayStatus.NONE:
+                self.get_logger().info("FOLLOW_WALL: Doorway detected ahead. Switching to NAVIGATE_DOORWAY.")
+                self.doorway_status = doorway_status
+                self.doorway_target_point = doorway_target
+                self.change_state(State.NAVIGATE_DOORWAY)
+                self.stop_robot()
+                return # Re-run loop in new state
 
-            if front_obstacle and not is_doorway:
-                # Regular obstacle (not a doorway)
-                self.get_logger().info(f"Obstacle detected ahead ({front_dist:.2f}m) while following wall. Transitioning to TURN_LEFT.")
-                self.state = State.TURN_LEFT
-                twist.linear.x = 0.0
-                twist.angular.z = self.turn_speed
-            elif is_doorway and opening_width > self.robot_width * 1.5:
-                # Doorway detected and wide enough - navigate through it
-                self.get_logger().info(f"Doorway detected! Width: {opening_width:.2f}m, Center: {math.degrees(opening_center):.1f}°")
-                self.state = State.NAVIGATE_DOORWAY
-                self.doorway_target_angle = opening_center
-                # Slow down and aim for center of opening
-                twist.linear.x = self.doorway_passage_speed
-                twist.angular.z = opening_center * 0.5  # Gentle turn toward center
+            # Primary check: front obstacle from costmap
+            if self.check_obstacle_in_front():
+                self.get_logger().info("FOLLOW_WALL: Front obstacle detected. Switching to AVOID_OBSTACLE.")
+                self.change_state(State.AVOID_OBSTACLE)
+                self.stop_robot() # Stop before turning
+                return # Re-run control loop immediately in new state
+            # Secondary check: inner corner collision during right turns
+            elif self.check_for_corner_collision():
+                 self.get_logger().info("FOLLOW_WALL: Inner corner collision detected. Overriding to turn left.")
+                 twist.linear.x = 0.05 # Slow down
+                 twist.angular.z = self.turn_speed # Turn left away from corner
+            # Wall following logic
             else:
-                # Normal wall following
-                wall_on_right, right_dist = self.get_distance_in_scan_sector(self.side_scan_angle_min, self.side_scan_angle_max)
-
-                if not wall_on_right or right_dist > self.wall_follow_distance + self.wall_presence_threshold:
-                    # Lost the wall - turn right to find it
-                    self.get_logger().warn("Lost wall on right. Turning right.")
-                    twist.linear.x = self.forward_speed * 0.3
-                    twist.angular.z = -self.turn_speed * 0.8
+                wall_dist = self.get_side_wall_distance(side='right')
+                if wall_dist == float('inf'):
+                    # Wall lost, gently turn right to find it again
+                    self.get_logger().info("Wall lost, curving right to find it.")
+                    twist.linear.x = self.forward_speed * 0.75
+                    twist.angular.z = -self.turn_speed * 0.5
                 else:
-                    # Wall following with gentler control for tight spaces
-                    error = self.wall_follow_distance - right_dist
-                    
-                    # Reduce gain in narrow spaces
-                    if opening_width > 0 and opening_width < self.narrow_passage_threshold:
-                        gain_factor = 0.3  # Much gentler control in narrow spaces
-                        speed_factor = 0.5  # Slower in narrow spaces
-                    else:
-                        gain_factor = 1.0
-                        speed_factor = 1.0
-                    
-                    twist.angular.z = self.kp_angular * error * gain_factor
+                    # Wall is present, apply PID control to maintain distance
+                    error = self.wall_distance_setpoint - wall_dist
+                    twist.linear.x = self.forward_speed
+                    # Use a proportional controller for angular velocity
+                    twist.angular.z = self.kp_angular * error
+                    # Clamp the angular velocity to the maximum
                     twist.angular.z = max(-self.max_angular_speed, min(self.max_angular_speed, twist.angular.z))
-                    
-                    # Adjust speed based on turning
-                    speed_reduction_factor = 1.0 - min(abs(twist.angular.z) / self.max_angular_speed, 0.7)
-                    twist.linear.x = self.forward_speed * speed_reduction_factor * speed_factor
 
+
+        # --- State: AVOID_OBSTACLE ---
+        elif self.state == State.AVOID_OBSTACLE:
+            # Turn left until the way is clear according to the costmap
+            twist.angular.z = self.turn_speed
+            if not self.check_obstacle_in_front():
+                self.get_logger().info("Path is clear. Switching back to FOLLOW_WALL.")
+                self.change_state(State.FOLLOW_WALL)
+                self.stop_robot() # Stop to ensure clean transition
+                return # Re-run control loop
+
+        # --- State: NAVIGATE_DOORWAY ---
         elif self.state == State.NAVIGATE_DOORWAY:
-            # Navigate through the doorway
-            front_obstacle, front_dist = self.check_obstacle_in_scan_sector(
-                -self.front_angle_width / 4.0, self.front_angle_width / 4.0, self.front_obstacle_distance)
+            # This state is now entered if check_for_doorway finds any kind of opening.
+            # The target point and status were already set when transitioning to this state.
+
+            # Check if we should re-evaluate the doorway presence.
+            # We commit for a certain time to avoid flickering.
+            time_in_state = (self.get_clock().now() - self.doorway_entry_time).nanoseconds / 1e9
             
-            if front_obstacle and front_dist < 0.3:
-                # Too close to obstacle while in doorway
-                self.get_logger().warn("Obstacle too close while navigating doorway. Starting recovery.")
-                self.state = State.RECOVERY_BACKUP
-                self.recovery_start_time = self.get_clock().now()
-                self.recovery_start_pose = self.current_odom_pose
-                twist.linear.x = 0.0
-                twist.angular.z = 0.0
-            else:
-                # Continue through doorway
-                is_doorway, opening_width, opening_center = self.detect_doorway_ahead()
-                
-                if is_doorway and opening_width > self.robot_width * 1.2:
-                    # Still in doorway - aim for center
-                    twist.linear.x = self.doorway_passage_speed
-                    twist.angular.z = opening_center * 0.3  # Gentle correction
+            # During the initial commit period, we don't re-evaluate. We trust the initial target.
+            # This prevents flickering if the robot's orientation causes the detection to change slightly.
+            if time_in_state > self.doorway_commit_time:
+                self.get_logger().debug("Doorway commit time elapsed. Now dynamically updating target.")
+                new_status, new_target = self.check_for_doorway()
+
+                if new_status == DoorwayStatus.NONE:
+                    self.get_logger().info("Lost sight of doorway/opening after commit time. Returning to FOLLOW_WALL.")
+                    self.change_state(State.FOLLOW_WALL)
+                    return
                 else:
-                    # Exited doorway - return to wall following
-                    self.get_logger().info("Exited doorway. Returning to wall following.")
-                    self.state = State.FOLLOW_WALL
-                    twist.linear.x = self.forward_speed * 0.5
-                    twist.angular.z = 0.0
+                    # After the commit time, we continuously update the target for a smoother path.
+                    if new_status != self.doorway_status:
+                         self.get_logger().info(f"Doorway status updated while navigating: {self.doorway_status.name} -> {new_status.name}")
+                    self.doorway_status = new_status
+                    self.doorway_target_point = new_target
 
+            # If an immediate forward obstacle appears, abort and recover.
+            if self.check_obstacle_in_front():
+                 self.get_logger().warn("Obstacle detected while navigating doorway. Aborting to recovery.")
+                 self.change_state(State.RECOVERY_BACKUP)
+                 return
+
+            # Aim for the calculated target point (midpoint, or skewed point)
+            if self.doorway_target_point is None:
+                self.get_logger().error("In NAVIGATE_DOORWAY but target point is None. Aborting to recovery.")
+                self.change_state(State.RECOVERY_BACKUP)
+                return
+
+            try:
+                # We need the robot's pose in the costmap frame to calculate the angle to the target
+                transform = self.tf_buffer.lookup_transform(self.costmap_frame, self.robot_base_frame, rclpy.time.Time())
+                robot_x = transform.transform.translation.x
+                robot_y = transform.transform.translation.y
+                _, _, robot_theta = self.euler_from_quaternion(transform.transform.rotation)
+
+                # Angle to the target point
+                angle_to_target = math.atan2(self.doorway_target_point.y - robot_y, self.doorway_target_point.x - robot_x)
+                angle_error = self.normalize_angle(angle_to_target - robot_theta)
+
+                # Proportional control for angular velocity
+                angular_vel = self.doorway_kp_angular * angle_error
+
+                # Set a constant forward speed for the doorway, but slow down for sharp turns
+                if abs(angle_error) > self.doorway_max_angle_for_full_speed:
+                    # Scale speed down if the required turn is sharp
+                    scale_factor = self.doorway_max_angle_for_full_speed / abs(angle_error)
+                    linear_vel = self.doorway_forward_speed * scale_factor
+                    self.get_logger().debug(f"Doorway nav: Sharp turn detected (error: {math.degrees(angle_error):.1f}deg). Scaling speed to {linear_vel:.2f}m/s.")
+                else:
+                    linear_vel = self.doorway_forward_speed
+
+
+                # Safety check before publishing
+                if self.is_path_clear(linear_vel, angular_vel, "NAVIGATE_DOORWAY"):
+                    twist.linear.x = linear_vel
+                    twist.angular.z = angular_vel
+                else:
+                    self.get_logger().warn("Path is not clear to the doorway target. Aborting to recovery.")
+                    self.stop_robot() # Explicitly stop before changing state
+                    self.change_state(State.RECOVERY_BACKUP)
+                    twist = Twist() # Ensure we stop if path is not clear
+
+                status_str = self.doorway_status.name
+                self.get_logger().info(f"NAV_DOOR [{status_str}]: AngleErr={math.degrees(angle_error):.1f}, LinVel={twist.linear.x:.2f}, AngVel={twist.angular.z:.2f}")
+
+            except (LookupException, ConnectivityException, ExtrapolationException) as e:
+                self.get_logger().error(f"TF lookup failed in NAVIGATE_DOORWAY: {e}")
+                self.stop_robot()
+
+        # --- State: RECOVERY_BACKUP ---
         elif self.state == State.RECOVERY_BACKUP:
-             if self.recovery_start_time is None: # Should have been set when entering state
-                 self.get_logger().error("Recovery state entered without start time!")
-                 self.state = State.FIND_WALL # Try to recover by finding wall again
-                 return
+            now = self.get_clock().now()
+            # If this is the first tick in this state, start the timer
+            if self.recovery_start_time is None:
+                self.get_logger().info(f"Starting recovery: Backing up for {self.recovery_backup_time} seconds.")
+                self.recovery_start_time = now
 
-             elapsed_time = (now - self.recovery_start_time).nanoseconds / 1e9
-
-             if elapsed_time < self.recovery_backup_time:
-                  # Command backup speed
-                  twist.linear.x = self.recovery_backup_dist / self.recovery_backup_time # Average speed to cover distance
-                  twist.angular.z = 0.0
-                  self.get_logger().info(f"Recovery: Backing up ({elapsed_time:.1f}s / {self.recovery_backup_time:.1f}s)")
-             else:
-                  # Finished backing up, transition to recovery turn
-                  self.get_logger().info("Recovery: Finished backup. Transitioning to RECOVERY_TURN.")
-                  self.state = State.RECOVERY_TURN
-                  self.recovery_start_time = now # Reset timer for turn phase
-                  # Get current yaw to calculate target yaw
-                  q = self.current_odom_pose.orientation
-                  _, _, self.recovery_start_yaw = tf_transformations.euler_from_quaternion([q.x, q.y, q.z, q.w])
-                  self.recovery_target_yaw = self.normalize_angle(self.recovery_start_yaw + self.recovery_turn_angle) # Turn left
-                  twist.linear.x = 0.0
-                  twist.angular.z = self.turn_speed # Start turning
-
-
-        elif self.state == State.RECOVERY_TURN:
-            if self.recovery_start_time is None or self.recovery_start_yaw is None:
-                 self.get_logger().error("Recovery turn state invalid.")
-                 self.state = State.FIND_WALL
-                 return
-
-            elapsed_time = (now - self.recovery_start_time).nanoseconds / 1e9
-            q = self.current_odom_pose.orientation
-            _, _, current_yaw = tf_transformations.euler_from_quaternion([q.x, q.y, q.z, q.w])
-
-            angle_diff = self.normalize_angle(self.recovery_target_yaw - current_yaw)
-
-            # Check if turn completed or timed out
-            if abs(angle_diff) < math.radians(5.0): # 5 degree tolerance
-                 self.get_logger().info("Recovery: Turn completed.")
-                 self.state = State.FIND_WALL # Go back to finding a wall
-                 self.stop_robot() # Stop briefly before proceeding
-                 # Reset stuck detection completely after recovery
-                 self.last_pose_for_stuck_check = None
-                 self.last_pose_check_time = self.get_clock().now()
-                 return
-            elif elapsed_time > self.recovery_turn_time:
-                 self.get_logger().warn("Recovery: Turn timed out.")
-                 self.state = State.FIND_WALL # Try finding wall anyway
-                 self.stop_robot()
-                 self.last_pose_for_stuck_check = None
-                 self.last_pose_check_time = self.get_clock().now()
-                 return
+            # Check if backup time has elapsed
+            if (now - self.recovery_start_time).nanoseconds / 1e9 > self.recovery_backup_time:
+                self.get_logger().info("Backup complete. Switching to RECOVERY_TURN.")
+                self.change_state(State.RECOVERY_TURN)
+                self.stop_robot()
+                return
             else:
-                 # Continue turning
-                 twist.linear.x = 0.0
-                 # Turn direction based on remaining angle (should be positive for left turn target)
-                 twist.angular.z = self.turn_speed * (1.0 if angle_diff > 0 else -1.0)
-                 self.get_logger().info(f"Recovery: Turning ({elapsed_time:.1f}s / {self.recovery_turn_time:.1f}s). Target: {math.degrees(self.recovery_target_yaw):.1f}, Current: {math.degrees(current_yaw):.1f}")
+                # Command the robot to move backward
+                twist.linear.x = self.recovery_backup_speed
+
+        # --- State: RECOVERY_TURN ---
+        elif self.state == State.RECOVERY_TURN:
+            now = self.get_clock().now()
+            # If this is the first tick in this state, start the timer
+            if self.recovery_start_time is None:
+                self.get_logger().info(f"Starting recovery: Turning for {self.recovery_turn_time} seconds.")
+                self.recovery_start_time = now
+
+            # Check if turn time has elapsed
+            if (now - self.recovery_start_time).nanoseconds / 1e9 > self.recovery_turn_time:
+                self.get_logger().info("Recovery turn complete. Switching to FIND_WALL to restart logic.")
+                self.change_state(State.FIND_WALL)
+                self.stop_robot()
+                return
+            else:
+                # Command the robot to turn (e.g., left)
+                twist.angular.z = self.turn_speed
 
 
-        elif self.state == State.STOPPED:
-            # Do nothing, publish zero velocity
-            pass # twist is already zero
+        # --- Publish the final command ---
+        self.cmd_vel_pub.publish(twist)
 
 
-        # --- Publish Command ---
-        # Safety check: If any speed is NaN or Inf, stop the robot
-        if not all(math.isfinite(v) for v in [twist.linear.x, twist.angular.z]):
-             self.get_logger().error(f"Non-finite velocity command detected! State={self.state}. Stopping robot.")
-             self.stop_robot()
-             self.state = State.STOPPED # Go to stopped state on error
-        else:
-             self.cmd_vel_pub.publish(twist)
-
-
-# --- Main Execution ---
 def main(args=None):
-    # debugpy.listen(("0.0.0.0", 5678))  # Listen on all interfaces
-    # debugpy.wait_for_client()  # Optional: wait for debugger to attach
     rclpy.init(args=args)
     node = PerimeterRoamer()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        node.get_logger().info("Keyboard interrupt received. Stopping robot...")
-    except Exception as e:
-        node.get_logger().error(f"Unhandled exception: {e}")
-        import traceback
-        traceback.print_exc()
+        node.get_logger().info("Keyboard interrupt, shutting down.")
     finally:
-        # Ensure robot stops before shutting down
+        node.get_logger().info("Executing final shutdown...")
         node.stop_robot()
         node.destroy_node()
         rclpy.shutdown()
 
+
 if __name__ == '__main__':
     main()
-    

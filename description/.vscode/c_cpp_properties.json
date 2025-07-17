@@ -1,0 +1,32 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/ros/sigyn_ws/install/sigyn_nav_goals/include/**",
+        "/home/ros/sigyn_ws/install/sigyn_interfaces/include/**",
+        "/home/ros/sigyn_ws/install/sigyn_behavior_trees/include/**",
+        "/home/ros/sigyn_ws/install/msgs/include/**",
+        "/home/ros/sigyn_ws/install/line_finder/include/**",
+        "/home/ros/sigyn_ws/install/base/include/**",
+        "/opt/ros/jazzy/include/**",
+        "/home/ros/sigyn_ws/src/Sigyn/ldlidar/include/**",
+        "/home/ros/sigyn_ws/src/Sigyn/pi_servo1/include/**",
+        "/home/ros/sigyn_ws/src/Sigyn/sigyn_behavior_trees/include/**",
+        "/home/ros/sigyn_ws/src/Sigyn/sigyn_house_patroller/include/**",
+        "/home/ros/sigyn_ws/src/Sigyn/sigyn_nav_goals/include/**",
+        "/home/ros/sigyn_ws/src/laser_lines/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
