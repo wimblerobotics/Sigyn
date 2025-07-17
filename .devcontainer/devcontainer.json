@@ -4,8 +4,8 @@
         "dockerfile": "Dockerfile",
         "args": {
             "USERNAME": "ros",
-            "USER_UID": "1000",
-            "USER_GID": "1000"
+            "USER_UID": "1001",
+            "USER_GID": "1001"
         }
     },
     "remoteUser": "ros",
@@ -14,29 +14,6 @@
     "customizations": {
         "vscode": {
             "extensions": [
-                "ms-vscode.cmake-tools",
-                "ms-vscode.cpptools",
-                "ms-vscode.cpptools-extension-pack",
-                "ms-vscode.cpptools-themes",
-                "ms-vscode.remote-explorer",
-                "ms-vscode-remote.remote-ssh",
-                "ms-vscode-remote.remote-ssh-edit",
-                "ms-vscode-remote.remote-server",
-                "twxs.cmake",
-                "donjayamanne.python-extension-pack",
-                "dotjoshjohnson.xml",
-                "eamodio.gitlens",
-                "github.copilot",
-                "github.copilot-chat",
-                "kylinideteam.cmake-intellisence",
-                "ms-iot.vscode-ros",
-                "ngtystr.ppm-pgm-viewer-for-vscode",
-                "ms-python.debugpy",
-                "ms-python.python",
-                "ms-python.vscode-pylance",
-                "redhat.vscode-yaml",
-                "yzhang.markdown-all-in-one",
-                "yzane.markdown-pdf"
             ]
         }
     },

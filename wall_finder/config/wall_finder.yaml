@@ -1,0 +1,37 @@
+wall_finder:
+  ros__parameters:
+    # Costmap processing parameters
+    costmap_topic: "/global_costmap/static_layer"
+    costmap_threshold: 50  # Threshold for occupied space (0-100 scale, 50 = 50% occupied)
+    erosion_size: 3        # Size of erosion kernel
+    erosion_iterations: 1  # Number of erosion iterations
+    
+    # Wall detection parameters
+    min_wall_length_inches: 2.0   # Reduced to catch short walls and table edges
+    min_wall_length_meters: 0.051  # 2 inches in meters
+    
+    # Canny edge detection parameters - more sensitive for hand-drawn maps
+    canny_low_threshold: 20       # Even lower threshold to catch weak edges
+    canny_high_threshold: 80      # Lower upper threshold for more edges
+    canny_aperture_size: 3        # Aperture size for Sobel operator
+
+    # Hough line detection parameters (tuned for hand-drawn maps)
+    hough_rho: 1.0                # Distance resolution (pixels)
+    hough_theta: 0.017453292519943295  # Angle resolution (1 degree in radians)
+    hough_threshold: 2            # Even more sensitive threshold
+    hough_min_line_length: 1      # Very short minimum to catch tiny fragments  
+    hough_max_line_gap: 20        # Even larger gap tolerance for fragmented walls
+    
+    # Line merging parameters (more aggressive for blueprint-style maps)
+    angle_tolerance: 0.017453292519943295  # 1 degree for blueprint maps
+    distance_tolerance: 0.15      # 15 cm tolerance for parallel lines
+    proximity_tolerance: 0.3      # 30 cm tolerance for nearby endpoints (more generous)
+    
+    # Database parameters
+    database_path: "walls.db"     # Path to SQLite database file (relative to package)
+    
+    # Visualization parameters
+    publish_walls_costmap: true   # Publish detected walls as a costmap for visualization
+    
+    # TF frame
+    map_frame: "map"

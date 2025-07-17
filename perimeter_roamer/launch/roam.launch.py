@@ -14,7 +14,7 @@ def generate_launch_description():
     roamer_node = Node(
         package=pkg_name,
         executable='roamer',
-        name='perimeter_roamer_node', # Specific node name
+        name='perimeter_roamer', # Match the name in the Python script
         output='screen',
         parameters=[params_file],
         # Optional: Remap topics if needed
