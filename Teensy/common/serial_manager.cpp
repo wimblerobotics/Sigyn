@@ -6,16 +6,6 @@
 
 SerialManager::SerialManager() {}
 
-void SerialManager::SendBatteryStatus(float voltage, float percentage) {
-  Serial.print("BATTERY:");
-  Serial.print(voltage);
-  Serial.print(",");
-  Serial.println(percentage);
-  String logMsg =
-      String("BATTERY:") + String(voltage) + "V, " + String(percentage) + "%";
-  SdModule::singleton().log(logMsg.c_str());
-}
-
 void SerialManager::SendOdometry(const char* msg) {
   Serial.print("ODOM:");
   Serial.println(msg);
