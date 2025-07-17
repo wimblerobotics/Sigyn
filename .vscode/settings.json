@@ -18,10 +18,30 @@
   "C_Cpp.autocomplete": "default",
   "C_Cpp.errorSquiggles": "enabled",
   "files.associations": {
-    "*.ino": "cpp"
+    "*.ino": "cpp",
+    "cstdint": "cpp",
+    "array": "cpp",
+    "deque": "cpp",
+    "forward_list": "cpp",
+    "list": "cpp",
+    "string": "cpp",
+    "unordered_map": "cpp",
+    "unordered_set": "cpp",
+    "vector": "cpp",
+    "string_view": "cpp",
+    "format": "cpp",
+    "initializer_list": "cpp",
+    "ranges": "cpp",
+    "span": "cpp",
+    "stacktrace": "cpp",
+    "valarray": "cpp",
+    "chrono": "cpp",
+    "rope": "cpp",
+    "variant": "cpp"
   },
   "extensions.ignoreRecommendations": true,
   "clangd.enable": false,
   "clangd.path": "",
-  "cmake-tools.configureOnOpen": false
+  "cmake-tools.configureOnOpen": false,
+  "ros.distro": "jazzy"
 }
