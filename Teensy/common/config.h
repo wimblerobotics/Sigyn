@@ -53,6 +53,9 @@
 #define TEST_MOTOR_RUNAWAY_MS 25 // Test for motor runaway this often.
 #define CRITICAL_MOTOR_RUNAWAY_PERCENT 200.0f // Critical runaway threshold (125% of expected speed)
 
+// Teensy board configuration.
+#define I2C_MULTIPLEXER_ADDRESS  0x70  // I2C multiplexer configuration
+
 // Math Constants
 #ifndef M_PI
 #define M_PI 3.14159265358979323846f

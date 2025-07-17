@@ -89,7 +89,6 @@ class BNO055Module : public Module {
 
  private:
   // Constants
-  static const uint8_t I2C_MULTIPLEXER_ADDRESS = 0x70;  // I2C multiplexer configuration
   static const uint8_t BNO055_DEFAULT_ADDRESS = 0x28;   // Default BNO055 I2C address
 
   // Private constructor

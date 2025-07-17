@@ -1,10 +1,13 @@
 #include <Wire.h>
 
 #include "Arduino.h"
+#include "battery_module.h"  // Battery module for monitoring battery status
 #include "bno055_module.h"
 #include "module.h"
 #include "serial_manager.h"
 
+BatteryModule& battery_module =
+    BatteryModule::singleton();  // Battery monitoring module
 BNO055Module& bno055_module =
     BNO055Module::singleton();  // BNO055 sensor module
 

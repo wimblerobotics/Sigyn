@@ -9,8 +9,6 @@ class SerialManager {
   // Singleton constructor.
   static SerialManager &singleton();
 
-  void SendBatteryStatus(float voltage, float percentage);
-
   void SendRoboClawStatus(const char *msg);
  
   // to get data void SendModuleStats(Module* module);
