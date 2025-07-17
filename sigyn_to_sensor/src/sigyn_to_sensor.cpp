@@ -36,14 +36,14 @@ struct PendingServiceRequest {
 class SigynToSensor : public rclcpp::Node {
  public:
   SigynToSensor() : Node("teensy_to_sensor"), serial_fd_(-1), serial_fd2_(-1) {
-    // Initialize serial connection for first Teensy (motor control)
+    // Initialize serial connection for first Teensy (motor control, odometry)
     if (!initSerial("/dev/teensy_sensor", 921600, serial_fd_)) {
       RCLCPP_ERROR(this->get_logger(),
                    "Failed to initialize serial connection to /dev/teensy_sensor");
       return;
     }
 
-    // Initialize serial connection for second Teensy (IMU sensors)
+    // Initialize serial connection for second Teensy (IMU sensors, battery monitoring)
     if (!initSerial("/dev/teensy_sensor2", 921600, serial_fd2_)) {
       RCLCPP_ERROR(this->get_logger(),
                    "Failed to initialize serial connection to /dev/teensy_sensor2");
@@ -118,7 +118,7 @@ class SigynToSensor : public rclcpp::Node {
         std::chrono::milliseconds(10),
         std::bind(&SigynToSensor::serialCommunicationLoop, this));
 
-    RCLCPP_INFO(this->get_logger(), "Teensy to sensor node started with both Teensy boards");
+    RCLCPP_INFO(this->get_logger(), "Teensy to sensor node started - Teensy 1: motor control/odometry, Teensy 2: IMU/battery monitoring");
   }
 
   ~SigynToSensor() {
@@ -282,8 +282,6 @@ class SigynToSensor : public rclcpp::Node {
     if (teensy_id == 1) {
       if (type == "ROBOCLAW") {
         publishRoboClawStatus(data);
-      } else if (type == "BATTERY") {
-        publishBatteryState(data);
       } else if (type == "DIAG") {
         publishDiagnostics(data);
       } else if (type == "SDIR") {
@@ -298,12 +296,16 @@ class SigynToSensor : public rclcpp::Node {
         RCLCPP_WARN(this->get_logger(), "Unknown message type from Teensy 1: %s", type.c_str());
       }
     }
-    // Handle messages from Teensy 2 (IMU board)
+    // Handle messages from Teensy 2 (IMU board and battery monitoring)
     else if (teensy_id == 2) {
       if (type == "DIAG") {
         // Check if this is an IMU data message
         if (data.substr(0, 9) == "IMU_DATA:") {
           publishImuData(data.substr(9)); // Remove "IMU_DATA:" prefix
+        }
+        // Check if this is a battery data message
+        else if (data.substr(0, 8) == "BATTERY:") {
+          publishBatteryState(data.substr(8)); // Remove "BATTERY:" prefix
         } else {
           // Regular diagnostic message
           publishTeensy2Diagnostics(data);
@@ -439,36 +441,115 @@ class SigynToSensor : public rclcpp::Node {
   }
 
   void publishBatteryState(const std::string& data) {
+    // Parse new format: "device_id,voltage_V,percentage_%,current_A"
+    // Example: "0,40.07V,80.72%,1.52A"
     std::istringstream iss(data);
-    std::string voltage_str, percentage_str;
+    std::string device_id_str, voltage_str, percentage_str, current_str;
 
-    if (std::getline(iss, voltage_str, ',') &&
-        std::getline(iss, percentage_str, ',')) {
+    if (std::getline(iss, device_id_str, ',') &&
+        std::getline(iss, voltage_str, ',') &&
+        std::getline(iss, percentage_str, ',') &&
+        std::getline(iss, current_str, ',')) {
+      
       auto battery_msg = sensor_msgs::msg::BatteryState();
       battery_msg.header.stamp = this->get_clock()->now();
       battery_msg.header.frame_id = "base_link";
 
       try {
-        battery_msg.voltage = std::stof(voltage_str);
-        battery_msg.percentage = std::stof(percentage_str);
+        // Parse device ID
+        int device_id = std::stoi(device_id_str);
+        
+        // Parse voltage (remove 'V' suffix)
+        std::string voltage_value = voltage_str;
+        if (!voltage_value.empty() && voltage_value.back() == 'V') {
+          voltage_value.pop_back();
+        }
+        battery_msg.voltage = std::stof(voltage_value);
+        
+        // Parse percentage (remove '%' suffix and convert to 0-1 range)
+        std::string percentage_value = percentage_str;
+        if (!percentage_value.empty() && percentage_value.back() == '%') {
+          percentage_value.pop_back();
+        }
+        float percentage_raw = std::stof(percentage_value);
+        battery_msg.percentage = percentage_raw / 100.0f; // Convert to 0-1 range
+        
+        // Parse current (remove 'A' suffix)
+        std::string current_value = current_str;
+        if (!current_value.empty() && current_value.back() == 'A') {
+          current_value.pop_back();
+        }
+        battery_msg.current = std::stof(current_value);
+        
+        // Set battery properties based on device ID
+        if (device_id == 0) {
+          // 36V LIPO battery (10-cell, 30Ah)
+          battery_msg.design_capacity = 30.0f;  // 30Ah design capacity
+          battery_msg.capacity = 30.0f;         // Assume full capacity for now (would need battery health monitoring)
+          battery_msg.charge = battery_msg.capacity * battery_msg.percentage; // Current charge in Ah
+          
+          // For LIPO battery, current IS available from Teensy monitoring
+          // Don't overwrite the parsed current value
+          
+          // Determine power supply status based on current flow
+          if (battery_msg.current > 0.1f) {
+            battery_msg.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_DISCHARGING;
+          } else if (battery_msg.current < -0.1f) {
+            battery_msg.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_CHARGING;
+          } else {
+            battery_msg.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_NOT_CHARGING;
+          }
+          
+          // Determine battery health based on voltage
+          float cell_voltage = battery_msg.voltage / 10.0f;  // 10-cell battery
+          if (cell_voltage > 4.0f) {
+            battery_msg.power_supply_health = sensor_msgs::msg::BatteryState::POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+          } else if (cell_voltage < 3.0f) {
+            battery_msg.power_supply_health = sensor_msgs::msg::BatteryState::POWER_SUPPLY_HEALTH_DEAD;
+          } else if (cell_voltage < 3.2f) {
+            battery_msg.power_supply_health = sensor_msgs::msg::BatteryState::POWER_SUPPLY_HEALTH_COLD; // Using as low voltage indicator
+          } else {
+            battery_msg.power_supply_health = sensor_msgs::msg::BatteryState::POWER_SUPPLY_HEALTH_GOOD;
+          }
+          
+          battery_msg.power_supply_technology = sensor_msgs::msg::BatteryState::POWER_SUPPLY_TECHNOLOGY_LIPO;
+        } else {
+          // Power supply monitoring (future expansion)
+          battery_msg.design_capacity = 0.0f;  // Power supplies don't have capacity
+          battery_msg.capacity = 0.0f;
+          battery_msg.charge = 0.0f;
+          battery_msg.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_UNKNOWN;
+          battery_msg.power_supply_health = sensor_msgs::msg::BatteryState::POWER_SUPPLY_HEALTH_GOOD;
+          battery_msg.power_supply_technology = sensor_msgs::msg::BatteryState::POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
+        }
+        
+        battery_msg.present = true;
+        
+        // Set location based on device ID
+        if (device_id == 0) {
+          battery_msg.location = "main_battery";
+        } else {
+          battery_msg.location = "power_supply_" + std::to_string(device_id);
+        }
+        
+        // Add device ID to the serial number for identification
+        battery_msg.serial_number = "SIGYN_BAT_" + std::to_string(device_id);
+
+        battery_state_pub_->publish(battery_msg);
+        
+        // Log battery status for debugging
+        RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 10000,
+                             "Battery %d: %.2fV (%.1f%%), %.2fA, Charge: %.1fAh/%.1fAh, Status: %d, Health: %d",
+                             device_id, battery_msg.voltage, battery_msg.percentage * 100.0f, 
+                             battery_msg.current, battery_msg.charge, battery_msg.capacity,
+                             battery_msg.power_supply_status, battery_msg.power_supply_health);
+        
       } catch (const std::exception& e) {
-        RCLCPP_WARN(this->get_logger(), "Failed to parse battery data: %s", e.what());
+        RCLCPP_WARN(this->get_logger(), "Failed to parse battery data '%s': %s", data.c_str(), e.what());
         return;
       }
-
-      battery_msg.current = 0.0;          // Placeholder
-      battery_msg.charge = 0.0;           // Placeholder
-      battery_msg.capacity = 1.0;         // Placeholder
-      battery_msg.design_capacity = 1.0;  // Placeholder
-      battery_msg.power_supply_status =
-          sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_DISCHARGING;
-      battery_msg.power_supply_health =
-          sensor_msgs::msg::BatteryState::POWER_SUPPLY_HEALTH_GOOD;
-      battery_msg.power_supply_technology =
-          sensor_msgs::msg::BatteryState::POWER_SUPPLY_TECHNOLOGY_LIPO;
-      battery_msg.present = true;
-
-      battery_state_pub_->publish(battery_msg);
+    } else {
+      RCLCPP_WARN(this->get_logger(), "Invalid battery data format '%s', expected 'device_id,voltage_V,percentage_%%,current_A'", data.c_str());
     }
   }
 

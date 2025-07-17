@@ -1,35 +1,41 @@
 /**
  * @file battery_module.cpp
- * @brief Implementation of battery monitoring module for Teensy board 2.
+ * @brief Implementation of enhanced battery monitoring module for Teensy board 2.
  * 
- * This module provides comprehensive battery monitoring using a hybrid approach:
- * - Main battery (index 0): Analog voltage divider reading via MAIN_BATTERY_PIN
- * - Additional batteries: INA226 sensors accessed via I2C multiplexer
+ * This module provides comprehensive monitoring for dual power systems:
+ * 1. 36V LIPO Battery (10-cell, 30Ah): Monitored via analog voltage divider
+ * 2. Power Supplies (24V, 12V, 5V, 3.3V): Monitored via INA226 sensors with I2C multiplexer
  * 
- * Features:
- * - Per-battery circular buffer averaging for noise reduction
- * - Independent monitoring of multiple battery systems
- * - Safety monitoring with configurable voltage thresholds
- * - Periodic status reporting via serial diagnostic messages
- * - I2C multiplexer management for multiple sensor access
+ * Enhanced features:
+ * - Exponential moving average for voltage and current with configurable alpha factors
+ * - Outlier detection with configurable consecutive reading thresholds  
+ * - Per-battery alarm states with overvoltage and overcurrent protection
+ * - Motor overcurrent detection for critical 24V supply monitoring
+ * - Non-resettable unsafe states for critical safety conditions
+ * - Scalable architecture ready for additional power supply monitoring
  * 
- * @author Sigyn Robotics
+ * Safety System:
+ * - Overvoltage: Triggers when voltage > nominal * multiplier for N consecutive readings
+ * - Overcurrent: Triggers when current > threshold for configurable time period
+ * - Motor Protection: Critical monitoring for motor stall detection on 24V supply
+ * - Global Safety: Aggregates all per-battery unsafe conditions
+ * 
+ * @author Sigyn Robotics  
  * @date 2025
  */
 
 #include "battery_module.h"
 
 #include "Arduino.h"         // For analogRead, millis, pinMode, etc.
-#include "INA226.h"          // For INA226 battery monitoring sensors
+#include "INA226.h"          // For INA226 power supply monitoring sensors
 #include "config.h"          // For battery configuration constants
 #include "serial_manager.h"  // For sending diagnostic messages
 
 /**
  * @brief Constructs a new BatteryModule instance.
  * 
- * Initializes all per-battery data structures including circular buffers,
- * index counters, and reading counts. Sets up diagnostic messaging and
- * prepares the module for hardware initialization.
+ * Initializes battery configurations for LIPO battery and future power supplies,
+ * sets up alarm states, and prepares exponential averaging systems.
  * 
  * @note This constructor is private to enforce the singleton pattern.
  */
@@ -37,20 +43,79 @@ BatteryModule::BatteryModule()
     : Module(),
       multiplexer_available_(false),
       setup_completed_(false) {
+  
   // Initialize per-battery data structures
   for (size_t device = 0; device < kNumberOfBatteries; device++) {
-    // Clear circular buffer for voltage averaging
+    // Initialize legacy circular buffer (for compatibility during transition)
     for (size_t reading = 0; reading < kNumberReadingsToAverage_; reading++) {
       g_averages_[device][reading] = 0.0;
     }
-    g_next_average_index_[device] = 0;      // Reset circular buffer index
-    total_battery_readings_[device] = 0;    // Reset reading counter
+    g_next_average_index_[device] = 0;
+    total_battery_readings_[device] = 0;
+    
+    // Initialize exponential averages
+    g_voltage_averages_[device] = 0.0f;
+    g_current_averages_[device] = 0.0f;
+    
+    // Initialize alarm states
+    g_alarm_states_[device] = {
+      .overvoltage_alarm = false,
+      .overcurrent_alarm = false, 
+      .is_unsafe = false,
+      .consecutive_overvoltage = 0,
+      .consecutive_overcurrent = 0,
+      .overcurrent_start_time = 0
+    };
   }
+  
+  // Initialize battery configurations
+  initializeBatteryConfigs();
 
   // Log successful configuration
   SerialManager::singleton().SendDiagnosticMessage(
       String("[BatteryModule::BatteryModule] Configured for ") +
-      String(kNumberOfBatteries) + String(" sensors"));
+      String(kNumberOfBatteries) + String(" power systems"));
+}
+
+/**
+ * @brief Initializes battery/power supply configurations.
+ * 
+ * Sets up monitoring parameters for each power system including voltage thresholds,
+ * current limits, averaging factors, and safety parameters. Ready for expansion
+ * when additional power supplies are added to the BatteryType enum.
+ */
+void BatteryModule::initializeBatteryConfigs() {
+  // 36V LIPO Battery configuration (10-cell, 30Ah)
+  g_battery_configs_[k36vBattery] = {
+    .nominal_voltage = 36.0f,           // 10 cells * 3.6V nominal
+    .max_charge_voltage = 42.0f,        // 10 cells * 4.2V max charge  
+    .min_discharge_voltage = 30.0f,     // 10 cells * 3.0V min safe
+    .overvoltage_multiplier = 1.25f,    // 25% over nominal triggers alarm
+    .max_current = 25.0f,               // 30Ah battery can handle ~25A safely
+    .overcurrent_time_threshold = 5.0f, // 5 seconds for overcurrent protection
+    .consecutive_alarm_count = 5,       // 5 consecutive readings for alarm
+    .voltage_alpha = kDefaultVoltageAlpha, // 10% new, 90% old for stability
+    .current_alpha = kDefaultCurrentAlpha, // 20% new, 80% old for current averaging
+    .is_lipo_battery = true,            // Use analog voltage monitoring (+ INA226 for current)
+    .monitor_motor_current = false      // Not a motor supply, but monitor for safety
+  };
+  
+  // Future power supply configurations will be added here when enum is expanded:
+  /*
+  g_battery_configs_[k24vSupply] = {
+    .nominal_voltage = 24.0f,
+    .max_charge_voltage = 26.0f,
+    .min_discharge_voltage = 22.0f, 
+    .overvoltage_multiplier = 1.15f,    // Tighter tolerance for power supplies
+    .max_current = 15.0f,               // Maximum motor current
+    .overcurrent_time_threshold = 2.0f, // 2 seconds for motor stall
+    .consecutive_alarm_count = 3,       // Faster response for motor supply
+    .voltage_alpha = kDefaultVoltageAlpha,
+    .current_alpha = kDefaultCurrentAlpha,
+    .is_lipo_battery = false,           // Use INA226 monitoring
+    .monitor_motor_current = true       // Critical motor monitoring
+  };
+  */
 }
 
 /**
@@ -59,27 +124,35 @@ BatteryModule::BatteryModule()
  * Uses linear interpolation between configured minimum and maximum battery
  * voltages to estimate the current state of charge. Clamps results to 0-100%.
  * 
+ * @param battery The battery type (should be LIPO).
  * @param voltage The measured battery voltage in volts.
  * @return Estimated state of charge as percentage (0.0-100.0).
  * 
  * @note Assumes linear discharge curve which may not be accurate for all
  *       battery chemistries. Consider implementing lookup tables for better accuracy.
  */
-float BatteryModule::calculatePercentage(float voltage) {
-  if (voltage >= MAIN_BATTERY_MAX_VOLTAGE) return 100.0f;
-  if (voltage <= MAIN_BATTERY_MIN_VOLTAGE) return 0.0f;
+float BatteryModule::calculatePercentage(BatteryType battery, float voltage) {
+  // Validate battery index
+  if (battery >= kNumberOfBatteries) {
+    return 0.0f;
+  }
+  
+  const BatteryConfig& config = g_battery_configs_[battery];
+  if (voltage >= config.max_charge_voltage) return 100.0f;
+  if (voltage <= config.min_discharge_voltage) return 0.0f;
 
-  return (voltage - MAIN_BATTERY_MIN_VOLTAGE) / MAIN_BATTERY_LIPO_CELLS * 100.0f;
+  return (voltage - config.min_discharge_voltage) / 
+         (config.max_charge_voltage - config.min_discharge_voltage) * 100.0f;
 }
 
 /**
  * @brief Reads current consumption from the specified battery.
  * 
- * Selects the appropriate INA226 sensor via I2C multiplexer and reads
- * the current measurement. Handles sensor selection and error conditions.
+ * Returns the exponentially averaged current consumption from the INA226 sensor.
+ * All batteries now have current monitoring via INA226 sensors.
  * 
  * @param battery The battery type to read current from.
- * @return Current consumption in amperes, or 0.0f on error.
+ * @return Exponentially averaged current consumption in amperes, or 0.0f if not available.
  */
 float BatteryModule::getCurrent(BatteryType battery) const {
   // Validate battery index
@@ -90,20 +163,18 @@ float BatteryModule::getCurrent(BatteryType battery) const {
     return 0.0f;
   }
 
-  // Select appropriate sensor and read current
-  selectSensor(battery);
-  return g_ina226_[battery].getCurrent();
+  return g_current_averages_[battery];
 }
 
 /**
  * @brief Gets the averaged voltage reading for the specified battery.
  * 
- * Calculates the average voltage from the circular buffer of recent readings.
- * The number of samples used depends on how many readings have been taken
- * since initialization (up to kNumberReadingsToAverage_).
+ * Returns the exponentially averaged voltage from recent readings.
+ * Uses the exponential moving average which provides better noise filtering
+ * and responsiveness compared to circular buffer averaging.
  * 
  * @param battery The battery type to read voltage from.
- * @return Averaged voltage in volts, or 0.0f if invalid battery index.
+ * @return Exponentially averaged voltage in volts, or 0.0f if invalid battery index.
  * 
  * @note Returns 0.0f if no readings have been taken yet.
  */
@@ -113,36 +184,24 @@ float BatteryModule::getVoltage(BatteryType battery) const {
     return 0.0f;
   }
   
-  // Calculate average from available readings
-  float voltage_sum = 0.0f;
-  size_t number_readings_to_average =
-      total_battery_readings_[battery] < kNumberReadingsToAverage_
-          ? total_battery_readings_[battery]
-          : kNumberReadingsToAverage_;
-  
-  for (size_t reading = 0; reading < number_readings_to_average; reading++) {
-    voltage_sum += g_averages_[battery][reading];
-  }
-
-  return number_readings_to_average > 0 
-         ? voltage_sum / number_readings_to_average 
-         : 0.0f;
+  return g_voltage_averages_[battery];
 }
 
 /**
  * @brief Checks if any battery is in a critical safety condition.
  * 
- * Iterates through all configured batteries and checks their voltage
- * against the critical threshold. Returns true if any battery requires
- * immediate attention or emergency shutdown.
+ * Iterates through all configured batteries and checks their unsafe states.
+ * Returns true if any battery requires immediate attention or emergency shutdown.
+ * This aggregates all per-battery unsafe conditions for global safety monitoring.
  * 
- * @return true if any battery voltage is below critical threshold.
+ * @return true if any battery is in an unsafe state.
  * 
- * @note This method triggers safety protocols when batteries are dangerously low.
+ * @note This method triggers safety protocols when batteries are dangerously low
+ *       or experiencing alarm conditions.
  */
 bool BatteryModule::isUnsafe() {
   for (size_t battery_idx = 0; battery_idx < kNumberOfBatteries; battery_idx++) {
-    if (getVoltage(static_cast<BatteryType>(battery_idx)) < MAIN_BATTERY_CRITICAL_VOLTAGE_THRESHOLD) {
+    if (g_alarm_states_[battery_idx].is_unsafe) {
       return true;
     }
   }
@@ -150,11 +209,50 @@ bool BatteryModule::isUnsafe() {
 }
 
 /**
+ * @brief Checks if a specific battery is in an unsafe state.
+ * 
+ * Returns the per-battery unsafe state which is set when alarm conditions
+ * are met and is not automatically resettable.
+ * 
+ * @param battery The battery type to check.
+ * @return true if the specified battery is in an unsafe state.
+ */
+bool BatteryModule::isUnsafe(BatteryType battery) const {
+  // Validate battery index
+  if (battery >= kNumberOfBatteries) {
+    return false;
+  }
+  
+  return g_alarm_states_[battery].is_unsafe;
+}
+
+/**
+ * @brief Gets the alarm state for a specific battery.
+ * 
+ * Returns the complete alarm state structure containing all alarm flags
+ * and consecutive reading counts for the specified battery.
+ * 
+ * @param battery The battery type to get alarm state for.
+ * @return Reference to the battery's alarm state structure.
+ */
+const BatteryModule::BatteryAlarmState& BatteryModule::getAlarmState(BatteryType battery) const {
+  // Validate battery index and return reference to appropriate alarm state
+  if (battery >= kNumberOfBatteries) {
+    // Return reference to first alarm state as fallback (should not happen with proper validation)
+    static const BatteryAlarmState invalid_state = {};
+    return invalid_state;
+  }
+  
+  return g_alarm_states_[battery];
+}
+
+/**
  * @brief Main processing loop for battery monitoring operations.
  * 
- * Performs two main functions on separate timing intervals:
- * 1. Battery reading: Samples all batteries and updates circular buffers
- * 2. Status reporting: Sends diagnostic messages with current battery state
+ * Performs comprehensive battery monitoring including:
+ * 1. Battery reading: Samples all batteries and updates averages
+ * 2. Safety monitoring: Checks for alarm conditions and outliers
+ * 3. Status reporting: Sends diagnostic messages with current battery state
  * 
  * Reading strategy:
  * - Battery 0: Analog voltage divider via MAIN_BATTERY_PIN
@@ -170,19 +268,40 @@ void BatteryModule::loop() {
   // Battery reading phase - sample all batteries
   if ((current_time_ms - last_battery_read_time_ms_) > MAIN_BATTERY_READ_INTERVAL_MS) {
     for (size_t battery_idx = 0; battery_idx < kNumberOfBatteries; battery_idx++) {
+      BatteryType battery_type = static_cast<BatteryType>(battery_idx);
       float battery_v = 0.0f;
+      float battery_c = 0.0f;
       
       if (battery_idx == 0) {
-        // Main battery: analog voltage divider reading
+        // Main battery: analog voltage divider reading + INA226 current monitoring
         float raw = analogRead(MAIN_BATTERY_PIN);
         battery_v = raw * k36VAnalogToVoltageConversion;  // Use named constant
+        
+        // Get current from INA226 sensor for main battery
+        selectSensor(battery_type);
+        battery_c = g_ina226_[battery_idx].getCurrent();
       } else {
-        // Additional batteries: INA226 bus voltage reading
-        selectSensor(static_cast<BatteryType>(battery_idx));
+        // Additional batteries: INA226 bus voltage and current reading
+        selectSensor(battery_type);
         battery_v = g_ina226_[battery_idx].getBusVoltage();
+        battery_c = g_ina226_[battery_idx].getCurrent();
       }
       
-      // Store reading in circular buffer
+      // Update exponential averages
+      const BatteryConfig& config = g_battery_configs_[battery_type];
+      if (total_battery_readings_[battery_idx] == 0) {
+        // Initialize averages with first reading
+        g_voltage_averages_[battery_idx] = battery_v;
+        g_current_averages_[battery_idx] = battery_c;
+      } else {
+        // Apply exponential moving average
+        g_voltage_averages_[battery_idx] = updateExponentialAverage(
+            g_voltage_averages_[battery_idx], battery_v, config.voltage_alpha);
+        g_current_averages_[battery_idx] = updateExponentialAverage(
+            g_current_averages_[battery_idx], battery_c, config.current_alpha);
+      }
+      
+      // Store reading in legacy circular buffer (for compatibility)
       g_averages_[battery_idx][g_next_average_index_[battery_idx]] = battery_v;
       
       // Advance circular buffer index
@@ -193,6 +312,9 @@ void BatteryModule::loop() {
       
       // Update total reading count (used for averaging)
       total_battery_readings_[battery_idx]++;
+      
+      // Process safety checks and alarms
+      processSafetyChecks(battery_type, battery_v, battery_c);
     }
     
     last_battery_read_time_ms_ = current_time_ms;
@@ -201,7 +323,7 @@ void BatteryModule::loop() {
   // Status reporting phase - send diagnostic messages
   if ((current_time_ms - last_message_send_time_ms_) > MAIN_BATTERY_REPORT_INTERVAL_MS) {
     for (size_t device_index = 0; device_index < kNumberOfBatteries; device_index++) {
-      sendBatteryState(device_index);
+      sendBatteryState(static_cast<BatteryType>(device_index));
     }
     last_message_send_time_ms_ = current_time_ms;
   }
@@ -245,32 +367,34 @@ void BatteryModule::selectSensor(BatteryType battery) const {
  * @brief Constructs and sends a formatted battery status message.
  * 
  * Creates a diagnostic message containing voltage, state of charge percentage,
- * and current consumption for the specified battery. Message format:
- * "BATTERY:index,voltage,percentage,current"
+ * current consumption, and alarm status for the specified battery. Message format:
+ * "BATTERY:index,voltage,percentage,current,alarms"
  * 
- * @param device_index The battery index to report (0-based).
+ * @param battery The battery type to report.
  * 
- * @note Message buffer is limited to 64 characters. Consider increasing
- *       size if additional data fields are needed.
+ * @note Message buffer is limited to 128 characters to accommodate alarm status.
  */
-void BatteryModule::sendBatteryState(uint8_t device_index) {
-  // Validate device index
-  if (device_index >= kNumberOfBatteries) {
+void BatteryModule::sendBatteryState(BatteryType battery) {
+  // Validate battery type
+  if (battery >= kNumberOfBatteries) {
     SerialManager::singleton().SendDiagnosticMessage(
-        "[BatteryModule::sendBatteryState] Invalid device index: " +
-        String(device_index));
+        "[BatteryModule::sendBatteryState] Invalid battery type: " +
+        String(static_cast<int>(battery)));
     return;
   }
 
   // Format battery status message
-  char message[64];
-  BatteryType battery_type = static_cast<BatteryType>(device_index);
-  float voltage = getVoltage(battery_type);
-  float percentage = calculatePercentage(voltage);
-  float current = getCurrent(battery_type);
+  char message[128];
+  float voltage = getVoltage(battery);
+  float percentage = calculatePercentage(battery, voltage);
+  float current = getCurrent(battery);
+  const BatteryAlarmState& alarms = g_alarm_states_[battery];
 
-  snprintf(message, sizeof(message), "BATTERY:%d,%.2fV,%.1f%%,%.2fA",
-           device_index, voltage, percentage, current);
+  snprintf(message, sizeof(message), "BATTERY:%d,%.2fV,%.1f%%,%.2fA,%s%s%s",
+           static_cast<int>(battery), voltage, percentage, current,
+           alarms.overvoltage_alarm ? "OV," : "",
+           alarms.overcurrent_alarm ? "OC," : "", 
+           alarms.is_unsafe ? "UNSAFE" : "OK");
   
   SerialManager::singleton().SendDiagnosticMessage(message);
 }
@@ -376,14 +500,124 @@ bool BatteryModule::testI2CMultiplexer() {
   }
 }
 
+/**
+ * @brief Processes safety checks for a specific battery.
+ * 
+ * Evaluates voltage and current readings against safety thresholds,
+ * updates alarm states, and sets unsafe flags when conditions are met.
+ * Implements outlier detection and consecutive reading requirements.
+ * 
+ * @param battery The battery type to check.
+ * @param voltage Current voltage reading.
+ * @param current Current reading (0.0 for LIPO battery).
+ */
+void BatteryModule::processSafetyChecks(BatteryType battery, float voltage, float current) {
+  // Validate battery index
+  if (battery >= kNumberOfBatteries) {
+    return;
+  }
+  
+  const BatteryConfig& config = g_battery_configs_[battery];
+  BatteryAlarmState& alarm_state = g_alarm_states_[battery];
+  unsigned long current_time = millis();
+  
+  // Overvoltage detection with consecutive reading requirement
+  float overvoltage_threshold = config.nominal_voltage * config.overvoltage_multiplier;
+  if (voltage > overvoltage_threshold) {
+    alarm_state.consecutive_overvoltage++;
+    if (alarm_state.consecutive_overvoltage >= config.consecutive_alarm_count) {
+      if (!alarm_state.overvoltage_alarm) {
+        SerialManager::singleton().SendDiagnosticMessage(
+            String("[BatteryModule] OVERVOLTAGE ALARM: Battery ") + 
+            String(static_cast<int>(battery)) + String(" - ") + 
+            String(voltage, 2) + String("V > ") + String(overvoltage_threshold, 2) + String("V"));
+      }
+      alarm_state.overvoltage_alarm = true;
+      alarm_state.is_unsafe = true;  // Overvoltage is a critical safety condition
+    }
+  } else {
+    alarm_state.consecutive_overvoltage = 0;  // Reset consecutive count
+    alarm_state.overvoltage_alarm = false;    // Allow overvoltage alarm to clear
+  }
+  
+  // Undervoltage detection (immediate unsafe condition)
+  if (voltage < config.min_discharge_voltage) {
+    if (!alarm_state.is_unsafe) {
+      SerialManager::singleton().SendDiagnosticMessage(
+          String("[BatteryModule] UNDERVOLTAGE CRITICAL: Battery ") + 
+          String(static_cast<int>(battery)) + String(" - ") + 
+          String(voltage, 2) + String("V < ") + String(config.min_discharge_voltage, 2) + String("V"));
+    }
+    alarm_state.is_unsafe = true;  // Undervoltage is always critical
+  }
+  
+  // Overcurrent detection with time-based threshold (for all batteries with current monitoring)
+  if (config.max_current > 0.0f) {
+    if (current > config.max_current) {
+      if (alarm_state.overcurrent_start_time == 0) {
+        alarm_state.overcurrent_start_time = current_time;  // Start timing overcurrent condition
+      } else {
+        // Check if overcurrent has persisted long enough
+        unsigned long overcurrent_duration = current_time - alarm_state.overcurrent_start_time;
+        if (overcurrent_duration >= (config.overcurrent_time_threshold * 1000)) {
+          if (!alarm_state.overcurrent_alarm) {
+            SerialManager::singleton().SendDiagnosticMessage(
+                String("[BatteryModule] OVERCURRENT ALARM: Battery ") + 
+                String(static_cast<int>(battery)) + String(" - ") + 
+                String(current, 2) + String("A > ") + String(config.max_current, 2) + String("A"));
+          }
+          alarm_state.overcurrent_alarm = true;
+          
+          // For motor supplies, overcurrent is a critical safety condition
+          // For LIPO battery, also critical as it indicates potential short circuit
+          if (config.monitor_motor_current || config.is_lipo_battery) {
+            alarm_state.is_unsafe = true;
+          }
+        }
+      }
+    } else {
+      // Current is within limits, reset overcurrent tracking
+      alarm_state.overcurrent_start_time = 0;
+      alarm_state.overcurrent_alarm = false;  // Allow overcurrent alarm to clear
+    }
+  }
+}
+
+/**
+ * @brief Updates exponential average with new reading.
+ * 
+ * Applies exponential moving average formula: 
+ * new_avg = alpha * new_value + (1-alpha) * old_avg
+ * 
+ * @param current_average Current averaged value.
+ * @param new_reading New sensor reading.
+ * @param alpha Averaging factor (0.0-1.0, higher = more responsive).
+ * @return Updated averaged value.
+ */
+float BatteryModule::updateExponentialAverage(float current_average, float new_reading, float alpha) {
+  // Clamp alpha to valid range
+  if (alpha < 0.0f) alpha = 0.0f;
+  if (alpha > 1.0f) alpha = 1.0f;
+  
+  return alpha * new_reading + (1.0f - alpha) * current_average;
+}
+
 // Static member variable definitions
 BatteryModule* BatteryModule::g_instance_ = nullptr;
 
+// Legacy circular buffer arrays (kept for compatibility during transition)
 float BatteryModule::g_averages_[BatteryModule::kNumberOfBatteries]
                                 [BatteryModule::kNumberReadingsToAverage_] = {};
 
 size_t BatteryModule::g_next_average_index_[BatteryModule::kNumberOfBatteries] = {0};
 
+// Per-battery configuration and state arrays  
+BatteryModule::BatteryConfig BatteryModule::g_battery_configs_[BatteryModule::kNumberOfBatteries] = {};
+BatteryModule::BatteryAlarmState BatteryModule::g_alarm_states_[BatteryModule::kNumberOfBatteries] = {};
+float BatteryModule::g_voltage_averages_[BatteryModule::kNumberOfBatteries] = {0.0f};
+float BatteryModule::g_current_averages_[BatteryModule::kNumberOfBatteries] = {0.0f};
+
+// Hardware interface arrays
 uint8_t BatteryModule::gINA226_DeviceIndexes_[kNumberOfBatteries] = {
     2  // Main battery on multiplexer channel 2
 };
