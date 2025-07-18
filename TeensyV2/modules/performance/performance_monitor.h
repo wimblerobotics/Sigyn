@@ -219,7 +219,7 @@ class PerformanceMonitor : public Module {
   bool ValidateConfiguration(const PerformanceConfig& config) const;
 
   // Singleton instance
-  static PerformanceMonitor* instance_;
+  // Note: Using static local variable in GetInstance() instead of static member
 
   // Configuration and state
   PerformanceConfig config_;              ///< Current configuration parameters
