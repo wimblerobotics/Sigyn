@@ -119,22 +119,20 @@ void loop() {
   static uint32_t last_perf_report = 0;
   if (current_time - last_perf_report > 5000000) {  // Every 5 seconds
     last_perf_report = current_time;
-    Serial.print("Board1 Status:\n");
-    Serial.print("  Loop frequency: "); Serial.print(loop_frequency, 1); Serial.println(" Hz");
-    Serial.print("  Execution time: "); Serial.print(execution_time); Serial.println(" us");
-    Serial.print("  Safety state: "); Serial.println(safety_coordinator->GetSafetyStatusDescription().c_str());
-    // Serial.println("  Memory monitoring disabled for now");
+    Serial.println("Board1 Status:");
+    Serial.println("  Loop frequency: " + String(loop_frequency, 1) + " Hz");
+    Serial.println("  Execution time: " + String(execution_time) + " us");
+    Serial.println("  Safety state: " + safety_coordinator->GetSafetyStatusDescription());
+    Serial.println("  Free memory: " + String(freeMemory()) + " bytes");
   }
   
   // Check for critical performance violations
   if (execution_time > 10000) {  // 10ms is critically slow
-    Serial.print("WARNING: Loop execution time exceeded 10ms (");
-    Serial.print(execution_time); Serial.println(" us)");
+    Serial.println("WARNING: Loop execution time exceeded 10ms (" + String(execution_time) + " us)");
   }
   
   if (loop_frequency < 50.0f) {  // Below 50Hz is critically slow
-    Serial.print("WARNING: Loop frequency below 50Hz (");
-    Serial.print(loop_frequency, 1); Serial.println(" Hz)");
+    Serial.println("WARNING: Loop frequency below 50Hz (" + String(loop_frequency, 1) + " Hz)");
   }
   
   // Safety check - emergency stop if system becomes completely unresponsive
@@ -144,9 +142,9 @@ void loop() {
     
     // If we can't keep up with basic timing, trigger safety system
     if (execution_time > 20000) {  // 20ms is unacceptable
-      char timing_msg[64];
-      snprintf(timing_msg, sizeof(timing_msg), "Critical timing violation: %luus", execution_time);
-      safety_coordinator->TriggerEstop(EstopSource::PERFORMANCE, timing_msg, execution_time);
+      safety_coordinator->TriggerEstop(EstopSource::PERFORMANCE, 
+                                       "Critical timing violation: " + String(execution_time) + "us",
+                                       execution_time);
     }
   }
   
@@ -155,8 +153,20 @@ void loop() {
   delayMicroseconds(100);  // 0.1ms delay for stability
 }
 
-// Memory monitoring functions removed for now
-// The original embedded code didn't use heap allocation
+/**
+ * @brief Get free memory for monitoring.
+ * 
+ * Simple free memory calculation for Teensy 4.1.
+ * 
+ * @return Estimated free memory in bytes
+ */
+uint32_t freeMemory() {
+  // For Teensy 4.1, we'll use a simple stack-based approach
+  // This is not as accurate but works without linker issues
+  char stack_var;
+  extern char _ebss;
+  return &stack_var - &_ebss;
+}
 
 /**
  * @brief Handle critical errors and system faults.

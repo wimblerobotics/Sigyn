@@ -48,6 +48,9 @@
 
 using namespace sigyn_teensy;
 
+// Function declarations
+uint32_t freeMemory();
+
 // System timing
 uint32_t loop_start_time;
 uint32_t last_loop_time;
@@ -131,13 +134,14 @@ void loop() {
   static uint32_t last_status_report = 0;
   if (current_time - last_status_report > 10000000) {  // Every 10 seconds
     last_status_report = current_time;
-    Serial.print("Board2 Status:\n");
-    Serial.print("  Loop frequency: "); Serial.print(loop_frequency, 1); Serial.println(" Hz");
-    Serial.print("  Execution time: "); Serial.print(execution_time); Serial.println(" us");
-    Serial.print("  Battery voltage: "); Serial.print(battery_monitor->GetVoltage(), 2); Serial.println(" V");
-    Serial.print("  Battery current: "); Serial.print(battery_monitor->GetCurrent(), 2); Serial.println(" A");
-    Serial.print("  Battery state: "); Serial.println(static_cast<int>(battery_monitor->GetState()));
-    Serial.print("  Sensor health: "); Serial.println(battery_monitor->IsSensorHealthy() ? "OK" : "FAIL");
+    Serial.println("Board2 Status:");
+    Serial.println("  Loop frequency: " + String(loop_frequency, 1) + " Hz");
+    Serial.println("  Execution time: " + String(execution_time) + " us");
+    Serial.println("  Battery voltage: " + String(battery_monitor->GetVoltage(), 2) + " V");
+    Serial.println("  Battery current: " + String(battery_monitor->GetCurrent(), 2) + " A");
+    Serial.println("  Battery state: " + String(static_cast<int>(battery_monitor->GetState())));
+    Serial.println("  Sensor health: " + String(battery_monitor->IsSensorHealthy() ? "OK" : "FAIL"));
+    Serial.println("  Free memory: " + String(freeMemory()) + " bytes");
   }
   
   // Safety monitoring - check for critical battery conditions
@@ -164,10 +168,10 @@ void loop() {
         
         // Send emergency message to ROS2 system
         if (serial_manager) {
-          char safety_msg[128];
-          snprintf(safety_msg, sizeof(safety_msg), "board=2,critical=true,reason=battery,voltage=%.2f,current=%.2f", 
-                   isnan(voltage) ? 0.0f : voltage, isnan(current) ? 0.0f : current);
-          serial_manager->SendMessage("SAFETY_CRITICAL", safety_msg);
+          String safety_msg = "board=2,critical=true,reason=battery";
+          if (!isnan(voltage)) safety_msg += ",voltage=" + String(voltage, 2);
+          if (!isnan(current)) safety_msg += ",current=" + String(current, 2);
+          serial_manager->SendMessage("SAFETY_CRITICAL", safety_msg.c_str());
         }
       } else {
         Serial.println("SAFETY: Battery condition returned to normal");
@@ -194,6 +198,21 @@ void loop() {
 }
 
 /**
+ * @brief Get free memory for monitoring.
+ * 
+ * Simple free memory calculation for Teensy 4.1.
+ * 
+ * @return Estimated free memory in bytes
+ */
+uint32_t freeMemory() {
+  // For Teensy 4.1, we'll use a simple stack-based approach
+  // This is not as accurate but works without linker issues
+  char stack_var;
+  extern char _ebss;
+  return &stack_var - &_ebss;
+}
+
+/**
  * @brief Handle critical errors and system faults.
  * 
  * This function is called by the Teensy runtime when critical errors occur.
@@ -203,9 +222,8 @@ void fault_handler() {
   
   // Send fault notification if possible
   if (serial_manager) {
-    char fault_msg[64];
-    snprintf(fault_msg, sizeof(fault_msg), "type=system,board=2,time=%lu", millis());
-    serial_manager->SendMessage("FAULT", fault_msg);
+    String fault_msg = "type=system,board=2,time=" + String(millis());
+    serial_manager->SendMessage("FAULT", fault_msg.c_str());
   }
   
   // For Board 2, we don't have direct E-stop control, but we should signal the problem

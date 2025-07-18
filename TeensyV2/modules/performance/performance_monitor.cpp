@@ -12,7 +12,7 @@
 namespace sigyn_teensy {
 
 // Static member definition
-// Static instance removed - using static local variable in GetInstance() instead
+PerformanceMonitor* PerformanceMonitor::instance_ = nullptr;
 
 PerformanceMonitor::PerformanceMonitor()
     : Module(),
@@ -32,8 +32,10 @@ PerformanceMonitor::PerformanceMonitor()
 }
 
 PerformanceMonitor& PerformanceMonitor::GetInstance() {
-  static PerformanceMonitor instance;
-  return instance;
+  if (instance_ == nullptr) {
+    instance_ = new PerformanceMonitor();
+  }
+  return *instance_;
 }
 
 bool PerformanceMonitor::UpdateConfiguration(const PerformanceConfig& config) {
