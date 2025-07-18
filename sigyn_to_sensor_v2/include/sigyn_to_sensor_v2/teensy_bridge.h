@@ -59,6 +59,7 @@ private:
   // Parameters
   std::string board1_port_;
   std::string board2_port_;
+  std::string board3_port_;
   int baud_rate_;
   double connection_timeout_;
   double reconnect_timeout_;
@@ -86,6 +87,7 @@ private:
   // File descriptors for serial ports
   int board1_fd_;
   int board2_fd_;
+  int board3_fd_;
 };
 
 }  // namespace sigyn_to_sensor_v2

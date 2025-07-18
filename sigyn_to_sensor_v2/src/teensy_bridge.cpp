@@ -23,7 +23,8 @@ TeensyBridge::TeensyBridge()
     : Node("teensy_bridge"),
       serial_running_(false),
       board1_fd_(-1),
-      board2_fd_(-1) {
+      board2_fd_(-1),
+      board3_fd_(-1) {
   
   RCLCPP_INFO(this->get_logger(), "Initializing TeensyV2 Bridge Node");
   
@@ -71,8 +72,9 @@ TeensyBridge::~TeensyBridge() {
 
 void TeensyBridge::InitializeParameters() {
   // Declare parameters with default values
-  this->declare_parameter("board1_port", "/dev/ttyACM0");
-  this->declare_parameter("board2_port", "/dev/ttyACM1");
+  this->declare_parameter("board1_port", "/dev/teensy_sensor");
+  this->declare_parameter("board2_port", "/dev/teensy_sensor2");
+  this->declare_parameter("board3_port", "/dev/teensy_gripper");
   this->declare_parameter("baud_rate", 921600);
   this->declare_parameter("connection_timeout", 5.0);
   this->declare_parameter("reconnect_timeout", 2.0);
@@ -80,6 +82,7 @@ void TeensyBridge::InitializeParameters() {
   // Get parameter values
   board1_port_ = this->get_parameter("board1_port").as_string();
   board2_port_ = this->get_parameter("board2_port").as_string();
+  board3_port_ = this->get_parameter("board3_port").as_string();
   baud_rate_ = this->get_parameter("baud_rate").as_int();
   connection_timeout_ = this->get_parameter("connection_timeout").as_double();
   reconnect_timeout_ = this->get_parameter("reconnect_timeout").as_double();
@@ -87,6 +90,7 @@ void TeensyBridge::InitializeParameters() {
   RCLCPP_INFO(this->get_logger(), "Parameters initialized:");
   RCLCPP_INFO(this->get_logger(), "  Board 1 port: %s", board1_port_.c_str());
   RCLCPP_INFO(this->get_logger(), "  Board 2 port: %s", board2_port_.c_str());
+  RCLCPP_INFO(this->get_logger(), "  Board 3 port: %s", board3_port_.c_str());
   RCLCPP_INFO(this->get_logger(), "  Baud rate: %d", baud_rate_);
 }
 
@@ -154,12 +158,17 @@ void TeensyBridge::StopSerialCommunication() {
     board2_fd_ = -1;
   }
   
+  if (board3_fd_ >= 0) {
+    close(board3_fd_);
+    board3_fd_ = -1;
+  }
+  
   RCLCPP_INFO(this->get_logger(), "Serial communication stopped");
 }
 
 void TeensyBridge::SerialReaderThread() {
   char buffer[1024];
-  std::string line_buffer;
+  std::string line_buffer1, line_buffer2, line_buffer3;
   
   while (serial_running_) {
     // Try to open serial ports if not connected
@@ -185,36 +194,99 @@ void TeensyBridge::SerialReaderThread() {
         }
       }
     }
+
+    if (board2_fd_ < 0) {
+      board2_fd_ = open(board2_port_.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+      if (board2_fd_ >= 0) {
+        // Configure serial port
+        struct termios tty;
+        if (tcgetattr(board2_fd_, &tty) == 0) {
+          cfsetospeed(&tty, B921600);
+          cfsetispeed(&tty, B921600);
+          tty.c_cflag |= (CLOCAL | CREAD);
+          tty.c_cflag &= ~PARENB;
+          tty.c_cflag &= ~CSTOPB;
+          tty.c_cflag &= ~CSIZE;
+          tty.c_cflag |= CS8;
+          tty.c_iflag &= ~(IXON | IXOFF | IXANY);
+          tty.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+          tty.c_oflag &= ~OPOST;
+          tcsetattr(board2_fd_, TCSANOW, &tty);
+          
+          RCLCPP_INFO(this->get_logger(), "Connected to Board 2: %s", board2_port_.c_str());
+        }
+      }
+    }
+
+    if (board3_fd_ < 0) {
+      board3_fd_ = open(board3_port_.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+      if (board3_fd_ >= 0) {
+        // Configure serial port
+        struct termios tty;
+        if (tcgetattr(board3_fd_, &tty) == 0) {
+          cfsetospeed(&tty, B921600);
+          cfsetispeed(&tty, B921600);
+          tty.c_cflag |= (CLOCAL | CREAD);
+          tty.c_cflag &= ~PARENB;
+          tty.c_cflag &= ~CSTOPB;
+          tty.c_cflag &= ~CSIZE;
+          tty.c_cflag |= CS8;
+          tty.c_iflag &= ~(IXON | IXOFF | IXANY);
+          tty.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+          tty.c_oflag &= ~OPOST;
+          tcsetattr(board3_fd_, TCSANOW, &tty);
+          
+          RCLCPP_INFO(this->get_logger(), "Connected to Board 3: %s", board3_port_.c_str());
+        }
+      }
+    }
     
-    // Read from Board 1
+    fd_set read_fds;
+    FD_ZERO(&read_fds);
+    int max_fd = -1;
+
     if (board1_fd_ >= 0) {
-      fd_set read_fds;
-      FD_ZERO(&read_fds);
       FD_SET(board1_fd_, &read_fds);
+      max_fd = std::max(max_fd, board1_fd_);
+    }
+    if (board2_fd_ >= 0) {
+      FD_SET(board2_fd_, &read_fds);
+      max_fd = std::max(max_fd, board2_fd_);
+    }
+    if (board3_fd_ >= 0) {
+      FD_SET(board3_fd_, &read_fds);
+      max_fd = std::max(max_fd, board3_fd_);
+    }
+
+    if (max_fd == -1) {
+      std::this_thread::sleep_for(1s);
+      continue;
+    }
       
-      struct timeval timeout;
-      timeout.tv_sec = 0;
-      timeout.tv_usec = 100000;  // 100ms timeout
-      
-      int result = select(board1_fd_ + 1, &read_fds, nullptr, nullptr, &timeout);
-      
-      if (result > 0 && FD_ISSET(board1_fd_, &read_fds)) {
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 100000;  // 100ms timeout
+    
+    int result = select(max_fd + 1, &read_fds, nullptr, nullptr, &timeout);
+    
+    if (result > 0) {
+      if (board1_fd_ >= 0 && FD_ISSET(board1_fd_, &read_fds)) {
         ssize_t bytes_read = read(board1_fd_, buffer, sizeof(buffer) - 1);
         if (bytes_read > 0) {
           buffer[bytes_read] = '\0';
-          line_buffer += buffer;
+          line_buffer1 += buffer;
           
           // Process complete lines
           size_t pos;
-          while ((pos = line_buffer.find('\n')) != std::string::npos) {
-            std::string line = line_buffer.substr(0, pos);
-            line_buffer.erase(0, pos + 1);
+          while ((pos = line_buffer1.find('\n')) != std::string::npos) {
+            std::string line = line_buffer1.substr(0, pos);
+            line_buffer1.erase(0, pos + 1);
             
             if (!line.empty()) {
               // Parse message
               auto timestamp = this->now();
               if (!message_parser_->ParseMessage(line, timestamp)) {
-                RCLCPP_WARN(this->get_logger(), "Failed to parse message: %s", line.c_str());
+                RCLCPP_WARN(this->get_logger(), "Failed to parse message from board 1: %s", line.c_str());
               }
             }
           }
@@ -223,11 +295,67 @@ void TeensyBridge::SerialReaderThread() {
           close(board1_fd_);
           board1_fd_ = -1;
         }
-      } else if (result < 0) {
-        RCLCPP_WARN(this->get_logger(), "Board 1 select error: %s", strerror(errno));
-        close(board1_fd_);
-        board1_fd_ = -1;
       }
+      if (board2_fd_ >= 0 && FD_ISSET(board2_fd_, &read_fds)) {
+        ssize_t bytes_read = read(board2_fd_, buffer, sizeof(buffer) - 1);
+        if (bytes_read > 0) {
+          buffer[bytes_read] = '\0';
+          line_buffer2 += buffer;
+          
+          // Process complete lines
+          size_t pos;
+          while ((pos = line_buffer2.find('\n')) != std::string::npos) {
+            std::string line = line_buffer2.substr(0, pos);
+            line_buffer2.erase(0, pos + 1);
+            
+            if (!line.empty()) {
+              // Parse message
+              auto timestamp = this->now();
+              if (!message_parser_->ParseMessage(line, timestamp)) {
+                RCLCPP_WARN(this->get_logger(), "Failed to parse message from board 2: %s", line.c_str());
+              }
+            }
+          }
+        } else if (bytes_read < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+          RCLCPP_WARN(this->get_logger(), "Board 2 read error: %s", strerror(errno));
+          close(board2_fd_);
+          board2_fd_ = -1;
+        }
+      }
+      if (board3_fd_ >= 0 && FD_ISSET(board3_fd_, &read_fds)) {
+        ssize_t bytes_read = read(board3_fd_, buffer, sizeof(buffer) - 1);
+        if (bytes_read > 0) {
+          buffer[bytes_read] = '\0';
+          line_buffer3 += buffer;
+          
+          // Process complete lines
+          size_t pos;
+          while ((pos = line_buffer3.find('\n')) != std::string::npos) {
+            std::string line = line_buffer3.substr(0, pos);
+            line_buffer3.erase(0, pos + 1);
+            
+            if (!line.empty()) {
+              // Parse message
+              auto timestamp = this->now();
+              if (!message_parser_->ParseMessage(line, timestamp)) {
+                RCLCPP_WARN(this->get_logger(), "Failed to parse message from board 3: %s", line.c_str());
+              }
+            }
+          }
+        } else if (bytes_read < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+          RCLCPP_WARN(this->get_logger(), "Board 3 read error: %s", strerror(errno));
+          close(board3_fd_);
+          board3_fd_ = -1;
+        }
+      }
+    } else if (result < 0) {
+      RCLCPP_WARN(this->get_logger(), "select error: %s", strerror(errno));
+      if (board1_fd_ >= 0) close(board1_fd_);
+      if (board2_fd_ >= 0) close(board2_fd_);
+      if (board3_fd_ >= 0) close(board3_fd_);
+      board1_fd_ = -1;
+      board2_fd_ = -1;
+      board3_fd_ = -1;
     }
     
     // Small delay to prevent busy waiting
@@ -329,8 +457,10 @@ void TeensyBridge::StatusTimerCallback() {
   call_count++;
   
   if (call_count % 10 == 0) {  // Every 10 seconds
-    RCLCPP_INFO(this->get_logger(), "Status: Board1=%s", 
-                (board1_fd_ >= 0) ? "connected" : "disconnected");
+    RCLCPP_INFO(this->get_logger(), "Status: Board1=%s, Board2=%s, Board3=%s", 
+                (board1_fd_ >= 0) ? "connected" : "disconnected",
+                (board2_fd_ >= 0) ? "connected" : "disconnected",
+                (board3_fd_ >= 0) ? "connected" : "disconnected");
   }
 }
 
