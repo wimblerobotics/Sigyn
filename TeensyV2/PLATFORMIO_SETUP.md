@@ -31,11 +31,13 @@ TeensyV2/
 │   ├── performance/
 │   ├── battery/
 │   └── safety/
-└── platform/               # Board-specific implementations
-    ├── board1_main/
-    │   └── board1_main.ino
-    └── board2_main/
-        └── board2_main.ino
+├── src/                     # Board-specific main programs
+│   ├── board1_main.cpp      # Main program for board 1 (navigation/safety)
+│   └── board2_main.cpp      # Main program for board 2 (power/sensors)
+├── docs/                    # Documentation
+├── platformio.ini           # PlatformIO configuration for both boards
+└── .gitignore               # Git ignore patterns
+```
 ```
 
 ## Building and Uploading
@@ -62,19 +64,24 @@ TeensyV2/
 cd /home/ros/sigyn_ws/src/Sigyn/TeensyV2
 
 # Build board 1 firmware
-pio run -e board1
+buildBoard1    # or: /path/to/venv/bin/pio run -e board1
 
 # Build board 2 firmware  
-pio run -e board2
+buildBoard2    # or: /path/to/venv/bin/pio run -e board2
+
+# Build both boards
+/path/to/venv/bin/pio run
 
 # Upload to board 1 (with auto-detect)
-pio run -e board1 -t upload
+/path/to/venv/bin/pio run -e board1 -t upload
 
 # Upload to specific port
-pio run -e board1 -t upload --upload-port /dev/ttyACM0
+/path/to/venv/bin/pio run -e board1 -t upload --upload-port /dev/ttyACM0
 
-# Build debug version
-pio run -e board1_debug
+# Build debug versions
+/path/to/venv/bin/pio run -e board1_debug
+/path/to/venv/bin/pio run -e board2_debug
+```
 
 # Clean build
 pio run -t clean
