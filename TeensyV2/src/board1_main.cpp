@@ -26,7 +26,7 @@
  * @date 2025
  */
 
-#include "Arduino.h"
+#include <Arduino.h>
 
 // Core TeensyV2 system
 #include "common/core/module.h"
@@ -34,6 +34,10 @@
 
 // Board 1 specific modules
 #include "modules/performance/performance_monitor.h"
+#include <Arduino.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <cmath>
 #include "modules/safety/safety_coordinator.h"
 // #include "modules/motor/motor_controller.h"      // To be implemented
 // #include "modules/sensors/vl53l0x_manager.h"    // To be implemented
