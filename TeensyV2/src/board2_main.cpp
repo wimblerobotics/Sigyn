@@ -1,6 +1,14 @@
 /**
  * @file board2_main.ino
- * @brief Sensor board (Board 2) for TeensyV2 system
+ // Core TeensyV2 system
+#include "common/core/module.h"
+#include "common/core/serial_manager.h"
+
+// Board 2 specific modules
+#include "modules/performance/performance_monitor.h"
+#include "modules/battery/battery_monitor.h"
+// #include "modules/sensors/imu_manager.h"         // To be implemented
+// #include "modules/sensors/temperature_monitor.h" // To be implementedSensor board (Board 2) for TeensyV2 system
  * 
  * This is the sensor monitoring board responsible for:
  * - Battery monitoring (INA226 and analog sensors)
@@ -29,12 +37,12 @@
 #include "Arduino.h"
 
 // Core TeensyV2 system
-#include "../../common/core/module.h"
-#include "../../common/core/serial_manager.h"
+#include "common/core/module.h"
+#include "common/core/serial_manager.h"
 
 // Board 2 specific modules
-#include "../../modules/performance/performance_monitor.h"
-#include "../../modules/battery/battery_monitor.h"
+#include "modules/performance/performance_monitor.h"
+#include "modules/battery/battery_monitor.h"
 // #include "../../modules/sensors/imu_manager.h"         // To be implemented
 // #include "../../modules/sensors/temperature_monitor.h" // To be implemented
 

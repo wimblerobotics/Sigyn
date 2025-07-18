@@ -359,7 +359,7 @@ void BatteryMonitor::SendStatusMessage() {
   }
   if (!sensor_healthy_) message += "NONE";
   
-  serial_manager_->SendMessage("BATT", message);
+  serial_manager_->SendMessage("BATT", message.c_str());
 }
 
 void BatteryMonitor::CheckSafetyThresholds() {
@@ -369,7 +369,8 @@ void BatteryMonitor::CheckSafetyThresholds() {
   // Check voltage thresholds
   bool voltage_critical_new = !isnan(voltage_) && (voltage_ < config_.critical_low_voltage);
   if (voltage_critical_new && !voltage_critical_) {
-    serial_manager_->SendMessage("ESTOP", "active=true,source=battery,reason=low_voltage,value=" + String(voltage_, 2));
+    String estop_msg = "active=true,source=battery,reason=low_voltage,value=" + String(voltage_, 2);
+    serial_manager_->SendMessage("ESTOP", estop_msg.c_str());
     new_violation = true;
   } else if (!voltage_critical_new && voltage_critical_) {
     serial_manager_->SendMessage("ESTOP", "active=false,source=battery,reason=low_voltage");
@@ -379,7 +380,8 @@ void BatteryMonitor::CheckSafetyThresholds() {
   // Check current thresholds
   bool current_critical_new = !isnan(current_) && (fabs(current_) > config_.critical_high_current);
   if (current_critical_new && !current_critical_) {
-    serial_manager_->SendMessage("ESTOP", "active=true,source=battery,reason=high_current,value=" + String(current_, 2));
+    String estop_msg = "active=true,source=battery,reason=high_current,value=" + String(current_, 2);
+    serial_manager_->SendMessage("ESTOP", estop_msg.c_str());
     new_violation = true;
   } else if (!current_critical_new && current_critical_) {
     serial_manager_->SendMessage("ESTOP", "active=false,source=battery,reason=high_current");
@@ -389,7 +391,8 @@ void BatteryMonitor::CheckSafetyThresholds() {
   // Check power thresholds
   bool power_critical_new = !isnan(power_) && (power_ > config_.max_power);
   if (power_critical_new && !power_critical_) {
-    serial_manager_->SendMessage("ESTOP", "active=true,source=battery,reason=high_power,value=" + String(power_, 2));
+    String estop_msg = "active=true,source=battery,reason=high_power,value=" + String(power_, 2);
+    serial_manager_->SendMessage("ESTOP", estop_msg.c_str());
     new_violation = true;
   } else if (!power_critical_new && power_critical_) {
     serial_manager_->SendMessage("ESTOP", "active=false,source=battery,reason=high_power");
@@ -415,6 +418,41 @@ float BatteryMonitor::EstimateChargePercentage(float voltage) const {
   } else {
     return (voltage - empty_voltage) / (full_voltage - empty_voltage);
   }
+}
+
+void BatteryMonitor::PrintStatus() const {
+  Serial.print("Battery Status - Voltage: ");
+  Serial.print(voltage_, 2);
+  Serial.print("V, Current: ");
+  Serial.print(current_, 2);
+  Serial.print("A, Power: ");
+  Serial.print(power_, 2);
+  Serial.print("W, State: ");
+  
+  switch (state_) {
+    case BatteryState::UNKNOWN:
+      Serial.print("UNKNOWN");
+      break;
+    case BatteryState::CHARGING:
+      Serial.print("CHARGING");
+      break;
+    case BatteryState::DISCHARGING:
+      Serial.print("DISCHARGING");
+      break;
+    case BatteryState::CRITICAL:
+      Serial.print("CRITICAL");
+      break;
+    case BatteryState::WARNING:
+      Serial.print("WARNING");
+      break;
+    case BatteryState::NORMAL:
+      Serial.print("NORMAL");
+      break;
+  }
+  
+  Serial.print(", Charge: ");
+  Serial.print(charge_percentage_ * 100.0f, 1);
+  Serial.println("%");
 }
 
 }  // namespace sigyn_teensy

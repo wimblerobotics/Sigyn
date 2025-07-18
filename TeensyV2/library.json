@@ -1,0 +1,40 @@
+{
+  "name": "TeensyV2",
+  "version": "2.0.0",
+  "description": "Advanced modular embedded system for Sigyn robotic platform",
+  "keywords": ["teensy", "robotics", "embedded", "modular", "real-time"],
+  "authors": [
+    {
+      "name": "Sigyn Robotics Team",
+      "email": "sigyn@robotics.example.com"
+    }
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/sigyn-robotics/teensyv2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sigyn-robotics/teensyv2.git"
+  },
+  "frameworks": ["arduino"],
+  "platforms": ["teensy"],
+  "headers": [
+    "common/core/module.h",
+    "common/core/serial_manager.h",
+    "modules/performance/performance_monitor.h",
+    "modules/battery/battery_monitor.h",
+    "modules/safety/safety_coordinator.h"
+  ],
+  "include": [
+    "common",
+    "modules"
+  ],
+  "build": {
+    "includeDir": ".",
+    "srcDir": "platform",
+    "flags": [
+      "-std=c++17",
+      "-Wall",
+      "-Wextra"
+    ]
+  }
+}

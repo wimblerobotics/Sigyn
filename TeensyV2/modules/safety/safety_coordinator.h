@@ -27,8 +27,8 @@
 
 #pragma once
 
-#include "../../common/core/module.h"
-#include "../../common/core/serial_manager.h"
+#include <module.h>
+#include <serial_manager.h>
 
 namespace sigyn_teensy {
 
@@ -244,9 +244,9 @@ class SafetyCoordinator : public Module {
   // Module interface implementation
   void setup() override;
   void loop() override;
-  const char* name() override { return "SafetyCoordinator"; }
+  const char* name() const override { return "SafetyCoordinator"; }
   bool IsUnsafe() override;
-  void ProcessMessage(const String& message) override;
+  void ProcessMessage(const String& message);
 
  private:
   /**
