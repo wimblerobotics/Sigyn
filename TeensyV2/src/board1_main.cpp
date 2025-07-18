@@ -119,20 +119,22 @@ void loop() {
   static uint32_t last_perf_report = 0;
   if (current_time - last_perf_report > 5000000) {  // Every 5 seconds
     last_perf_report = current_time;
-    Serial.println("Board1 Status:");
-    Serial.println("  Loop frequency: " + String(loop_frequency, 1) + " Hz");
-    Serial.println("  Execution time: " + String(execution_time) + " us");
-    Serial.println("  Safety state: " + safety_coordinator->GetSafetyStatusDescription());
+    Serial.print("Board1 Status:\n");
+    Serial.print("  Loop frequency: "); Serial.print(loop_frequency, 1); Serial.println(" Hz");
+    Serial.print("  Execution time: "); Serial.print(execution_time); Serial.println(" us");
+    Serial.print("  Safety state: "); Serial.println(safety_coordinator->GetSafetyStatusDescription().c_str());
     // Serial.println("  Memory monitoring disabled for now");
   }
   
   // Check for critical performance violations
   if (execution_time > 10000) {  // 10ms is critically slow
-    Serial.println("WARNING: Loop execution time exceeded 10ms (" + String(execution_time) + " us)");
+    Serial.print("WARNING: Loop execution time exceeded 10ms (");
+    Serial.print(execution_time); Serial.println(" us)");
   }
   
   if (loop_frequency < 50.0f) {  // Below 50Hz is critically slow
-    Serial.println("WARNING: Loop frequency below 50Hz (" + String(loop_frequency, 1) + " Hz)");
+    Serial.print("WARNING: Loop frequency below 50Hz (");
+    Serial.print(loop_frequency, 1); Serial.println(" Hz)");
   }
   
   // Safety check - emergency stop if system becomes completely unresponsive
@@ -142,9 +144,9 @@ void loop() {
     
     // If we can't keep up with basic timing, trigger safety system
     if (execution_time > 20000) {  // 20ms is unacceptable
-      safety_coordinator->TriggerEstop(EstopSource::PERFORMANCE, 
-                                       "Critical timing violation: " + String(execution_time) + "us",
-                                       execution_time);
+      char timing_msg[64];
+      snprintf(timing_msg, sizeof(timing_msg), "Critical timing violation: %luus", execution_time);
+      safety_coordinator->TriggerEstop(EstopSource::PERFORMANCE, timing_msg, execution_time);
     }
   }
   
