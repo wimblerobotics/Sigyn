@@ -220,7 +220,7 @@ class SerialManager {
   bool QueueMessage(const char* message_buffer, size_t message_length);
 
   // Singleton instance
-  // Note: Using static local variable in GetInstance() instead of static member
+  static SerialManager* instance_;
 
   // Communication state
   bool is_initialized_;

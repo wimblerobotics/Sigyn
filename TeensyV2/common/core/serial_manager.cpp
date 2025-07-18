@@ -11,7 +11,7 @@
 namespace sigyn_teensy {
 
 // Static member definitions
-// Static instance removed - using static local variable in GetInstance() instead
+SerialManager* SerialManager::instance_ = nullptr;
 
 SerialManager::SerialManager()
     : is_initialized_(false),
@@ -27,8 +27,10 @@ SerialManager::SerialManager()
 }
 
 SerialManager& SerialManager::GetInstance() {
-  static SerialManager instance;
-  return instance;
+  if (instance_ == nullptr) {
+    instance_ = new SerialManager();
+  }
+  return *instance_;
 }
 
 bool SerialManager::Initialize(uint32_t timeout_ms) {
