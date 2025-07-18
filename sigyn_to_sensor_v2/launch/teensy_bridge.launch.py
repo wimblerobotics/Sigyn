@@ -63,14 +63,20 @@ def generate_launch_description():
     
     board1_port_arg = DeclareLaunchArgument(
         'board1_port',
-        default_value='/dev/ttyACM0',
+        default_value='/dev/teensy_sensor',
         description='Serial port for Board 1 (main controller)'
     )
     
     board2_port_arg = DeclareLaunchArgument(
         'board2_port',
-        default_value='/dev/ttyACM1',
+        default_value='/dev/teensy_sensor2',
         description='Serial port for Board 2 (sensor board)'
+    )
+    
+    board3_port_arg = DeclareLaunchArgument(
+        'board3_port',
+        default_value='/dev/teensy_gripper',
+        description='Serial port for Board 3 (gripper)'
     )
     
     log_level_arg = DeclareLaunchArgument(
@@ -86,6 +92,7 @@ def generate_launch_description():
         'enable_diagnostics': LaunchConfiguration('enable_diagnostics'),
         'board1_port': LaunchConfiguration('board1_port'),
         'board2_port': LaunchConfiguration('board2_port'),
+        'board3_port': LaunchConfiguration('board3_port'),
     }
     
     # Individual nodes (default mode)
@@ -241,6 +248,7 @@ def generate_launch_description():
         enable_diagnostics_arg,
         board1_port_arg,
         board2_port_arg,
+        board3_port_arg,
         log_level_arg,
         
         # Startup information
