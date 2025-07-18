@@ -21,17 +21,17 @@ TeensyV2 is a redesigned real-time embedded control system for the Sigyn autonom
 
 ### Compilation
 ```bash
-# For PlatformIO (recommended)
-cd TeensyV2/platform/board1
-pio run
+# Using PlatformIO (recommended)
+cd TeensyV2
+buildBoard1    # or: /path/to/venv/bin/pio run -e board1
+buildBoard2    # or: /path/to/venv/bin/pio run -e board2
 
-cd ../board2  
-pio run
+# Build both boards
+/path/to/venv/bin/pio run
 
-# For Arduino IDE
-# Open TeensyV2/platform/board1/board1_main.ino
-# Select Tools -> Board -> Teensy 4.1
-# Compile and upload
+# Debug builds
+/path/to/venv/bin/pio run -e board1_debug
+/path/to/venv/bin/pio run -e board2_debug
 ```
 
 ### ROS2 Integration
@@ -76,15 +76,13 @@ TeensyV2/
 │   ├── motor/                  # RoboClaw motor control
 │   ├── sensors/                # VL53L0X, SONAR, temperature
 │   └── performance/            # Performance monitoring
-└── platform/                  # Board-specific implementations
-    ├── board1/                 # Motor control board
-    │   ├── board1_main.ino     # Main program for board 1
-    │   ├── platformio.ini      # PlatformIO configuration
-    │   └── config.h            # Board 1 specific configuration
-    └── board2/                 # Sensor monitoring board
-        ├── board2_main.ino     # Main program for board 2
-        ├── platformio.ini      # PlatformIO configuration
-        └── config.h            # Board 2 specific configuration
+├── src/                        # Board-specific main programs
+│   ├── board1_main.cpp         # Main program for board 1 (navigation/safety)
+│   └── board2_main.cpp         # Main program for board 2 (power/sensors)
+├── docs/                       # Documentation
+├── platformio.ini              # PlatformIO configuration for both boards
+└── .gitignore                  # Git ignore patterns
+```
 ```
 
 ## Message Protocol
