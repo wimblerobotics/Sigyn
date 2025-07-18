@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "common/core/module.h"
+#include <module.h>
 
 namespace sigyn_teensy {
 
@@ -151,6 +151,11 @@ class PerformanceMonitor : public Module {
    */
   void GenerateDetailedReport();
 
+  /**
+   * @brief Print current performance metrics to Serial for debugging.
+   */
+  void PrintMetrics() const;
+
  protected:
   /**
    * @brief One-time initialization of performance monitoring.
@@ -174,7 +179,7 @@ class PerformanceMonitor : public Module {
    * 
    * @return Module name string "PerformanceMonitor"
    */
-  const char* name() override { return "PerformanceMonitor"; }
+  const char* name() const override { return "PerformanceMonitor"; }
 
  private:
   /**

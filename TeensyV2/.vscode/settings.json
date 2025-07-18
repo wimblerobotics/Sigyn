@@ -1,0 +1,49 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/home/ros/sigyn_ws/install/wifi_logger_visualizer/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/build/this_to_that",
+        "/home/ros/sigyn_ws/install/this_to_that/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/build/teleop_twist_keyboard",
+        "/home/ros/sigyn_ws/install/teleop_twist_keyboard/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/install/sigyn_interfaces/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/install/sigyn_behavior_trees/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/build/py_scripts",
+        "/home/ros/sigyn_ws/install/py_scripts/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/build/perimeter_roamer",
+        "/home/ros/sigyn_ws/install/perimeter_roamer/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/build/oakd_detector",
+        "/home/ros/sigyn_ws/install/oakd_detector/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/install/msgs/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/install/min_max_curr_rviz_overlay/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/install/line_finder/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/install/base/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/install/depthai_ros_driver/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/install/depthai_ros_msgs/lib/python3.12/site-packages",
+        "/opt/ros/jazzy/lib/python3.12/site-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/ros/sigyn_ws/install/wifi_logger_visualizer/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/build/this_to_that",
+        "/home/ros/sigyn_ws/install/this_to_that/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/build/teleop_twist_keyboard",
+        "/home/ros/sigyn_ws/install/teleop_twist_keyboard/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/install/sigyn_interfaces/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/install/sigyn_behavior_trees/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/build/py_scripts",
+        "/home/ros/sigyn_ws/install/py_scripts/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/build/perimeter_roamer",
+        "/home/ros/sigyn_ws/install/perimeter_roamer/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/build/oakd_detector",
+        "/home/ros/sigyn_ws/install/oakd_detector/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/install/msgs/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/install/min_max_curr_rviz_overlay/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/install/line_finder/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/install/base/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/install/depthai_ros_driver/lib/python3.12/site-packages",
+        "/home/ros/sigyn_ws/install/depthai_ros_msgs/lib/python3.12/site-packages",
+        "/opt/ros/jazzy/lib/python3.12/site-packages"
+    ],
+    "files.associations": {
+        "typeinfo": "cpp"
+    }
+}

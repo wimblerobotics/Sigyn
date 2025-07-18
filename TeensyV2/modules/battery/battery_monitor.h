@@ -25,8 +25,8 @@
 
 #pragma once
 
-#include "../../common/core/module.h"
-#include "../../common/core/serial_manager.h"
+#include <module.h>
+#include <serial_manager.h>
 #include <Wire.h>
 
 namespace sigyn_teensy {
@@ -159,13 +159,18 @@ class BatteryMonitor : public Module {
    */
   bool IsSensorHealthy() const { return sensor_healthy_; }
 
+  /**
+   * @brief Print current battery status to Serial for debugging.
+   */
+  void PrintStatus() const;
+
  protected:
   // Module interface implementation
   void setup() override;
   void loop() override;
-  const char* name() override { return "BatteryMonitor"; }
+  const char* name() const override { return "BatteryMonitor"; }
   bool IsUnsafe() override;
-  void ProcessMessage(const String& message) override;
+  void ProcessMessage(const String& message);
 
  private:
   /**

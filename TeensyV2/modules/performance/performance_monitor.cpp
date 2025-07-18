@@ -7,7 +7,7 @@
  */
 
 #include "performance_monitor.h"
-#include "common/core/serial_manager.h"
+#include <serial_manager.h>
 
 namespace sigyn_teensy {
 
@@ -240,6 +240,17 @@ bool PerformanceMonitor::ValidateConfiguration(const PerformanceConfig& config) 
   }
   
   return true;
+}
+
+void PerformanceMonitor::PrintMetrics() const {
+  Serial.print("Performance Metrics - Loop Freq: ");
+  Serial.print(current_loop_frequency_);
+  Serial.print("Hz, Loops: ");
+  Serial.print(loop_count_since_report_);
+  Serial.print(", Module Violations: ");
+  Serial.print(violations_.consecutive_module_violations);
+  Serial.print("/");
+  Serial.println(violations_.total_module_violations);
 }
 
 }  // namespace sigyn_teensy

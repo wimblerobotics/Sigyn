@@ -65,8 +65,8 @@ struct PerformanceStats {
  *   }
  * 
  * protected:
- *   void setup() override { /* Initialize sensors */ }
- *   void loop() override { /* Read battery, check safety */ }
+ *   void setup() override { // Initialize sensors }
+ *   void loop() override { // Read battery, check safety }
  *   const char* name() override { return "BatteryMonitor"; }
  *   bool IsUnsafe() override { return battery_voltage_critical_; }
  * 
@@ -76,7 +76,6 @@ struct PerformanceStats {
  * 
  * // In main():
  * BatteryMonitor::GetInstance();  // Registers automatically
- * @endcode
  */
 class Module {
  public:
@@ -248,7 +247,7 @@ class Module {
    * Should return a descriptive name like "BatteryMonitor", "MotorController",
    * "VL53L0XArray", etc. Used for identification in diagnostics and logging.
    */
-  virtual const char* name() = 0;
+  virtual const char* name() const = 0;
 
   /**
    * @brief Perform one-time initialization for the module.

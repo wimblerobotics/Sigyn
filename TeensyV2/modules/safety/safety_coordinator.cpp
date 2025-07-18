@@ -301,7 +301,8 @@ void SafetyCoordinator::ForceShutdown(const String& reason) {
   
   // Send immediate shutdown notification
   if (serial_manager_) {
-    serial_manager_->SendMessage("SHUTDOWN", "reason=" + reason + ",time=" + String(shutdown_time_));
+    String shutdown_msg = "reason=" + reason + ",time=" + String(shutdown_time_);
+    serial_manager_->SendMessage("SHUTDOWN", shutdown_msg.c_str());
   }
   
   // Set hardware outputs to safe state
@@ -437,7 +438,7 @@ void SafetyCoordinator::SendSafetyStatusMessage() {
     }
   }
   
-  serial_manager_->SendMessage("SAFETY", message);
+  serial_manager_->SendMessage("SAFETY", message.c_str());
 }
 
 void SafetyCoordinator::SendEstopMessage(const EstopCondition& condition, bool activated) {
@@ -454,7 +455,7 @@ void SafetyCoordinator::SendEstopMessage(const EstopCondition& condition, bool a
   message += ",manual_reset=" + String(condition.requires_manual_reset ? "true" : "false");
   message += ",time=" + String(condition.activation_time);
   
-  serial_manager_->SendMessage("ESTOP", message);
+  serial_manager_->SendMessage("ESTOP", message.c_str());
 }
 
 EstopCondition* SafetyCoordinator::FindCondition(EstopSource source) {

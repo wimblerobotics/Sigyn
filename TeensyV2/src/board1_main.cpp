@@ -29,17 +29,20 @@
 #include "Arduino.h"
 
 // Core TeensyV2 system
-#include "../../common/core/module.h"
-#include "../../common/core/serial_manager.h"
+#include "common/core/module.h"
+#include "common/core/serial_manager.h"
 
 // Board 1 specific modules
-#include "../../modules/performance/performance_monitor.h"
-#include "../../modules/safety/safety_coordinator.h"
-// #include "../../modules/motor/motor_controller.h"      // To be implemented
-// #include "../../modules/sensors/vl53l0x_manager.h"    // To be implemented
-// #include "../../modules/navigation/odometry.h"        // To be implemented
+#include "modules/performance/performance_monitor.h"
+#include "modules/safety/safety_coordinator.h"
+// #include "modules/motor/motor_controller.h"      // To be implemented
+// #include "modules/sensors/vl53l0x_manager.h"    // To be implemented
+// #include "modules/navigation/odometry.h"        // To be implemented
 
 using namespace sigyn_teensy;
+
+// Function declarations
+uint32_t freeMemory();
 
 // System timing
 uint32_t loop_start_time;
@@ -83,7 +86,7 @@ void setup() {
   
   // Initialize all modules through the module system
   Serial.println("Initializing modules...");
-  Module::Setup();
+  Module::SetupAll();
   
   // Initialize timing
   loop_start_time = micros();
@@ -107,7 +110,7 @@ void loop() {
   last_loop_time = current_time;
   
   // Execute all modules through the module system
-  Module::Loop();
+  Module::LoopAll();
   
   // Record performance metrics
   uint32_t execution_time = micros() - loop_start_time;
@@ -120,7 +123,7 @@ void loop() {
     Serial.println("  Loop frequency: " + String(loop_frequency, 1) + " Hz");
     Serial.println("  Execution time: " + String(execution_time) + " us");
     Serial.println("  Safety state: " + safety_coordinator->GetSafetyStatusDescription());
-    Serial.println("  Free memory: " + String(freeMemory()) + " bytes");
+    // Serial.println("  Memory monitoring disabled for now");
   }
   
   // Check for critical performance violations
@@ -150,22 +153,8 @@ void loop() {
   delayMicroseconds(100);  // 0.1ms delay for stability
 }
 
-/**
- * @brief Get free memory for monitoring.
- * 
- * Simple free memory calculation for Teensy 4.1.
- * 
- * @return Estimated free memory in bytes
- */
-uint32_t freeMemory() {
-  char top;
-  extern char *__brkval;
-  extern char *__malloc_heap_start;
-  
-  return __malloc_heap_start ? 
-         &top - __brkval : 
-         &top - __malloc_heap_start;
-}
+// Memory monitoring functions removed for now
+// The original embedded code didn't use heap allocation
 
 /**
  * @brief Handle critical errors and system faults.
@@ -181,7 +170,8 @@ void fault_handler() {
   
   // Try to send fault notification if possible
   if (serial_manager) {
-    serial_manager->SendMessage("FAULT", "type=system,board=1,time=" + String(millis()));
+    String fault_msg = "type=system,board=1,time=" + String(millis());
+    serial_manager->SendMessage("FAULT", fault_msg.c_str());
   }
   
   // Halt system
