@@ -34,13 +34,10 @@
  * @date 2025
  */
 
-#include "Arduino.h"
 
-// Core TeensyV2 system
+#include <Arduino.h>
 #include "common/core/module.h"
 #include "common/core/serial_manager.h"
-
-// Board 2 specific modules
 #include "modules/performance/performance_monitor.h"
 #include "modules/battery/battery_monitor.h"
 // #include "../../modules/sensors/imu_manager.h"         // To be implemented
