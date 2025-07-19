@@ -1,12 +1,13 @@
 /**
  * @file battery_monitor.cpp
  * @brief Implementation of battery monitoring ROS2 node for TeensyV2 system
- * 
+ *
  * @author GitHub Copilot
  * @date 2025
  */
 
 #include "sigyn_to_sensor_v2/battery_monitor.h"
+
 #include <diagnostic_msgs/msg/diagnostic_status.hpp>
 #include <diagnostic_msgs/msg/key_value.hpp>
 
@@ -17,29 +18,22 @@ BatteryMonitor::BatteryMonitor() : Node("battery_monitor") {
   InitializeParameters();
 
   // Create publishers
-  battery_pub_ = this->create_publisher<sensor_msgs::msg::BatteryState>(
-    "teensy_v2/battery_state", 10);
-  
+  battery_pub_ =
+      this->create_publisher<sensor_msgs::msg::BatteryState>("teensy_v2/battery_state", 10);
+
   diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
-    "teensy_v2/battery_diagnostics", 10);
-  
-  voltage_pub_ = this->create_publisher<std_msgs::msg::Float32>(
-    "teensy_v2/battery_voltage", 10);
-  
-  current_pub_ = this->create_publisher<std_msgs::msg::Float32>(
-    "teensy_v2/battery_current", 10);
+      "teensy_v2/battery_diagnostics", 10);
 
   // Create diagnostics timer
   diagnostics_timer_ = this->create_wall_timer(
-    std::chrono::seconds(5),
-    std::bind(&BatteryMonitor::PublishDiagnostics, this));
+      std::chrono::seconds(5), std::bind(&BatteryMonitor::PublishDiagnostics, this));
 
   // Parameter change callback
   auto param_callback = [this](const rcl_interfaces::msg::ParameterEvent::SharedPtr event) {
     this->ParameterCallback(event);
   };
   auto param_sub = this->create_subscription<rcl_interfaces::msg::ParameterEvent>(
-    "/parameter_events", 10, param_callback);
+      "/parameter_events", 10, param_callback);
 
   RCLCPP_INFO(this->get_logger(), "BatteryMonitor node initialized");
 }
@@ -74,8 +68,8 @@ void BatteryMonitor::ParameterCallback(const rcl_interfaces::msg::ParameterEvent
   }
 }
 
-void BatteryMonitor::ProcessBatteryData(uint8_t board_id, float voltage, float current, 
-                                       float temperature, uint8_t charge_percentage) {
+void BatteryMonitor::ProcessBatteryData(uint8_t board_id, float voltage, float current,
+                                        float temperature, uint8_t charge_percentage) {
   // Update battery state for this board
   auto& state = battery_states_[board_id];
   state.voltage = voltage;
@@ -89,30 +83,21 @@ void BatteryMonitor::ProcessBatteryData(uint8_t board_id, float voltage, float c
   auto battery_msg = sensor_msgs::msg::BatteryState();
   battery_msg.header.stamp = this->now();
   battery_msg.header.frame_id = "teensy_v2_board_" + std::to_string(board_id);
-  
+
   battery_msg.voltage = voltage;
   battery_msg.current = current;
   battery_msg.temperature = temperature;
   battery_msg.percentage = static_cast<float>(charge_percentage) / 100.0f;
   battery_msg.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_DISCHARGING;
   battery_msg.power_supply_health = sensor_msgs::msg::BatteryState::POWER_SUPPLY_HEALTH_GOOD;
-  battery_msg.power_supply_technology = sensor_msgs::msg::BatteryState::POWER_SUPPLY_TECHNOLOGY_LION;
+  battery_msg.power_supply_technology =
+      sensor_msgs::msg::BatteryState::POWER_SUPPLY_TECHNOLOGY_LION;
   battery_msg.present = true;
 
   battery_pub_->publish(battery_msg);
 
-  // Publish individual voltage and current for plotting/monitoring
-  auto voltage_msg = std_msgs::msg::Float32();
-  voltage_msg.data = voltage;
-  voltage_pub_->publish(voltage_msg);
-
-  auto current_msg = std_msgs::msg::Float32();
-  current_msg.data = current;
-  current_pub_->publish(current_msg);
-
-  RCLCPP_DEBUG(this->get_logger(), 
-    "Battery data from board %d: %.2fV, %.2fA, %.1fC, %d%%",
-    board_id, voltage, current, temperature, charge_percentage);
+  RCLCPP_DEBUG(this->get_logger(), "Battery data from board %d: %.2fV, %.2fA, %.1fC, %d%%",
+               board_id, voltage, current, temperature, charge_percentage);
 }
 
 void BatteryMonitor::PublishDiagnostics() {
@@ -125,7 +110,7 @@ void BatteryMonitor::PublishDiagnostics() {
     auto diag_status = diagnostic_msgs::msg::DiagnosticStatus();
     diag_status.name = "teensy_v2_battery_board_" + std::to_string(board_id);
     diag_status.level = CheckBatteryHealth(state);
-    
+
     // Set message based on health status
     switch (diag_status.level) {
       case diagnostic_msgs::msg::DiagnosticStatus::OK:
@@ -144,19 +129,19 @@ void BatteryMonitor::PublishDiagnostics() {
 
     // Add key-value diagnostics
     diagnostic_msgs::msg::KeyValue kv;
-    
+
     kv.key = "voltage";
     kv.value = std::to_string(state.voltage);
     diag_status.values.push_back(kv);
-    
+
     kv.key = "current";
     kv.value = std::to_string(state.current);
     diag_status.values.push_back(kv);
-    
+
     kv.key = "temperature";
     kv.value = std::to_string(state.temperature);
     diag_status.values.push_back(kv);
-    
+
     kv.key = "charge_percentage";
     kv.value = std::to_string(state.charge_percentage);
     diag_status.values.push_back(kv);

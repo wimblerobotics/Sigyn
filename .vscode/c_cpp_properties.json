@@ -38,23 +38,34 @@
         "/usr/include",
         "${workspaceFolder}/**"
       ],
-      "defines": [
-        "ARDUINO=10819",
-        "TEENSYDUINO=159",
-        "__IMXRT1062__",
-        "ARDUINO_TEENSY41",
-        "USB_SERIAL",
-        "LAYOUT_US_ENGLISH",
-        "F_CPU=600000000",
-        "ARM_MATH_CM7",
-        "__arm__",
-        "__ARM_ARCH_7EM__",
-        "PLATFORMIO=60107"
-      ],
-      "intelliSenseMode": "gcc-arm",
-      "compilerPath": "/home/ros/.platformio/packages/toolchain-gccarmnoneeabi/bin/arm-none-eabi-g++",
+      "defines": [],
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
       "cStandard": "gnu11",
-      "cppStandard": "gnu++17"
+      "cppStandard": "c++14"
+    },
+    {
+      "name": "Sigyn_ROS2",
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "${workspaceFolder}",
+        "${workspaceFolder}/**",
+        "/opt/ros/jazzy/include",
+        "/usr/local/include",
+        "/usr/include",
+        "/Library/Developer/CommandLineTools/usr/include/c++/v1",
+        "/Library/Developer/CommandLineTools/usr/lib/clang/14.0.0/include"
+      ],
+      "defines": [
+        "SIGYN_TO_SENSOR_V2_BATTERY_MONITOR_H_"
+      ],
+      "compilerPath": "/usr/bin/clang++",
+      "cStandard": "c11",
+      "cppStandard": "c++17",
+      "intelliSenseMode": "macos-clang-x64"
     }
   ],
   "version": 4
