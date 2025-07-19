@@ -37,7 +37,11 @@
     "valarray": "cpp",
     "chrono": "cpp",
     "rope": "cpp",
-    "variant": "cpp"
+    "variant": "cpp",
+    "cmath": "cpp",
+    "complex": "cpp",
+    "compare": "cpp",
+    "system_error": "cpp"
   },
   "extensions.ignoreRecommendations": true,
   "clangd.enable": false,

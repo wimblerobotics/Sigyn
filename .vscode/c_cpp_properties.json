@@ -19,23 +19,23 @@
       "cppStandard": "c++14"
     },
     {
-      "name": "Sigyn_teensy",
+      "name": "Sigyn_teensy_V2",
       "browse": {
         "databaseFilename": "${default}",
         "limitSymbolsToIncludedHeaders": false
       },
       "includePath": [
-        "/home/ros/.arduino15/packages/teensy/hardware/avr/1.59.0/libraries/SdFat/src",
-        "/home/ros/Arduino/libraries/Regexp/src",
-        "/home/ros/.arduino15/packages/teensy/hardware/avr/1.59.0/cores/teensy4",
-        "/home/ros/.arduino15/packages/teensy/tools/teensy-compile/11.3.1/arm/arm-none-eabi/include",
-        "/home/ros/.arduino15/packages/teensy/tools/teensy-compile/11.3.1/arm/arm-none-eabi/include/c++/11.3.1",
-        "/home/ros/.arduino15/packages/teensy/tools/teensy-compile/11.3.1/arm/arm-none-eabi/include/c++/11.3.1/arm-none-eabi",
-        "/home/ros/.arduino15/packages/teensy/hardware/avr/1.59.0/libraries/**",
-        "/home/ros/Arduino/libraries/Regexp",
-        "/home/ros/Arduino/libraries/**",
-        "${workspaceFolder}/Teensy/teensy_board1",
-        "${workspaceFolder}/Teensy/teensy_board2",
+        "${workspaceFolder}/TeensyV2",
+        "${workspaceFolder}/TeensyV2/src",
+        "${workspaceFolder}/TeensyV2/common",
+        "${workspaceFolder}/TeensyV2/modules",
+        "/home/ros/.platformio/packages/framework-arduino-teensy/cores/teensy4",
+        "/home/ros/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include",
+        "/home/ros/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/arm-none-eabi/12.2.1/include",
+        "/home/ros/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include/c++/12.2.1",
+        "/home/ros/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include/c++/12.2.1/arm-none-eabi",
+        "${workspaceFolder}/TeensyV2/.pio/libdeps/teensy41/**",
+        "/usr/include",
         "${workspaceFolder}/**"
       ],
       "defines": [
@@ -48,12 +48,13 @@
         "F_CPU=600000000",
         "ARM_MATH_CM7",
         "__arm__",
-        "__ARM_ARCH_7EM__"
+        "__ARM_ARCH_7EM__",
+        "PLATFORMIO=60107"
       ],
       "intelliSenseMode": "gcc-arm",
-      "compilerPath": "/home/ros/.arduino15/packages/teensy/tools/teensy-compile/11.3.1/arm/bin/arm-none-eabi-g++",
+      "compilerPath": "/home/ros/.platformio/packages/toolchain-gccarmnoneeabi/bin/arm-none-eabi-g++",
       "cStandard": "gnu11",
-      "cppStandard": "c++14"
+      "cppStandard": "gnu++17"
     }
   ],
   "version": 4
