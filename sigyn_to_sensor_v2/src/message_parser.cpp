@@ -29,19 +29,18 @@ void MessageParser::RegisterCallback(MessageType type, MessageCallback callback)
 
 bool MessageParser::ParseMessage(const std::string& message, rclcpp::Time timestamp) {
   total_messages_received_++;
-  RCLCPP_DEBUG(logger_, "Received line: %s", message.c_str());
-
+  
   if (timestamp.nanoseconds() == 0) {
     timestamp = rclcpp::Clock().now();
   }
-
+  
   // Validate message format
   if (!ValidateMessage(message)) {
     total_validation_errors_++;
     RCLCPP_WARN(logger_, "Message validation failed: %s", message.c_str());
     return false;
   }
-
+  
   try {
     // Parse message type
     MessageType type = ParseMessageType(message);
@@ -50,52 +49,30 @@ bool MessageParser::ParseMessage(const std::string& message, rclcpp::Time timest
       RCLCPP_WARN(logger_, "Unknown message type: %s", message.c_str());
       return false;
     }
-
+    
     // Find colon separator
     size_t colon_pos = message.find(':');
     if (colon_pos == std::string::npos) {
       total_parsing_errors_++;
       return false;
     }
-
+    
     // Parse key-value pairs
     std::string content = message.substr(colon_pos + 1);
     MessageData data = ParseKeyValuePairs(content);
-
+    
     // Update statistics
     messages_by_type_[type]++;
     total_messages_parsed_++;
-
+    
     // Call registered callback
     auto callback_it = callbacks_.find(type);
     if (callback_it != callbacks_.end()) {
-      // Print the typeid name of the callback target (if possible)
-      std::string callback_type = "unknown";
-      #ifdef __cpp_rtti
-      try {
-        callback_type = typeid(callback_it->second).name();
-      } catch (...) {}
-      #endif
-      RCLCPP_DEBUG(logger_, "Dispatching message type %d to registered callback: %p (type: %s)", static_cast<int>(type), (void*)&(callback_it->second), callback_type.c_str());
-      // Add debug for BATT callback specifically
-      if (type == MessageType::BATTERY) {
-        RCLCPP_DEBUG(logger_, "BATT callback called with data: id=%d, v=%.3f, c=%.3f, pct=%.3f, state=%s", 
-          SafeStringToInt(data.at("id"), -1),
-          SafeStringToDouble(data.at("v"), -1.0),
-          SafeStringToDouble(data.at("c"), -1.0),
-          SafeStringToDouble(data.at("pct"), -1.0),
-          data.count("state") ? data.at("state").c_str() : "(none)");
-      }
-      // Instrumentation: log before and after callback invocation
-      RCLCPP_DEBUG(logger_, "About to invoke callback for message type %d (address: %p, type: %s)", static_cast<int>(type), (void*)&(callback_it->second), callback_type.c_str());
       callback_it->second(data, timestamp);
-      RCLCPP_DEBUG(logger_, "Callback for message type %d completed", static_cast<int>(type));
-    } else {
-      RCLCPP_DEBUG(logger_, "No callback registered for message type %d", static_cast<int>(type));
     }
-
+    
     return true;
-
+    
   } catch (const std::exception& e) {
     total_parsing_errors_++;
     errors_by_type_[MessageType::UNKNOWN]++;
@@ -325,29 +302,29 @@ sensor_msgs::msg::BatteryState MessageParser::ToBatteryStateMsg(const BatteryDat
   
   msg.header.stamp = timestamp;
   msg.header.frame_id = "battery_" + std::to_string(data.id);
-
+  
   msg.voltage = static_cast<float>(data.voltage);
   msg.current = static_cast<float>(data.current);
   msg.charge = NAN;  // Not directly provided
   msg.capacity = NAN;  // Not directly provided
   msg.design_capacity = NAN;  // Not directly provided
   msg.percentage = static_cast<float>(data.percentage);
-
+  
   // Map state string to enum
   if (data.state == "CHARGING") {
     msg.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_CHARGING;
   } else if (data.state == "DISCHARGING") {
-    msg.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_DISCHARGING;
+    msg.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_NOT_CHARGING;
   } else if (data.state == "CRITICAL") {
     msg.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_NOT_CHARGING;
   } else {
     msg.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_UNKNOWN;
   }
-
+  
   msg.power_supply_health = sensor_msgs::msg::BatteryState::POWER_SUPPLY_HEALTH_GOOD;
   msg.power_supply_technology = sensor_msgs::msg::BatteryState::POWER_SUPPLY_TECHNOLOGY_LION;
   msg.present = true;
-
+  
   return msg;
 }
 
@@ -488,25 +465,21 @@ bool MessageParser::ValidateMessage(const std::string& message) const {
   if (message.empty() || message.length() > 256) {
     return false;
   }
-
+  
   // Check for required colon separator
   size_t colon_pos = message.find(':');
   if (colon_pos == std::string::npos || colon_pos == 0) {
     return false;
   }
-
+  
+  // Basic format validation
   if (strict_validation_) {
-    // Battery message strict validation
-    if (message.rfind("BATT:", 0) == 0) {
-      // Accept decimals, scientific notation, and valid battery states
-      std::regex batt_pattern(R"(BATT:id=\d+,v=[\d\.eE\-]+,c=[\d\.eE\-]+(,p=[\d\.eE\-]+)?,pct=[\d\.eE\-]+,state=[A-Z_]+.*)", std::regex_constants::optimize);
-      return std::regex_match(message, batt_pattern);
-    }
-    // Default strict validation for other types
-    std::regex pattern(R"([A-Z][A-Z0-9_]*:[a-zA-Z0-9_]+=.*(,[a-zA-Z0-9_]+=.*)*)", std::regex_constants::optimize);
+    // More stringent validation for production use
+    std::regex pattern(R"([A-Z][A-Z0-9_]*:[a-zA-Z0-9_]+=.*(,[a-zA-Z0-9_]+=.*)*)", 
+                       std::regex_constants::optimize);
     return std::regex_match(message, pattern);
   }
-
+  
   return true;
 }
 

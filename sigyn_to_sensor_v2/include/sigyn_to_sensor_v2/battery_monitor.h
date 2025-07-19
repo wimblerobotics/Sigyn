@@ -18,8 +18,6 @@
 #include <std_msgs/msg/float32.hpp>
 #include <rcl_interfaces/msg/parameter_event.hpp>
 
-#include <std_msgs/msg/string.hpp>
-
 namespace sigyn_to_sensor_v2 {
 
 /**
@@ -51,18 +49,7 @@ public:
   void ProcessBatteryData(uint8_t board_id, float voltage, float current, 
                          float temperature, uint8_t charge_percentage);
 
-  /**
-   * @brief Parse and handle battery status message from TeensyV2 processor
-   * @param msg Battery message string (e.g. BATT:id=0,v=42.29,c=1.164,pct=1.00,state=DISCHARGING)
-   */
-  void HandleBatteryMessage(const std::string& msg);
-
 private:
-  // Thread for reading serial battery messages
-  std::thread serial_thread_;
-
-  // Subscription for battery messages from teensy_bridge
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr batt_sub_;
   // Publishers
   rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr battery_pub_;
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_pub_;
