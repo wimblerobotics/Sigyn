@@ -9,59 +9,25 @@
 #include "sigyn_to_sensor_v2/battery_monitor.h"
 #include <diagnostic_msgs/msg/diagnostic_status.hpp>
 #include <diagnostic_msgs/msg/key_value.hpp>
-#include <std_msgs/msg/string.hpp>
-#include <std_msgs/msg/float32.hpp>
-#include <sensor_msgs/msg/battery_state.hpp>
-#include <fstream>
-#include <regex>
-#include <string>
 
 namespace sigyn_to_sensor_v2 {
 
 BatteryMonitor::BatteryMonitor() : Node("battery_monitor") {
-  // Start thread to read BATT messages from /dev/teensy_sensor2
-  serial_thread_ = std::thread([this]() {
-    std::ifstream serial_in("/dev/teensy_sensor2");
-    if (!serial_in.is_open()) {
-      RCLCPP_ERROR(this->get_logger(), "Failed to open /dev/teensy_sensor2");
-      return;
-    }
-    std::string line;
-    while (rclcpp::ok()) {
-      if (std::getline(serial_in, line)) {
-        if (line.find("BATT:") == 0) {
-          this->HandleBatteryMessage(line);
-        }
-      } else {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        serial_in.clear();
-      }
-    }
-    serial_in.close();
-  });
-
   // Initialize parameters
   InitializeParameters();
 
   // Create publishers
   battery_pub_ = this->create_publisher<sensor_msgs::msg::BatteryState>(
     "teensy_v2/battery_state", 10);
-
+  
   diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
     "teensy_v2/battery_diagnostics", 10);
-
+  
   voltage_pub_ = this->create_publisher<std_msgs::msg::Float32>(
     "teensy_v2/battery_voltage", 10);
-
+  
   current_pub_ = this->create_publisher<std_msgs::msg::Float32>(
     "teensy_v2/battery_current", 10);
-
-  // Subscribe to BATT messages from teensy_bridge
-  batt_sub_ = this->create_subscription<std_msgs::msg::String>(
-    "/sigyn/teensy_bridge/battery/status", 10,
-    [this](std_msgs::msg::String::SharedPtr msg) {
-      this->HandleBatteryMessage(msg->data);
-    });
 
   // Create diagnostics timer
   diagnostics_timer_ = this->create_wall_timer(
@@ -235,35 +201,6 @@ uint8_t BatteryMonitor::GetPowerState(uint8_t charge_percentage) {
     return sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_DISCHARGING;
   } else {
     return sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_NOT_CHARGING;
-  }
-}
-
-void BatteryMonitor::HandleBatteryMessage(const std::string& msg) {
-  // Example message: BATT:id=0,v=42.29,c=1.164,pct=1.00,state=DISCHARGING
-  RCLCPP_DEBUG(this->get_logger(), "HandleBatteryMessage received: '%s'", msg.c_str());
-  if (msg.find("BATT:") != 0) {
-    RCLCPP_DEBUG(this->get_logger(), "HandleBatteryMessage ignored non-BATT message: '%s'", msg.c_str());
-    return;
-  }
-  std::regex re(R"(id=(\d+),v=([\d\.]+),c=([\d\.\-]+),pct=([\d\.]+),state=([A-Z]+))");
-  std::smatch match;
-  if (!std::regex_search(msg, match, re)) {
-    RCLCPP_DEBUG(this->get_logger(), "HandleBatteryMessage regex failed for: '%s'", msg.c_str());
-    return;
-  }
-  try {
-    uint8_t board_id = static_cast<uint8_t>(std::stoi(match[1]));
-    float voltage = std::stof(match[2]);
-    float current = std::stof(match[3]);
-    float pct = std::stof(match[4]);
-    uint8_t charge_percentage = static_cast<uint8_t>(pct * 100.0f);
-    std::string state_str = match[5];
-    float temperature = 0.0f; // Not present in message, set to 0 or add if available
-    RCLCPP_DEBUG(this->get_logger(), "Parsed battery: board_id=%d voltage=%.3f current=%.3f pct=%.3f charge_percentage=%d state=%s", board_id, voltage, current, pct, charge_percentage, state_str.c_str());
-    // Optionally, map state_str to ROS battery state enums if needed
-    ProcessBatteryData(board_id, voltage, current, temperature, charge_percentage);
-  } catch (const std::exception& e) {
-    RCLCPP_ERROR(this->get_logger(), "Exception in HandleBatteryMessage parsing: %s for message: '%s'", e.what(), msg.c_str());
   }
 }
 

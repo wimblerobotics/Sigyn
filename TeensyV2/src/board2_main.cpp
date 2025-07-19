@@ -123,11 +123,6 @@ void loop() {
   }
   last_loop_time = current_time;
 
-  // Automatically re-initialize SerialManager if USB port is reconnected
-  if (serial_manager && !serial_manager->IsConnected() && Serial) {
-    serial_manager->Initialize(1000);  // Try to re-initialize quickly
-  }
-
   // Execute all modules through the module system
   Module::LoopAll();
 
