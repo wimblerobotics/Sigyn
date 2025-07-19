@@ -133,4 +133,3 @@ Board2 Status:
 * Run loop as fast as possible, not constrained to some lesser speed. Each module will decide when to react and send data.
 * What are all the topics being published?
 * Need battery topic per battery kind. Need to get list of batteries from teensy along with list of other sensors.
-* Find out why teensy serial output seems to end up eventually only emitting Board2 Status. If a module is failing, it sould send periodic failure message.
