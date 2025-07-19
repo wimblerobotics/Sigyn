@@ -75,7 +75,6 @@ void BatteryMonitor::loop() {
         selectSensor(battery_idx);
         current = ina226_[battery_idx]->getCurrent();
       }
-
       if (total_readings_[battery_idx] == 0) {
         voltage_ema_[battery_idx] = voltage;
         current_ema_[battery_idx] = current;
