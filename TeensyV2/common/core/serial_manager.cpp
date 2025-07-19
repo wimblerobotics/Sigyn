@@ -1,7 +1,7 @@
 /**
  * @file serial_manager.cpp
  * @brief Implementation of efficient serial communication for TeensyV2
- * 
+ *
  * @author Sigyn Robotics
  * @date 2025
  */
@@ -23,7 +23,8 @@ SerialManager::SerialManager()
       rx_message_count_(0),
       error_count_(0),
       last_activity_ms_(0) {
-  incoming_buffer_.reserve(kMaxMessageLength * 2);  // Reserve space for efficiency
+  incoming_buffer_.reserve(kMaxMessageLength *
+                           2);  // Reserve space for efficiency
 }
 
 SerialManager& SerialManager::GetInstance() {
@@ -39,7 +40,7 @@ bool SerialManager::Initialize(uint32_t timeout_ms) {
   }
 
   Serial.begin(kBaudRate);
-  
+
   // Wait for serial connection with timeout
   uint32_t start_time = millis();
   while (!Serial && (millis() - start_time) < timeout_ms) {
@@ -56,36 +57,33 @@ bool SerialManager::Initialize(uint32_t timeout_ms) {
 }
 
 bool SerialManager::SendMessage(const char* message_type, const char* data) {
-  if (!is_initialized_) {
-    return false;
-  }
+  // if (!is_initialized_) {
+  //   Initialize(1000);  // Ensure initialization
+  //   if (!is_initialized_) {
+  //     return false;  // Initialization failed
+  //   }
+  // }
 
   // Format message: TYPE:data\n
   char message_buffer[kMaxMessageLength];
-  int written = snprintf(message_buffer, sizeof(message_buffer), 
-                        "%s:%s\n", message_type, data);
+  int length_buffered = snprintf(message_buffer, sizeof(message_buffer),
+                                 "%s:%s\n", message_type, data);
 
-  if (written < 0 || written >= (int)sizeof(message_buffer)) {
+  if (length_buffered < 0 || length_buffered >= (int)sizeof(message_buffer)) {
     error_count_++;
     return false;  // Message too long or formatting error
   }
 
-  size_t message_length = (size_t)written;
-
-  // Try to send immediately if possible
-  if (queue_size_ == 0 && SendImmediateMessage(message_buffer, message_length)) {
+  size_t bytes_written = Serial.write(message_buffer, (size_t)length_buffered);
+  if (bytes_written == (size_t)length_buffered) {
+    // Message sent successfully
     tx_message_count_++;
     return true;
+  } else {
+    // Would block or error occurred
+    error_count_++;
+    return false;
   }
-
-  // Queue message if immediate send fails or queue has messages
-  if (QueueMessage(message_buffer, message_length)) {
-    return true;
-  }
-
-  // Queue is full
-  error_count_++;
-  return false;
 }
 
 void SerialManager::ProcessIncomingMessages() {
@@ -114,30 +112,6 @@ void SerialManager::ProcessIncomingMessages() {
       error_count_++;
     }
   }
-
-  // Flush outgoing queue
-  FlushOutgoingQueue();
-}
-
-void SerialManager::FlushOutgoingQueue() {
-  if (!is_initialized_ || queue_size_ == 0) {
-    return;
-  }
-
-  // Send as many queued messages as possible without blocking
-  while (queue_size_ > 0) {
-    const QueuedMessage& msg = outgoing_queue_[queue_head_];
-    
-    if (SendImmediateMessage(msg.buffer, msg.length)) {
-      // Message sent successfully, remove from queue
-      queue_head_ = (queue_head_ + 1) % kMaxQueueSize;
-      queue_size_--;
-      tx_message_count_++;
-    } else {
-      // Would block, stop trying
-      break;
-    }
-  }
 }
 
 bool SerialManager::IsConnected() const {
@@ -145,27 +119,32 @@ bool SerialManager::IsConnected() const {
     return false;
   }
 
-  // Consider connection healthy if we've had activity recently
-  uint32_t current_time = millis();
-  return (current_time - last_activity_ms_) < 5000;  // 5 second timeout
+  // // Consider connection healthy if we've had activity recently
+  // uint32_t current_time = millis();
+  // return (current_time - last_activity_ms_) < 5000;  // 5 second timeout
+  return true;
 }
 
 void SerialManager::GetStatistics(char* stats_json, size_t buffer_size) const {
   snprintf(stats_json, buffer_size,
-          "{\"tx_count\":%lu,\"rx_count\":%lu,\"queue_size\":%zu,\"errors\":%lu,\"connected\":%s}",
-          tx_message_count_, rx_message_count_, queue_size_, error_count_,
-          IsConnected() ? "true" : "false");
+           "{\"tx_count\":%lu,\"rx_count\":%lu,\"queue_size\":%zu,\"errors\":%"
+           "lu,\"connected\":%s}",
+           tx_message_count_, rx_message_count_, queue_size_, error_count_,
+           IsConnected() ? "true" : "false");
 }
 
-bool SerialManager::RegisterCallback(const char* message_type, MessageCallback callback) {
+bool SerialManager::RegisterCallback(const char* message_type,
+                                     MessageCallback callback) {
   if (callback_count_ >= kMaxCallbacks) {
     return false;  // No space for more callbacks
   }
 
   // Store callback registration
-  strncpy(callbacks_[callback_count_].message_type, message_type, 
+  strncpy(callbacks_[callback_count_].message_type, message_type,
           sizeof(callbacks_[callback_count_].message_type) - 1);
-  callbacks_[callback_count_].message_type[sizeof(callbacks_[callback_count_].message_type) - 1] = '\0';
+  callbacks_[callback_count_]
+      .message_type[sizeof(callbacks_[callback_count_].message_type) - 1] =
+      '\0';
   callbacks_[callback_count_].callback = callback;
   callback_count_++;
 
@@ -206,50 +185,6 @@ void SerialManager::ParseAndRouteMessage(const String& message) {
     char unknown_msg[64];
     snprintf(unknown_msg, sizeof(unknown_msg), "type=%s", message_type.c_str());
     SendMessage("UNKNOWN_MSG", unknown_msg);
-  }
-}
-
-bool SerialManager::SendImmediateMessage(const char* message_buffer, size_t message_length) {
-  if (!is_initialized_) {
-    return false;
-  }
-
-  // Check if we can send without blocking
-  if (Serial.availableForWrite() < (int)message_length) {
-    return false;  // Would block
-  }
-
-  // Send message
-  size_t bytes_written = Serial.write(message_buffer, message_length);
-  
-  if (bytes_written == message_length) {
-    last_activity_ms_ = millis();
-    return true;
-  } else {
-    error_count_++;
-    return false;
-  }
-}
-
-bool SerialManager::QueueMessage(const char* message_buffer, size_t message_length) {
-  if (queue_size_ >= kMaxQueueSize) {
-    return false;  // Queue full
-  }
-
-  // Add message to queue
-  QueuedMessage& slot = outgoing_queue_[queue_tail_];
-  
-  if (message_length < sizeof(slot.buffer)) {
-    memcpy(slot.buffer, message_buffer, message_length);
-    slot.length = message_length;
-    
-    queue_tail_ = (queue_tail_ + 1) % kMaxQueueSize;
-    queue_size_++;
-    
-    return true;
-  } else {
-    error_count_++;
-    return false;  // Message too long
   }
 }
 

@@ -176,7 +176,7 @@ void Module::CheckPerformanceAndSafety() {
   // Check overall loop frequency
   uint32_t total_loop_time_us = micros() - loop_start_time_us_;
   float current_frequency = total_loop_time_us > 0 ? 
-                           1000000.0f / total_loop_time_us : 1'000'000.0f;
+                           1000000.0f / total_loop_time_us : 100'000.0f;
   
   if (current_frequency < kTargetLoopFrequencyHz) {
     char freq_violation_msg[64];

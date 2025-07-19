@@ -27,12 +27,12 @@
 
 #include <Arduino.h>
 #include <Wire.h>
-#include <stddef.h>
 #include <stdint.h>
+#include <stddef.h>
 
-#include "../common/core/module.h"  // Ensure Module base class is included
 #include "INA226.h"
 #include "serial_manager.h"
+#include "../common/core/module.h" // Ensure Module base class is included
 
 namespace sigyn_teensy {
 // Minimal BatteryConfig struct for compatibility
@@ -40,12 +40,12 @@ struct BatteryConfig {
   float critical_low_voltage = 32.0f;
   float warning_low_voltage = 34.0f;
   float high_current_threshold = 15.0f;
-  float critical_high_current = 15.0f;  // 15A triggers E-stop
+  float critical_high_current = 15.0f; // 15A triggers E-stop
   int update_period_ms = 100;           // 10Hz monitoring
   int report_period_ms = 1000;          // 1Hz status reports
   bool enable_ina226 = true;            // Enable INA226 sensor
   bool enable_analog_voltage = true;    // Enable analog backup
-  int ina226_address = 0x40;            // I2C address for INA226
+  int ina226_address = 0x40;        // I2C address for INA226
   int analog_pin = 0;                   // Analog voltage input (A0)
   float voltage_divider_ratio = 11.0f;  // 10:1 + safety margin
 };
@@ -70,8 +70,7 @@ class BatteryMonitor : public Module {
   const char* name() const override;
   float getVoltage(size_t idx = 0) const;
   float getCurrent(size_t idx = 0) const;
-  float updateExponentialAverage(float current_avg, float new_value,
-                                 float alpha);
+  float updateExponentialAverage(float current_avg, float new_value, float alpha);
   void selectSensor(size_t battery_idx) const;
   bool testI2CMultiplexer();
 
@@ -80,10 +79,9 @@ class BatteryMonitor : public Module {
   void Configure(const BatteryConfig& config);
   float GetVoltage(size_t idx = 0) const { return getVoltage(idx); }
   float GetCurrent(size_t idx = 0) const { return getCurrent(idx); }
-  int GetState() const { return 0; }  // Stub: implement state logic if needed
-  bool IsSensorHealthy() const {
-    return true;
-  }  // Stub: implement health check if needed
+  int GetState() const { return 0; } // Stub: implement state logic if needed
+  bool IsSensorHealthy() const { return true; } // Stub: implement health check if needed
+
 
  private:
   float EstimateChargePercentage(float voltage) const;
