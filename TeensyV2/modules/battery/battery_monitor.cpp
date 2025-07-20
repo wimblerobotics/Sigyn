@@ -163,12 +163,20 @@ void BatteryMonitor::selectSensor(size_t battery_idx) const {
 }
 
 void BatteryMonitor::sendStatusMessage(size_t idx) {
-  // Create a JSON-like string for the battery status
-  String message = "idx:" + String(idx) +
-                   ",V:" + String(getVoltage(idx), 2) +
-                   ",A:" + String(getCurrent(idx), 2) +
-                   ",charge:" + String(estimateChargePercentage(getVoltage(idx))) +
-                   ",state:" + String(batteryStateToString(state_[idx]));
+  // Create a message format compatible with ROS2 bridge expectations
+  // Format: BATT:id=<id>,v=<voltage>,c=<current>,p=<power>,pct=<percentage>,state=<state>,sensors=<sensors>
+  float voltage = getVoltage(idx);
+  float current = getCurrent(idx);
+  float power = voltage * current;
+  float percentage = estimateChargePercentage(voltage);
+  
+  String message = "id=" + String(idx) +
+                   ",v=" + String(voltage, 2) +
+                   ",c=" + String(current, 2) +
+                   ",p=" + String(power, 2) +
+                   ",pct=" + String(percentage, 2) +
+                   ",state=" + String(batteryStateToString(state_[idx])) +
+                   ",sensors=" + String(setup_completed_ ? "INA226" : "NONE");
 
   SerialManager::getInstance().sendMessage("BATT", message.c_str());
 }
