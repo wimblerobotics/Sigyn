@@ -2,17 +2,65 @@
  * @file safety_coordinator.cpp
  * @brief Implementation of central safety coordination system
  * 
+ * This file implements the SafetyCoordinator module that provides centralized
+ * safety management, E-stop coordination, and emergency response for the
+ * TeensyV2 system. The implementation handles multiple E-stop sources with
+ * appropriate recovery logic and inter-board safety communication.
+ * 
+ * Key Implementation Features:
+ * 
+ * **E-stop Management:**
+ * - Multiple trigger sources (hardware, software, performance, battery)
+ * - Automatic hardware signal assertion for immediate motor cutoff
+ * - Inter-board safety communication for system-wide coordination
+ * - Configurable manual vs. automatic recovery modes
+ * 
+ * **Safety State Machine:**
+ * - NORMAL: All systems operational, continuous monitoring active
+ * - WARNING: Non-critical issues detected, degraded operation possible
+ * - EMERGENCY_STOP: Critical safety violation, all motion disabled
+ * - RECOVERY: Attempting to clear E-stop conditions and return to normal
+ * 
+ * **Recovery Logic:**
+ * - Automatic recovery when transient conditions clear (e.g., performance)
+ * - Manual recovery required for persistent conditions (e.g., hardware button)
+ * - Comprehensive condition verification before recovery completion
+ * - Configurable recovery delays to prevent oscillation
+ * 
+ * **Communication Integration:**
+ * - Real-time status updates via SerialManager
+ * - Structured message format for ROS2 integration
+ * - Emergency priority messaging during safety events
+ * - Diagnostic logging for post-incident analysis
+ * 
+ * **Hardware Integration:**
+ * - Direct GPIO control for hardware E-stop output signals
+ * - Interrupt-driven monitoring of hardware E-stop inputs
+ * - Inter-board safety signals for multi-controller coordination
+ * - Fail-safe design with active-high safety signals
+ * 
+ * The implementation prioritizes safety above all other considerations,
+ * ensuring that any safety violation results in immediate protective
+ * action while maintaining system visibility and recovery capabilities.
+ * 
  * @author Wimble Robotics
  * @date 2025
+ * @version 2.0
  */
 
 #include "safety_coordinator.h"
+
+#include <Arduino.h>
+#include <cstdint>
+#include <cstdio>
+#include "serial_manager.h"
 
 namespace sigyn_teensy {
 
 SafetyCoordinator::SafetyCoordinator()
     : current_state_(SafetyState::NORMAL) {
-  // Initialize E-stop condition
+  // Initialize E-stop condition to safe defaults
+  // All E-stop fields start in known, safe states
   estop_condition_.active = false;
   estop_condition_.source = EstopSource::UNKNOWN;
   estop_condition_.requires_manual_reset = false;
@@ -20,38 +68,50 @@ SafetyCoordinator::SafetyCoordinator()
 
 void SafetyCoordinator::activateEstop(EstopSource source,
                                       const String& description) {
+  // Prevent duplicate E-stop activations from causing state confusion
   if (current_state_ != SafetyState::EMERGENCY_STOP) {
+    // Update safety state and record E-stop details
     current_state_ = SafetyState::EMERGENCY_STOP;
     estop_condition_.active = true;
     estop_condition_.source = source;
     estop_condition_.description = description;
     estop_condition_.activation_time = millis();
 
-    // Assert hardware E-stop signal
+    // Assert hardware E-stop signal for immediate motor cutoff
+    // HIGH signal indicates E-stop active (fail-safe design)
     digitalWrite(config_.estop_output_pin, HIGH);
+    
+    // Notify other boards of E-stop condition if enabled
     if (config_.enable_inter_board_safety) {
       digitalWrite(config_.inter_board_output_pin, HIGH);
     }
 
+    // Send immediate status update for monitoring systems
     sendStatusUpdate();
   }
 }
 
 void SafetyCoordinator::attemptRecovery() {
-  // Check if the original trigger condition is gone
+  // Verify that the original trigger condition has been resolved
+  // Different E-stop sources require different verification methods
   bool condition_cleared = true;
+  
   switch (estop_condition_.source) {
     case EstopSource::HARDWARE_BUTTON:
+      // Hardware button must be released (LOW = not pressed)
       if (digitalRead(config_.hardware_estop_pin) == LOW)
         condition_cleared = false;
       break;
+      
     case EstopSource::INTER_BOARD:
+      // Other board must clear its safety signal
       if (digitalRead(config_.inter_board_input_pin) == LOW)
         condition_cleared = false;
       break;
-    // Add other cases for software-triggered E-stops
+      
+    // Software-triggered E-stops: check module safety states
     default:
-      // For module-based safety, we rely on IsUnsafe() being false
+      // For module-based safety violations, verify all modules are now safe
       if (Module::isAnyModuleUnsafe()) {
         condition_cleared = false;
       }

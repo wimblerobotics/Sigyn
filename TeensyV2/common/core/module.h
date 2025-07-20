@@ -2,28 +2,53 @@
  * @file module.h
  * @brief Core module system for TeensyV2 real-time embedded framework
  * 
- * Provides a modular architecture for sensor and actuator management with
- * automatic registration, performance monitoring, and safety coordination.
+ * This file provides the foundational architecture for the TeensyV2 embedded system,
+ * enabling modular, high-performance sensor and actuator management with automatic
+ * registration, real-time performance monitoring, and safety coordination.
+ * 
+ * The Module system is designed to maintain strict real-time constraints while
+ * providing a clean, object-oriented interface for adding new functionality.
+ * All modules are automatically registered upon instantiation and participate
+ * in a unified execution and monitoring framework.
  * 
  * Design Goals:
- * - Maintain 80-100Hz control loop frequency
+ * - Maintain 80-100Hz control loop frequency across all modules
  * - Automatic performance monitoring and violation detection
- * - Clean separation of concerns between modules
- * - Easy addition of new functionality
+ * - Clean separation of concerns between different subsystems
+ * - Easy addition of new functionality without architectural changes
+ * - Zero-overhead abstractions where possible
  * 
  * Usage Pattern:
  * 1. Create subclass of Module (e.g., BatteryMonitor, MotorController)
  * 2. Implement singleton pattern with automatic registration
  * 3. Override virtual methods: setup(), loop(), name()
- * 4. Optional: Override IsUnsafe() for safety monitoring
+ * 4. Optional: Override isUnsafe() for safety monitoring
  * 
  * Performance Requirements:
- * - setup(): Can block during initialization (called once)
- * - loop(): Must complete in ≤2ms (called at 80-100Hz)
+ * - setup(): Can block during initialization (called once at startup)
+ * - loop(): Must complete in ≤2ms (called at 80-100Hz in main loop)
  * - Use non-blocking operations and state machines for complex tasks
+ * - Avoid dynamic memory allocation in loop() methods
+ * 
+ * Thread Safety:
+ * - Module registration is NOT thread-safe (single-threaded initialization)
+ * - Module execution is single-threaded (Arduino main loop model)
+ * - No inter-module synchronization primitives needed
+ * 
+ * Memory Management:
+ * - Modules are statically allocated via singleton pattern
+ * - No dynamic allocation after initialization phase
+ * - Performance statistics use fixed-size structures
+ * 
+ * Safety Integration:
+ * - Each module can report unsafe conditions via isUnsafe()
+ * - Safety violations automatically trigger emergency procedures
+ * - Modules can implement recovery logic in resetSafetyFlags()
  * 
  * @author Wimble Robotics
  * @date 2025
+ * @version 2.0
+ * @copyright Copyright (c) 2025 Wimble Robotics. All rights reserved.
  */
 
 #pragma once
@@ -36,48 +61,141 @@ namespace sigyn_teensy {
 
 /**
  * @brief Performance statistics for timing analysis and safety monitoring.
+ * 
+ * This structure tracks execution timing for each module to enable real-time
+ * performance analysis and safety violation detection. Statistics are updated
+ * automatically by the Module framework on each loop iteration.
+ * 
+ * All timing values are in microseconds for maximum precision while avoiding
+ * floating-point arithmetic in the critical path. The statistics provide both
+ * instantaneous and aggregated performance data for optimization and debugging.
+ * 
+ * Memory Layout:
+ * - Total size: 16 bytes (cache-friendly)
+ * - All members are POD types for optimal performance
+ * - Aligned for efficient access on ARM Cortex-M7
+ * 
+ * Usage Notes:
+ * - Values are reset only on system restart or explicit request
+ * - Statistics accumulate over the entire runtime of the system
+ * - Used by PerformanceMonitor for safety violation detection
  */
 struct PerformanceStats {
-  float duration_min_us = MAXFLOAT;  ///< Minimum execution time (microseconds)
-  float duration_max_us = 0.0f;      ///< Maximum execution time (microseconds)
-  float duration_sum_us = 0.0f;      ///< Cumulative execution time for averaging
-  uint32_t loop_count = 0;           ///< Number of loops executed
+  float duration_min_us = MAXFLOAT;  ///< Minimum execution time (microseconds) - tracks best-case performance
+  float duration_max_us = 0.0f;      ///< Maximum execution time (microseconds) - tracks worst-case performance  
+  float duration_sum_us = 0.0f;      ///< Cumulative execution time for averaging - used for mean calculation
+  uint32_t loop_count = 0;           ///< Number of loops executed - enables average calculation and rate monitoring
 };
 
 /**
  * @brief Base class for all modular functionality in the TeensyV2 system.
  * 
- * Provides framework for automatic module registration, performance monitoring,
- * and safety coordination. All sensor modules, actuator controllers, and
- * system services inherit from this class.
+ * The Module class provides the foundational framework for automatic module registration,
+ * real-time performance monitoring, and safety coordination. All sensor modules, actuator
+ * controllers, and system services inherit from this class to participate in the unified
+ * execution and monitoring framework.
  * 
+ * Architecture Overview:
+ * The Module system implements an inversion-of-control pattern where individual modules
+ * register themselves automatically upon instantiation and are managed collectively by
+ * static methods. This approach eliminates the need for manual module management while
+ * ensuring all modules participate in performance monitoring and safety checks.
+ * 
+ * Real-Time Performance:
  * The Module system maintains real-time performance by:
- * - Tracking execution time of each module's loop() method
- * - Detecting performance violations (>2ms execution time)
- * - Monitoring overall system frequency (target 80-100Hz)
- * - Aggregating safety conditions across all modules
+ * - Tracking execution time of each module's loop() method with microsecond precision
+ * - Detecting performance violations when modules exceed 2ms execution time
+ * - Monitoring overall system frequency with target of 80-100Hz
+ * - Aggregating safety conditions across all modules for emergency response
+ * - Providing detailed performance statistics for optimization and debugging
  * 
- * Example usage:
+ * Execution Model:
+ * 1. Initialization Phase (setup()):
+ *    - All modules perform blocking initialization operations
+ *    - Hardware interfaces are configured and tested
+ *    - Initial sensor readings and calibration performed
+ *    - Error conditions reported immediately
+ * 
+ * 2. Runtime Phase (loop()):
+ *    - Non-blocking, real-time execution at 80-100Hz
+ *    - State machines used for complex operations
+ *    - Sensor data collection and filtering
+ *    - Control output generation
+ *    - Safety condition monitoring
+ * 
+ * Safety Integration:
+ * Each module participates in the global safety system by:
+ * - Implementing isUnsafe() to report critical conditions
+ * - Supporting resetSafetyFlags() for recovery operations
+ * - Following fail-safe design principles
+ * - Providing detailed error reporting for diagnostics
+ * 
+ * Performance Characteristics:
+ * - Module registration: O(1) time complexity, O(n) space where n = module count
+ * - Loop execution: O(n) time complexity for n registered modules
+ * - Memory overhead: ~24 bytes per module for performance tracking
+ * - Maximum modules: 32 (configurable via kMaxModules)
+ * 
+ * Example Implementation:
  * @code
  * class BatteryMonitor : public Module {
  * public:
- *   static BatteryMonitor& GetInstance() {
- *     static BatteryMonitor instance;
+ *   static BatteryMonitor& getInstance() {
+ *     static BatteryMonitor instance;  // Automatic registration
  *     return instance;
  *   }
  * 
  * protected:
- *   void setup() override { // Initialize sensors }
- *   void loop() override { // Read battery, check safety }
- *   const char* name() override { return "BatteryMonitor"; }
- *   bool IsUnsafe() override { return battery_voltage_critical_; }
+ *   void setup() override { 
+ *     // Initialize INA226 sensor, configure alerts
+ *     if (!ina226_.begin()) {
+ *       Serial.println("ERROR: Battery monitor initialization failed");
+ *     }
+ *   }
+ *   
+ *   void loop() override { 
+ *     // Non-blocking sensor reading with state machine
+ *     switch (state_) {
+ *       case READING_VOLTAGE:
+ *         voltage_ = ina226_.readVoltage();
+ *         state_ = READING_CURRENT;
+ *         break;
+ *       case READING_CURRENT:
+ *         current_ = ina226_.readCurrent();
+ *         checkSafetyLimits();
+ *         state_ = READING_VOLTAGE;
+ *         break;
+ *     }
+ *   }
+ *   
+ *   const char* name() const override { return "BatteryMonitor"; }
+ *   
+ *   bool isUnsafe() override { 
+ *     return voltage_ < CRITICAL_VOLTAGE_THRESHOLD || 
+ *            current_ > CRITICAL_CURRENT_THRESHOLD;
+ *   }
  * 
  * private:
- *   BatteryMonitor() : Module() {}  // Automatic registration
+ *   BatteryMonitor() : Module() {}  // Private constructor for singleton
+ *   INA226 ina226_;
+ *   float voltage_, current_;
+ *   enum State { READING_VOLTAGE, READING_CURRENT } state_;
  * };
  * 
- * // In main():
- * BatteryMonitor::GetInstance();  // Registers automatically
+ * // In main.cpp:
+ * void setup() {
+ *   // Get singleton instance (automatically registers)
+ *   BatteryMonitor::getInstance();
+ *   
+ *   // Initialize all registered modules
+ *   Module::setupAll();
+ * }
+ * 
+ * void loop() {
+ *   // Execute all modules with performance monitoring
+ *   Module::loopAll();
+ * }
+ * @endcode
  */
 class Module {
  public:

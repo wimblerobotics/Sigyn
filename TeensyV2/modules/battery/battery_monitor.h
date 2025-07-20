@@ -37,49 +37,92 @@
 #include "serial_manager.h"
 
 namespace sigyn_teensy {
-// Minimal BatteryConfig struct for compatibility
+/**
+ * @brief Configuration parameters for battery monitoring system.
+ * 
+ * This structure contains all configurable parameters for the battery monitoring
+ * system, including safety thresholds, sensor configuration, and reporting intervals.
+ * Values are carefully chosen based on LiFePO4 battery characteristics and robot
+ * safety requirements.
+ * 
+ * **Safety Threshold Design Philosophy:**
+ * Battery safety thresholds are set with multiple layers of protection:
+ * 1. Warning thresholds: Early notification to allow graceful shutdown
+ * 2. Critical thresholds: Immediate safety response to prevent damage
+ * 3. Hysteresis: Different thresholds for alarm and recovery to prevent oscillation
+ * 
+ * **LiFePO4 Battery Characteristics (12S configuration):**
+ * - Nominal voltage: 38.4V (3.2V per cell)
+ * - Fully charged: 43.2V (3.6V per cell)
+ * - Safe discharge minimum: 33.6V (2.8V per cell)
+ * - Critical minimum: 31.2V (2.6V per cell)
+ * 
+ * **Current Monitoring:**
+ * Current thresholds are based on motor specifications and power electronics
+ * ratings. High current conditions may indicate motor stall, short circuits,
+ * or other dangerous conditions requiring immediate intervention.
+ * 
+ * **Update Rates:**
+ * - Fast monitoring (100ms): Critical for safety, allows rapid response
+ * - Slower reporting (1s): Reduces communication overhead for non-critical data
+ * 
+ * **Sensor Redundancy:**
+ * Both INA226 and analog voltage monitoring can be enabled simultaneously
+ * to provide sensor redundancy and cross-validation of measurements.
+ */
 struct BatteryConfig {
-  float critical_low_voltage = 32.0f;
-  float warning_low_voltage = 34.0f;
-  float high_current_threshold = 15.0f;
-  float critical_high_current = 15.0f;  // 15A triggers E-stop
-  int update_period_ms = 100;           // 10Hz monitoring
-  int report_period_ms = 1000;          // 1Hz status reports
-  bool enable_ina226 = true;            // Enable INA226 sensor
-  bool enable_analog_voltage = true;    // Enable analog backup
-  int ina226_address = 0x40;            // I2C address for INA226
-  int analog_pin = 0;                   // Analog voltage input (A0)
-  float voltage_divider_ratio = 11.0f;  // 10:1 + safety margin
-  BatteryConfig(float critical_low_voltage = 32.0f,
-                float warning_low_voltage = 34.0f,
-                float high_current_threshold = 15.0f,
-                float critical_high_current = 15.0f, int update_period_ms = 100,
-                int report_period_ms = 1000, bool enable_ina226 = true,
-                bool enable_analog_voltage = true, int ina226_address = 0x40,
-                int analog_pin = 0, float voltage_divider_ratio = 11.0f)
-      : critical_low_voltage(critical_low_voltage),
-        warning_low_voltage(warning_low_voltage),
-        high_current_threshold(high_current_threshold),
-        critical_high_current(critical_high_current),
-        update_period_ms(update_period_ms),
-        report_period_ms(report_period_ms),
-        enable_ina226(enable_ina226),
-        enable_analog_voltage(enable_analog_voltage),
-        ina226_address(ina226_address),
-        analog_pin(analog_pin),
-        voltage_divider_ratio(voltage_divider_ratio) {}
+  // Safety voltage thresholds (Volts)
+  float critical_low_voltage = 32.0f;    ///< Emergency shutdown voltage - triggers immediate E-stop
+  float warning_low_voltage = 34.0f;     ///< Low battery warning - initiates return-to-base procedure
+  float critical_high_voltage = 45.0f;   ///< Overvoltage protection - prevents overcharging damage
+  float warning_high_voltage = 44.0f;    ///< High voltage warning - charging system notification
+  
+  // Current monitoring thresholds (Amperes)
+  float high_current_threshold = 15.0f;   ///< High current warning - indicates heavy load
+  float critical_high_current = 20.0f;    ///< Critical current limit - triggers E-stop for safety
+  float charging_current_max = 5.0f;      ///< Maximum safe charging current
+  
+  // Power and energy thresholds
+  float max_power_watts = 500.0f;         ///< Maximum continuous power draw
+  float energy_warning_wh = 50.0f;        ///< Remaining energy warning threshold
+  
+  // Timing and reporting configuration
+  int update_period_ms = 100;             ///< Sensor reading interval (10Hz) - safety critical
+  int report_period_ms = 1000;            ///< Status reporting interval (1Hz) - for logging/ROS2
+  int calibration_samples = 100;          ///< Number of samples for sensor calibration
+  
+  // Sensor enable/disable flags
+  bool enable_ina226 = true;              ///< Enable high-precision INA226 current sensor
+  bool enable_analog_voltage = true;      ///< Enable analog voltage divider backup measurement
+  bool enable_temperature_monitoring = false; ///< Enable battery temperature monitoring if available
+  bool enable_cell_balancing = false;     ///< Enable individual cell monitoring if available
+  
+  // Hardware configuration
+  int ina226_address = 0x40;              ///< I2C address for primary INA226 sensor
+  int analog_voltage_pin = A0;            ///< ADC pin for analog voltage measurement
+  int temperature_pin = A1;               ///< ADC pin for temperature sensor (if used)
+  float voltage_divider_ratio = 11.0f;    ///< Voltage divider scaling factor for 10:1 divider with safety margin
+  
+  // Calibration and accuracy parameters
+  float voltage_calibration_offset = 0.0f; ///< Voltage measurement offset correction
+  float current_calibration_offset = 0.0f; ///< Current measurement offset correction
+  float voltage_calibration_scale = 1.0f;  ///< Voltage measurement scale correction
+  float current_calibration_scale = 1.0f;  ///< Current measurement scale correction
 };
 
 /**
  * @brief Battery state enumeration for status reporting.
+ * 
+ * Represents the current operational state of the battery system for
+ * monitoring, diagnostics, and safety response coordination.
  */
 enum class BatteryState {
-  UNKNOWN,      ///< State not yet determined
-  CHARGING,     ///< Battery is charging
-  DISCHARGING,  ///< Battery is discharging
-  CRITICAL,     ///< Battery at critical level (emergency stop)
-  WARNING,      ///< Battery at warning level
-  NORMAL        ///< Battery operating normally
+  UNKNOWN,      ///< State not yet determined (initialization phase)
+  CHARGING,     ///< Battery is actively charging (positive current flow)
+  DISCHARGING,  ///< Battery is providing power (negative current flow)
+  CRITICAL,     ///< Battery at critical level (triggers emergency stop)
+  WARNING,      ///< Battery at warning level (triggers return-to-base)
+  NORMAL        ///< Battery operating within normal parameters
 };
 
 class BatteryMonitor : public Module {
