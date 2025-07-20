@@ -194,54 +194,6 @@ class Module {
   virtual void ResetSafetyFlags() {}
 
   /**
-   * @brief Get the name of this module.
-   * 
-   * @return Pointer to null-terminated module name string
-   * 
-   * Used for:
-   * - Performance statistics reporting
-   * - Debugging and diagnostics
-   * - Safety event logging
-   */
-  const char* GetName() const { return name(); }
-
-  /**
-   * @brief Get performance statistics for this module.
-   * 
-   * @return Reference to module's performance statistics
-   */
-  const PerformanceStats& GetStats() const { return stats_; }
-
- protected:
-  /**
-   * @brief Protected constructor for singleton pattern.
-   * 
-   * Automatically registers this module with the global module system.
-   * Only derived classes should call this constructor.
-   */
-  Module();
-
-  /**
-   * @brief Perform regular, cyclic work for the module.
-   * 
-   * **CRITICAL: This must execute very quickly (≤2ms)!**
-   * 
-   * This method is called repeatedly at high frequency (80-100Hz) to maintain
-   * real-time performance. Long-running operations will degrade system
-   * performance and may trigger safety violations.
-   * 
-   * For operations that might take longer:
-   * - Implement a state machine to break work into small chunks
-   * - Use non-blocking I/O operations
-   * - Cache results and update periodically
-   * - Defer heavy computation to setup() when possible
-   * 
-   * @warning Long-running operations in loop() will cause performance
-   *          violations and may trigger emergency stops!
-   */
-  virtual void loop() = 0;
-
-  /**
    * @brief Return the name of this module.
    * 
    * @return Pointer to compile-time constant string
@@ -252,55 +204,55 @@ class Module {
   virtual const char* name() const = 0;
 
   /**
-   * @brief Perform one-time initialization for the module.
+   * @brief Get performance statistics for this module.
    * 
-   * Called once during system startup after all module constructors have
-   * completed. Unlike loop(), this may take significant time as it's not
-   * called during real-time operation.
-   * 
-   * Use this for:
-   * - Sensor initialization and calibration
-   * - Hardware configuration
-   * - Memory allocation
-   * - File system operations
-   * - Network connections
+   * @return Reference to module's performance statistics
+   */
+  const PerformanceStats& GetStats() const { return stats_; }
+
+ protected:
+  /**
+   * @brief Constructor for automatic registration.
+   */
+  Module();
+
+  /**
+   * @brief One-time setup for the module.
    */
   virtual void setup() = 0;
 
- private:
-  // Prevent copying and moving - modules should be singletons
-  Module(const Module&) = delete;
-  Module& operator=(const Module&) = delete;
-  Module(Module&&) = delete;
-  Module& operator=(Module&&) = delete;
-
   /**
-   * @brief Update performance statistics for a module.
-   * 
-   * @param[in] module Pointer to module being measured
-   * @param[in] execution_time_us Execution time in microseconds
+   * @brief Regular, cyclic work for the module.
    */
-  static void UpdatePerformanceStats(Module* module, uint32_t execution_time_us);
+  virtual void loop() = 0;
 
+ private:
+  // --- Static Helper Functions ---
   /**
-   * @brief Check for performance violations and safety conditions.
-   * 
-   * Called after each loop iteration to detect:
-   * - Modules exceeding maximum execution time
-   * - Overall loop frequency dropping below target
-   * - Safety conditions reported by modules
+   * @brief Check all modules for performance and safety violations.
    */
   static void CheckPerformanceAndSafety();
 
   /**
-   * @brief Send performance statistics via SerialManager.
-   * 
-   * Called periodically (every 1 second) to report system performance
-   * to the ROS2 bridge for monitoring and diagnostics.
+   * @brief Report performance statistics for all modules.
    */
   static void ReportPerformanceStats();
 
-  // Global module registry
+  /**
+   * @brief Update performance statistics for a single module.
+   * @param module Pointer to the module to update.
+   * @param execution_time_us Execution time for the last loop in microseconds.
+   */
+  static void UpdatePerformanceStats(Module* module, uint32_t execution_time_us);
+
+  /**
+   * @brief True if the module's setup() has been called.
+   */
+  bool is_setup_ = false;
+
+  /**
+   * @brief Array of registered module instances.
+   */
   static Module* modules_[kMaxModules];    ///< Array of registered modules
   static uint16_t module_count_;           ///< Number of registered modules
 
