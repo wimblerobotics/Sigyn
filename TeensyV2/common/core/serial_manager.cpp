@@ -13,18 +13,12 @@ namespace sigyn_teensy {
 // Static member definitions
 SerialManager* SerialManager::instance_ = nullptr;
 
-SerialManager::SerialManager()
-    : is_initialized_(false),
-      queue_head_(0),
-      queue_tail_(0),
-      queue_size_(0),
-      callback_count_(0),
-      tx_message_count_(0),
-      rx_message_count_(0),
-      error_count_(0),
-      last_activity_ms_(0) {
-  incoming_buffer_.reserve(kMaxMessageLength *
-                           2);  // Reserve space for efficiency
+void SerialManager::GetStatistics(char* stats_json, size_t buffer_size) const {
+  snprintf(stats_json, buffer_size,
+           "{\"tx_count\":%lu,\"rx_count\":%lu,\"queue_size\":%zu,\"errors\":%"
+           "lu,\"connected\":%s}",
+           tx_message_count_, rx_message_count_, queue_size_, error_count_,
+           IsConnected() ? "true" : "false");
 }
 
 SerialManager& SerialManager::GetInstance() {
@@ -56,98 +50,10 @@ bool SerialManager::Initialize(uint32_t timeout_ms) {
   return is_initialized_;
 }
 
-bool SerialManager::SendMessage(const char* message_type, const char* data) {
-  // if (!is_initialized_) {
-  //   Initialize(1000);  // Ensure initialization
-  //   if (!is_initialized_) {
-  //     return false;  // Initialization failed
-  //   }
-  // }
-
-  // Format message: TYPE:data\n
-  char message_buffer[kMaxMessageLength];
-  int length_buffered = snprintf(message_buffer, sizeof(message_buffer),
-                                 "%s:%s\n", message_type, data);
-
-  if (length_buffered < 0 || length_buffered >= (int)sizeof(message_buffer)) {
-    error_count_++;
-    return false;  // Message too long or formatting error
-  }
-
-  size_t bytes_written = Serial.write(message_buffer, (size_t)length_buffered);
-  if (bytes_written == (size_t)length_buffered) {
-    // Message sent successfully
-    tx_message_count_++;
-    return true;
-  } else {
-    // Would block or error occurred
-    error_count_++;
-    return false;
-  }
-}
-
-void SerialManager::ProcessIncomingMessages() {
-  if (!is_initialized_) {
-    return;
-  }
-
-  // Process incoming data
-  while (Serial.available()) {
-    char c = Serial.read();
-    last_activity_ms_ = millis();
-
-    if (c == '\n' || c == '\r') {
-      // Complete message received
-      if (incoming_buffer_.length() > 0) {
-        ParseAndRouteMessage(incoming_buffer_);
-        incoming_buffer_ = "";
-        rx_message_count_++;
-      }
-    } else if (incoming_buffer_.length() < kMaxMessageLength - 1) {
-      // Add character to buffer if there's space
-      incoming_buffer_ += c;
-    } else {
-      // Buffer overflow - discard message and count as error
-      incoming_buffer_ = "";
-      error_count_++;
-    }
-  }
-}
-
 bool SerialManager::IsConnected() const {
   if (!is_initialized_) {
     return false;
   }
-
-  // // Consider connection healthy if we've had activity recently
-  // uint32_t current_time = millis();
-  // return (current_time - last_activity_ms_) < 5000;  // 5 second timeout
-  return true;
-}
-
-void SerialManager::GetStatistics(char* stats_json, size_t buffer_size) const {
-  snprintf(stats_json, buffer_size,
-           "{\"tx_count\":%lu,\"rx_count\":%lu,\"queue_size\":%zu,\"errors\":%"
-           "lu,\"connected\":%s}",
-           tx_message_count_, rx_message_count_, queue_size_, error_count_,
-           IsConnected() ? "true" : "false");
-}
-
-bool SerialManager::RegisterCallback(const char* message_type,
-                                     MessageCallback callback) {
-  if (callback_count_ >= kMaxCallbacks) {
-    return false;  // No space for more callbacks
-  }
-
-  // Store callback registration
-  strncpy(callbacks_[callback_count_].message_type, message_type,
-          sizeof(callbacks_[callback_count_].message_type) - 1);
-  callbacks_[callback_count_]
-      .message_type[sizeof(callbacks_[callback_count_].message_type) - 1] =
-      '\0';
-  callbacks_[callback_count_].callback = callback;
-  callback_count_++;
-
   return true;
 }
 
@@ -186,6 +92,89 @@ void SerialManager::ParseAndRouteMessage(const String& message) {
     snprintf(unknown_msg, sizeof(unknown_msg), "type=%s", message_type.c_str());
     SendMessage("UNKNOWN_MSG", unknown_msg);
   }
+}
+
+void SerialManager::ProcessIncomingMessages() {
+  if (!is_initialized_) {
+    return;
+  }
+
+  // Process incoming data
+  while (Serial.available()) {
+    char c = Serial.read();
+    last_activity_ms_ = millis();
+
+    if (c == '\n' || c == '\r') {
+      // Complete message received
+      if (incoming_buffer_.length() > 0) {
+        ParseAndRouteMessage(incoming_buffer_);
+        incoming_buffer_ = "";
+        rx_message_count_++;
+      }
+    } else if (incoming_buffer_.length() < kMaxMessageLength - 1) {
+      // Add character to buffer if there's space
+      incoming_buffer_ += c;
+    } else {
+      // Buffer overflow - discard message and count as error
+      incoming_buffer_ = "";
+      error_count_++;
+    }
+  }
+}
+
+bool SerialManager::RegisterCallback(const char* message_type,
+                                     MessageCallback callback) {
+  if (callback_count_ >= kMaxCallbacks) {
+    return false;  // No space for more callbacks
+  }
+
+  // Store callback registration
+  strncpy(callbacks_[callback_count_].message_type, message_type,
+          sizeof(callbacks_[callback_count_].message_type) - 1);
+  callbacks_[callback_count_]
+      .message_type[sizeof(callbacks_[callback_count_].message_type) - 1] =
+      '\0';
+  callbacks_[callback_count_].callback = callback;
+  callback_count_++;
+
+  return true;
+}
+
+bool SerialManager::SendMessage(const char* message_type, const char* data) {
+  // Format message: TYPE:data\n
+  char message_buffer[kMaxMessageLength];
+  int length_buffered = snprintf(message_buffer, sizeof(message_buffer),
+                                 "%s:%s\n", message_type, data);
+
+  if (length_buffered < 0 || length_buffered >= (int)sizeof(message_buffer)) {
+    error_count_++;
+    return false;  // Message too long or formatting error
+  }
+
+  size_t bytes_written = Serial.write(message_buffer, (size_t)length_buffered);
+  if (bytes_written == (size_t)length_buffered) {
+    // Message sent successfully
+    tx_message_count_++;
+    return true;
+  } else {
+    // Would block or error occurred
+    error_count_++;
+    return false;
+  }
+}
+
+SerialManager::SerialManager()
+    : is_initialized_(false),
+      queue_head_(0),
+      queue_tail_(0),
+      queue_size_(0),
+      callback_count_(0),
+      tx_message_count_(0),
+      rx_message_count_(0),
+      error_count_(0),
+      last_activity_ms_(0) {
+  incoming_buffer_.reserve(kMaxMessageLength *
+                           2);  // Reserve space for efficiency
 }
 
 }  // namespace sigyn_teensy
