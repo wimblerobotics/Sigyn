@@ -21,7 +21,7 @@ TYPE:key1=val1,key2=val2,key3=val3,...
 
 ### Constraints
 
-- Maximum message length: 256 characters
+- Maximum message length: 512 characters
 - Key names: alphanumeric + underscore, max 16 characters
 - Values: printable ASCII characters, max 32 characters per value
 - No spaces around separators (for efficiency)

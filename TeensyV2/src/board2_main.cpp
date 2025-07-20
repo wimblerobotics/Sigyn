@@ -79,20 +79,6 @@ void setup() {
     // Continue anyway - might be running without PC connection
   }
 
-  // Configure battery monitoring
-  BatteryConfig battery_config;
-  battery_config.critical_low_voltage = 32.0f;   // 32V triggers E-stop
-  battery_config.warning_low_voltage = 34.0f;    // 34V triggers warning
-  battery_config.critical_high_current = 15.0f;  // 15A triggers E-stop
-  battery_config.update_period_ms = 100;         // 10Hz monitoring
-  battery_config.report_period_ms = 1000;        // 1Hz status reports
-  battery_config.enable_ina226 = true;           // Enable INA226 sensor
-  battery_config.enable_analog_voltage = true;   // Enable analog backup
-  battery_config.ina226_address = 0x40;          // I2C address for INA226
-  battery_config.analog_pin = A0;                // Analog voltage input
-  battery_config.voltage_divider_ratio = 11.0f;  // 10:1 + safety margin
-  battery_monitor->Configure(battery_config);
-
   // Configure performance monitoring for sensor board (less stringent than
   // Board 1) Board 2 can run at lower frequency since it's primarily sensor
   // monitoring
@@ -131,21 +117,21 @@ void loop() {
 
   // Board 2 status reporting (less frequent than Board 1)
   static uint32_t last_status_report = 0;
-  if (current_time - last_status_report > 10000000) {  // Every 10 seconds
-    last_status_report = current_time;
-    Serial.println("Board2 Status:");
-    Serial.println("  Loop frequency: " + String(loop_frequency, 1) + " Hz");
-    Serial.println("  Execution time: " + String(execution_time) + " us");
-    Serial.println("  Battery voltage: " +
-                   String(battery_monitor->GetVoltage(), 2) + " V");
-    Serial.println("  Battery current: " +
-                   String(battery_monitor->GetCurrent(), 2) + " A");
-    Serial.println("  Battery state: " +
-                   String(static_cast<int>(battery_monitor->GetState())));
-    Serial.println("  Sensor health: " +
-                   String(battery_monitor->IsSensorHealthy() ? "OK" : "FAIL"));
-    Serial.println("  Free memory: " + String(freeMemory()) + " bytes");
-  }
+  // if (current_time - last_status_report > 10000000) {  // Every 10 seconds
+  //   last_status_report = current_time;
+  //   Serial.println("Board2 Status:");
+  //   Serial.println("  Loop frequency: " + String(loop_frequency, 1) + " Hz");
+  //   Serial.println("  Execution time: " + String(execution_time) + " us");
+  //   Serial.println("  Battery voltage: " +
+  //                  String(battery_monitor->GetVoltage(), 2) + " V");
+  //   Serial.println("  Battery current: " +
+  //                  String(battery_monitor->GetCurrent(), 2) + " A");
+  //   Serial.println("  Battery state: " +
+  //                  String(static_cast<int>(battery_monitor->GetState())));
+  //   Serial.println("  Sensor health: " +
+  //                  String(battery_monitor->IsSensorHealthy() ? "OK" : "FAIL"));
+  //   Serial.println("  Free memory: " + String(freeMemory()) + " bytes");
+  // }
 
   // Safety monitoring - check for critical battery conditions
   static uint32_t last_safety_check = 0;

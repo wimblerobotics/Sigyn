@@ -27,8 +27,12 @@
 
 #pragma once
 
-#include <module.h>
-#include <serial_manager.h>
+#include <Arduino.h>
+#include <cstdint>
+#include <cstddef>
+#include <cmath>
+#include "module.h"
+#include "serial_manager.h"
 
 namespace sigyn_teensy {
 

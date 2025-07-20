@@ -26,13 +26,13 @@
 #pragma once
 
 #include <Arduino.h>
+#include <cstdint>
+#include <cstddef>
+#include <cmath>
 #include <Wire.h>
-#include <stdint.h>
-#include <stddef.h>
-
+#include "../common/core/module.h"  // Ensure Module base class is included
 #include "INA226.h"
 #include "serial_manager.h"
-#include "../common/core/module.h" // Ensure Module base class is included
 
 namespace sigyn_teensy {
 // Minimal BatteryConfig struct for compatibility
@@ -40,14 +40,36 @@ struct BatteryConfig {
   float critical_low_voltage = 32.0f;
   float warning_low_voltage = 34.0f;
   float high_current_threshold = 15.0f;
-  float critical_high_current = 15.0f; // 15A triggers E-stop
+  float critical_high_current = 15.0f;  // 15A triggers E-stop
   int update_period_ms = 100;           // 10Hz monitoring
   int report_period_ms = 1000;          // 1Hz status reports
   bool enable_ina226 = true;            // Enable INA226 sensor
   bool enable_analog_voltage = true;    // Enable analog backup
-  int ina226_address = 0x40;        // I2C address for INA226
+  int ina226_address = 0x40;            // I2C address for INA226
   int analog_pin = 0;                   // Analog voltage input (A0)
   float voltage_divider_ratio = 11.0f;  // 10:1 + safety margin
+  BatteryConfig(float critical_low_voltage = 32.0f,
+                float warning_low_voltage = 34.0f,
+                float high_current_threshold = 15.0f,
+                float critical_high_current = 15.0f,
+                int update_period_ms = 100,
+                int report_period_ms = 1000,
+                bool enable_ina226 = true,
+                bool enable_analog_voltage = true,
+                int ina226_address = 0x40,
+                int analog_pin = 0,
+                float voltage_divider_ratio = 11.0f)
+      : critical_low_voltage(critical_low_voltage),
+        warning_low_voltage(warning_low_voltage),
+        high_current_threshold(high_current_threshold),
+        critical_high_current(critical_high_current),
+        update_period_ms(update_period_ms),
+        report_period_ms(report_period_ms),
+        enable_ina226(enable_ina226),
+        enable_analog_voltage(enable_analog_voltage),
+        ina226_address(ina226_address),
+        analog_pin(analog_pin),
+        voltage_divider_ratio(voltage_divider_ratio) {}
 };
 
 /**
@@ -70,18 +92,19 @@ class BatteryMonitor : public Module {
   const char* name() const override;
   float getVoltage(size_t idx = 0) const;
   float getCurrent(size_t idx = 0) const;
-  float updateExponentialAverage(float current_avg, float new_value, float alpha);
+  float updateExponentialAverage(float current_avg, float new_value,
+                                 float alpha);
   void selectSensor(size_t battery_idx) const;
   bool testI2CMultiplexer();
 
   // Legacy API compatibility wrappers
   static BatteryMonitor& GetInstance();
-  void Configure(const BatteryConfig& config);
   float GetVoltage(size_t idx = 0) const { return getVoltage(idx); }
   float GetCurrent(size_t idx = 0) const { return getCurrent(idx); }
-  int GetState() const { return 0; } // Stub: implement state logic if needed
-  bool IsSensorHealthy() const { return true; } // Stub: implement health check if needed
-
+  int GetState() const { return 0; }  // Stub: implement state logic if needed
+  bool IsSensorHealthy() const {
+    return true;
+  }  // Stub: implement health check if needed
 
  private:
   float EstimateChargePercentage(float voltage) const;
@@ -95,6 +118,8 @@ class BatteryMonitor : public Module {
   static constexpr int MAIN_BATTERY_PIN = 24;
   static constexpr int kI2CMultiplexorEnablePin = 8;
   static constexpr int MAIN_BATTERY_REPORT_INTERVAL_MS = 1000;  // 1Hz reporting
+  static constexpr int I2C_MULTIPLEXER_ADDRESS =
+      0x70;  // Default I2C address for multiplexer
   bool setup_completed_;
   bool multiplexer_available_;
   INA226* ina226_[kNumberOfBatteries];
@@ -104,6 +129,8 @@ class BatteryMonitor : public Module {
   size_t total_readings_[kNumberOfBatteries];
   BatteryConfig config_;
   static uint8_t gINA226_DeviceIndexes_[kNumberOfBatteries];
+  static INA226 g_ina226_[kNumberOfBatteries];  ///< INA226 sensor instances for power supply monitoring
+  static BatteryConfig g_battery_config_[kNumberOfBatteries];
 };
 
 }  // namespace sigyn_teensy

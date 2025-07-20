@@ -19,7 +19,6 @@ BatteryMonitor::BatteryMonitor()
     current_ema_[i] = 0.0f;
     state_[i] = BatteryState::UNKNOWN;
     total_readings_[i] = 0;
-    ina226_[i] = new INA226(0x40);  // Default address, adjust as needed
   }
 }
 
@@ -37,15 +36,39 @@ void BatteryMonitor::setup() {
   }
 
   for (size_t device = 0; device < kNumberOfBatteries; device++) {
+    config_ = g_battery_config_[device];  // Use device-specific battery config
     selectSensor(device);
-    if (!ina226_[device]->begin()) {
+    // Serial.println("Starting address scan for INA226 devices...");
+    // for (int address = 1; address < 127; address++) {
+    //   Wire.beginTransmission(address);
+    //   int error = Wire.endTransmission();
+
+    //   if (error == 0) {
+    //     Serial.print("I2C device found at address 0x");
+    //     if (address < 16) {
+    //       Serial.print("0");
+    //     }
+    //     Serial.print(address, HEX);
+    //     Serial.println(" !");
+    //   } else if (error == 4) {
+    //     Serial.print("Unknown error at address 0x");
+    //     if (address < 16) {
+    //       Serial.print("0");
+    //     }
+    //     Serial.println(address, HEX);
+    //   }
+    // }
+    // Serial.println("I2C scan complete.");
+
+    if (!g_ina226_[device].begin()) {
       String message =
           "INA226 sensor initialization failed for device " + String(device);
       SerialManager::GetInstance().SendMessage("FATAL", message.c_str());
       return;
     }
-    ina226_[device]->setMaxCurrentShunt(20, 0.002);  // 20A max, 2mΩ shunt
-    // if (!ina226_[device]->setMode(INA226_MODE_CONTINUOUS)) {
+
+    g_ina226_[device].setMaxCurrentShunt(20, 0.002);  // 20A max, 2mΩ shunt
+    // if (!g_ina226_[device].setMode(INA226_MODE_CONTINUOUS)) {
     //   SerialManager::GetInstance().SendMessage(
     //       "FATAL", "INA226 sensor mode setting failed for device " +
     //                String(device));
@@ -53,8 +76,8 @@ void BatteryMonitor::setup() {
     // }
 
     // Optional: Set averaging and continuous mode for better accuracy
-    // ina226_[device]->setAverage(INA226_AVERAGE_16);
-    // ina226_[device]->setMode(INA226_MODE_CONTINUOUS);
+    // g_ina226_[device].setAverage(INA226_AVERAGE_16);
+    // g_ina226_[device].setMode(INA226_MODE_CONTINUOUS);
   }
   setup_completed_ = true;
 }
@@ -73,7 +96,7 @@ void BatteryMonitor::loop() {
         float raw = analogRead(MAIN_BATTERY_PIN);
         voltage = raw * k36VAnalogToVoltageConversion;
         selectSensor(battery_idx);
-        current = ina226_[battery_idx]->getCurrent();
+        current = g_ina226_[battery_idx].getCurrent();
       }
       if (total_readings_[battery_idx] == 0) {
         voltage_ema_[battery_idx] = voltage;
@@ -197,25 +220,52 @@ void BatteryMonitor::UpdateBatteryState(size_t idx) {
 }
 
 void BatteryMonitor::selectSensor(size_t battery_idx) const {
-  Wire.beginTransmission(0x70);  // I2C_MULTIPLEXER_ADDRESS, adjust as needed
-  Wire.write(1 << gINA226_DeviceIndexes_[battery_idx] );  // Select channel
+  // pinMode(kI2CMultiplexorEnablePin, OUTPUT);
+  // digitalWrite(kI2CMultiplexorEnablePin, HIGH);
+  Wire.beginTransmission(
+      I2C_MULTIPLEXER_ADDRESS);  // I2C_MULTIPLEXER_ADDRESS, adjust as needed
+  Wire.write(1 << gINA226_DeviceIndexes_[battery_idx]);  // Select channel
   Wire.endTransmission();
   delayMicroseconds(100);
+
+  // char message[128];
+  // snprintf(
+  //     message, sizeof(message),
+  //     "[BatteryMonitor::selectSensor] Selecting INA226 sensor on channel %d",
+  //     gINA226_DeviceIndexes_[battery_idx]);
+  // // Log the selection for debugging
+  // SerialManager::GetInstance().SendMessage("DEBUG", message);
 }
 
 bool BatteryMonitor::testI2CMultiplexer() {
-  Wire.beginTransmission(0x70);  // I2C_MULTIPLEXER_ADDRESS, adjust as needed
+  // pinMode(kI2CMultiplexorEnablePin, OUTPUT);
+  // digitalWrite(kI2CMultiplexorEnablePin, HIGH);
+  Wire.beginTransmission(
+      I2C_MULTIPLEXER_ADDRESS);  // I2C_MULTIPLEXER_ADDRESS, adjust as needed
   uint8_t error = Wire.endTransmission();
-  return (error == 0);
+  char message[128];
+  if (error == 0) {
+    snprintf(message, sizeof(message),
+             "[BatteryMonitor::testI2CMultiplexer] I2C multiplexer found at "
+             "address 0x%02X",
+             I2C_MULTIPLEXER_ADDRESS);
+    SerialManager::GetInstance().SendMessage("INFO", message);
+    return true;
+  } else {
+    snprintf(
+        message, sizeof(message),
+        "[BatteryMonitor::testI2CMultiplexer] I2C multiplexer NOT found at "
+        "address 0x%02X (error: %d)",
+        I2C_MULTIPLEXER_ADDRESS, error);
+    // Log error message
+    SerialManager::GetInstance().SendMessage("FATAL", message);
+    return false;
+  }
 }
 
 BatteryMonitor& BatteryMonitor::GetInstance() {
   static BatteryMonitor instance;
   return instance;
-}
-
-void BatteryMonitor::Configure(const BatteryConfig& config) {
-  config_ = config;
 }
 
 const char* BatteryMonitor::name() const { return "BatteryMonitor"; }
@@ -225,4 +275,22 @@ uint8_t BatteryMonitor::gINA226_DeviceIndexes_[kNumberOfBatteries] = {
     2  // Main battery on multiplexer channel 2
 };
 
+INA226 BatteryMonitor::g_ina226_[kNumberOfBatteries] = {
+    INA226(0x40)  // INA226 instance for battery monitoring
+};
+
+BatteryConfig BatteryMonitor::g_battery_config_[kNumberOfBatteries] = {
+    BatteryConfig(32.0f,  // Critical low voltage
+                  34.0f,  // Warning low voltage
+                  15.0f,  // High current threshold
+                  15.0f,  // Critical high current
+                  100,    // Update period in ms
+                  1000,   // Report period in ms
+                  true,   // Enable INA226 sensor
+                  true,   // Enable analog voltage backup
+                  0x40,   // INA226 I2C address
+                  0,      // Analog pin (A0)
+                  11.0f   // Voltage divider ratio (10:1 + safety margin)
+                  )       // Default configuration for the main battery
+};
 }  // namespace sigyn_teensy

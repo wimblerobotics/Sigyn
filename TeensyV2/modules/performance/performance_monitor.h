@@ -25,7 +25,11 @@
 
 #pragma once
 
-#include <module.h>
+#include <Arduino.h>
+#include <cstdint>
+#include <cstddef>
+#include <cmath>
+#include "module.h"
 
 namespace sigyn_teensy {
 
