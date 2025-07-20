@@ -173,65 +173,20 @@ void PerformanceMonitor::loop() {
 const char* PerformanceMonitor::name() const { return "PerformanceMonitor"; }
 
 void PerformanceMonitor::getPerformanceStats(char* buffer, size_t size) {
-  // Start with basic frequency and violation counts
-  int written = snprintf(buffer, size, 
-    "{\"freq\":%.1f, \"target_freq\":%.1f, \"mod_viol\":%lu, \"freq_viol\":%lu",
+  // Format compatible with ROS2 bridge: key=value,key=value format
+  // Expected fields: freq, exec, viol, modules, avg_freq, max_exec
+  snprintf(buffer, size, 
+    "freq=%.1f,exec=%.2f,viol=%lu,modules=%d,avg_freq=%.1f,max_exec=%.2f",
     current_loop_frequency_hz_,
-    config_.min_loop_frequency_hz,
-    (unsigned long)violations_.total_module_violations,
-    (unsigned long)violations_.total_frequency_violations);
-
-  if (written < 0 || (size_t)written >= size) return;
-
-  // Add violation details if there are any
-  if (violations_.safety_violation_active) {
-    int details_written = snprintf(buffer + written, size - written,
-      ", \"violation_details\":{\"consecutive_mod\":%d,\"consecutive_freq\":%d,\"last_viol_ms\":%lu}",
-      violations_.consecutive_module_violations,
-      violations_.consecutive_frequency_violations,
-      (unsigned long)violations_.last_violation_time_ms);
-    
-    if (details_written > 0 && written + details_written < (int)size) {
-      written += details_written;
-    }
-  }
-
-  // Add module timing information
-  int modules_written = snprintf(buffer + written, size - written, ", \"modules\":[");
-  if (modules_written > 0 && written + modules_written < (int)size) {
-    written += modules_written;
-    
-    // Add each module's timing data
-    for (uint16_t i = 0; i < Module::getModuleCount(); ++i) {
-      Module* mod = Module::getModule(i);
-      if (mod != nullptr) {
-        float exec_time_ms = mod->getLastExecutionTimeUs() / 1000.0f;
-        bool is_violation = exec_time_ms > config_.max_module_time_ms;
-        
-        int mod_written = snprintf(buffer + written, size - written,
-          "%s{\"name\":\"%s\",\"exec_ms\":%.2f,\"violation\":%s}",
-          i > 0 ? "," : "",
-          mod->name(),
-          exec_time_ms,
-          is_violation ? "true" : "false");
-        
-        if (mod_written > 0 && written + mod_written < (int)size) {
-          written += mod_written;
-        } else {
-          break; // Buffer full
-        }
-      }
-    }
-  }
-
-  // Close JSON structure
-  if (written < (int)size - 3) {
-    snprintf(buffer + written, size - written, "]}");
-  }
+    0.0f, // TODO: Implement current execution time tracking
+    (unsigned long)violations_.total_frequency_violations,
+    Module::getModuleCount(),
+    current_loop_frequency_hz_, // TODO: Implement average frequency tracking  
+    config_.max_module_time_ms); // TODO: Implement max execution time tracking
 }
 
 void PerformanceMonitor::reportStats() {
-  char stats_json[512]; // Increased buffer size for detailed module information
+  char stats_json[128]; // Reduced buffer size for simpler key-value format
   getPerformanceStats(stats_json, sizeof(stats_json));
   SerialManager::getInstance().sendMessage("PERF", stats_json);
 }

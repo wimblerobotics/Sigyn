@@ -49,9 +49,9 @@ BATT:id=<sensor_id>,v=<voltage>,c=<current>,p=<power>,pct=<percentage>,state=<st
 
 **Examples:**
 ```
-BATT:id=0,v=39.82,c=1.245,p=49.58,pct=0.85,state=DISCHARGING,sensors=INA226+ANALOG
+BATT:id=0,v=39.82,c=1.245,p=49.58,pct=0.85,state=DISCHARGING,sensors=INA226
 BATT:id=0,v=32.10,c=0.125,p=4.01,pct=0.15,state=CRITICAL,sensors=INA226
-BATT:id=1,v=41.50,c=-2.340,p=-97.11,pct=0.95,state=CHARGING,sensors=ANALOG
+BATT:id=1,v=41.50,c=-2.340,p=-97.11,pct=0.95,state=CHARGING,sensors=NONE
 ```
 
 ### PERF - Performance Monitoring Messages
