@@ -22,7 +22,7 @@
  * - Motor control update rate: 50Hz minimum
  * - Safety monitoring: 100Hz
  * 
- * @author Sigyn Robotics
+ * @author Wimble Robotics
  * @date 2025
  */
 

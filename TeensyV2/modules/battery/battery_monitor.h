@@ -19,7 +19,7 @@
  * - High current threshold: 15.0A (triggers E-stop)
  * - Temperature monitoring (if available)
  *
- * @author Sigyn Robotics
+ * @author Wimble Robotics
  * @date 2025
  */
 
@@ -85,52 +85,216 @@ enum class BatteryState {
 };
 
 class BatteryMonitor : public Module {
- public:
-  BatteryMonitor();
-  void setup() override;
-  void loop() override;
-  const char* name() const override;
-  float getVoltage(size_t idx = 0) const;
+public:
+  /**
+   * @brief Get the current (in Amps) for the specified battery index.
+   * @param idx Battery index (default: 0)
+   * @return Current in Amps
+   */
   float getCurrent(size_t idx = 0) const;
-  float updateExponentialAverage(float current_avg, float new_value,
-                                 float alpha);
-  void selectSensor(size_t battery_idx) const;
-  bool testI2CMultiplexer();
 
-  // Legacy API compatibility wrappers
-  static BatteryMonitor& GetInstance();
-  float GetVoltage(size_t idx = 0) const { return getVoltage(idx); }
+  /**
+   * @brief Get the voltage (in Volts) for the specified battery index.
+   * @param idx Battery index (default: 0)
+   * @return Voltage in Volts
+   */
+  float getVoltage(size_t idx = 0) const;
+
+  /**
+   * @brief Main loop for battery monitoring. Call regularly from main loop.
+   */
+  void loop() override;
+
+  /**
+   * @brief Get the module name string.
+   * @return Module name
+   */
+  const char* name() const override;
+
+  /**
+   * @brief Setup routine for battery monitoring hardware and state.
+   */
+  void setup() override;
+
+  /**
+   * @brief Legacy API: Get current (Amps) for specified battery index.
+   */
   float GetCurrent(size_t idx = 0) const { return getCurrent(idx); }
-  int GetState() const { return 0; }  // Stub: implement state logic if needed
-  bool IsSensorHealthy() const {
-    return true;
-  }  // Stub: implement health check if needed
 
- private:
+  /**
+   * @brief Legacy API: Get voltage (Volts) for specified battery index.
+   */
+  float GetVoltage(size_t idx = 0) const { return getVoltage(idx); }
+
+  /**
+   * @brief Legacy API: Get battery state (stub).
+   * @return Always returns 0 (not implemented)
+   */
+  int GetState() const { return 0; }
+
+  /**
+   * @brief Legacy API: Check if sensor is healthy (stub).
+   * @return Always returns true (not implemented)
+   */
+  bool IsSensorHealthy() const { return true; }
+
+  /**
+   * @brief Get singleton instance of BatteryMonitor.
+   * @return Reference to singleton BatteryMonitor
+   */
+  static BatteryMonitor& GetInstance();
+
+private:
+  /**
+   * @brief Private constructor for singleton pattern.
+   * Initializes all battery monitoring hardware and state.
+   */
+  BatteryMonitor();
+
+  // Prevent copying
+  BatteryMonitor(const BatteryMonitor&) = delete;
+  BatteryMonitor& operator=(const BatteryMonitor&) = delete;
+
+  // --- Static members ---
+
+  /**
+   * @brief Number of batteries supported (currently only LIPO).
+   */
+  static constexpr size_t kNumberOfBatteries = 1;
+
+  /**
+   * @brief Per-battery configuration (static/global).
+   */
+  static BatteryConfig g_battery_config_[kNumberOfBatteries];
+
+  /**
+   * @brief INA226 sensor instances for power supply monitoring.
+   */
+  static INA226 g_ina226_[kNumberOfBatteries];
+
+  /**
+   * @brief Device indexes for INA226 sensors.
+   */
+  static uint8_t gINA226_DeviceIndexes_[kNumberOfBatteries];
+
+  /**
+   * @brief Conversion factor for analog voltage readings (36V system).
+   */
+  static constexpr float k36VAnalogToVoltageConversion = 0.087393162f;
+
+  /**
+   * @brief Exponential averaging alpha for current readings.
+   */
+  static constexpr float kDefaultCurrentAlpha = 0.2f;
+
+  /**
+   * @brief Exponential averaging alpha for voltage readings.
+   */
+  static constexpr float kDefaultVoltageAlpha = 0.1f;
+
+  /**
+   * @brief I2C address for multiplexer.
+   */
+  static constexpr int I2C_MULTIPLEXER_ADDRESS = 0x70;
+
+  /**
+   * @brief Main battery analog pin.
+   */
+  static constexpr int MAIN_BATTERY_PIN = 24;
+
+  /**
+   * @brief Main battery status report interval (ms).
+   */
+  static constexpr int MAIN_BATTERY_REPORT_INTERVAL_MS = 1000;
+
+  /**
+   * @brief I2C multiplexer enable pin.
+   */
+  static constexpr int kI2CMultiplexorEnablePin = 8;
+
+  // --- Data members ---
+
+  /**
+   * @brief Per-instance battery configuration.
+   */
+  BatteryConfig config_;
+
+  /**
+   * @brief True if I2C multiplexer is available.
+   */
+  bool multiplexer_available_;
+
+  /**
+   * @brief True if setup() has completed successfully.
+   */
+  bool setup_completed_;
+
+  /**
+   * @brief Battery state for each battery.
+   */
+  BatteryState state_[kNumberOfBatteries];
+
+  /**
+   * @brief Exponential moving average of current readings.
+   */
+  float current_ema_[kNumberOfBatteries];
+
+  /**
+   * @brief Exponential moving average of voltage readings.
+   */
+  float voltage_ema_[kNumberOfBatteries];
+
+  /**
+   * @brief Pointer to INA226 sensor objects for each battery.
+   */
+  INA226* ina226_[kNumberOfBatteries];
+
+  /**
+   * @brief Total number of readings taken for each battery.
+   */
+  size_t total_readings_[kNumberOfBatteries];
+
+  // --- Member functions ---
+
+  /**
+   * @brief Estimate battery charge percentage from voltage.
+   * @param voltage Battery voltage
+   * @return Estimated charge percentage (0-100)
+   */
   float EstimateChargePercentage(float voltage) const;
+
+  /**
+   * @brief Send battery status message for specified battery index.
+   * @param idx Battery index
+   */
   void SendStatusMessage(size_t idx);
+
+  /**
+   * @brief Update battery state for specified battery index.
+   * @param idx Battery index
+   */
   void UpdateBatteryState(size_t idx);
 
-  static constexpr size_t kNumberOfBatteries = 1;  // Only LIPO for now
-  static constexpr float k36VAnalogToVoltageConversion = 0.087393162f;
-  static constexpr float kDefaultVoltageAlpha = 0.1f;
-  static constexpr float kDefaultCurrentAlpha = 0.2f;
-  static constexpr int MAIN_BATTERY_PIN = 24;
-  static constexpr int kI2CMultiplexorEnablePin = 8;
-  static constexpr int MAIN_BATTERY_REPORT_INTERVAL_MS = 1000;  // 1Hz reporting
-  static constexpr int I2C_MULTIPLEXER_ADDRESS =
-      0x70;  // Default I2C address for multiplexer
-  bool setup_completed_;
-  bool multiplexer_available_;
-  INA226* ina226_[kNumberOfBatteries];
-  float voltage_ema_[kNumberOfBatteries];
-  float current_ema_[kNumberOfBatteries];
-  BatteryState state_[kNumberOfBatteries];
-  size_t total_readings_[kNumberOfBatteries];
-  BatteryConfig config_;
-  static uint8_t gINA226_DeviceIndexes_[kNumberOfBatteries];
-  static INA226 g_ina226_[kNumberOfBatteries];  ///< INA226 sensor instances for power supply monitoring
-  static BatteryConfig g_battery_config_[kNumberOfBatteries];
+  /**
+   * @brief Update exponential average for a value.
+   * @param current_avg Current average value
+   * @param new_value New value to include
+   * @param alpha Averaging factor
+   * @return Updated average
+   */
+  float updateExponentialAverage(float current_avg, float new_value, float alpha);
+
+  /**
+   * @brief Select sensor for specified battery index (multiplexer).
+   * @param battery_idx Battery index
+   */
+  void selectSensor(size_t battery_idx) const;
+
+  /**
+   * @brief Test if I2C multiplexer is available and working.
+   * @return True if multiplexer is available
+   */
+  bool testI2CMultiplexer();
 };
 
 }  // namespace sigyn_teensy
