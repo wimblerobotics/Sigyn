@@ -134,224 +134,70 @@ struct SafetyConfig {
  */
 class SafetyCoordinator : public Module {
  public:
+  // --- Constants ---
   /**
    * @brief Maximum number of E-stop conditions to track simultaneously.
    */
   static constexpr size_t kMaxEstopConditions = 16;
 
+  // --- Singleton Access ---
   /**
    * @brief Get the singleton instance of SafetyCoordinator.
-   * 
    * @return Reference to the singleton SafetyCoordinator instance
    */
   static SafetyCoordinator& GetInstance();
 
-  /**
-   * @brief Configure safety system parameters.
-   * 
-   * @param[in] config Safety configuration structure
-   */
-  void Configure(const SafetyConfig& config);
+  // --- Module Interface ---
+  bool IsUnsafe() override;
+  void loop() override;
+  const char* name() const override { return "SafetyCoordinator"; }
+  void ProcessMessage(const String& message);
+  void setup() override;
 
-  /**
-   * @brief Trigger an E-stop condition.
-   * 
-   * @param[in] source Source of the E-stop condition
-   * @param[in] description Human-readable description of the condition
-   * @param[in] trigger_value Optional value that triggered the condition
-   * @param[in] requires_manual_reset true if manual reset required
-   */
+  // --- Public Methods ---
+  uint8_t AttemptAutoRecovery();
+  bool ClearEstop(EstopSource source);
+  void Configure(const SafetyConfig& config);
+  void ForceShutdown(const String& reason);
+  uint8_t GetActiveConditions(EstopCondition* active_conditions, uint8_t max_conditions) const;
+  SafetyState GetSafetyState() const { return current_safety_state_; }
+  String GetSafetyStatusDescription() const;
+  bool IsEstopActive() const;
+  bool IsHardwareEstopPressed() const;
+  bool ManualReset(EstopSource source, bool force_reset = false);
+  void SetEstopSourceEnabled(EstopSource source, bool enabled);
   void TriggerEstop(EstopSource source, 
                     const String& description, 
                     float trigger_value = NAN,
                     bool requires_manual_reset = false);
 
-  /**
-   * @brief Clear an E-stop condition (automatic recovery).
-   * 
-   * @param[in] source Source of the E-stop condition to clear
-   * @return true if condition was cleared, false if manual reset required
-   */
-  bool ClearEstop(EstopSource source);
-
-  /**
-   * @brief Manually reset an E-stop condition.
-   * 
-   * @param[in] source Source of the E-stop condition to reset
-   * @param[in] force_reset true to force reset even if condition still active
-   * @return true if reset successful, false otherwise
-   */
-  bool ManualReset(EstopSource source, bool force_reset = false);
-
-  /**
-   * @brief Attempt automatic recovery for all clearable conditions.
-   * 
-   * @return Number of conditions that were successfully cleared
-   */
-  uint8_t AttemptAutoRecovery();
-
-  /**
-   * @brief Get current overall safety state.
-   * 
-   * @return Current safety state enumeration
-   */
-  SafetyState GetSafetyState() const { return current_safety_state_; }
-
-  /**
-   * @brief Check if any E-stop conditions are currently active.
-   * 
-   * @return true if any E-stop condition is active
-   */
-  bool IsEstopActive() const;
-
-  /**
-   * @brief Get list of currently active E-stop conditions.
-   * 
-   * @param[out] active_conditions Array to fill with active conditions
-   * @param[in] max_conditions Maximum number of conditions to return
-   * @return Number of active conditions returned
-   */
-  uint8_t GetActiveConditions(EstopCondition* active_conditions, uint8_t max_conditions) const;
-
-  /**
-   * @brief Get description of current safety status.
-   * 
-   * @return Human-readable safety status description
-   */
-  String GetSafetyStatusDescription() const;
-
-  /**
-   * @brief Force immediate system shutdown.
-   * 
-   * Used for critical safety conditions that require immediate action.
-   * 
-   * @param[in] reason Description of why shutdown was triggered
-   */
-  void ForceShutdown(const String& reason);
-
-  /**
-   * @brief Enable or disable a specific E-stop source.
-   * 
-   * @param[in] source E-stop source to enable/disable
-   * @param[in] enabled true to enable, false to disable
-   */
-  void SetEstopSourceEnabled(EstopSource source, bool enabled);
-
-  /**
-   * @brief Check if hardware E-stop button is currently pressed.
-   * 
-   * @return true if hardware E-stop is active
-   */
-  bool IsHardwareEstopPressed() const;
-
-  // Module interface implementation
-  void setup() override;
-  void loop() override;
-  const char* name() const override { return "SafetyCoordinator"; }
-  bool IsUnsafe() override;
-  void ProcessMessage(const String& message);
-
  private:
-  /**
-   * @brief Private constructor for singleton pattern.
-   */
+  // --- Private constructor for Singleton ---
   SafetyCoordinator();
-
-  // Prevent copying
   SafetyCoordinator(const SafetyCoordinator&) = delete;
   SafetyCoordinator& operator=(const SafetyCoordinator&) = delete;
 
-  /**
-   * @brief Initialize hardware pins for safety monitoring.
-   */
-  void InitializeHardware();
-
-  /**
-   * @brief Check hardware E-stop button state.
-   */
+  // --- Private Methods ---
   void CheckHardwareEstop();
-
-  /**
-   * @brief Check inter-board safety signals.
-   */
   void CheckInterBoardSafety();
-
-  /**
-   * @brief Update overall safety state based on active conditions.
-   */
+  EstopCondition* FindCondition(EstopSource source);
+  void InitializeHardware();
+  void SendEstopMessage(const EstopCondition& condition, bool activated);
+  void SendSafetyStatusMessage();
   void UpdateSafetyState();
 
-  /**
-   * @brief Send safety status message via serial.
-   */
-  void SendSafetyStatusMessage();
+  // --- Static Members ---
+  static SafetyCoordinator* instance_;
 
-  /**
-   * @brief Send E-stop notification message.
-   * 
-   * @param[in] condition E-stop condition to report
-   * @param[in] activated true if condition activated, false if cleared
-   */
-  void SendEstopMessage(const EstopCondition& condition, bool activated);
-
-  /**
-   * @brief Find E-stop condition by source.
-   * 
-   * @param[in] source E-stop source to find
-   * @return Pointer to condition if found, nullptr otherwise
-   */
-  EstopCondition* FindCondition(EstopSource source);
-
-  /**
-   * @brief Create new E-stop condition.
-   * 
-   * @param[in] source E-stop source
-   * @return Pointer to new condition, nullptr if no space available
-   */
-  EstopCondition* CreateCondition(EstopSource source);
-
-  /**
-   * @brief Convert E-stop source to string.
-   * 
-   * @param[in] source E-stop source enumeration
-   * @return String representation of source
-   */
-  String EstopSourceToString(EstopSource source) const;
-
-  /**
-   * @brief Convert safety state to string.
-   * 
-   * @param[in] state Safety state enumeration
-   * @return String representation of state
-   */
-  String SafetyStateToString(SafetyState state) const;
-
-  // Configuration
-  SafetyConfig config_;
-
-  // E-stop condition tracking
-  EstopCondition estop_conditions_[kMaxEstopConditions];
+  // --- Member Variables ---
   uint8_t condition_count_;
-
-  // Safety state
+  EstopCondition conditions_[kMaxEstopConditions];
+  SafetyConfig config_;
   SafetyState current_safety_state_;
-  SafetyState previous_safety_state_;
-
-  // Hardware state tracking
-  bool hardware_estop_state_;
-  bool inter_board_safety_state_;
-  uint32_t last_heartbeat_time_;
-
-  // Timing control
-  uint32_t last_safety_check_;
-  uint32_t last_status_report_;
-  uint32_t shutdown_time_;
-
-  // Serial communication
-  SerialManager* serial_manager_;
-
-  // Source enable/disable flags
-  bool source_enabled_[static_cast<uint8_t>(EstopSource::UNKNOWN) + 1];
+  bool inter_board_estop_active_;
+  uint32_t last_heartbeat_received_ms_;
+  uint32_t last_heartbeat_sent_ms_;
+  uint32_t last_status_report_ms_;
 };
 
 }  // namespace sigyn_teensy

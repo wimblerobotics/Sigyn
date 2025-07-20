@@ -87,126 +87,53 @@ struct ViolationTracker {
  */
 class PerformanceMonitor : public Module {
  public:
+  // --- Singleton Access ---
   /**
    * @brief Get the singleton instance of PerformanceMonitor.
-   * 
    * @return Reference to the singleton PerformanceMonitor instance
    */
   static PerformanceMonitor& GetInstance();
 
-  /**
-   * @brief Update performance monitoring configuration.
-   * 
-   * Allows runtime adjustment of performance thresholds and monitoring
-   * parameters via ROS2 parameter interface or other configuration sources.
-   * 
-   * @param[in] config New configuration parameters
-   * @return true if configuration valid and applied, false otherwise
-   */
-  bool UpdateConfiguration(const PerformanceConfig& config);
-
-  /**
-   * @brief Get current performance configuration.
-   * 
-   * @return Reference to current configuration parameters
-   */
-  const PerformanceConfig& GetConfiguration() const { return config_; }
-
-  /**
-   * @brief Get current violation tracking status.
-   * 
-   * @return Reference to current violation tracking data
-   */
-  const ViolationTracker& GetViolationStatus() const { return violations_; }
-
-  /**
-   * @brief Reset violation counters and safety flags.
-   * 
-   * Clears accumulated violation counts and resets safety violation state.
-   * Used during system recovery procedures.
-   */
-  void ResetViolationCounters();
-
-  /**
-   * @brief Force generation of detailed performance report.
-   * 
-   * Immediately generates and sends a comprehensive performance report
-   * regardless of normal reporting schedule. Useful for debugging and
-   * system optimization.
-   */
-  void GenerateDetailedReport();
-
-  /**
-   * @brief Print current performance metrics to Serial for debugging.
-   */
-  void PrintMetrics() const;
-
-  // Module interface implementation
-  void setup() override;
+  // --- Module Interface ---
+  bool IsUnsafe() override;
   void loop() override;
   const char* name() const override { return "PerformanceMonitor"; }
-  bool IsUnsafe() override;
   void ResetSafetyFlags() override;
+  void setup() override;
+
+  // --- Public Methods ---
+  void GenerateDetailedReport();
+  const PerformanceConfig& GetConfiguration() const { return config_; }
+  const ViolationTracker& GetViolationStatus() const { return violations_; }
+  void PrintMetrics() const;
+  void ResetViolationCounters();
+  bool UpdateConfiguration(const PerformanceConfig& config);
 
  private:
-  /**
-   * @brief Private constructor for singleton pattern.
-   */
+  // --- Private constructor for Singleton ---
   PerformanceMonitor();
+  PerformanceMonitor(const PerformanceMonitor&) = delete;
+  PerformanceMonitor& operator=(const PerformanceMonitor&) = delete;
 
-  /**
-   * @brief Analyze current loop frequency and detect violations.
-   */
+  // --- Private Methods ---
   void CheckLoopFrequency();
-
-  /**
-   * @brief Analyze individual module performance and detect violations.
-   */
   void CheckModulePerformance();
-
-  /**
-   * @brief Process a detected performance violation.
-   * 
-   * @param[in] violation_type Type of violation detected
-   * @param[in] details Additional details about the violation
-   */
   void ProcessViolation(const char* violation_type, const char* details);
-
-  /**
-   * @brief Send performance statistics report.
-   */
   void SendPerformanceReport();
-
-  /**
-   * @brief Validate configuration parameters.
-   * 
-   * @param[in] config Configuration to validate
-   * @return true if configuration is valid, false otherwise
-   */
   bool ValidateConfiguration(const PerformanceConfig& config) const;
 
-  // Singleton instance
+  // --- Static Members ---
   static PerformanceMonitor* instance_;
-
-  // Configuration and state
-  PerformanceConfig config_;              ///< Current configuration parameters
-  ViolationTracker violations_;           ///< Violation tracking state
-
-  // Performance tracking
-  uint32_t last_loop_time_us_;           ///< Timestamp of last loop execution
-  uint32_t last_report_time_ms_;         ///< Timestamp of last statistics report
-  float current_loop_frequency_;         ///< Current measured loop frequency
-  uint32_t loop_count_since_report_;     ///< Loops executed since last report
-
-  // Module performance history (for trend analysis)
-  struct ModulePerformanceHistory {
-    float recent_max_time_ms;            ///< Maximum time in recent history
-    uint8_t consecutive_violations;       ///< Consecutive violations for this module
-  };
-  
   static constexpr size_t kMaxTrackedModules = 16;
-  ModulePerformanceHistory module_history_[kMaxTrackedModules];
+
+  // --- Member Variables ---
+  PerformanceConfig config_;
+  float current_loop_frequency_;
+  uint32_t last_loop_time_us_;
+  uint32_t last_report_time_ms_;
+  uint32_t loop_count_since_report_;
   size_t tracked_module_count_;
+  ViolationTracker violations_;
 };
 
 }  // namespace sigyn_teensy

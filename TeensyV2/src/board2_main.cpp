@@ -50,7 +50,12 @@ board (Board 2) for TeensyV2 system
 using namespace sigyn_teensy;
 
 // Function declarations
+void fault_handler();
 uint32_t freeMemory();
+void loop();
+void processSensorData();
+void serialEvent();
+void setup();
 
 // System timing
 uint32_t loop_start_time;
@@ -62,43 +67,45 @@ SerialManager* serial_manager;
 PerformanceMonitor* performance_monitor;
 BatteryMonitor* battery_monitor;
 
-void setup() {
-  // Initialize serial communication first
-  Serial.begin(921600);
-  while (!Serial && millis() < 3000) {
-    // Wait up to 3 seconds for serial connection
+/**
+ * @brief Handle critical errors and system faults.
+ *
+ * This function is called by the Teensy runtime when critical errors occur.
+ */
+void fault_handler() {
+  Serial.println("CRITICAL FAULT: Board2 system fault detected");
+
+  // Send fault notification if possible
+  if (serial_manager) {
+    String fault_msg = "type=system,board=2,time=" + String(millis());
+    serial_manager->SendMessage("FAULT", fault_msg.c_str());
   }
 
-  Serial.println("===== TeensyV2 Board 2 (Sensor Board) Starting =====");
+  // For Board 2, we don't have direct E-stop control, but we should signal
+  // the problem This would be done via inter-board communication in a
+  // complete implementation
 
-  // Get singleton instances (this registers them with the module system)
-  serial_manager = &SerialManager::GetInstance();
-  performance_monitor = &PerformanceMonitor::GetInstance();
-  battery_monitor = &BatteryMonitor::GetInstance();
-
-  // Initialize serial communication
-  if (!serial_manager->Initialize(5000)) {
-    Serial.println("ERROR: Failed to initialize serial communication");
-    // Continue anyway - might be running without PC connection
+  // Halt system with status indication
+  while (true) {
+    digitalWrite(LED_BUILTIN,
+                 !digitalRead(LED_BUILTIN));  // Blink LED rapidly
+    delay(50);
   }
+}
 
-  // Configure performance monitoring for sensor board (less stringent than
-  // Board 1) Board 2 can run at lower frequency since it's primarily sensor
-  // monitoring
-
-  // Initialize all modules through the module system
-  Serial.println("Initializing modules...");
-  Module::SetupAll();
-
-  // Initialize timing
-  loop_start_time = micros();
-  last_loop_time = loop_start_time;
-  loop_frequency = 0.0f;
-
-  Serial.println("===== Board 2 Initialization Complete =====");
-  Serial.println("Target loop frequency: 50Hz");
-  Serial.println("Battery monitoring enabled");
-  Serial.println("Ready for sensor data collection");
+/**
+ * @brief Get free memory for monitoring.
+ *
+ * Simple free memory calculation for Teensy 4.1.
+ *
+ * @return Estimated free memory in bytes
+ */
+uint32_t freeMemory() {
+  // For Teensy 4.1, we'll use a simple stack-based approach
+  // This is not as accurate but works without linker issues
+  char stack_var;
+  extern char _ebss;
+  return &stack_var - &_ebss;
 }
 
 void loop() {
@@ -119,11 +126,11 @@ void loop() {
   uint32_t execution_time = micros() - loop_start_time;
 
   // Board 2 status reporting (less frequent than Board 1)
-  static uint32_t last_status_report = 0;
-  // if (current_time - last_status_report > 10000000) {  // Every 10 seconds
-  //   last_status_report = current_time;
-  //   // Add any 10-second reporting tasks here
-  // }
+  static uint32_t last_status_report_ms = 0;
+  if (current_time - last_status_report_ms > 10000000) {  // Every 10 seconds
+    last_status_report_ms = current_time;
+    // Add any 10-second reporting tasks here
+  }
 
   // Safety monitoring - check for critical battery conditions
   static uint32_t last_safety_check = 0;
@@ -131,8 +138,8 @@ void loop() {
     last_safety_check = current_time;
 
     // Check battery safety conditions
-    float voltage = battery_monitor->GetVoltage();
-    float current = battery_monitor->GetCurrent();
+    float voltage = battery_monitor->getVoltage();
+    float current = battery_monitor->getCurrent();
 
     // Send safety status to Board 1 (if inter-board communication is
     // implemented)
@@ -185,58 +192,6 @@ void loop() {
 }
 
 /**
- * @brief Get free memory for monitoring.
- *
- * Simple free memory calculation for Teensy 4.1.
- *
- * @return Estimated free memory in bytes
- */
-uint32_t freeMemory() {
-  // For Teensy 4.1, we'll use a simple stack-based approach
-  // This is not as accurate but works without linker issues
-  char stack_var;
-  extern char _ebss;
-  return &stack_var - &_ebss;
-}
-
-/**
- * @brief Handle critical errors and system faults.
- *
- * This function is called by the Teensy runtime when critical errors occur.
- */
-void fault_handler() {
-  Serial.println("CRITICAL FAULT: Board2 system fault detected");
-
-  // Send fault notification if possible
-  if (serial_manager) {
-    String fault_msg = "type=system,board=2,time=" + String(millis());
-    serial_manager->SendMessage("FAULT", fault_msg.c_str());
-  }
-
-  // For Board 2, we don't have direct E-stop control, but we should signal
-  // the problem This would be done via inter-board communication in a
-  // complete implementation
-
-  // Halt system with status indication
-  while (true) {
-    digitalWrite(LED_BUILTIN,
-                 !digitalRead(LED_BUILTIN));  // Blink LED rapidly
-    delay(50);
-  }
-}
-
-/**
- * @brief Handle serial events for configuration updates.
- *
- * This function is called automatically when serial data is available.
- */
-void serialEvent() {
-  if (serial_manager) {
-    serial_manager->ProcessIncomingMessages();
-  }
-}
-
-/**
  * @brief Handle sensor data collection and processing.
  *
  * This function demonstrates how sensor data would be collected and processed
@@ -261,4 +216,54 @@ void processSensorData() {
   //   temperature_monitor->ReadSensors();
   //   temperature_monitor->CheckThresholds();
   // }
+}
+
+/**
+ * @brief Handle serial events for configuration updates.
+ *
+ * This function is called automatically when serial data is available.
+ */
+void serialEvent() {
+  if (serial_manager) {
+    serial_manager->ProcessIncomingMessages();
+  }
+}
+
+void setup() {
+  // Initialize serial communication first
+  Serial.begin(921600);
+  while (!Serial && millis() < 3000) {
+    // Wait up to 3 seconds for serial connection
+  }
+
+  Serial.println("===== TeensyV2 Board 2 (Sensor Board) Starting =====");
+
+  // Get singleton instances (this registers them with the module system)
+  serial_manager = &SerialManager::GetInstance();
+  performance_monitor = &PerformanceMonitor::GetInstance();
+  battery_monitor = &BatteryMonitor::GetInstance();
+
+  // Initialize serial communication
+  if (!serial_manager->Initialize(5000)) {
+    Serial.println("ERROR: Failed to initialize serial communication");
+    // Continue anyway - might be running without PC connection
+  }
+
+  // Configure performance monitoring for sensor board (less stringent than
+  // Board 1) Board 2 can run at lower frequency since it's primarily sensor
+  // monitoring
+
+  // Initialize all modules through the module system
+  Serial.println("Initializing modules...");
+  Module::SetupAll();
+
+  // Initialize timing
+  loop_start_time = micros();
+  last_loop_time = loop_start_time;
+  loop_frequency = 0.0f;
+
+  Serial.println("===== Board 2 Initialization Complete =====");
+  Serial.println("Target loop frequency: 50Hz");
+  Serial.println("Battery monitoring enabled");
+  Serial.println("Ready for sensor data collection");
 }
