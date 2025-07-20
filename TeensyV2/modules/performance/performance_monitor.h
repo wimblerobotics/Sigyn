@@ -95,46 +95,84 @@ class PerformanceMonitor : public Module {
 
   // --- Public API ---
   /**
-   * @brief Mark the start of a module's execution for timing.
-   * @param module_name Name of the module
+   * @brief Check for performance violations and update safety status.
+   * 
+   * This method is called automatically by the main loop and should not be
+   * called directly by other modules.
    */
-  void beginModule(const char* module_name);
+  void checkPerformance();
 
   /**
-   * @brief Mark the end of a module's execution and record timing.
-   * @param module_name Name of the module
+   * @brief Get current performance configuration.
+   * @return Const reference to the current configuration
    */
-  void endModule(const char* module_name);
+  const PerformanceConfig& getConfig() const;
+
+  /**
+   * @brief Get current violation status.
+   * @return Const reference to the violation tracker
+   */
+  const ViolationTracker& getViolations() const;
+
+  /**
+   * @brief Update performance monitoring configuration.
+   * @param new_config New configuration to apply
+   */
+  void updateConfig(const PerformanceConfig& new_config);
+
+  // --- Module Overrides ---
+  /**
+   * @brief Initialize the performance monitor.
+   * 
+   * This method is called once at system startup to initialize the monitor
+   * and configure initial settings.
+   */
+  void setup() override;
+
+  /**
+   * @brief Main loop for performance monitoring.
+   * 
+   * This method is called automatically by the main loop. It checks for
+   * performance violations and reports statistics.
+   */
+  void loop() override;
 
   /**
    * @brief Return the name of this module.
    */
   const char* name() const override;
 
- protected:
-  // --- Module Overrides ---
-  void setup() override;
-  void loop() override;
+  /**
+   * @brief Check if the performance monitor has detected an unsafe condition.
+   * @return True if performance violations exceed critical thresholds
+   */
+  bool isUnsafe() override;
+
+  /**
+   * @brief Reset safety violation flags.
+   * 
+   * Called when a safety condition is acknowledged and cleared.
+   */
+  void resetSafetyFlags() override;
 
  private:
-  // --- Private Constructor ---
+  // --- Singleton ---
   PerformanceMonitor();
-  ~PerformanceMonitor() = default;
   PerformanceMonitor(const PerformanceMonitor&) = delete;
   PerformanceMonitor& operator=(const PerformanceMonitor&) = delete;
 
-  // --- Member Functions ---
+  // --- Private Methods ---
   void checkLoopFrequency();
-  void sendStatistics();
+  void checkModuleExecutionTimes();
+  void getPerformanceStats(char* buffer, size_t size);
+  void reportStats();
 
-  // --- Data Members ---
+  // --- Member Variables ---
   PerformanceConfig config_;
   ViolationTracker violations_;
-
-  uint32_t loop_start_time_us_ = 0;
-  uint32_t last_stats_send_time_ms_ = 0;
-  uint32_t module_start_time_us_ = 0;
-  const char* current_module_name_ = nullptr;
+  float current_loop_frequency_hz_ = 0.0f;
+  uint32_t last_loop_start_time_us_ = 0;
+  uint32_t last_stats_report_ms_ = 0;
 };
 
 }  // namespace sigyn_teensy

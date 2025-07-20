@@ -75,7 +75,7 @@ void fault_handler() {
   // Try to send fault notification if possible
   if (serial_manager) {
     String fault_msg = "type=system,board=1,time=" + String(millis());
-    serial_manager->SendMessage("FAULT", fault_msg.c_str());
+    serial_manager->sendMessage("FAULT", fault_msg.c_str());
   }
   
   // Halt system
@@ -112,7 +112,7 @@ void loop() {
   last_loop_time = current_time;
   
   // Execute all modules through the module system
-  Module::LoopAll();
+  Module::loopAll();
   
   // Record performance metrics
   uint32_t execution_time = micros() - loop_start_time;
@@ -124,7 +124,8 @@ void loop() {
     Serial.println("Board1 Status:");
     Serial.println("  Loop frequency: " + String(loop_frequency, 1) + " Hz");
     Serial.println("  Execution time: " + String(execution_time) + " us");
-    Serial.println("  Safety state: " + safety_coordinator->GetSafetyStatusDescription());
+    // Serial.println("  Safety state: " + safety_coordinator->getSafetyStatusDescription());
+    Serial.println("  Safety state: " + String(static_cast<int>(safety_coordinator->getSafetyState())));
     Serial.println("  Free memory: " + String(freeMemory()) + " bytes");
   }
   
@@ -135,9 +136,8 @@ void loop() {
     
     // If we can't keep up with basic timing, trigger safety system
     if (execution_time > 20000) {  // 20ms is unacceptable
-      safety_coordinator->TriggerEstop(EstopSource::PERFORMANCE, 
-                                       "Critical timing violation: " + String(execution_time) + "us",
-                                       execution_time);
+      safety_coordinator->triggerEstop(EstopSource::PERFORMANCE, 
+                                       "Critical timing violation: " + String(execution_time) + "us");
     }
   }
 
@@ -162,7 +162,7 @@ void loop() {
  */
 void serialEvent() {
   if (serial_manager) {
-    serial_manager->ProcessIncomingMessages();
+    serial_manager->processIncomingMessages();
   }
 }
 
@@ -176,15 +176,12 @@ void setup() {
   Serial.println("===== TeensyV2 Board 1 (Main Controller) Starting =====");
   
   // Get singleton instances (this registers them with the module system)
-  serial_manager = &SerialManager::GetInstance();
-  performance_monitor = &PerformanceMonitor::GetInstance();
-  safety_coordinator = &SafetyCoordinator::GetInstance();
+  serial_manager = &SerialManager::getInstance();
+  performance_monitor = &PerformanceMonitor::getInstance();
+  safety_coordinator = &SafetyCoordinator::getInstance();
   
-  // Initialize serial communication
-  if (!serial_manager->Initialize(5000)) {
-    Serial.println("ERROR: Failed to initialize serial communication");
-    // Continue anyway - might be running without PC connection
-  }
+  // Initialize serial communication (no return value to check)
+  serial_manager->initialize(5000);
   
   // Configure safety system for Board 1
   SafetyConfig safety_config;
@@ -194,11 +191,11 @@ void setup() {
   safety_config.inter_board_output_pin = 5;    // Safety signal to Board 2
   safety_config.enable_inter_board_safety = true;
   safety_config.enable_auto_recovery = true;
-  safety_coordinator->Configure(safety_config);
+  // safety_coordinator->Configure(safety_config); // TODO: Add updateConfig method
   
   // Initialize all modules through the module system
   Serial.println("Initializing modules...");
-  Module::SetupAll();
+  Module::setupAll();
   
   // Initialize timing
   loop_start_time = micros();
