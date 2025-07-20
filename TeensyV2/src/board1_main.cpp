@@ -27,6 +27,7 @@
  */
 
 #include <Arduino.h>
+#include <cstdint>
 
 // Core TeensyV2 system
 #include "common/core/module.h"
@@ -34,10 +35,6 @@
 
 // Board 1 specific modules
 #include "modules/performance/performance_monitor.h"
-#include <Arduino.h>
-#include <stdint.h>
-#include <stddef.h>
-#include <cmath>
 #include "modules/safety/safety_coordinator.h"
 // #include "modules/motor/motor_controller.h"      // To be implemented
 // #include "modules/sensors/vl53l0x_manager.h"    // To be implemented
@@ -119,7 +116,7 @@ void loop() {
   // Record performance metrics
   uint32_t execution_time = micros() - loop_start_time;
   
-  // Basic performance monitoring (detailed monitoring handled by PerformanceMonitor module)
+  // Board 1 status reporting
   static uint32_t last_perf_report = 0;
   if (current_time - last_perf_report > 5000000) {  // Every 5 seconds
     last_perf_report = current_time;
@@ -130,18 +127,9 @@ void loop() {
     Serial.println("  Free memory: " + String(freeMemory()) + " bytes");
   }
   
-  // Check for critical performance violations
-  if (execution_time > 10000) {  // 10ms is critically slow
-    Serial.println("WARNING: Loop execution time exceeded 10ms (" + String(execution_time) + " us)");
-  }
-  
-  if (loop_frequency < 50.0f) {  // Below 50Hz is critically slow
-    Serial.println("WARNING: Loop frequency below 50Hz (" + String(loop_frequency, 1) + " Hz)");
-  }
-  
-  // Safety check - emergency stop if system becomes completely unresponsive
+  // Safety monitoring - check for critical performance violations
   static uint32_t last_safety_check = 0;
-  if (current_time - last_safety_check > 100000) {  // Every 100ms
+  if (current_time - last_safety_check > 100000) {  // Every 100ms (10Hz)
     last_safety_check = current_time;
     
     // If we can't keep up with basic timing, trigger safety system
@@ -150,6 +138,15 @@ void loop() {
                                        "Critical timing violation: " + String(execution_time) + "us",
                                        execution_time);
     }
+  }
+
+  // Performance warnings
+  if (execution_time > 10000) {  // 10ms is critically slow
+    Serial.println("WARNING: Loop execution time exceeded 10ms (" + String(execution_time) + " us)");
+  }
+  
+  if (loop_frequency < 50.0f) {  // Below 50Hz is critically slow
+    Serial.println("WARNING: Loop frequency below 50Hz (" + String(loop_frequency, 1) + " Hz)");
   }
   
   // Small delay to prevent overwhelming the system
