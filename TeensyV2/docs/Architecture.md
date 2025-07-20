@@ -34,15 +34,15 @@
 ```cpp
 class Module {
 public:
-  static void Setup();           // Initialize all modules
-  static void Loop();            // Execute all modules (target 80-100Hz)
-  virtual bool IsUnsafe();       // Safety violation detection
-  virtual void ResetSafetyFlags(); // Clear recoverable errors
+  static void setupAll();           // Initialize all modules
+  static void loopAll();            // Execute all modules (target 80-100Hz)
+  virtual bool isUnsafe();          // Safety violation detection
+  virtual void resetSafetyFlags();  // Clear recoverable errors
 
 protected:
-  virtual void setup() = 0;      // One-time initialization
-  virtual void loop() = 0;       // High-frequency execution (≤2ms)
-  virtual const char* name() = 0; // Module identification
+  virtual void setup() = 0;         // One-time initialization
+  virtual void loop() = 0;          // High-frequency execution (≤2ms)
+  virtual const char* name() = 0;   // Module identification
 
 private:
   // Performance tracking and statistics
@@ -74,7 +74,7 @@ private:
 class PerformanceMonitor : public Module {
 public:
   // Safety violation when timing constraints violated
-  bool IsUnsafe() override;
+  bool isUnsafe() override;
   
   // Configure thresholds via runtime parameters
   void UpdateConfiguration(const PerformanceConfig& config);
