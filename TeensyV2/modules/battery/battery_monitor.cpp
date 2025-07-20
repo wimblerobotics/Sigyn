@@ -71,7 +71,7 @@ namespace sigyn_teensy {
 // Static member definitions
 BatteryConfig BatteryMonitor::g_battery_config_[kNumberOfBatteries];
 INA226 BatteryMonitor::g_ina226_[kNumberOfBatteries] = {INA226(0x40)};
-uint8_t BatteryMonitor::gINA226_DeviceIndexes_[kNumberOfBatteries];
+uint8_t BatteryMonitor::gINA226_DeviceIndexes_[kNumberOfBatteries] = {2};
 
 BatteryMonitor::BatteryMonitor()
     : multiplexer_available_(false),
