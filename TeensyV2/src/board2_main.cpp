@@ -120,7 +120,7 @@ void loop() {
   last_loop_time = current_time;
 
   // Execute all modules through the module system
-  Module::LoopAll();
+  Module::loopAll();
 
   // Record performance metrics
   uint32_t execution_time = micros() - loop_start_time;
@@ -230,37 +230,22 @@ void serialEvent() {
 }
 
 void setup() {
-  // Initialize serial communication first
-  Serial.begin(921600);
-  while (!Serial && millis() < 3000) {
-    // Wait up to 3 seconds for serial connection
+  // Initialize serial communication for debugging and ROS2 interface
+  Serial.begin(115200);
+  while (!Serial && millis() < 5000) {
+    // Wait for serial port to connect. Needed for native USB only.
   }
 
-  Serial.println("===== TeensyV2 Board 2 (Sensor Board) Starting =====");
-
-  // Get singleton instances (this registers them with the module system)
+  // Initialize modules
   serial_manager = &SerialManager::getInstance();
   performance_monitor = &PerformanceMonitor::getInstance();
   battery_monitor = &BatteryMonitor::getInstance();
 
-  // Initialize serial communication
-  serial_manager->initialize(5000);
+  // Initialize all registered modules
+  Module::setupAll();
 
-  // Configure performance monitoring for sensor board (less stringent than
-  // Board 1) Board 2 can run at lower frequency since it's primarily sensor
-  // monitoring
+  // Initialize system timing
+  last_loop_time = micros();
 
-  // Initialize all modules through the module system
-  Serial.println("Initializing modules...");
-  Module::SetupAll();
-
-  // Initialize timing
-  loop_start_time = micros();
-  last_loop_time = loop_start_time;
-  loop_frequency = 0.0f;
-
-  Serial.println("===== Board 2 Initialization Complete =====");
-  Serial.println("Target loop frequency: 50Hz");
-  Serial.println("Battery monitoring enabled");
-  Serial.println("Ready for sensor data collection");
+  serial_manager->sendMessage("INFO", "Board 2 setup complete");
 }

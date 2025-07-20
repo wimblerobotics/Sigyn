@@ -110,7 +110,7 @@ class Module {
    * 
    * @note This method is blocking and should only be called during startup.
    */
-  static void SetupAll();
+  static void setupAll();
 
   /**
    * @brief Execute one iteration of all registered modules.
@@ -127,7 +127,7 @@ class Module {
    * - Monitors overall loop frequency
    * - Reports statistics periodically
    */
-  static void LoopAll();
+  static void loopAll();
 
   /**
    * @brief Check if any module reports an unsafe condition.
@@ -137,7 +137,7 @@ class Module {
    * 
    * @return true if any module reports unsafe condition, false otherwise
    */
-  static bool IsAnyModuleUnsafe();
+  static bool isAnyModuleUnsafe();
 
   /**
    * @brief Reset safety flags for all modules.
@@ -145,7 +145,7 @@ class Module {
    * Calls ResetSafetyFlags() on all modules to clear recoverable error states.
    * Used during emergency recovery procedures.
    */
-  static void ResetAllSafetyFlags();
+  static void resetAllSafetyFlags();
 
   /**
    * @brief Get performance statistics for all modules.
@@ -155,14 +155,27 @@ class Module {
    * 
    * Format: {"freq":95.2,"modules":[{"name":"Battery","min":0.1,"max":1.8,"avg":0.5},...]}
    */
-  static void GetPerformanceStats(char* stats_json, size_t buffer_size);
+  static void getPerformanceStats(char* stats_json, size_t buffer_size);
 
   /**
    * @brief Get number of registered modules.
    * 
    * @return Number of modules currently registered
    */
-  static uint16_t GetModuleCount() { return module_count_; }
+  static uint16_t getModuleCount() { return module_count_; }
+
+  /**
+   * @brief Get a pointer to a module by its index.
+   * 
+   * @param index The index of the module to retrieve.
+   * @return A pointer to the module, or nullptr if the index is invalid.
+   */
+  static Module* getModule(uint16_t index) {
+    if (index < module_count_) {
+      return modules_[index];
+    }
+    return nullptr;
+  }
 
   /**
    * @brief Check if this specific module reports an unsafe condition.
@@ -178,7 +191,7 @@ class Module {
    * - Sensor communication failure
    * - Temperature exceeding safe limits
    */
-  virtual bool IsUnsafe() { return false; }
+  virtual bool isUnsafe() { return false; }
 
   /**
    * @brief Reset module-specific safety flags.
@@ -191,7 +204,7 @@ class Module {
    * - Reset communication timeout flags when communication resumes
    * - Clear temperature warnings when temperature drops
    */
-  virtual void ResetSafetyFlags() {}
+  virtual void resetSafetyFlags() {}
 
   /**
    * @brief Return the name of this module.
@@ -204,18 +217,26 @@ class Module {
   virtual const char* name() const = 0;
 
   /**
-   * @brief Get performance statistics for this module.
+   * @brief Get the execution time of the last loop for this module.
    * 
-   * @return Reference to module's performance statistics
+   * @return The execution time in microseconds.
    */
-  const PerformanceStats& GetStats() const { return stats_; }
+  float getLastExecutionTimeUs() const { return last_execution_time_us_; }
+
+  /**
+   * @brief Get performance statistics for this module.
+   * @return Const reference to the performance statistics
+   */
+  // const PerformanceStats& getStats() const { return stats_; } // Deprecated
 
  protected:
   /**
-   * @brief Constructor for automatic registration.
+   * @brief Default constructor. Automatically registers the module.
+   * @note This is protected to enforce singleton pattern for derived classes.
    */
   Module();
 
+  // --- Virtual Methods for Derived Classes ---
   /**
    * @brief One-time setup for the module.
    */
@@ -226,44 +247,40 @@ class Module {
    */
   virtual void loop() = 0;
 
- private:
-  // --- Static Helper Functions ---
   /**
-   * @brief Check all modules for performance and safety violations.
+   * @brief Update performance statistics for a module.
+   * 
+   * @param module Pointer to the module instance
+   * @param execution_time_us Execution time of the module's loop in microseconds
    */
-  static void CheckPerformanceAndSafety();
+  static void updatePerformanceStats(Module* module,
+                                     uint32_t execution_time_us);
+
+  // --- Member Variables ---
+  bool is_setup_ = false;               ///< True if the module's setup() has been called
+  float last_execution_time_us_ = 0.0f; ///< Execution time of the last loop in microseconds
+
+ private:
+  // --- Static Helper Methods ---
+  /**
+   * @brief Check performance and safety for all modules.
+   */
+  static void checkPerformanceAndSafety();
 
   /**
    * @brief Report performance statistics for all modules.
    */
-  static void ReportPerformanceStats();
+  static void reportPerformanceStats();
 
-  /**
-   * @brief Update performance statistics for a single module.
-   * @param module Pointer to the module to update.
-   * @param execution_time_us Execution time for the last loop in microseconds.
-   */
-  static void UpdatePerformanceStats(Module* module, uint32_t execution_time_us);
-
-  /**
-   * @brief True if the module's setup() has been called.
-   */
-  bool is_setup_ = false;
-
+  // --- Static Member Variables ---
   /**
    * @brief Array of registered module instances.
    */
   static Module* modules_[kMaxModules];    ///< Array of registered modules
   static uint16_t module_count_;           ///< Number of registered modules
-
-  // Performance monitoring
   static uint32_t total_loop_count_;       ///< Total loops executed
   static uint32_t last_stats_report_ms_;   ///< Timestamp of last statistics report
   static uint32_t loop_start_time_us_;     ///< Start time of current loop iteration
-
-  // Per-module performance tracking
-  PerformanceStats stats_;                 ///< This module's performance statistics
-  uint32_t last_execution_time_us_;       ///< Last measured execution time
 };
 
 }  // namespace sigyn_teensy

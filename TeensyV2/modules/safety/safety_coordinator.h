@@ -130,54 +130,123 @@ class SafetyCoordinator : public Module {
 
   // --- Public API ---
   /**
-   * @brief Check if E-stop is currently active.
-   * @return True if E-stop is active
+   * @brief Check all safety conditions and update system state.
+   * 
+   * This method is called automatically by the main loop and should not be
+   * called directly by other modules.
    */
-  bool isEstopActive() const;
+  void checkSafetyStatus();
 
   /**
-   * @brief Trigger a software E-stop.
+   * @brief Trigger an emergency stop from a software source.
    * @param source The source of the E-stop request
-   * @param description A description of the reason for the E-stop
+   * @param description A human-readable description of the reason
    */
   void triggerEstop(EstopSource source, const String& description);
 
   /**
-   * @brief Attempt to clear an E-stop condition.
-   * @return True if E-stop was successfully cleared
+   * @brief Attempt to recover from an E-stop condition.
+   * 
+   * This method will only succeed if all underlying safety conditions have
+   * been cleared.
    */
-  bool clearEstop();
+  void attemptRecovery();
 
   /**
-   * @brief Return the name of this module.
+   * @brief Get the current safety state of the system.
+   * @return The current safety state
+   */
+  SafetyState getSafetyState() const;
+
+  /**
+   * @brief Get the current E-stop condition.
+   * @return Const reference to the current E-stop condition
+   */
+  const EstopCondition& getEstopCondition() const;
+
+  // --- Module Overrides ---
+  /**
+   * @brief Get the name of this module.
+   * @return "SafetyCoordinator"
    */
   const char* name() const override;
 
+  /**
+   * @brief Check if the system is in an unsafe state.
+   * @return True if an E-stop condition is active, false otherwise
+   */
+  bool isUnsafe() override;
+
+  /**
+   * @brief Reset all safety flags and attempt recovery.
+   */
+  void resetSafetyFlags() override;
+
  protected:
   // --- Module Overrides ---
+  /**
+   * @brief Initialize safety coordinator module.
+   * 
+   * This method is called once at startup to initialize the module.
+   */
   void setup() override;
+
+  /**
+   * @brief Main loop for safety coordination.
+   * 
+   * This method is called automatically by the main loop. It checks all
+   * safety conditions and manages the system's safety state.
+   */
   void loop() override;
 
  private:
-  // --- Private Constructor ---
+  // --- Singleton Implementation ---
+  /**
+   * @brief Private constructor for singleton pattern.
+   */
   SafetyCoordinator();
-  ~SafetyCoordinator() = default;
   SafetyCoordinator(const SafetyCoordinator&) = delete;
   SafetyCoordinator& operator=(const SafetyCoordinator&) = delete;
 
-  // --- Member Functions ---
-  void checkEstopConditions();
-  void updateSafetyState();
-  void sendHeartbeat();
-  void checkHeartbeat();
+  // --- Private Methods ---
+  /**
+   * @brief Check for hardware E-stop button press.
+   */
+  void checkHardwareEstop();
 
-  // --- Data Members ---
-  SafetyConfig config_;
-  SafetyState current_state_;
-  EstopCondition estop_conditions_[10];  // Array to hold multiple E-stop sources
-  uint8_t estop_condition_count_ = 0;
-  uint32_t last_estop_check_time_ms_ = 0;
-  uint32_t last_heartbeat_time_ms_ = 0;
+  /**
+   * @brief Check for safety signals from other boards.
+   */
+  void checkInterBoardSafety();
+
+  /**
+   * @brief Check for safety violations from other modules.
+   */
+  void checkModuleSafety();
+
+  /**
+   * @brief Activate the E-stop state.
+   * @param source The source of the E-stop
+   * @param description A description of the reason
+   */
+  void activateEstop(EstopSource source, const String& description);
+
+  /**
+   * @brief Deactivate the E-stop state.
+   */
+  void deactivateEstop();
+
+  /**
+   * @brief Send a status update via SerialManager.
+   */
+  void sendStatusUpdate();
+
+  // --- Member Variables ---
+  SafetyConfig config_;                   ///< Safety configuration
+  SafetyState current_state_;             ///< Current safety state
+  EstopCondition estop_condition_;        ///< Current E-stop condition
+  uint32_t last_check_time_ms_ = 0;       ///< Timestamp of last safety check
+  uint32_t last_status_update_ms_ = 0;    ///< Timestamp of last status update
 };
 
 }  // namespace sigyn_teensy

@@ -11,23 +11,25 @@
 
 namespace sigyn_teensy {
 
-PerformanceMonitor::PerformanceMonitor()
-    : loop_start_time_us_(0),
-      last_stats_send_time_ms_(0),
-      module_start_time_us_(0),
-      current_module_name_(nullptr) {}
-
-void PerformanceMonitor::beginModule(const char* module_name) {
-  module_start_time_us_ = micros();
-  current_module_name_ = module_name;
+PerformanceMonitor::PerformanceMonitor() {
+  // Constructor body can be empty if all initialization is done in the
+  // initializer list
 }
 
 void PerformanceMonitor::checkLoopFrequency() {
-  uint32_t loop_time_us = micros() - loop_start_time_us_;
-  float loop_frequency_hz = 1000000.0f / loop_time_us;
+  uint32_t now_us = micros();
+  if (last_loop_start_time_us_ > 0) {
+    uint32_t loop_duration_us = now_us - last_loop_start_time_us_;
+    if (loop_duration_us > 0) {
+      current_loop_frequency_hz_ = 1000000.0f / loop_duration_us;
+    }
+  }
+  last_loop_start_time_us_ = now_us;
 
-  if (loop_frequency_hz < config_.min_loop_frequency_hz) {
-    violations_.consecutive_frequency_violations++;
+  if (current_loop_frequency_hz_ < config_.min_loop_frequency_hz) {
+    if (violations_.consecutive_frequency_violations < 255) {
+      violations_.consecutive_frequency_violations++;
+    }
     violations_.total_frequency_violations++;
     violations_.last_violation_time_ms = millis();
   } else {
@@ -35,18 +37,50 @@ void PerformanceMonitor::checkLoopFrequency() {
   }
 }
 
-void PerformanceMonitor::endModule(const char* module_name) {
-  uint32_t module_time_us = micros() - module_start_time_us_;
-  float module_time_ms = module_time_us / 1000.0f;
+void PerformanceMonitor::checkModuleExecutionTimes() {
+  bool any_module_violated = false;
+  for (uint16_t i = 0; i < Module::getModuleCount(); ++i) {
+    Module* mod = Module::getModule(i);
+    if (mod) {
+      float execution_time_ms = mod->getLastExecutionTimeUs() / 1000.0f;
+      if (execution_time_ms > config_.max_module_time_ms) {
+        any_module_violated = true;
+        // Optional: Log which module violated
+        if (config_.enable_detailed_logging) {
+          char log_msg[64];
+          snprintf(log_msg, sizeof(log_msg), "Module %s exceeded time limit: %.2fms", mod->name(), execution_time_ms);
+          SerialManager::getInstance().sendMessage("WARN", log_msg);
+        }
+      }
+    }
+  }
 
-  if (module_time_ms > config_.max_module_time_ms) {
-    violations_.consecutive_module_violations++;
+  if (any_module_violated) {
+    if (violations_.consecutive_module_violations < 255) {
+      violations_.consecutive_module_violations++;
+    }
     violations_.total_module_violations++;
     violations_.last_violation_time_ms = millis();
   } else {
     violations_.consecutive_module_violations = 0;
   }
-  current_module_name_ = nullptr;
+}
+
+void PerformanceMonitor::checkPerformance() {
+  checkLoopFrequency();
+  checkModuleExecutionTimes();
+
+  if (violations_.consecutive_frequency_violations >=
+          config_.max_frequency_violations ||
+      violations_.consecutive_module_violations >= config_.max_violation_count) {
+    violations_.safety_violation_active = true;
+  } else {
+    violations_.safety_violation_active = false;
+  }
+}
+
+const PerformanceConfig& PerformanceMonitor::getConfig() const {
+  return config_;
 }
 
 PerformanceMonitor& PerformanceMonitor::getInstance() {
@@ -54,31 +88,57 @@ PerformanceMonitor& PerformanceMonitor::getInstance() {
   return instance;
 }
 
+const ViolationTracker& PerformanceMonitor::getViolations() const {
+  return violations_;
+}
+
+bool PerformanceMonitor::isUnsafe() {
+  return violations_.safety_violation_active;
+}
+
 void PerformanceMonitor::loop() {
-  loop_start_time_us_ = micros();
+  // The main work is done in CheckPerformance, which is called from the main
+  // loop after all modules have run.
+  checkPerformance();
 
-  checkLoopFrequency();
-
-  if (millis() - last_stats_send_time_ms_ > config_.stats_report_interval_ms) {
-    sendStatistics();
-    last_stats_send_time_ms_ = millis();
+  uint32_t now = millis();
+  if (now - last_stats_report_ms_ >= config_.stats_report_interval_ms) {
+    reportStats();
+    last_stats_report_ms_ = now;
   }
 }
 
-const char* PerformanceMonitor::name() const {
-  return "PerformanceMonitor";
+const char* PerformanceMonitor::name() const { return "PerformanceMonitor"; }
+
+void PerformanceMonitor::getPerformanceStats(char* buffer, size_t size) {
+  snprintf(buffer, size, "{\"freq\":%.1f, \"mod_viol\":%lu, \"freq_viol\":%lu}",
+           current_loop_frequency_hz_,
+           (unsigned long)violations_.total_module_violations,
+           (unsigned long)violations_.total_frequency_violations);
 }
 
-void PerformanceMonitor::sendStatistics() {
-  char stats_msg[128];
-  snprintf(stats_msg, sizeof(stats_msg), "freq_viol=%d, mod_viol=%d",
-           violations_.consecutive_frequency_violations,
-           violations_.consecutive_module_violations);
-  SerialManager::getInstance().sendMessage("PERF_STATS", stats_msg);
+void PerformanceMonitor::reportStats() {
+  char stats_json[256];
+  getPerformanceStats(stats_json, sizeof(stats_json));
+  SerialManager::getInstance().sendMessage("PERF", stats_json);
+}
+
+void PerformanceMonitor::resetSafetyFlags() {
+  violations_.consecutive_frequency_violations = 0;
+  violations_.consecutive_module_violations = 0;
+  violations_.safety_violation_active = false;
+  // We keep total violations for long-term diagnostics, but they could be
+  // reset here if needed.
 }
 
 void PerformanceMonitor::setup() {
-  // Initialization code for PerformanceMonitor, if any
+  // Initialization code for PerformanceMonitor, if any.
+  // For example, load configuration from EEPROM or set initial values.
+  last_stats_report_ms_ = millis();
+}
+
+void PerformanceMonitor::updateConfig(const PerformanceConfig& new_config) {
+  config_ = new_config;
 }
 
 }  // namespace sigyn_teensy
