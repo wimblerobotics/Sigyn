@@ -41,7 +41,8 @@
     "cmath": "cpp",
     "complex": "cpp",
     "compare": "cpp",
-    "system_error": "cpp"
+    "system_error": "cpp",
+    "typeinfo": "cpp"
   },
   "extensions.ignoreRecommendations": true,
   "clangd.enable": false,
