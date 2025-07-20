@@ -22,7 +22,7 @@
  * - loop(): Must complete in ≤2ms (called at 80-100Hz)
  * - Use non-blocking operations and state machines for complex tasks
  * 
- * @author Sigyn Robotics
+ * @author Wimble Robotics
  * @date 2025
  */
 

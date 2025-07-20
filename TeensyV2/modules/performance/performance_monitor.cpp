@@ -2,7 +2,7 @@
  * @file performance_monitor.cpp
  * @brief Implementation of real-time performance monitoring
  * 
- * @author Sigyn Robotics
+ * @author Wimble Robotics
  * @date 2025
  */
 

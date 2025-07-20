@@ -19,7 +19,7 @@
  * implementing IsUnsafe() to report when performance violations reach
  * critical levels that could compromise robot safety.
  * 
- * @author Sigyn Robotics
+ * @author Wimble Robotics
  * @date 2025
  */
 
@@ -128,25 +128,6 @@ class PerformanceMonitor : public Module {
   void ResetViolationCounters();
 
   /**
-   * @brief Check if performance violations have reached unsafe levels.
-   * 
-   * Returns true when consecutive performance violations exceed configured
-   * thresholds, indicating that real-time constraints are compromised
-   * to a degree that could affect robot safety.
-   * 
-   * @return true if performance violations are safety-critical
-   */
-  bool IsUnsafe() override;
-
-  /**
-   * @brief Reset safety-related performance flags.
-   * 
-   * Clears safety violation flags when system performance returns to
-   * acceptable levels. Called by safety recovery procedures.
-   */
-  void ResetSafetyFlags() override;
-
-  /**
    * @brief Force generation of detailed performance report.
    * 
    * Immediately generates and sends a comprehensive performance report
@@ -160,30 +141,12 @@ class PerformanceMonitor : public Module {
    */
   void PrintMetrics() const;
 
- protected:
-  /**
-   * @brief One-time initialization of performance monitoring.
-   * 
-   * Sets up monitoring parameters and initializes tracking variables.
-   * Called once during system startup.
-   */
+  // Module interface implementation
   void setup() override;
-
-  /**
-   * @brief Main performance monitoring loop.
-   * 
-   * Analyzes current system performance, detects violations, and
-   * generates reports. This method itself must be very fast (≤1ms)
-   * to avoid affecting the performance it monitors.
-   */
   void loop() override;
-
-  /**
-   * @brief Get module name for identification.
-   * 
-   * @return Module name string "PerformanceMonitor"
-   */
   const char* name() const override { return "PerformanceMonitor"; }
+  bool IsUnsafe() override;
+  void ResetSafetyFlags() override;
 
  private:
   /**
@@ -244,10 +207,6 @@ class PerformanceMonitor : public Module {
   static constexpr size_t kMaxTrackedModules = 16;
   ModulePerformanceHistory module_history_[kMaxTrackedModules];
   size_t tracked_module_count_;
-
-  // Prevent copying
-  PerformanceMonitor(const PerformanceMonitor&) = delete;
-  PerformanceMonitor& operator=(const PerformanceMonitor&) = delete;
 };
 
 }  // namespace sigyn_teensy

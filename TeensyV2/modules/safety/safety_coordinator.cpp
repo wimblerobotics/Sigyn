@@ -2,7 +2,7 @@
  * @file safety_coordinator.cpp
  * @brief Implementation of central safety coordination system
  * 
- * @author Sigyn Robotics
+ * @author Wimble Robotics
  * @date 2025
  */
 

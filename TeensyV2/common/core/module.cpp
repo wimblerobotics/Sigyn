@@ -5,7 +5,7 @@
  * Provides automatic module registration, performance monitoring, and
  * safety coordination for the real-time embedded framework.
  * 
- * @author Sigyn Robotics
+ * @author Wimble Robotics
  * @date 2025
  */
 

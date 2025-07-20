@@ -1,3 +1,6 @@
+#include <Arduino.h>
+#include <cstdint>
+
 /**
  * @file board2_main.ino
  // Core TeensyV2 system
@@ -31,7 +34,7 @@ board (Board 2) for TeensyV2 system
  * - IMU data collection: 100Hz for navigation
  * - Safety reporting: 20Hz to Board 1
  *
- * @author Sigyn Robotics
+ * @author Wimble Robotics
  * @date 2025
  */
 
@@ -119,18 +122,7 @@ void loop() {
   static uint32_t last_status_report = 0;
   // if (current_time - last_status_report > 10000000) {  // Every 10 seconds
   //   last_status_report = current_time;
-  //   Serial.println("Board2 Status:");
-  //   Serial.println("  Loop frequency: " + String(loop_frequency, 1) + " Hz");
-  //   Serial.println("  Execution time: " + String(execution_time) + " us");
-  //   Serial.println("  Battery voltage: " +
-  //                  String(battery_monitor->GetVoltage(), 2) + " V");
-  //   Serial.println("  Battery current: " +
-  //                  String(battery_monitor->GetCurrent(), 2) + " A");
-  //   Serial.println("  Battery state: " +
-  //                  String(static_cast<int>(battery_monitor->GetState())));
-  //   Serial.println("  Sensor health: " +
-  //                  String(battery_monitor->IsSensorHealthy() ? "OK" : "FAIL"));
-  //   Serial.println("  Free memory: " + String(freeMemory()) + " bytes");
+  //   // Add any 10-second reporting tasks here
   // }
 
   // Safety monitoring - check for critical battery conditions

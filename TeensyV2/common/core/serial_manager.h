@@ -21,7 +21,7 @@
  * - IMU:id=0,qx=0.1,qy=0.2,qz=0.3,qw=0.9
  * - ESTOP:active=true,source=motor,reason=overcurrent
  *
- * @author Sigyn Robotics
+ * @author Wimble Robotics
  * @date 2025
  */
 

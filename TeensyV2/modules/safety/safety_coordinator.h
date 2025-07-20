@@ -21,7 +21,7 @@
  * - Graceful degradation for non-critical issues
  * - Full system shutdown for emergency conditions
  * 
- * @author Sigyn Robotics
+ * @author Wimble Robotics
  * @date 2025
  */
 
@@ -244,7 +244,6 @@ class SafetyCoordinator : public Module {
    */
   bool IsHardwareEstopPressed() const;
 
- protected:
   // Module interface implementation
   void setup() override;
   void loop() override;
@@ -257,6 +256,10 @@ class SafetyCoordinator : public Module {
    * @brief Private constructor for singleton pattern.
    */
   SafetyCoordinator();
+
+  // Prevent copying
+  SafetyCoordinator(const SafetyCoordinator&) = delete;
+  SafetyCoordinator& operator=(const SafetyCoordinator&) = delete;
 
   /**
    * @brief Initialize hardware pins for safety monitoring.

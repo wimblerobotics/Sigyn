@@ -2,7 +2,7 @@
  * @file serial_manager.cpp
  * @brief Implementation of efficient serial communication for TeensyV2
  *
- * @author Sigyn Robotics
+ * @author Wimble Robotics
  * @date 2025
  */
 
