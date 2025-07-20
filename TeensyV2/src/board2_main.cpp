@@ -78,7 +78,7 @@ void fault_handler() {
   // Send fault notification if possible
   if (serial_manager) {
     String fault_msg = "type=system,board=2,time=" + String(millis());
-    serial_manager->SendMessage("FAULT", fault_msg.c_str());
+    serial_manager->sendMessage("FAULT", fault_msg.c_str());
   }
 
   // For Board 2, we don't have direct E-stop control, but we should signal
@@ -161,13 +161,13 @@ void loop() {
           String safety_msg = "board=2,critical=true,reason=battery";
           if (!isnan(voltage)) safety_msg += ",voltage=" + String(voltage, 2);
           if (!isnan(current)) safety_msg += ",current=" + String(current, 2);
-          serial_manager->SendMessage("SAFETY_CRITICAL", safety_msg.c_str());
+          serial_manager->sendMessage("SAFETY_CRITICAL", safety_msg.c_str());
         }
       } else {
         Serial.println("SAFETY: Battery condition returned to normal");
 
         if (serial_manager) {
-          serial_manager->SendMessage(
+          serial_manager->sendMessage(
               "SAFETY_CRITICAL",
               "board=2,critical=false,reason=battery_recovered");
         }
@@ -225,7 +225,7 @@ void processSensorData() {
  */
 void serialEvent() {
   if (serial_manager) {
-    serial_manager->ProcessIncomingMessages();
+    serial_manager->processIncomingMessages();
   }
 }
 
@@ -239,15 +239,12 @@ void setup() {
   Serial.println("===== TeensyV2 Board 2 (Sensor Board) Starting =====");
 
   // Get singleton instances (this registers them with the module system)
-  serial_manager = &SerialManager::GetInstance();
-  performance_monitor = &PerformanceMonitor::GetInstance();
-  battery_monitor = &BatteryMonitor::GetInstance();
+  serial_manager = &SerialManager::getInstance();
+  performance_monitor = &PerformanceMonitor::getInstance();
+  battery_monitor = &BatteryMonitor::getInstance();
 
   // Initialize serial communication
-  if (!serial_manager->Initialize(5000)) {
-    Serial.println("ERROR: Failed to initialize serial communication");
-    // Continue anyway - might be running without PC connection
-  }
+  serial_manager->initialize(5000);
 
   // Configure performance monitoring for sensor board (less stringent than
   // Board 1) Board 2 can run at lower frequency since it's primarily sensor

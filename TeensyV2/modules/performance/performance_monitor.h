@@ -78,62 +78,63 @@ struct ViolationTracker {
  * 
  * Example usage:
  * @code
- * // In main program initialization:
- * PerformanceMonitor& perf_monitor = PerformanceMonitor::GetInstance();
- * 
- * // The monitor automatically tracks performance via the Module system
- * // and reports violations through IsUnsafe() and diagnostic messages
+ *   PerformanceMonitor& monitor = PerformanceMonitor::GetInstance();
+ *   monitor.beginModule("MyModule");
+ *   // ... module code ...
+ *   monitor.endModule("MyModule");
  * @endcode
  */
 class PerformanceMonitor : public Module {
  public:
   // --- Singleton Access ---
   /**
-   * @brief Get the singleton instance of PerformanceMonitor.
-   * @return Reference to the singleton PerformanceMonitor instance
+   * @brief Get singleton instance of PerformanceMonitor.
+   * @return Reference to singleton PerformanceMonitor
    */
-  static PerformanceMonitor& GetInstance();
+  static PerformanceMonitor& getInstance();
 
-  // --- Module Interface ---
-  bool IsUnsafe() override;
-  void loop() override;
-  const char* name() const override { return "PerformanceMonitor"; }
-  void ResetSafetyFlags() override;
+  // --- Public API ---
+  /**
+   * @brief Mark the start of a module's execution for timing.
+   * @param module_name Name of the module
+   */
+  void beginModule(const char* module_name);
+
+  /**
+   * @brief Mark the end of a module's execution and record timing.
+   * @param module_name Name of the module
+   */
+  void endModule(const char* module_name);
+
+  /**
+   * @brief Return the name of this module.
+   */
+  const char* name() const override;
+
+ protected:
+  // --- Module Overrides ---
   void setup() override;
-
-  // --- Public Methods ---
-  void GenerateDetailedReport();
-  const PerformanceConfig& GetConfiguration() const { return config_; }
-  const ViolationTracker& GetViolationStatus() const { return violations_; }
-  void PrintMetrics() const;
-  void ResetViolationCounters();
-  bool UpdateConfiguration(const PerformanceConfig& config);
+  void loop() override;
 
  private:
-  // --- Private constructor for Singleton ---
+  // --- Private Constructor ---
   PerformanceMonitor();
+  ~PerformanceMonitor() = default;
   PerformanceMonitor(const PerformanceMonitor&) = delete;
   PerformanceMonitor& operator=(const PerformanceMonitor&) = delete;
 
-  // --- Private Methods ---
-  void CheckLoopFrequency();
-  void CheckModulePerformance();
-  void ProcessViolation(const char* violation_type, const char* details);
-  void SendPerformanceReport();
-  bool ValidateConfiguration(const PerformanceConfig& config) const;
+  // --- Member Functions ---
+  void checkLoopFrequency();
+  void sendStatistics();
 
-  // --- Static Members ---
-  static PerformanceMonitor* instance_;
-  static constexpr size_t kMaxTrackedModules = 16;
-
-  // --- Member Variables ---
+  // --- Data Members ---
   PerformanceConfig config_;
-  float current_loop_frequency_;
-  uint32_t last_loop_time_us_;
-  uint32_t last_report_time_ms_;
-  uint32_t loop_count_since_report_;
-  size_t tracked_module_count_;
   ViolationTracker violations_;
+
+  uint32_t loop_start_time_us_ = 0;
+  uint32_t last_stats_send_time_ms_ = 0;
+  uint32_t module_start_time_us_ = 0;
+  const char* current_module_name_ = nullptr;
 };
 
 }  // namespace sigyn_teensy

@@ -18,7 +18,9 @@ INA226 BatteryMonitor::g_ina226_[kNumberOfBatteries] = {INA226(0x40)};
 uint8_t BatteryMonitor::gINA226_DeviceIndexes_[kNumberOfBatteries];
 
 BatteryMonitor::BatteryMonitor()
-    : setup_completed_(false), multiplexer_available_(false) {
+    : multiplexer_available_(false),
+      setup_completed_(false) {
+  // Initialize EMA arrays
   for (size_t i = 0; i < kNumberOfBatteries; i++) {
     voltage_ema_[i] = 0.0f;
     current_ema_[i] = 0.0f;
@@ -27,7 +29,7 @@ BatteryMonitor::BatteryMonitor()
   }
 }
 
-float BatteryMonitor::EstimateChargePercentage(float voltage) const {
+float BatteryMonitor::estimateChargePercentage(float voltage) const {
   // Simple linear approximation for Li-ion battery pack
   // Adjust these values based on actual battery characteristics
   constexpr float empty_voltage = 32.0f;  // 0% charge
@@ -44,7 +46,7 @@ float BatteryMonitor::EstimateChargePercentage(float voltage) const {
 
 float BatteryMonitor::getCurrent(size_t idx) const { return current_ema_[idx]; }
 
-BatteryMonitor& BatteryMonitor::GetInstance() {
+BatteryMonitor& BatteryMonitor::getInstance() {
   static BatteryMonitor instance;
   return instance;
 }
@@ -77,7 +79,7 @@ void BatteryMonitor::loop() {
             current_ema_[battery_idx], current, kDefaultCurrentAlpha);
       }
 
-      UpdateBatteryState(battery_idx);
+      updateBatteryState(battery_idx);
       total_readings_[battery_idx]++;
     }
 
@@ -88,7 +90,7 @@ void BatteryMonitor::loop() {
   if ((now_ms - last_message_send_time_ms_) > MAIN_BATTERY_REPORT_INTERVAL_MS) {
     for (size_t device_index = 0; device_index < kNumberOfBatteries;
          device_index++) {
-      SendStatusMessage(device_index);
+      sendStatusMessage(device_index);
     }
     last_message_send_time_ms_ = now_ms;
   }
@@ -104,47 +106,15 @@ void BatteryMonitor::selectSensor(size_t battery_idx) const {
   delayMicroseconds(100);
 }
 
-void BatteryMonitor::SendStatusMessage(size_t idx) {
-  // Create status message with all battery data
-  String message = "id=" + String(idx);
+void BatteryMonitor::sendStatusMessage(size_t idx) {
+  // Create a JSON-like string for the battery status
+  String message = "idx:" + String(idx) +
+                   ",V:" + String(getVoltage(idx), 2) +
+                   ",A:" + String(getCurrent(idx), 2) +
+                   ",charge:" + String(estimateChargePercentage(getVoltage(idx))) +
+                   ",state:" + String((int)state_[idx]);
 
-  if (!isnan(getVoltage(idx))) {
-    message += ",v=" + String(voltage_ema_[idx], 2);
-  }
-
-  if (!isnan(getCurrent(idx))) {
-    message += ",c=" + String(current_ema_[idx], 3);
-  }
-
-  float charge_percentage = EstimateChargePercentage(getVoltage(idx));
-  if (!isnan(charge_percentage)) {
-    message += ",pct=" + String(charge_percentage, 2);
-  }
-
-  // Add state information
-  message += ",state=";
-  switch (state_[idx]) {
-    case BatteryState::UNKNOWN:
-      message += "UNKNOWN";
-      break;
-    case BatteryState::CHARGING:
-      message += "CHARGING";
-      break;
-    case BatteryState::DISCHARGING:
-      message += "DISCHARGING";
-      break;
-    case BatteryState::CRITICAL:
-      message += "CRITICAL";
-      break;
-    case BatteryState::WARNING:
-      message += "WARNING";
-      break;
-    case BatteryState::NORMAL:
-      message += "NORMAL";
-      break;
-  }
-
-  SerialManager::GetInstance().SendMessage("BATT", message.c_str());
+  SerialManager::getInstance().sendMessage("BATT", message.c_str());
 }
 
 void BatteryMonitor::setup() {
@@ -153,9 +123,9 @@ void BatteryMonitor::setup() {
   digitalWrite(kI2CMultiplexorEnablePin, HIGH);
   Wire.begin();
   Wire.setClock(400000);
-  multiplexer_available_ = testI2CMultiplexer();
+  multiplexer_available_ = testI2cMultiplexer();
   if (!multiplexer_available_) {
-    SerialManager::GetInstance().SendMessage(
+    SerialManager::getInstance().sendMessage(
         "FATAL", "BatteryMonitor setup failed: I2C multiplexer not available");
     return;
   }
@@ -167,7 +137,7 @@ void BatteryMonitor::setup() {
     if (!g_ina226_[device].begin()) {
       String message =
           "INA226 sensor initialization failed for device " + String(device);
-      SerialManager::GetInstance().SendMessage("FATAL", message.c_str());
+      SerialManager::getInstance().sendMessage("FATAL", message.c_str());
       return;
     }
 
@@ -176,31 +146,30 @@ void BatteryMonitor::setup() {
   setup_completed_ = true;
 }
 
-bool BatteryMonitor::testI2CMultiplexer() {
-  Wire.beginTransmission(
-      I2C_MULTIPLEXER_ADDRESS);  // I2C_MULTIPLEXER_ADDRESS, adjust as needed
+bool BatteryMonitor::testI2cMultiplexer() {
+  Wire.beginTransmission(I2C_MULTIPLEXER_ADDRESS);
   uint8_t error = Wire.endTransmission();
   char message[128];
   if (error == 0) {
     snprintf(message, sizeof(message),
-             "[BatteryMonitor::testI2CMultiplexer] I2C multiplexer found at "
+             "[BatteryMonitor::testI2cMultiplexer] I2C multiplexer found at "
              "address 0x%02X",
              I2C_MULTIPLEXER_ADDRESS);
-    SerialManager::GetInstance().SendMessage("INFO", message);
+    SerialManager::getInstance().sendMessage("INFO", message);
     return true;
   } else {
     snprintf(
         message, sizeof(message),
-        "[BatteryMonitor::testI2CMultiplexer] I2C multiplexer NOT found at "
+        "[BatteryMonitor::testI2cMultiplexer] I2C multiplexer NOT found at "
         "address 0x%02X (error: %d)",
         I2C_MULTIPLEXER_ADDRESS, error);
     // Log error message
-    SerialManager::GetInstance().SendMessage("FATAL", message);
+    SerialManager::getInstance().sendMessage("FATAL", message);
     return false;
   }
 }
 
-void BatteryMonitor::UpdateBatteryState(size_t idx) {
+void BatteryMonitor::updateBatteryState(size_t idx) {
   float voltage = getVoltage(idx);
   float current = getCurrent(idx);
 
@@ -209,8 +178,7 @@ void BatteryMonitor::UpdateBatteryState(size_t idx) {
     state_[idx] = BatteryState::CRITICAL;
   } else if (voltage < config_.warning_low_voltage) {
     state_[idx] = BatteryState::WARNING;
-  } else if (current > 0.1f)  // Simple charging detection
-  {
+  } else if (current > config_.high_current_threshold) {
     state_[idx] = BatteryState::CHARGING;
   } else {
     state_[idx] = BatteryState::NORMAL;
