@@ -303,6 +303,13 @@ class BatteryMonitor : public Module {
   void sendStatusMessage(size_t idx);
 
   /**
+   * @brief Convert BatteryState enum to string representation.
+   * @param state Battery state enum value
+   * @return String representation of battery state
+   */
+  const char* batteryStateToString(BatteryState state) const;
+
+  /**
    * @brief Update battery state for specified battery index.
    * @param idx Battery index
    */
