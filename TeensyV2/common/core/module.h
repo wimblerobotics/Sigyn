@@ -29,7 +29,9 @@
 #pragma once
 
 #include "Arduino.h"
-
+#include <cstdint>
+#include <cstddef>
+#include <cmath>
 namespace sigyn_teensy {
 
 /**
