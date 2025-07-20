@@ -98,106 +98,86 @@ struct SafetyConfig {
 };
 
 /**
- * @brief Central safety coordination system for TeensyV2.
+ * @brief Central safety coordinator for TeensyV2 system.
  * 
- * Manages all E-stop conditions and safety states across the system.
- * Coordinates between multiple boards and provides unified safety reporting
- * to the ROS2 system. Implements both automatic and manual recovery mechanisms.
+ * Manages E-stop conditions from multiple sources, coordinates safety
+ * state across all modules, and provides graceful recovery mechanisms.
  * 
- * Key features:
- * - Centralized E-stop condition tracking from all sources
- * - Hardware and software E-stop input handling
- * - Inter-board safety coordination via GPIO signals
- * - Automatic recovery for transient conditions
- * - Manual recovery for persistent safety issues
- * - Real-time safety status reporting
+ * Key responsibilities:
+ * - Monitor hardware and software E-stop signals
+ * - Aggregate safety status from all registered modules
+ * - Trigger system-wide E-stop when safety is compromised
+ * - Coordinate safety state with other Teensy boards
+ * - Manage graceful recovery from transient faults
+ * - Provide detailed diagnostic information for safety events
  * 
- * Safety Philosophy:
- * - Fail-safe: Default to stopped state on any safety condition
- * - Transparent: All safety conditions visible and trackable
- * - Recoverable: Automatic recovery when conditions clear
- * - Coordinated: Multi-board systems work together
- * 
- * Usage:
+ * Example usage:
  * @code
- * // Get singleton instance (automatically registers with module system)
- * SafetyCoordinator& safety = SafetyCoordinator::GetInstance();
- * 
- * // Trigger E-stop from module
- * safety.TriggerEstop(EstopSource::BATTERY_LOW_VOLTAGE, "Voltage: 31.2V", 31.2f);
- * 
- * // Check if recovery is needed
- * if (safety.GetSafetyState() == SafetyState::EMERGENCY_STOP) {
- *   safety.AttemptRecovery(EstopSource::BATTERY_LOW_VOLTAGE);
- * }
+ *   SafetyCoordinator& safety = SafetyCoordinator::GetInstance();
+ *   if (safety.IsEstopActive()) {
+ *     // Halt motors and critical systems
+ *   }
  * @endcode
  */
 class SafetyCoordinator : public Module {
  public:
-  // --- Constants ---
-  /**
-   * @brief Maximum number of E-stop conditions to track simultaneously.
-   */
-  static constexpr size_t kMaxEstopConditions = 16;
-
   // --- Singleton Access ---
   /**
-   * @brief Get the singleton instance of SafetyCoordinator.
-   * @return Reference to the singleton SafetyCoordinator instance
+   * @brief Get singleton instance of SafetyCoordinator.
+   * @return Reference to singleton SafetyCoordinator
    */
-  static SafetyCoordinator& GetInstance();
+  static SafetyCoordinator& getInstance();
 
-  // --- Module Interface ---
-  bool IsUnsafe() override;
-  void loop() override;
-  const char* name() const override { return "SafetyCoordinator"; }
-  void ProcessMessage(const String& message);
+  // --- Public API ---
+  /**
+   * @brief Check if E-stop is currently active.
+   * @return True if E-stop is active
+   */
+  bool isEstopActive() const;
+
+  /**
+   * @brief Trigger a software E-stop.
+   * @param source The source of the E-stop request
+   * @param description A description of the reason for the E-stop
+   */
+  void triggerEstop(EstopSource source, const String& description);
+
+  /**
+   * @brief Attempt to clear an E-stop condition.
+   * @return True if E-stop was successfully cleared
+   */
+  bool clearEstop();
+
+  /**
+   * @brief Return the name of this module.
+   */
+  const char* name() const override;
+
+ protected:
+  // --- Module Overrides ---
   void setup() override;
-
-  // --- Public Methods ---
-  uint8_t AttemptAutoRecovery();
-  bool ClearEstop(EstopSource source);
-  void Configure(const SafetyConfig& config);
-  void ForceShutdown(const String& reason);
-  uint8_t GetActiveConditions(EstopCondition* active_conditions, uint8_t max_conditions) const;
-  SafetyState GetSafetyState() const { return current_safety_state_; }
-  String GetSafetyStatusDescription() const;
-  bool IsEstopActive() const;
-  bool IsHardwareEstopPressed() const;
-  bool ManualReset(EstopSource source, bool force_reset = false);
-  void SetEstopSourceEnabled(EstopSource source, bool enabled);
-  void TriggerEstop(EstopSource source, 
-                    const String& description, 
-                    float trigger_value = NAN,
-                    bool requires_manual_reset = false);
+  void loop() override;
 
  private:
-  // --- Private constructor for Singleton ---
+  // --- Private Constructor ---
   SafetyCoordinator();
+  ~SafetyCoordinator() = default;
   SafetyCoordinator(const SafetyCoordinator&) = delete;
   SafetyCoordinator& operator=(const SafetyCoordinator&) = delete;
 
-  // --- Private Methods ---
-  void CheckHardwareEstop();
-  void CheckInterBoardSafety();
-  EstopCondition* FindCondition(EstopSource source);
-  void InitializeHardware();
-  void SendEstopMessage(const EstopCondition& condition, bool activated);
-  void SendSafetyStatusMessage();
-  void UpdateSafetyState();
+  // --- Member Functions ---
+  void checkEstopConditions();
+  void updateSafetyState();
+  void sendHeartbeat();
+  void checkHeartbeat();
 
-  // --- Static Members ---
-  static SafetyCoordinator* instance_;
-
-  // --- Member Variables ---
-  uint8_t condition_count_;
-  EstopCondition conditions_[kMaxEstopConditions];
+  // --- Data Members ---
   SafetyConfig config_;
-  SafetyState current_safety_state_;
-  bool inter_board_estop_active_;
-  uint32_t last_heartbeat_received_ms_;
-  uint32_t last_heartbeat_sent_ms_;
-  uint32_t last_status_report_ms_;
+  SafetyState current_state_;
+  EstopCondition estop_conditions_[10];  // Array to hold multiple E-stop sources
+  uint8_t estop_condition_count_ = 0;
+  uint32_t last_estop_check_time_ms_ = 0;
+  uint32_t last_heartbeat_time_ms_ = 0;
 };
 
 }  // namespace sigyn_teensy

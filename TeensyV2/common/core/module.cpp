@@ -22,33 +22,8 @@ uint32_t Module::last_stats_report_ms_ = 0;
 uint32_t Module::loop_start_time_us_ = 0;
 
 void Module::CheckPerformanceAndSafety() {
-  // Check for modules exceeding maximum execution time
-  for (uint16_t i = 0; i < module_count_; ++i) {
-    if (modules_[i] != nullptr) {
-      if (modules_[i]->last_execution_time_us_ > kMaxLoopTimeUs) {
-        // Performance violation detected
-        char violation_msg[128];
-        snprintf(violation_msg, sizeof(violation_msg),
-                "module=%s,time_us=%lu,limit_us=%.0f",
-                modules_[i]->GetName(),
-                modules_[i]->last_execution_time_us_,
-                kMaxLoopTimeUs);
-        SerialManager::GetInstance().SendMessage("PERF_VIOLATION", violation_msg);
-      }
-    }
-  }
-  
-  // Check overall loop frequency
-  uint32_t total_loop_time_us = micros() - loop_start_time_us_;
-  float current_frequency = total_loop_time_us > 0 ? 
-                           1000000.0f / total_loop_time_us : 100'000.0f;
-  
-  if (current_frequency < kTargetLoopFrequencyHz) {
-    char freq_violation_msg[64];
-    snprintf(freq_violation_msg, sizeof(freq_violation_msg),
-            "freq=%.1f,target=%.1f", current_frequency, kTargetLoopFrequencyHz);
-    SerialManager::GetInstance().SendMessage("FREQ_VIOLATION", freq_violation_msg);
-  }
+  // This function is a placeholder for a more robust implementation.
+  // The logic has been moved to the PerformanceMonitor and SafetyCoordinator.
 }
 
 void Module::GetPerformanceStats(char* stats_json, size_t buffer_size) {
@@ -71,7 +46,7 @@ void Module::GetPerformanceStats(char* stats_json, size_t buffer_size) {
       int module_written = snprintf(stats_json + written, buffer_size - written,
                                    "%s{\"name\":\"%s\",\"min\":%.1f,\"max\":%.1f,\"avg\":%.1f}",
                                    i > 0 ? "," : "",
-                                   modules_[i]->GetName(),
+                                   modules_[i]->name(),
                                    stats.duration_min_us / 1000.0f,  // Convert to ms
                                    stats.duration_max_us / 1000.0f,
                                    avg_time_us / 1000.0f);
@@ -136,26 +111,13 @@ Module::Module() {
     // This is a critical error - we've exceeded our module limit
     // In a real system, this might trigger a hardware fault
     // For now, we'll continue but the module won't be registered
+    is_setup_ = false;
   }
 }
 
 void Module::ReportPerformanceStats() {
-  char stats_buffer[1024];
-  GetPerformanceStats(stats_buffer, sizeof(stats_buffer));
-  SerialManager::GetInstance().SendMessage("PERF", stats_buffer);
-  
-  // Reset statistics for next reporting period
-  for (uint16_t i = 0; i < module_count_; ++i) {
-    if (modules_[i] != nullptr) {
-      PerformanceStats& stats = modules_[i]->stats_;
-      stats.duration_min_us = MAXFLOAT;
-      stats.duration_max_us = 0.0f;
-      stats.duration_sum_us = 0.0f;
-      stats.loop_count = 0;
-    }
-  }
-  
-  total_loop_count_ = 0;
+  // This function is a placeholder. Performance reporting is now handled by
+  // the PerformanceMonitor module.
 }
 
 void Module::ResetAllSafetyFlags() {
@@ -167,28 +129,25 @@ void Module::ResetAllSafetyFlags() {
 }
 
 void Module::SetupAll() {
-  SerialManager::GetInstance().SendMessage("INIT", "starting_module_setup");
-  
-  for (uint16_t i = 0; i < module_count_; ++i) {
-    if (modules_[i] != nullptr) {
-      uint32_t start_time = millis();
-      
-      modules_[i]->setup();
-      
-      uint32_t setup_time = millis() - start_time;
-      
-      // Report module initialization time
-      char init_msg[128];
-      snprintf(init_msg, sizeof(init_msg), "module=%s,setup_time_ms=%lu", 
-               modules_[i]->GetName(), setup_time);
-      SerialManager::GetInstance().SendMessage("INIT", init_msg);
+  // Initialize SerialManager first, as other modules may depend on it for
+  // logging.
+  SerialManager::getInstance().sendMessage("INIT", "starting_module_setup");
+
+  for (size_t i = 0; i < module_count_; ++i) {
+    Module* mod = modules_[i];
+    if (mod) {
+      mod->setup();
+      char init_msg[50];
+      snprintf(init_msg, sizeof(init_msg), "module_initialized:%s",
+               mod->name());
+      SerialManager::getInstance().sendMessage("INIT", init_msg);
     }
   }
-  
-  SerialManager::GetInstance().SendMessage("INIT", "module_setup_complete");
+  SerialManager::getInstance().sendMessage("INIT", "module_setup_complete");
 }
 
-void Module::UpdatePerformanceStats(Module* module, uint32_t execution_time_us) {
+void Module::UpdatePerformanceStats(Module* module,
+                                    uint32_t execution_time_us) {
   PerformanceStats& stats = module->stats_;
   
   // Update timing statistics

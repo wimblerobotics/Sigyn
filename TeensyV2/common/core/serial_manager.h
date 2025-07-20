@@ -88,7 +88,7 @@ class SerialManager {
    *
    * @return Reference to the singleton SerialManager instance
    */
-  static SerialManager& GetInstance();
+  static SerialManager& getInstance();
 
   /**
    * @brief Initialize serial communication.
@@ -98,74 +98,28 @@ class SerialManager {
    *
    * @param[in] timeout_ms Maximum time to wait for serial connection
    * (milliseconds)
-   * @return true if initialization successful, false otherwise
    */
-  bool Initialize(uint32_t timeout_ms = 5000);
+  void initialize(uint32_t timeout_ms = 2000);
 
   /**
-   * @brief Send a structured message to the ROS2 system.
+   * @brief Send a message over the serial interface.
    *
-   * This is the primary interface for all outgoing communication.
-   * Messages are queued if necessary to maintain real-time performance.
+   * Formats and sends a message with a specified type and payload.
+   * If the serial port is busy, the message is queued for later transmission.
    *
-   * Message format: TYPE:key1=val1,key2=val2,...
-   *
-   * @param[in] message_type Type identifier (e.g., "BATT", "IMU", "ESTOP")
-   * @param[in] data Key-value pairs in format "key1=val1,key2=val2,..."
-   * @return true if message queued successfully, false if queue full
-   *
-   * @note Message types should be short (≤8 characters) for efficiency
-   * @note Total message length must be ≤ kMaxMessageLength
-   *
-   * Example:
-   * @code
-   * SendMessage("BATT", "id=0,v=39.8,p=0.82,c=1.2,state=OK");
-   * @endcode
+   * @param[in] type Message type (e.g., "BATT", "IMU")
+   * @param[in] payload Message payload (e.g., "id=0,v=39.8")
    */
-  bool SendMessage(const char* message_type, const char* data);
+  void sendMessage(const char* type, const char* payload);
 
   /**
-   * @brief Process incoming messages from ROS2 system.
+   * @brief Process all incoming messages from the serial buffer.
    *
-   * Reads available serial data, parses complete messages, and routes
-   * them to appropriate handlers. Should be called regularly from the
-   * main loop to maintain communication responsiveness.
-   *
-   * This method is non-blocking and will process all available data
-   * without waiting for additional input.
+   * Reads available data, parses complete messages, and routes them
+   * to the appropriate handlers. Should be called frequently from the
+   * main loop to ensure responsive communication.
    */
-  void ProcessIncomingMessages();
-
-  /**
-   * @brief Check if serial connection is active and healthy.
-   *
-   * @return true if serial connection is ready for communication
-   */
-  bool IsConnected() const;
-
-  /**
-   * @brief Get statistics about message throughput and queue status.
-   *
-   * @param[out] stats_json Buffer to write JSON-formatted statistics
-   * @param[in] buffer_size Size of output buffer
-   *
-   * Format: {"tx_count":1234,"rx_count":567,"queue_size":2,"errors":0}
-   */
-  void GetStatistics(char* stats_json, size_t buffer_size) const;
-
-  /**
-   * @brief Register a callback for specific incoming message types.
-   *
-   * Allows modules to receive notification when specific message types
-   * are received from the ROS2 system.
-   *
-   * @param[in] message_type Type to listen for (e.g., "CMD_VEL", "CONFIG")
-   * @param[in] callback Function to call when message is received
-   *
-   * @note Maximum of 16 callbacks can be registered
-   */
-  typedef void (*MessageCallback)(const char* message_type, const char* data);
-  bool RegisterCallback(const char* message_type, MessageCallback callback);
+  void processIncomingMessages();
 
  private:
   /**
@@ -174,55 +128,68 @@ class SerialManager {
   SerialManager();
 
   /**
-   * @brief Structure for queued outgoing messages.
+   * @brief Destructor.
    */
-  struct QueuedMessage {
-    char buffer[kMaxMessageLength];
-    size_t length;
-  };
+  ~SerialManager() = default;
 
-  /**
-   * @brief Structure for registered message callbacks.
-   */
-  struct CallbackRegistration {
-    char message_type[16];
-    MessageCallback callback;
-  };
-
-  /**
-   * @brief Parse a complete incoming message and route to handlers.
-   *
-   * @param[in] message Complete message string (without newline)
-   */
-  void ParseAndRouteMessage(const String& message);
-
-  // Singleton instance
-  static SerialManager* instance_;
-
-  // Communication state
-  bool is_initialized_;
-  String incoming_buffer_;
-
-  // Message queuing
-  QueuedMessage outgoing_queue_[kMaxQueueSize];
-  size_t queue_head_;  ///< Index of next message to send
-  size_t queue_tail_;  ///< Index where next message will be queued
-  size_t queue_size_;  ///< Current number of messages in queue
-
-  // Message callbacks
-  static constexpr size_t kMaxCallbacks = 16;
-  CallbackRegistration callbacks_[kMaxCallbacks];
-  size_t callback_count_;
-
-  // Statistics
-  uint32_t tx_message_count_;
-  uint32_t rx_message_count_;
-  uint32_t error_count_;
-  uint32_t last_activity_ms_;
-
-  // Prevent copying
+  // Delete copy constructor and assignment operator
   SerialManager(const SerialManager&) = delete;
   SerialManager& operator=(const SerialManager&) = delete;
+
+  /**
+   * @brief Send all queued messages.
+   *
+   * Transmits messages from the outgoing queue until the queue is empty
+   * or the serial port is busy.
+   */
+  void sendQueuedMessages();
+
+  /**
+   * @brief Parse a raw message string into components.
+   *
+   * @param[in] message The raw message string to parse
+   */
+  void parseMessage(const char* message);
+
+  /**
+   * @brief Handle a parsed command.
+   *
+   * @param[in] command The command to handle
+   * @param[in] args The arguments for the command
+   */
+  void handleCommand(const char* command, const char* args);
+
+  // --- Member Variables ---
+
+  /**
+   * @brief Buffer for incoming serial data.
+   */
+  char incoming_buffer_[kMaxMessageLength];
+
+  /**
+   * @brief Current position in the incoming buffer.
+   */
+  size_t buffer_pos_ = 0;
+
+  /**
+   * @brief Queue for outgoing messages.
+   */
+  char message_queue_[kMaxQueueSize][kMaxMessageLength];
+
+  /**
+   * @brief Head of the message queue.
+   */
+  size_t queue_head_ = 0;
+
+  /**
+   * @brief Tail of the message queue.
+   */
+  size_t queue_tail_ = 0;
+
+  /**
+   * @brief Number of messages currently in the queue.
+   */
+  size_t queue_count_ = 0;
 };
 
 }  // namespace sigyn_teensy

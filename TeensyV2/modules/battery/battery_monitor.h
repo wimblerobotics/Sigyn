@@ -26,10 +26,12 @@
 #pragma once
 
 #include <Arduino.h>
-#include <cstdint>
-#include <cstddef>
-#include <cmath>
 #include <Wire.h>
+
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+
 #include "../common/core/module.h"  // Ensure Module base class is included
 #include "INA226.h"
 #include "serial_manager.h"
@@ -51,14 +53,10 @@ struct BatteryConfig {
   BatteryConfig(float critical_low_voltage = 32.0f,
                 float warning_low_voltage = 34.0f,
                 float high_current_threshold = 15.0f,
-                float critical_high_current = 15.0f,
-                int update_period_ms = 100,
-                int report_period_ms = 1000,
-                bool enable_ina226 = true,
-                bool enable_analog_voltage = true,
-                int ina226_address = 0x40,
-                int analog_pin = 0,
-                float voltage_divider_ratio = 11.0f)
+                float critical_high_current = 15.0f, int update_period_ms = 100,
+                int report_period_ms = 1000, bool enable_ina226 = true,
+                bool enable_analog_voltage = true, int ina226_address = 0x40,
+                int analog_pin = 0, float voltage_divider_ratio = 11.0f)
       : critical_low_voltage(critical_low_voltage),
         warning_low_voltage(warning_low_voltage),
         high_current_threshold(high_current_threshold),
@@ -85,7 +83,14 @@ enum class BatteryState {
 };
 
 class BatteryMonitor : public Module {
-public:
+ public:
+  // --- Public API ---
+  /**
+   * @brief Get singleton instance of BatteryMonitor.
+   * @return Reference to singleton BatteryMonitor
+   */
+  static BatteryMonitor& getInstance();
+
   /**
    * @brief Get the current (in Amps) for the specified battery index.
    * @param idx Battery index (default: 0)
@@ -101,50 +106,35 @@ public:
   float getVoltage(size_t idx = 0) const;
 
   /**
-   * @brief Main loop for battery monitoring. Call regularly from main loop.
-   */
-  void loop() override;
-
-  /**
-   * @brief Get the module name string.
-   * @return Module name
+   * @brief Return the name of this module.
    */
   const char* name() const override;
 
-  /**
-   * @brief Setup routine for battery monitoring hardware and state.
-   */
-  void setup() override;
-
-  /**
-   * @brief Legacy API: Get current (Amps) for specified battery index.
-   */
-  float GetCurrent(size_t idx = 0) const { return getCurrent(idx); }
-
-  /**
-   * @brief Legacy API: Get voltage (Volts) for specified battery index.
-   */
-  float GetVoltage(size_t idx = 0) const { return getVoltage(idx); }
-
+  // --- Legacy API (Stubs) ---
   /**
    * @brief Legacy API: Get battery state (stub).
    * @return Always returns 0 (not implemented)
    */
-  int GetState() const { return 0; }
+  int getState() const { return 0; }
 
   /**
    * @brief Legacy API: Check if sensor is healthy (stub).
    * @return Always returns true (not implemented)
    */
-  bool IsSensorHealthy() const { return true; }
+  bool isSensorHealthy() const { return true; }
+
+ protected:
+  /**
+   * @brief Perform one-time initialization for the module.
+   */
+  void setup() override;
 
   /**
-   * @brief Get singleton instance of BatteryMonitor.
-   * @return Reference to singleton BatteryMonitor
+   * @brief Perform regular, cyclic work for the module.
    */
-  static BatteryMonitor& GetInstance();
+  void loop() override;
 
-private:
+ private:
   /**
    * @brief Private constructor for singleton pattern.
    * Initializes all battery monitoring hardware and state.
@@ -261,19 +251,19 @@ private:
    * @param voltage Battery voltage
    * @return Estimated charge percentage (0-100)
    */
-  float EstimateChargePercentage(float voltage) const;
+  float estimateChargePercentage(float voltage) const;
 
   /**
    * @brief Send battery status message for specified battery index.
    * @param idx Battery index
    */
-  void SendStatusMessage(size_t idx);
+  void sendStatusMessage(size_t idx);
 
   /**
    * @brief Update battery state for specified battery index.
    * @param idx Battery index
    */
-  void UpdateBatteryState(size_t idx);
+  void updateBatteryState(size_t idx);
 
   /**
    * @brief Update exponential average for a value.
@@ -282,7 +272,8 @@ private:
    * @param alpha Averaging factor
    * @return Updated average
    */
-  float updateExponentialAverage(float current_avg, float new_value, float alpha);
+  float updateExponentialAverage(float current_avg, float new_value,
+                                 float alpha);
 
   /**
    * @brief Select sensor for specified battery index (multiplexer).
@@ -294,7 +285,7 @@ private:
    * @brief Test if I2C multiplexer is available and working.
    * @return True if multiplexer is available
    */
-  bool testI2CMultiplexer();
+  bool testI2cMultiplexer();
 };
 
 }  // namespace sigyn_teensy
