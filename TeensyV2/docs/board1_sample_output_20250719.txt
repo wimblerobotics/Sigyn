@@ -1,0 +1,19 @@
+ros@sigyn7900:~$ cat /dev/teensy_sensor2 
+INIT:starting_module_setup
+INIT:module_initialized:PerformanceMonitor
+INFO:[BatteryMonitor::testI2cMultiplexer] I2C multiplexer found at address 0x70
+INIT:module_initialized:BatteryMonitor
+INIT:module_setup_complete
+INFO:Board 2 setup complete
+SAFETY: Battery critical condition detected!
+  Voltage: 0.00 V
+  Current: 0.00 A
+SAFETY_CRITICAL:board=2,critical=true,reason=battery,voltage=0.00,current=0.00
+SAFETY: Battery condition returned to normal
+SAFETY_CRITICAL:board=2,critical=false,reason=battery_recovered
+PERF:{"freq":1996.0, "target_freq":80.0, "mod_viol":0, "freq_viol":1, "modules":[{"name":"PerformanceMonitor","exec_ms":0.00,"violation":false},{"name":"BatteryMonitor","exec_ms":0.00,"violation":false}]}
+BATT:idx:0,V:42.51,A:1.15,charge:1.00,state:NORMAL
+PERF:{"freq":1996.0, "target_freq":80.0, "mod_viol":0, "freq_viol":1, "modules":[{"name":"PerformanceMonitor","exec_ms":0.00,"violation":false},{"name":"BatteryMonitor","exec_ms":0.00,"violation":false}]}
+BATT:idx:0,V:42.49,A:1.19,charge:1.00,state:NORMAL
+PERF:{"freq":1996.0, "target_freq":80.0, "mod_viol":0, "freq_viol":1, "modules":[{"name":"PerformanceMonitor","exec_ms":0.00,"violation":false},{"name":"BatteryMonitor","exec_ms":0.00,"violation":false}]}
+BATT:idx:0,V:42.44,A:1.13,charge:1.00,state:NORMAL
