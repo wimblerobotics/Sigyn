@@ -168,7 +168,7 @@ void BatteryMonitor::sendStatusMessage(size_t idx) {
                    ",V:" + String(getVoltage(idx), 2) +
                    ",A:" + String(getCurrent(idx), 2) +
                    ",charge:" + String(estimateChargePercentage(getVoltage(idx))) +
-                   ",state:" + String((int)state_[idx]);
+                   ",state:" + String(batteryStateToString(state_[idx]));
 
   SerialManager::getInstance().sendMessage("BATT", message.c_str());
 }
@@ -244,6 +244,18 @@ void BatteryMonitor::updateBatteryState(size_t idx) {
 float BatteryMonitor::updateExponentialAverage(float current_avg,
                                                float new_value, float alpha) {
   return alpha * new_value + (1.0f - alpha) * current_avg;
+}
+
+const char* BatteryMonitor::batteryStateToString(BatteryState state) const {
+  switch (state) {
+    case BatteryState::UNKNOWN:      return "UNKNOWN";
+    case BatteryState::CHARGING:     return "CHARGING";
+    case BatteryState::DISCHARGING:  return "DISCHARGING";
+    case BatteryState::CRITICAL:     return "CRITICAL";
+    case BatteryState::WARNING:      return "WARNING";
+    case BatteryState::NORMAL:       return "NORMAL";
+    default:                         return "INVALID";
+  }
 }
 
 }  // namespace sigyn_teensy
