@@ -1,7 +1,9 @@
 /**
  * @file battery_monitor.cpp
- * @brief Implementation of comprehensive batteryINA226 BatteryMonitor::g_ina226_[kNumberOfBatteries];
-uint8_t BatteryMonitor::gINA226_DeviceIndexes_[kNumberOfBatteries] = {2, 3, 4};nitoring system
+ * @brief Implementation of comprehensive batteryINA226
+BatteryMonitor::g_ina226_[kNumberOfBatteries]; uint8_t
+BatteryMonitor::gINA226_DeviceIndexes_[kNumberOfBatteries] = {2, 3, 4};nitoring
+system
  *
  * This file implements the BatteryMonitor module that provides real-time
  * monitoring of battery voltage, current, power consumption, and state
@@ -75,15 +77,18 @@ BatteryConfig BatteryMonitor::g_battery_config_[kNumberOfBatteries] = {
     {32.0f, 34.0f, 45.0f, 44.0f, 15.0f, 20.0f, 5.0f,  500.0f,
      50.0f, 100,   1000,  100,   true,  true,  false, false,
      0x40,  A0,    A1,    11.0f, 0.0f,  0.0f,  1.0f,  1.0f},
-    {4.9f,  4.94f, 5.7f, 5.5f,  9.0f, 10.0f, 5.0f,  60.0f,
+    {4.9f,  4.94f, 5.7f, 5.5f,  9.0f, 10.0f, 5.0f,  50.0f,
      50.0f, 100,   1000, 100,   true, false, false, false,
      0x40,  A0,    A1,   11.0f, 0.0f, 0.0f,  1.0f,  1.0f},
-    {3.1f, 3.2f, 3.5f, 3.4f,  9.0f, 10.0f, 5.0f,  60.0f,
-     50.0f, 100,   1000, 100,   true, false, false, false,
-     0x40,  A0,    A1,   11.0f, 0.0f, 0.0f,  1.0f,  1.0f}};
+    {23.0f, 23.5f, 25.0f, 24.5f, 9.0f, 10.0f, 5.0f,  240.0f,
+     50.0f, 100,   1000,  100,   true, false, false, false,
+     0x40,  A0,    A1,    11.0f, 0.0f, 0.0f,  1.0f,  1.0f},
+    {3.1f,  3.2f, 3.5f, 3.4f,  9.0f, 10.0f, 5.0f,  33.0f,
+     50.0f, 100,  1000, 100,   true, false, false, false,
+     0x40,  A0,   A1,   11.0f, 0.0f, 0.0f,  1.0f,  1.0f}};
 INA226 BatteryMonitor::g_ina226_[kNumberOfBatteries] = {
-    INA226(0x40), INA226(0x40), INA226(0x40)};
-uint8_t BatteryMonitor::gINA226_DeviceIndexes_[kNumberOfBatteries] = {2, 3, 4};
+    INA226(0x40), INA226(0x40), INA226(0x40), INA226(0x40)};
+uint8_t BatteryMonitor::gINA226_DeviceIndexes_[kNumberOfBatteries] = {2, 3, 4, 5};
 
 BatteryMonitor::BatteryMonitor()
     : multiplexer_available_(false), setup_completed_(false) {
@@ -204,16 +209,32 @@ void BatteryMonitor::setup() {
 
   for (size_t device = 0; device < kNumberOfBatteries; device++) {
     config_ = g_battery_config_[device];  // Use device-specific battery config
+
+    // Debug: Report what we're trying to initialize
+    char debug_msg[128];
+    snprintf(debug_msg, sizeof(debug_msg),
+             "Initializing device %d: mux_channel=%d, i2c_addr=0x%02X", device,
+             gINA226_DeviceIndexes_[device], 0x40);
+    SerialManager::getInstance().sendMessage("DEBUG", debug_msg);
+
     selectSensor(device);
+
+    // Add a longer delay after multiplexer selection
+    delay(50);  // Give more time for multiplexer to settle
 
     if (!g_ina226_[device].begin()) {
       String message =
-          "INA226 sensor initialization failed for device " + String(device);
+          "INA226 sensor initialization failed for device " + String(device) +
+          " (mux_channel=" + String(gINA226_DeviceIndexes_[device]) + ")";
       SerialManager::getInstance().sendMessage("FATAL", message.c_str());
       return;
     }
 
     g_ina226_[device].setMaxCurrentShunt(20, 0.002);  // 20A max, 2mΩ shunt
+
+    snprintf(debug_msg, sizeof(debug_msg), "Successfully initialized device %d",
+             device);
+    SerialManager::getInstance().sendMessage("INFO", debug_msg);
   }
   setup_completed_ = true;
 }
