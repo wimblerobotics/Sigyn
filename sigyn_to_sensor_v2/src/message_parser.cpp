@@ -57,9 +57,18 @@ bool MessageParser::ParseMessage(const std::string& message, rclcpp::Time timest
       return false;
     }
     
-    // Parse key-value pairs
+    // Get message content after the colon
     std::string content = message.substr(colon_pos + 1);
-    MessageData data = ParseKeyValuePairs(content);
+    MessageData data;
+    
+    // Parse content based on message type
+    if (type == MessageType::PERFORMANCE) {
+      // PERF messages use JSON format
+      data = ParseJsonContent(content);
+    } else {
+      // All other messages use key:value format
+      data = ParseKeyValuePairs(content);
+    }
     
     // Update statistics
     messages_by_type_[type]++;
@@ -85,17 +94,27 @@ BatteryData MessageParser::ParseBatteryData(const MessageData& data) const {
   BatteryData battery;
   
   try {
-    auto it = data.find("id");
+    // Handle both old and new field names
+    auto it = data.find("idx");  // New format
+    if (it == data.end()) {
+      it = data.find("id");      // Legacy format
+    }
     if (it != data.end()) {
       battery.id = SafeStringToInt(it->second, 0);
     }
     
-    it = data.find("v");
+    it = data.find("V");         // New format (uppercase)
+    if (it == data.end()) {
+      it = data.find("v");       // Legacy format (lowercase)
+    }
     if (it != data.end()) {
       battery.voltage = SafeStringToDouble(it->second, 0.0);
     }
     
-    it = data.find("c");
+    it = data.find("A");         // New format (uppercase)
+    if (it == data.end()) {
+      it = data.find("c");       // Legacy format (current)
+    }
     if (it != data.end()) {
       battery.current = SafeStringToDouble(it->second, 0.0);
     }
@@ -105,7 +124,10 @@ BatteryData MessageParser::ParseBatteryData(const MessageData& data) const {
       battery.power = SafeStringToDouble(it->second, 0.0);
     }
     
-    it = data.find("pct");
+    it = data.find("charge");    // New format
+    if (it == data.end()) {
+      it = data.find("pct");     // Legacy format
+    }
     if (it != data.end()) {
       battery.percentage = SafeStringToDouble(it->second, 0.0);
     }
@@ -144,7 +166,11 @@ PerformanceData MessageParser::ParsePerformanceData(const MessageData& data) con
       perf.execution_time = SafeStringToDouble(it->second, 0.0);
     }
     
-    it = data.find("viol");
+    // Handle both old and new violation field names
+    it = data.find("mod_viol");
+    if (it == data.end()) {
+      it = data.find("viol");
+    }
     if (it != data.end()) {
       perf.violation_count = SafeStringToInt(it->second, 0);
     }
@@ -443,10 +469,16 @@ MessageData MessageParser::ParseKeyValuePairs(const std::string& content) const 
   std::string pair;
   
   while (std::getline(stream, pair, ',')) {
-    size_t equals_pos = pair.find('=');
-    if (equals_pos != std::string::npos) {
-      std::string key = pair.substr(0, equals_pos);
-      std::string value = pair.substr(equals_pos + 1);
+    // Try colon separator first (new format)
+    size_t separator_pos = pair.find(':');
+    if (separator_pos == std::string::npos) {
+      // Fall back to equals separator (legacy format)
+      separator_pos = pair.find('=');
+    }
+    
+    if (separator_pos != std::string::npos) {
+      std::string key = pair.substr(0, separator_pos);
+      std::string value = pair.substr(separator_pos + 1);
       
       // Trim whitespace
       key.erase(0, key.find_first_not_of(" \t"));
@@ -462,7 +494,7 @@ MessageData MessageParser::ParseKeyValuePairs(const std::string& content) const 
 }
 
 bool MessageParser::ValidateMessage(const std::string& message) const {
-  if (message.empty() || message.length() > 256) {
+  if (message.empty() || message.length() > 1024) {  // Increased for JSON support
     return false;
   }
   
@@ -472,12 +504,26 @@ bool MessageParser::ValidateMessage(const std::string& message) const {
     return false;
   }
   
+  // Get message type and content
+  std::string type_str = message.substr(0, colon_pos);
+  std::string content = message.substr(colon_pos + 1);
+  
   // Basic format validation
   if (strict_validation_) {
-    // More stringent validation for production use
-    std::regex pattern(R"([A-Z][A-Z0-9_]*:[a-zA-Z0-9_]+=.*(,[a-zA-Z0-9_]+=.*)*)", 
-                       std::regex_constants::optimize);
-    return std::regex_match(message, pattern);
+    // Check if it's a valid message type
+    if (StringToMessageType(type_str) == MessageType::UNKNOWN) {
+      return false;
+    }
+    
+    // PERF messages should start with { (JSON format)
+    if (type_str == "PERF") {
+      return !content.empty() && content[0] == '{';
+    } else {
+      // Other messages should use key:value or key=value format
+      std::regex pattern(R"([a-zA-Z0-9_]+[:=][^,]*(,[a-zA-Z0-9_]+[:=][^,]*)*)", 
+                         std::regex_constants::optimize);
+      return std::regex_match(content, pattern);
+    }
   }
   
   return true;
@@ -557,4 +603,78 @@ std::vector<std::string> MessageParser::ParseCommaSeparatedList(const std::strin
   return result;
 }
 
+MessageData MessageParser::ParseJsonContent(const std::string& content) const {
+  MessageData data;
+  
+  if (content.empty()) {
+    return data;
+  }
+  
+  // For PERF messages, we'll store the entire JSON as a single "json" key
+  // This allows the consumer to handle JSON parsing if needed
+  data["json"] = content;
+  
+  // Also extract some commonly used values for easy access
+  try {
+    // Simple JSON value extraction without full parser
+    // Look for common PERF fields: freq, target_freq, mod_viol, freq_viol
+    
+    auto extractJsonValue = [&content](const std::string& key) -> std::string {
+      std::string search = "\"" + key + "\":";
+      size_t pos = content.find(search);
+      if (pos == std::string::npos) {
+        // Try without quotes for numeric keys
+        search = "\"" + key + "\":";
+        pos = content.find(search);
+        if (pos == std::string::npos) {
+          return "";
+        }
+      }
+      
+      pos += search.length();
+      
+      // Skip whitespace
+      while (pos < content.length() && (content[pos] == ' ' || content[pos] == '\t')) {
+        pos++;
+      }
+      
+      // Extract value (up to comma, closing brace, or end)
+      size_t end_pos = pos;
+      while (end_pos < content.length() && 
+             content[end_pos] != ',' && 
+             content[end_pos] != '}' && 
+             content[end_pos] != ']') {
+        end_pos++;
+      }
+      
+      std::string value = content.substr(pos, end_pos - pos);
+      
+      // Trim quotes if present
+      if (!value.empty() && value.front() == '"' && value.back() == '"') {
+        value = value.substr(1, value.length() - 2);
+      }
+      
+      return value;
+    };
+    
+    // Extract common PERF fields
+    std::string freq = extractJsonValue("freq");
+    if (!freq.empty()) data["freq"] = freq;
+    
+    std::string target_freq = extractJsonValue("target_freq");
+    if (!target_freq.empty()) data["target_freq"] = target_freq;
+    
+    std::string mod_viol = extractJsonValue("mod_viol");
+    if (!mod_viol.empty()) data["mod_viol"] = mod_viol;
+    
+    std::string freq_viol = extractJsonValue("freq_viol");
+    if (!freq_viol.empty()) data["freq_viol"] = freq_viol;
+    
+  } catch (const std::exception& e) {
+    RCLCPP_WARN(logger_, "Error extracting JSON values: %s", e.what());
+    // Still keep the raw JSON even if extraction fails
+  }
+  
+  return data;
+}
 }  // namespace sigyn_to_sensor_v2

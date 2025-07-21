@@ -6,24 +6,32 @@ The TeensyV2 system uses a structured text-based message protocol for communicat
 
 ## Message Format
 
-All messages follow a consistent structure:
+The TeensyV2 system uses two message formats depending on the message type:
 
+### Standard Key-Value Format
 ```
-TYPE:key1=val1,key2=val2,key3=val3,...
+TYPE:key1:val1,key2:val2,key3:val3,...
+```
+
+### JSON Format (for complex data)
+```
+TYPE:<json_object>
 ```
 
 ### Components
 
 - **TYPE**: Message type identifier (4-8 characters, uppercase)
 - **:** (colon): Separator between type and data
-- **key=val**: Key-value pairs containing message data
+- **key:val**: Key-value pairs containing message data (note: colon separator)
 - **,** (comma): Separator between key-value pairs
+- **<json_object>**: Valid JSON object for complex structured data
 
 ### Constraints
 
-- Maximum message length: 512 characters
-- Key names: alphanumeric + underscore, max 16 characters
+- Maximum message length: 1024 characters (increased for JSON support)
+- Key names: alphanumeric + underscore, max 16 characters  
 - Values: printable ASCII characters, max 32 characters per value
+- JSON values: valid JSON syntax with proper escaping
 - No spaces around separators (for efficiency)
 - Case-sensitive keys and values
 
@@ -35,7 +43,7 @@ Battery monitoring data from INA226 sensors and analog voltage monitoring.
 
 **Format:**
 ```
-BATT:idx=<sensor_id>,V=<voltage>,A=<current>,charge=<percentage>,state=<state>
+BATT:idx:<sensor_id>,V:<voltage>,A:<current>,charge:<percentage>,state:<state>
 ```
 
 **Parameters:**
@@ -47,9 +55,9 @@ BATT:idx=<sensor_id>,V=<voltage>,A=<current>,charge=<percentage>,state=<state>
 
 **Examples:**
 ```
-BATT:idx=0,V=42.51,A=1.15,charge=1.00,state=NORMAL
-BATT:idx=0,V=32.10,A=0.12,charge=0.15,state=CRITICAL
-BATT:idx=0,V=41.50,A=-2.34,charge=0.95,state=CHARGING
+BATT:idx:0,V:42.51,A:1.15,charge:1.00,state:NORMAL
+BATT:idx:0,V:32.10,A:0.12,charge:0.15,state:CRITICAL
+BATT:idx:0,V:41.50,A:-2.34,charge:0.95,state:CHARGING
 ```
 
 ### PERF - Performance Monitoring Messages
@@ -97,7 +105,7 @@ PERF:<json_object>
 
 **Examples:**
 ```
-PERF:{"freq":85.2,"target_freq":80.0,"mod_viol":0,"freq_viol":0,"modules":[{"name":"PerformanceMonitor","min":0.12,"max":0.18,"avg":0.15,"last":0.14,"count":1245,"violation":false},{"name":"BatteryMonitor","min":0.35,"max":0.92,"avg":0.48,"last":0.45,"count":1245,"violation":false}]}
+PERF:{"freq":1996.0, "target_freq":80.0, "mod_viol":0, "freq_viol":0, "modules":[{"name":"PerformanceMonitor","min":0.00,"max":0.05,"avg":0.00,"last":0.00,"count":9425,"violation":false},{"name":"BatteryMonitor","min":0.00,"max":1.59,"avg":0.01,"last":0.00,"count":9425,"violation":false}]}
 
 PERF:{"freq":67.5,"target_freq":80.0,"mod_viol":2,"freq_viol":1,"violation_details":{"consecutive_mod":0,"consecutive_freq":1,"last_viol_ms":12345},"modules":[{"name":"PerformanceMonitor","min":0.10,"max":0.25,"avg":0.16,"last":0.15,"count":890,"violation":false},{"name":"BatteryMonitor","min":0.40,"max":3.45,"avg":0.68,"last":3.45,"count":890,"violation":true}]}
 ```
@@ -262,39 +270,49 @@ CONFIG:status=ERROR,module=InvalidModule,param=unknown,error=Module not found
 - Embedded system responds with current values
 - Parameter validation on both sides
 
-## Message Examples by Scenario
+## ROS2 Parser Requirements
 
-### Normal Operation
-```
-BATT:id=0,v=38.45,c=2.134,p=82.02,pct=0.72,state=DISCHARGING,sensors=INA226
-PERF:freq=85.1,exec=1.67,viol=0,modules=4,avg_freq=84.9,max_exec=1.89
-SAFETY:state=NORMAL,hw_estop=false,inter_board=false,active_conditions=false
+### Dual Format Support
+
+The ROS2 message parser must handle both message formats:
+
+1. **Key-Value Format**: `BATT:idx:0,V:40.61,A:1.10,charge:0.86,state:NORMAL`
+2. **JSON Format**: `PERF:{"freq":1996.0, "target_freq":80.0, ...}`
+
+### Parser Implementation
+
+```cpp
+// Pseudo-code for dual format parser
+bool parseMessage(const std::string& message) {
+    auto colon_pos = message.find(':');
+    if (colon_pos == std::string::npos) return false;
+    
+    std::string type = message.substr(0, colon_pos);
+    std::string data = message.substr(colon_pos + 1);
+    
+    if (type == "PERF") {
+        // Handle JSON format
+        return parseJsonMessage(type, data);
+    } else {
+        // Handle key-value format  
+        return parseKeyValueMessage(type, data);
+    }
+}
 ```
 
-### Battery Critical Condition
-```
-BATT:id=0,v=31.89,c=1.567,p=49.98,pct=0.12,state=CRITICAL,sensors=INA226
-ESTOP:active=true,source=BATTERY_VOLTAGE,reason=Critical low voltage,value=31.89,manual_reset=false,time=234567
-SAFETY:state=ESTOP,hw_estop=false,inter_board=false,active_conditions=true,sources=BATTERY_VOLTAGE
-```
+### Configuration Options
 
-### Performance Issues
-```
-PERF:freq=68.2,exec=4.23,viol=3,modules=5,avg_freq=75.4,max_exec=6.78
-DIAG:level=WARN,module=PerformanceMonitor,msg=Performance degradation detected,details=freq_low=3 time_high=2,time=345678
-ESTOP:active=true,source=PERFORMANCE,reason=Critical timing violation,value=6.78,manual_reset=false,time=345679
-```
+The message validation can be controlled via ROS2 parameters:
 
-### Configuration Update
-```
-// ROS2 sends configuration command
-CONFIG:cmd=SET,module=BatteryMonitor,param=critical_low_voltage,value=29.0
+- `enable_message_validation`: Enable/disable strict validation (default: true)
+- `enable_json_parsing`: Enable/disable JSON format support (default: true)
+- `treat_perf_as_string`: Treat PERF JSON as string data (default: false)
 
-// Teensy responds with confirmation
-CONFIG:status=OK,module=BatteryMonitor,param=critical_low_voltage,value=29.0
+### Error Handling
 
-// Updated battery monitoring with new threshold
-BATT:id=0,v=30.12,c=0.895,p=26.96,pct=0.08,state=WARNING,sensors=INA226
-```
+- Invalid JSON in PERF messages should be logged but not cause node failure
+- Malformed key-value pairs should be skipped with warnings
+- Unknown message types should generate diagnostic messages
+- Parser should be robust against malformed input
 
 This protocol provides a robust, efficient, and extensible communication framework for the TeensyV2 system while maintaining simplicity and debuggability.

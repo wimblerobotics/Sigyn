@@ -54,13 +54,13 @@ private:
 ```cpp
 class SerialManager {
 public:
-  static SerialManager& Singleton();
+  static SerialManager& getInstance();
   
   // Single, efficient message interface
-  void SendMessage(const char* message_type, const char* data);
+  void sendMessage(const char* message_type, const char* data);
   
   // Message parsing for incoming commands
-  void ProcessIncomingMessage(const String& message);
+  void processIncomingMessage(const String& message);
   
 private:
   // Non-blocking serial I/O
@@ -77,7 +77,7 @@ public:
   bool isUnsafe() override;
   
   // Configure thresholds via runtime parameters
-  void UpdateConfiguration(const PerformanceConfig& config);
+  void updateConfiguration(const PerformanceConfig& config);
   
 private:
   // Loop frequency tracking
@@ -112,12 +112,12 @@ public:
   };
 
   // E-stop state management
-  void TriggerEStop(EStopSource source, const char* reason);
-  void ClearEStop(EStopSource source);
-  bool IsEStopped() const;
+  void triggerEStop(EStopSource source, const char* reason);
+  void clearEStop(EStopSource source);
+  bool isEStopped() const;
   
   // Auto-recovery for conditions that clear themselves
-  bool IsAutoRecoverable(EStopSource source) const;
+  bool isAutoRecoverable(EStopSource source) const;
 
 private:
   // Track individual E-stop sources
