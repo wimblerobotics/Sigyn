@@ -288,6 +288,14 @@ private:
   MessageData ParseKeyValuePairs(const std::string& content) const;
 
   /**
+   * @brief Parse JSON content from PERF messages.
+   * 
+   * @param[in] content JSON string content
+   * @return Map of key-value pairs extracted from JSON
+   */
+  MessageData ParseJsonContent(const std::string& content) const;
+
+  /**
    * @brief Validate message format and content.
    * 
    * @param[in] message Complete message string
