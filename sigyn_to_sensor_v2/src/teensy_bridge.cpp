@@ -372,11 +372,62 @@ void TeensyBridge::HandleBatteryMessage(const MessageData& data, rclcpp::Time ti
 }
 
 void TeensyBridge::HandlePerformanceMessage(const MessageData& data, rclcpp::Time timestamp) {
-  // For now, just log performance data
-  // In a complete implementation, this would publish to a custom performance message
-  auto it = data.find("freq");
-  if (it != data.end()) {
-    RCLCPP_DEBUG(this->get_logger(), "Performance: freq=%s Hz", it->second.c_str());
+  // Parse and publish detailed performance data
+  auto freq_it = data.find("freq");
+  auto loop_count_it = data.find("loop_count");
+  auto modules_it = data.find("modules");
+  
+  if (freq_it != data.end()) {
+    double frequency = std::stod(freq_it->second);
+    RCLCPP_DEBUG(this->get_logger(), "Performance: freq=%.1f Hz", frequency);
+    
+    // Create and publish diagnostic message with performance data
+    auto diag_msg = diagnostic_msgs::msg::DiagnosticArray();
+    diag_msg.header.stamp = timestamp;
+    
+    // Overall system performance status
+    auto system_status = diagnostic_msgs::msg::DiagnosticStatus();
+    system_status.name = "teensy_system_performance";
+    system_status.hardware_id = "teensy_v2";
+    
+    // Determine status level based on frequency
+    if (frequency >= 75.0) {
+      system_status.level = diagnostic_msgs::msg::DiagnosticStatus::OK;
+      system_status.message = "System performance nominal";
+    } else if (frequency >= 50.0) {
+      system_status.level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
+      system_status.message = "System performance degraded";
+    } else {
+      system_status.level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
+      system_status.message = "System performance critical";
+    }
+    
+    // Add performance metrics as key-value pairs
+    auto freq_kv = diagnostic_msgs::msg::KeyValue();
+    freq_kv.key = "loop_frequency_hz";
+    freq_kv.value = freq_it->second;
+    system_status.values.push_back(freq_kv);
+    
+    if (loop_count_it != data.end()) {
+      auto count_kv = diagnostic_msgs::msg::KeyValue();
+      count_kv.key = "total_loops";
+      count_kv.value = loop_count_it->second;
+      system_status.values.push_back(count_kv);
+    }
+    
+    diag_msg.status.push_back(system_status);
+    
+    // Parse and add individual module performance if available
+    if (modules_it != data.end()) {
+      // TODO: Parse JSON array of module statistics
+      // For now, add as a single diagnostic value
+      auto modules_kv = diagnostic_msgs::msg::KeyValue();
+      modules_kv.key = "module_stats";
+      modules_kv.value = modules_it->second;
+      system_status.values.push_back(modules_kv);
+    }
+    
+    diagnostics_pub_->publish(diag_msg);
   }
 }
 

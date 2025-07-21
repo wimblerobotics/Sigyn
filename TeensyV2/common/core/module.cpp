@@ -56,6 +56,8 @@ uint16_t Module::module_count_ = 0;
 uint32_t Module::total_loop_count_ = 0;
 uint32_t Module::last_stats_report_ms_ = 0;
 uint32_t Module::loop_start_time_us_ = 0;
+uint32_t Module::last_loop_time_us_ = 0;
+float Module::current_loop_frequency_hz_ = 0.0f;
 
 Module::Module() {
   // Automatic registration when module is constructed (RAII pattern)
@@ -88,14 +90,24 @@ void Module::getPerformanceStats(char* stats_json, size_t buffer_size) {
 
   if (written < 0 || (size_t)written >= buffer_size) return;
 
-  // Add module statistics (simplified - detailed stats now handled by PerformanceMonitor)
+  // Add module statistics with min/max/avg
   for (uint16_t i = 0; i < module_count_; ++i) {
     if (modules_[i] != nullptr) {
-      int module_written =
-          snprintf(stats_json + written, buffer_size - written,
-                   "%s{\"name\":\"%s\",\"last_exec\":%.1f}",
-                   i > 0 ? "," : "", modules_[i]->name(),
-                   modules_[i]->getLastExecutionTimeUs() / 1000.0f);  // Convert to ms
+      const PerformanceStats& stats = modules_[i]->stats_;
+      float avg_us = (stats.loop_count > 0) ? (stats.duration_sum_us / stats.loop_count) : 0.0f;
+      
+      // Convert microseconds to milliseconds for readability
+      float min_ms = stats.duration_min_us / 1000.0f;
+      float max_ms = stats.duration_max_us / 1000.0f;
+      float avg_ms = avg_us / 1000.0f;
+      float last_ms = modules_[i]->last_execution_time_us_ / 1000.0f;
+      
+      int module_written = snprintf(stats_json + written, buffer_size - written,
+                   "%s{\"name\":\"%s\",\"min\":%.2f,\"max\":%.2f,\"avg\":%.2f,\"last\":%.2f,\"count\":%lu}",
+                   i > 0 ? "," : "", 
+                   modules_[i]->name(),
+                   min_ms, max_ms, avg_ms, last_ms,
+                   (unsigned long)stats.loop_count);
 
       if (module_written < 0 || written + module_written >= (int)buffer_size)
         break;
@@ -121,6 +133,16 @@ bool Module::isAnyModuleUnsafe() {
 void Module::loopAll() {
   // Record loop start time for frequency calculation and performance monitoring
   loop_start_time_us_ = micros();
+  
+  // Calculate main loop frequency from previous iteration
+  // This provides accurate frequency measurement for the entire system
+  if (last_loop_time_us_ > 0) {
+    uint32_t loop_duration_us = loop_start_time_us_ - last_loop_time_us_;
+    if (loop_duration_us > 0) {
+      current_loop_frequency_hz_ = 1000000.0f / loop_duration_us;
+    }
+  }
+  last_loop_time_us_ = loop_start_time_us_;
 
   // Execute all registered modules with high-precision timing measurement
   // This is the critical real-time path - minimize overhead here
@@ -135,9 +157,11 @@ void Module::loopAll() {
 
       // Calculate and store execution time for performance monitoring
       uint32_t execution_time_us = micros() - module_start_us;
-      modules_[i]->last_execution_time_us_ = execution_time_us;
       
-      // Note: Detailed performance statistics are now handled by PerformanceMonitor
+      // Update both immediate and accumulated performance statistics
+      updatePerformanceStats(modules_[i], execution_time_us);
+      
+      // Note: Detailed performance statistics are now tracked per-module
       // This keeps the critical path lean while still providing basic timing data
     }
   }
@@ -189,19 +213,22 @@ void Module::setupAll() {
 
 void Module::updatePerformanceStats(Module* module,
                                     uint32_t execution_time_us) {
-  // PerformanceStats& stats = module->stats_;
-
-  // // Update timing statistics
-  // if (execution_time_us < stats.duration_min_us) {
-  //   stats.duration_min_us = execution_time_us;
-  // }
-  // if (execution_time_us > stats.duration_max_us) {
-  //   stats.duration_max_us = execution_time_us;
-  // }
+  if (module == nullptr) return;
   
-  // stats.duration_sum_us += execution_time_us;
-  // stats.loop_count++;
-  // module->last_execution_time_us_ = execution_time_us;
+  PerformanceStats& stats = module->stats_;
+  float exec_time_float = static_cast<float>(execution_time_us);
+
+  // Update timing statistics
+  if (exec_time_float < stats.duration_min_us) {
+    stats.duration_min_us = exec_time_float;
+  }
+  if (exec_time_float > stats.duration_max_us) {
+    stats.duration_max_us = exec_time_float;
+  }
+  
+  stats.duration_sum_us += exec_time_float;
+  stats.loop_count++;
+  module->last_execution_time_us_ = exec_time_float;
 }
 
 }  // namespace sigyn_teensy

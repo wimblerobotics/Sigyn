@@ -227,7 +227,7 @@ class PerformanceMonitor : public Module {
   PerformanceMonitor& operator=(const PerformanceMonitor&) = delete;
 
   // --- Private Methods ---
-  void checkLoopFrequency();
+  void checkFrequencyViolations();
   void checkModuleExecutionTimes();
   void getPerformanceStats(char* buffer, size_t size);
   void reportStats();
@@ -235,8 +235,6 @@ class PerformanceMonitor : public Module {
   // --- Member Variables ---
   PerformanceConfig config_;
   ViolationTracker violations_;
-  float current_loop_frequency_hz_ = 0.0f;
-  uint32_t last_loop_start_time_us_ = 0;
   uint32_t last_stats_report_ms_ = 0;
 };
 

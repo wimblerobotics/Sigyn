@@ -46,6 +46,7 @@
 
 #include "performance_monitor.h"
 #include "serial_manager.h"
+#include "module.h"
 
 namespace sigyn_teensy {
 
@@ -54,30 +55,32 @@ PerformanceMonitor::PerformanceMonitor() {
   // initializer list
 }
 
-void PerformanceMonitor::checkLoopFrequency() {
-  // Calculate current loop frequency using high-resolution timing
-  // This provides instantaneous frequency measurement for real-time monitoring
-  uint32_t now_us = micros();
-  if (last_loop_start_time_us_ > 0) {
-    uint32_t loop_duration_us = now_us - last_loop_start_time_us_;
-    if (loop_duration_us > 0) {
-      // Convert microseconds to frequency (Hz)
-      // Using floating-point for precision, but this could be optimized
-      // to fixed-point arithmetic if performance becomes critical
-      current_loop_frequency_hz_ = 1000000.0f / loop_duration_us;
-    }
-  }
-  last_loop_start_time_us_ = now_us;
-
+void PerformanceMonitor::checkFrequencyViolations() {
+  // Get current frequency from the Module system for accurate measurement
+  float current_frequency = Module::getCurrentLoopFrequency();
+  
   // Check if frequency has dropped below acceptable threshold
   // This indicates system overload or blocking operations in modules
-  if (current_loop_frequency_hz_ < config_.min_loop_frequency_hz) {
+  if (current_frequency > 0.0f && current_frequency < config_.min_loop_frequency_hz) {
     // Increment consecutive violation counter with overflow protection
     if (violations_.consecutive_frequency_violations < 255) {
       violations_.consecutive_frequency_violations++;
     }
+    
     violations_.total_frequency_violations++;
     violations_.last_violation_time_ms = millis();
+    
+    // Send warning message for frequency violations
+    char warn_msg[64];
+    snprintf(warn_msg, sizeof(warn_msg), "FREQ_VIOLATION: %.1fHz < %.1fHz (violation #%lu)",
+             current_frequency, config_.min_loop_frequency_hz, 
+             (unsigned long)violations_.total_frequency_violations);
+    SerialManager::getInstance().sendMessage("WARN", warn_msg);
+    
+    // Also send a high-priority safety message for critical violations
+    if (violations_.consecutive_frequency_violations >= config_.max_frequency_violations) {
+      SerialManager::getInstance().sendMessage("CRITICAL", "Multiple consecutive frequency violations - system overload detected!");
+    }
   } else {
     // Reset consecutive counter when performance recovers
     // This implements hysteresis to prevent oscillating safety states
@@ -129,7 +132,7 @@ void PerformanceMonitor::checkModuleExecutionTimes() {
 }
 
 void PerformanceMonitor::checkPerformance() {
-  checkLoopFrequency();
+  checkFrequencyViolations();
   checkModuleExecutionTimes();
 
   if (violations_.consecutive_frequency_violations >=
@@ -173,20 +176,78 @@ void PerformanceMonitor::loop() {
 const char* PerformanceMonitor::name() const { return "PerformanceMonitor"; }
 
 void PerformanceMonitor::getPerformanceStats(char* buffer, size_t size) {
-  // Format compatible with ROS2 bridge: key=value,key=value format
-  // Expected fields: freq, exec, viol, modules, avg_freq, max_exec
-  snprintf(buffer, size, 
-    "freq=%.1f,exec=%.2f,viol=%lu,modules=%d,avg_freq=%.1f,max_exec=%.2f",
-    current_loop_frequency_hz_,
-    0.0f, // TODO: Implement current execution time tracking
-    (unsigned long)violations_.total_frequency_violations,
-    Module::getModuleCount(),
-    current_loop_frequency_hz_, // TODO: Implement average frequency tracking  
-    config_.max_module_time_ms); // TODO: Implement max execution time tracking
+  // Get current frequency from Module system for accurate reporting
+  float current_frequency = Module::getCurrentLoopFrequency();
+  
+  // Start with basic frequency and violation counts
+  int written = snprintf(buffer, size, 
+    "{\"freq\":%.1f, \"target_freq\":%.1f, \"mod_viol\":%lu, \"freq_viol\":%lu",
+    current_frequency,
+    config_.min_loop_frequency_hz,
+    (unsigned long)violations_.total_module_violations,
+    (unsigned long)violations_.total_frequency_violations);
+
+  if (written < 0 || (size_t)written >= size) return;
+
+  // Add violation details if there are any
+  if (violations_.safety_violation_active) {
+    int details_written = snprintf(buffer + written, size - written,
+      ", \"violation_details\":{\"consecutive_mod\":%d,\"consecutive_freq\":%d,\"last_viol_ms\":%lu}",
+      violations_.consecutive_module_violations,
+      violations_.consecutive_frequency_violations,
+      (unsigned long)violations_.last_violation_time_ms);
+    
+    if (details_written > 0 && written + details_written < (int)size) {
+      written += details_written;
+    }
+  }
+
+  // Add module timing information
+  int modules_written = snprintf(buffer + written, size - written, ", \"modules\":[");
+  if (modules_written > 0 && written + modules_written < (int)size) {
+    written += modules_written;
+    
+    // Add each module's timing data with detailed statistics
+    for (uint16_t i = 0; i < Module::getModuleCount(); ++i) {
+      Module* mod = Module::getModule(i);
+      if (mod != nullptr) {
+        float exec_time_ms = mod->getLastExecutionTimeUs() / 1000.0f;
+        bool is_violation = exec_time_ms > config_.max_module_time_ms;
+        
+        // Get detailed performance statistics from the module
+        const PerformanceStats& stats = mod->getPerformanceStats();
+        float avg_us = (stats.loop_count > 0) ? (stats.duration_sum_us / stats.loop_count) : 0.0f;
+        
+        // Convert microseconds to milliseconds for readability
+        float min_ms = stats.duration_min_us / 1000.0f;
+        float max_ms = stats.duration_max_us / 1000.0f;
+        float avg_ms = avg_us / 1000.0f;
+        
+        int mod_written = snprintf(buffer + written, size - written,
+          "%s{\"name\":\"%s\",\"min\":%.2f,\"max\":%.2f,\"avg\":%.2f,\"last\":%.2f,\"count\":%lu,\"violation\":%s}",
+          i > 0 ? "," : "",
+          mod->name(),
+          min_ms, max_ms, avg_ms, exec_time_ms,
+          (unsigned long)stats.loop_count,
+          is_violation ? "true" : "false");
+        
+        if (mod_written > 0 && written + mod_written < (int)size) {
+          written += mod_written;
+        } else {
+          break; // Buffer full
+        }
+      }
+    }
+  }
+
+  // Close JSON structure
+  if (written < (int)size - 3) {
+    snprintf(buffer + written, size - written, "]}");
+  }
 }
 
 void PerformanceMonitor::reportStats() {
-  char stats_json[128]; // Reduced buffer size for simpler key-value format
+  char stats_json[512]; // Increased buffer size for detailed module information
   getPerformanceStats(stats_json, sizeof(stats_json));
   SerialManager::getInstance().sendMessage("PERF", stats_json);
 }

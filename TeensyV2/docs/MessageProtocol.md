@@ -35,23 +35,21 @@ Battery monitoring data from INA226 sensors and analog voltage monitoring.
 
 **Format:**
 ```
-BATT:id=<sensor_id>,v=<voltage>,c=<current>,p=<power>,pct=<percentage>,state=<state>,sensors=<available_sensors>
+BATT:idx=<sensor_id>,V=<voltage>,A=<current>,charge=<percentage>,state=<state>
 ```
 
 **Parameters:**
-- `id`: Sensor/battery identifier (0-255)
-- `v`: Voltage in volts (float, 2 decimal places)
-- `c`: Current in amperes (float, 3 decimal places, positive=discharge)
-- `p`: Power in watts (float, 2 decimal places)
-- `pct`: Charge percentage (float, 0.0-1.0)
+- `idx`: Sensor/battery identifier (0-255)
+- `V`: Voltage in volts (float, 2 decimal places)
+- `A`: Current in amperes (float, 2 decimal places, positive=discharge)
+- `charge`: Charge percentage (float, 0.0-1.0)
 - `state`: Battery state (UNKNOWN, CHARGING, DISCHARGING, CRITICAL, WARNING, NORMAL)
-- `sensors`: Available sensor types (INA226, ANALOG, INA226+ANALOG, NONE)
 
 **Examples:**
 ```
-BATT:id=0,v=39.82,c=1.245,p=49.58,pct=0.85,state=DISCHARGING,sensors=INA226
-BATT:id=0,v=32.10,c=0.125,p=4.01,pct=0.15,state=CRITICAL,sensors=INA226
-BATT:id=1,v=41.50,c=-2.340,p=-97.11,pct=0.95,state=CHARGING,sensors=NONE
+BATT:idx=0,V=42.51,A=1.15,charge=1.00,state=NORMAL
+BATT:idx=0,V=32.10,A=0.12,charge=0.15,state=CRITICAL
+BATT:idx=0,V=41.50,A=-2.34,charge=0.95,state=CHARGING
 ```
 
 ### PERF - Performance Monitoring Messages
@@ -60,21 +58,48 @@ Real-time performance metrics from the embedded system control loop.
 
 **Format:**
 ```
-PERF:freq=<frequency>,exec=<execution_time>,viol=<violations>,modules=<count>,avg_freq=<avg>,max_exec=<max>
+PERF:<json_object>
+```
+
+**JSON Structure:**
+```json
+{
+  "freq": <frequency>,
+  "target_freq": <target_frequency>,
+  "mod_viol": <module_violations>,
+  "freq_viol": <frequency_violations>,
+  "violation_details": {
+    "consecutive_mod": <consecutive_module_violations>,
+    "consecutive_freq": <consecutive_frequency_violations>,
+    "last_viol_ms": <last_violation_timestamp>
+  },
+  "modules": [
+    {
+      "name": "<module_name>",
+      "min": <min_execution_time_ms>,
+      "max": <max_execution_time_ms>,
+      "avg": <average_execution_time_ms>,
+      "last": <last_execution_time_ms>,
+      "count": <execution_count>,
+      "violation": <is_violating_timing>
+    }
+  ]
+}
 ```
 
 **Parameters:**
 - `freq`: Current loop frequency in Hz (float, 1 decimal place)
-- `exec`: Current execution time in milliseconds (float, 2 decimal places)
-- `viol`: Number of performance violations since last reset (integer)
-- `modules`: Number of active modules (integer)
-- `avg_freq`: Average frequency over time window (float, 1 decimal place)
-- `max_exec`: Maximum execution time observed (float, 2 decimal places)
+- `target_freq`: Target loop frequency in Hz (float, 1 decimal place)
+- `mod_viol`: Total module timing violations since reset (integer)
+- `freq_viol`: Total frequency violations since reset (integer)
+- `violation_details`: Present only when safety violations are active
+- `modules`: Array of per-module performance statistics
 
 **Examples:**
 ```
-PERF:freq=84.2,exec=1.85,viol=0,modules=5,avg_freq=84.8,max_exec=2.12
-PERF:freq=67.5,exec=3.45,viol=2,modules=6,avg_freq=82.1,max_exec=5.23
+PERF:{"freq":85.2,"target_freq":80.0,"mod_viol":0,"freq_viol":0,"modules":[{"name":"PerformanceMonitor","min":0.12,"max":0.18,"avg":0.15,"last":0.14,"count":1245,"violation":false},{"name":"BatteryMonitor","min":0.35,"max":0.92,"avg":0.48,"last":0.45,"count":1245,"violation":false}]}
+
+PERF:{"freq":67.5,"target_freq":80.0,"mod_viol":2,"freq_viol":1,"violation_details":{"consecutive_mod":0,"consecutive_freq":1,"last_viol_ms":12345},"modules":[{"name":"PerformanceMonitor","min":0.10,"max":0.25,"avg":0.16,"last":0.15,"count":890,"violation":false},{"name":"BatteryMonitor","min":0.40,"max":3.45,"avg":0.68,"last":3.45,"count":890,"violation":true}]}
 ```
 
 ### SAFETY - Safety Status Messages
