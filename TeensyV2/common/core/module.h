@@ -283,6 +283,13 @@ class Module {
   static uint16_t getModuleCount() { return module_count_; }
 
   /**
+   * @brief Get current main loop frequency.
+   * 
+   * @return Current loop frequency in Hz, calculated from actual loop timing
+   */
+  static float getCurrentLoopFrequency() { return current_loop_frequency_hz_; }
+
+  /**
    * @brief Get a pointer to a module by its index.
    * 
    * @param index The index of the module to retrieve.
@@ -345,7 +352,7 @@ class Module {
    * @brief Get performance statistics for this module.
    * @return Const reference to the performance statistics
    */
-  // const PerformanceStats& getStats() const { return stats_; } // Deprecated
+  const PerformanceStats& getPerformanceStats() const { return stats_; }
 
  protected:
   /**
@@ -377,6 +384,7 @@ class Module {
   // --- Member Variables ---
   bool is_setup_ = false;               ///< True if the module's setup() has been called
   float last_execution_time_us_ = 0.0f; ///< Execution time of the last loop in microseconds
+  PerformanceStats stats_;              ///< Performance statistics for this module
 
  private:
   // --- Static Helper Methods ---
@@ -399,6 +407,8 @@ class Module {
   static uint32_t total_loop_count_;       ///< Total loops executed
   static uint32_t last_stats_report_ms_;   ///< Timestamp of last statistics report
   static uint32_t loop_start_time_us_;     ///< Start time of current loop iteration
+  static uint32_t last_loop_time_us_;      ///< Time of previous loop iteration
+  static float current_loop_frequency_hz_; ///< Current measured loop frequency
 };
 
 }  // namespace sigyn_teensy

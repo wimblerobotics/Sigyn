@@ -193,7 +193,7 @@ class BatteryMonitor : public Module {
   /**
    * @brief Number of batteries supported (currently only LIPO).
    */
-  static constexpr size_t kNumberOfBatteries = 1;
+  static constexpr size_t kNumberOfBatteries = 3;
 
   /**
    * @brief Per-battery configuration (static/global).

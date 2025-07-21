@@ -1,54 +1,56 @@
 /**
  * @file battery_monitor.cpp
- * @brief Implementation of comprehensive battery monitoring system
- * 
- * This file implements the BatteryMonitor module that provides real-time monitoring
- * of battery voltage, current, power consumption, and state estimation for the
- * TeensyV2 system. The implementation supports multiple battery configurations
- * using INA226 current/voltage sensors with automatic sensor detection.
- * 
+ * @brief Implementation of comprehensive batteryINA226 BatteryMonitor::g_ina226_[kNumberOfBatteries];
+uint8_t BatteryMonitor::gINA226_DeviceIndexes_[kNumberOfBatteries] = {2, 3, 4};nitoring system
+ *
+ * This file implements the BatteryMonitor module that provides real-time
+ * monitoring of battery voltage, current, power consumption, and state
+ * estimation for the TeensyV2 system. The implementation supports multiple
+ * battery configurations using INA226 current/voltage sensors with automatic
+ * sensor detection.
+ *
  * Key Implementation Features:
- * 
+ *
  * **Multi-Sensor Support:**
  * - Automatic detection and configuration of INA226 sensors
  * - Graceful degradation when sensors are unavailable
  * - Support for up to kNumberOfBatteries simultaneous battery packs
  * - Configurable I2C multiplexer support for expanded sensor count
- * 
+ *
  * **Real-Time Monitoring:**
  * - Exponential moving average (EMA) filtering for stable readings
  * - Configurable sampling rates optimized for different operational modes
  * - Low-latency data acquisition suitable for safety-critical decisions
  * - Minimal CPU overhead to preserve real-time system performance
- * 
+ *
  * **Safety Integration:**
  * - Automatic detection of critical voltage/current conditions
  * - Integration with global safety system via isUnsafe() interface
  * - Battery state estimation (charging, discharging, critical, unknown)
  * - Configurable safety thresholds with appropriate hysteresis
- * 
+ *
  * **State Estimation:**
  * - Charge percentage estimation based on voltage curves
  * - Battery state tracking (charging/discharging/critical)
  * - Power consumption analysis for runtime prediction
  * - Temperature compensation when thermal sensors are available
- * 
+ *
  * **Performance Characteristics:**
  * - Sensor reading time: <500 microseconds per battery
  * - Memory footprint: ~128 bytes per battery configuration
  * - No dynamic memory allocation during operation
  * - Deterministic execution time for real-time safety
- * 
+ *
  * **Error Handling:**
  * - Robust I2C communication with automatic retry logic
  * - Sensor disconnection detection and graceful recovery
  * - Invalid reading detection and filtering
  * - Comprehensive error reporting via SerialManager
- * 
+ *
  * The implementation follows the TeensyV2 architectural principles of
  * modularity, safety, and real-time performance while providing the
  * detailed battery information needed for autonomous robot operation.
- * 
+ *
  * @author Wimble Robotics
  * @date 2025
  * @version 2.0
@@ -69,13 +71,22 @@
 namespace sigyn_teensy {
 
 // Static member definitions
-BatteryConfig BatteryMonitor::g_battery_config_[kNumberOfBatteries];
-INA226 BatteryMonitor::g_ina226_[kNumberOfBatteries] = {INA226(0x40)};
-uint8_t BatteryMonitor::gINA226_DeviceIndexes_[kNumberOfBatteries] = {2};
+BatteryConfig BatteryMonitor::g_battery_config_[kNumberOfBatteries] = {
+    {32.0f, 34.0f, 45.0f, 44.0f, 15.0f, 20.0f, 5.0f,  500.0f,
+     50.0f, 100,   1000,  100,   true,  true,  false, false,
+     0x40,  A0,    A1,    11.0f, 0.0f,  0.0f,  1.0f,  1.0f},
+    {4.9f,  4.94f, 5.7f, 5.5f,  9.0f, 10.0f, 5.0f,  60.0f,
+     50.0f, 100,   1000, 100,   true, false, false, false,
+     0x40,  A0,    A1,   11.0f, 0.0f, 0.0f,  1.0f,  1.0f},
+    {3.1f, 3.2f, 3.5f, 3.4f,  9.0f, 10.0f, 5.0f,  60.0f,
+     50.0f, 100,   1000, 100,   true, false, false, false,
+     0x40,  A0,    A1,   11.0f, 0.0f, 0.0f,  1.0f,  1.0f}};
+INA226 BatteryMonitor::g_ina226_[kNumberOfBatteries] = {
+    INA226(0x40), INA226(0x40), INA226(0x40)};
+uint8_t BatteryMonitor::gINA226_DeviceIndexes_[kNumberOfBatteries] = {2, 3, 4};
 
 BatteryMonitor::BatteryMonitor()
-    : multiplexer_available_(false),
-      setup_completed_(false) {
+    : multiplexer_available_(false), setup_completed_(false) {
   // Initialize EMA arrays
   for (size_t i = 0; i < kNumberOfBatteries; i++) {
     voltage_ema_[i] = 0.0f;
@@ -124,6 +135,12 @@ void BatteryMonitor::loop() {
         voltage = raw * k36VAnalogToVoltageConversion;
         selectSensor(battery_idx);
         current = g_ina226_[battery_idx].getCurrent();
+      } else {
+        selectSensor(battery_idx);
+        if (g_ina226_[battery_idx].isConnected()) {
+          voltage = g_ina226_[battery_idx].getBusVoltage();
+          current = g_ina226_[battery_idx].getCurrent();
+        }
       }
       if (total_readings_[battery_idx] == 0) {
         voltage_ema_[battery_idx] = voltage;
@@ -163,20 +180,11 @@ void BatteryMonitor::selectSensor(size_t battery_idx) const {
 }
 
 void BatteryMonitor::sendStatusMessage(size_t idx) {
-  // Create a message format compatible with ROS2 bridge expectations
-  // Format: BATT:id=<id>,v=<voltage>,c=<current>,p=<power>,pct=<percentage>,state=<state>,sensors=<sensors>
-  float voltage = getVoltage(idx);
-  float current = getCurrent(idx);
-  float power = voltage * current;
-  float percentage = estimateChargePercentage(voltage);
-  
-  String message = "id=" + String(idx) +
-                   ",v=" + String(voltage, 2) +
-                   ",c=" + String(current, 2) +
-                   ",p=" + String(power, 2) +
-                   ",pct=" + String(percentage, 2) +
-                   ",state=" + String(batteryStateToString(state_[idx])) +
-                   ",sensors=" + String(setup_completed_ ? "INA226" : "NONE");
+  // Create a JSON-like string for the battery status
+  String message = "idx:" + String(idx) + ",V:" + String(getVoltage(idx), 2) +
+                   ",A:" + String(getCurrent(idx), 2) + ",charge:" +
+                   String(estimateChargePercentage(getVoltage(idx))) +
+                   ",state:" + String(batteryStateToString(state_[idx]));
 
   SerialManager::getInstance().sendMessage("BATT", message.c_str());
 }
@@ -256,13 +264,20 @@ float BatteryMonitor::updateExponentialAverage(float current_avg,
 
 const char* BatteryMonitor::batteryStateToString(BatteryState state) const {
   switch (state) {
-    case BatteryState::UNKNOWN:      return "UNKNOWN";
-    case BatteryState::CHARGING:     return "CHARGING";
-    case BatteryState::DISCHARGING:  return "DISCHARGING";
-    case BatteryState::CRITICAL:     return "CRITICAL";
-    case BatteryState::WARNING:      return "WARNING";
-    case BatteryState::NORMAL:       return "NORMAL";
-    default:                         return "INVALID";
+    case BatteryState::UNKNOWN:
+      return "UNKNOWN";
+    case BatteryState::CHARGING:
+      return "CHARGING";
+    case BatteryState::DISCHARGING:
+      return "DISCHARGING";
+    case BatteryState::CRITICAL:
+      return "CRITICAL";
+    case BatteryState::WARNING:
+      return "WARNING";
+    case BatteryState::NORMAL:
+      return "NORMAL";
+    default:
+      return "INVALID";
   }
 }
 
