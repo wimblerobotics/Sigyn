@@ -60,7 +60,7 @@
 #include <cstddef>
 #include <cmath>
 #include <limits>
-#include "module.h"
+#include "../../common/core/module.h"
 
 namespace sigyn_teensy {
 

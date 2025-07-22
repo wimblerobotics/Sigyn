@@ -46,8 +46,8 @@
 
 #include <Arduino.h>
 #include "performance_monitor.h"
-#include "serial_manager.h"
-#include "module.h"
+#include "common/core/serial_manager.h"
+#include "common/core/module.h"
 #include <limits>
 
 namespace sigyn_teensy {

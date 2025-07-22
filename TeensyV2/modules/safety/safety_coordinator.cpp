@@ -53,7 +53,7 @@
 #include <Arduino.h>
 #include <cstdint>
 #include <cstdio>
-#include "serial_manager.h"
+#include "common/core/serial_manager.h"
 
 namespace sigyn_teensy {
 
