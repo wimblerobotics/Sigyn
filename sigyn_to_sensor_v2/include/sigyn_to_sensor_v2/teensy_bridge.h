@@ -18,6 +18,7 @@
 #include "std_msgs/msg/string.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "sensor_msgs/msg/battery_state.hpp"
+#include "sensor_msgs/msg/imu.hpp"
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 
 #include "sigyn_to_sensor_v2/message_parser.h"
@@ -45,6 +46,7 @@ private:
   void HandleBatteryMessage(const MessageData& data, rclcpp::Time timestamp);
   void HandlePerformanceMessage(const MessageData& data, rclcpp::Time timestamp);
   void HandleSafetyMessage(const MessageData& data, rclcpp::Time timestamp);
+  void HandleIMUMessage(const MessageData& data, rclcpp::Time timestamp);
   void HandleEstopMessage(const MessageData& data, rclcpp::Time timestamp);
   void HandleDiagnosticMessage(const MessageData& data, rclcpp::Time timestamp);
   
@@ -68,6 +70,8 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr battery_pub_;
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_pub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr estop_status_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_sensor0_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_sensor1_pub_;
   
   // Subscribers
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr estop_cmd_sub_;

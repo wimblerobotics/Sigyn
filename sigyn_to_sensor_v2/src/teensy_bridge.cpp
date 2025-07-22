@@ -50,6 +50,11 @@ TeensyBridge::TeensyBridge()
       HandleSafetyMessage(data, timestamp);
     });
     
+  message_parser_->RegisterCallback(MessageType::IMU,
+    [this](const MessageData& data, rclcpp::Time timestamp) {
+      HandleIMUMessage(data, timestamp);
+    });
+    
   message_parser_->RegisterCallback(MessageType::ESTOP,
     [this](const MessageData& data, rclcpp::Time timestamp) {
       HandleEstopMessage(data, timestamp);
@@ -104,6 +109,13 @@ void TeensyBridge::InitializePublishersAndSubscribers() {
     
   estop_status_pub_ = this->create_publisher<std_msgs::msg::Bool>(
     "~/safety/estop_status", 10);
+    
+  // IMU publishers for dual sensors
+  imu_sensor0_pub_ = this->create_publisher<sensor_msgs::msg::Imu>(
+    "~/imu/sensor_0", 10);
+    
+  imu_sensor1_pub_ = this->create_publisher<sensor_msgs::msg::Imu>(
+    "~/imu/sensor_1", 10);
   
   // Subscribers
   estop_cmd_sub_ = this->create_subscription<std_msgs::msg::Bool>(
@@ -368,6 +380,26 @@ void TeensyBridge::HandleBatteryMessage(const MessageData& data, rclcpp::Time ti
   if (battery_data.valid) {
     auto msg = message_parser_->ToBatteryStateMsg(battery_data, timestamp);
     battery_pub_->publish(msg);
+  }
+}
+
+void TeensyBridge::HandleIMUMessage(const MessageData& data, rclcpp::Time timestamp) {
+  auto imu_data = message_parser_->ParseIMUData(data);
+  if (imu_data.valid) {
+    auto msg = message_parser_->ToImuMsg(imu_data, timestamp);
+    
+    // Publish to the appropriate sensor topic
+    if (imu_data.sensor_id == 0) {
+      imu_sensor0_pub_->publish(msg);
+      RCLCPP_DEBUG(this->get_logger(), "Published IMU data for sensor 0");
+    } else if (imu_data.sensor_id == 1) {
+      imu_sensor1_pub_->publish(msg);
+      RCLCPP_DEBUG(this->get_logger(), "Published IMU data for sensor 1");
+    } else {
+      RCLCPP_WARN(this->get_logger(), "Invalid IMU sensor ID: %d", imu_data.sensor_id);
+    }
+  } else {
+    RCLCPP_WARN(this->get_logger(), "Received invalid IMU data");
   }
 }
 

@@ -86,12 +86,28 @@ ament_target_dependencies(safety_coordinator_node
   sigyn_interfaces
 )
 
+# IMU Monitor Node - Dual BNO055 sensor monitoring
+add_executable(imu_monitor_node
+  src/imu_monitor_node.cpp
+  src/message_parser.cpp
+)
+
+ament_target_dependencies(imu_monitor_node
+  rclcpp
+  std_msgs
+  sensor_msgs
+  diagnostic_msgs
+  rcl_interfaces
+  sigyn_interfaces
+)
+
 # Install executables
 install(TARGETS
   teensy_bridge_node
   battery_monitor_node
   performance_monitor_node
   safety_coordinator_node
+  imu_monitor_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
