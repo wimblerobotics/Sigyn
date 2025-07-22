@@ -100,12 +100,12 @@ void TeensyBridge::InitializeParameters() {
 }
 
 void TeensyBridge::InitializePublishersAndSubscribers() {
-  // Publishers
+  // Publishers - Use standard topic naming convention
   battery_pub_ = this->create_publisher<sensor_msgs::msg::BatteryState>(
-    "~/battery/status", 10);
+    "teensy_v2/battery_state", 10);
     
   diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
-    "~/diagnostics", 10);
+    "teensy_v2/battery_diagnostics", 10);
     
   estop_status_pub_ = this->create_publisher<std_msgs::msg::Bool>(
     "~/safety/estop_status", 10);
