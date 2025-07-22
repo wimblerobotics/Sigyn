@@ -49,7 +49,6 @@ private:
   void HandleIMUMessage(const MessageData& data, rclcpp::Time timestamp);
   void HandleEstopMessage(const MessageData& data, rclcpp::Time timestamp);
   void HandleDiagnosticMessage(const MessageData& data, rclcpp::Time timestamp);
-  void HandleLogMessage(const MessageData& data, rclcpp::Time timestamp);
   
   // ROS2 callbacks
   void EstopCommandCallback(const std_msgs::msg::Bool::SharedPtr msg);
@@ -73,7 +72,6 @@ private:
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr estop_status_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_sensor0_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_sensor1_pub_;
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr teensy_diagnostics_pub_;
   
   // Subscribers
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr estop_cmd_sub_;

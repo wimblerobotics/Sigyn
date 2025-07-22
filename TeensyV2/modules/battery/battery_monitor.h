@@ -108,6 +108,7 @@ struct BatteryConfig {
   float current_calibration_offset = 0.0f; ///< Current measurement offset correction
   float voltage_calibration_scale = 1.0f;  ///< Voltage measurement scale correction
   float current_calibration_scale = 1.0f;  ///< Current measurement scale correction
+  char battery_name[32];                    ///< User-defined battery name
 };
 
 /**
@@ -193,7 +194,7 @@ class BatteryMonitor : public Module {
   /**
    * @brief Number of batteries supported (currently only LIPO).
    */
-  static constexpr size_t kNumberOfBatteries = 4;
+  static constexpr size_t kNumberOfBatteries = 5;
 
   /**
    * @brief Per-battery configuration (static/global).
