@@ -55,9 +55,8 @@ private:
   // Publishers
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_pub_;
   rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr frequency_pub_;
-  // TODO: These publishers are orphaned - ProcessPerformanceData() is never called
-  // rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr execution_time_pub_;
-  // rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr memory_usage_pub_;
+  rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr execution_time_pub_;
+  rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr memory_usage_pub_;
 
   // Parameters
   double frequency_warn_threshold_;     ///< Minimum frequency warning threshold

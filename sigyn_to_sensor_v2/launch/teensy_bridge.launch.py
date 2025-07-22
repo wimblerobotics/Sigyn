@@ -2,9 +2,11 @@
 """
 Launch file for TeensyV2 communication system.
 
-Starts the unified TeensyV2 communication bridge:
-- teensy_bridge_node: Main communication bridge handling all TeensyV2 functionality
-  including battery monitoring, diagnostics, and sensor data
+Starts the main node required for communication with TeensyV2 embedded system:
+- teensy_bridge_node: Main communication bridge handling all message parsing and ROS2 publishing
+
+The bridge node handles all TeensyV2 message types (BATT, PERF, IMU, DIAG) and publishes
+to appropriate ROS2 topics through the unified bridge system.
 
 Author: Sigyn Robotics
 Date: 2025
@@ -112,8 +114,6 @@ def generate_launch_description():
                 respawn=True,
                 respawn_delay=2.0,
             ),
-            
-
         ]
     )
     
@@ -147,7 +147,6 @@ def generate_launch_description():
                             common_params,
                         ],
                     ),
-
                 ],
             ),
         ]

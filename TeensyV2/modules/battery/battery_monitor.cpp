@@ -76,19 +76,22 @@ namespace sigyn_teensy {
 BatteryConfig BatteryMonitor::g_battery_config_[kNumberOfBatteries] = {
     {32.0f, 34.0f, 45.0f, 44.0f, 15.0f, 20.0f, 5.0f,  500.0f,
      50.0f, 100,   1000,  100,   true,  true,  false, false,
-     0x40,  A0,    A1,    11.0f, 0.0f,  0.0f,  1.0f,  1.0f},
+     0x40,  A0,    A1,    11.0f, 0.0f,  0.0f,  1.0f,  1.0f, "36VLIPO"},
     {4.9f,  4.94f, 5.7f, 5.5f,  9.0f, 10.0f, 5.0f,  50.0f,
      50.0f, 100,   1000, 100,   true, false, false, false,
-     0x40,  A0,    A1,   11.0f, 0.0f, 0.0f,  1.0f,  1.0f},
+     0x40,  A0,    A1,   11.0f, 0.0f, 0.0f,  1.0f,  1.0f, "5VDCDC"},
     {23.0f, 23.5f, 25.0f, 24.5f, 9.0f, 10.0f, 5.0f,  240.0f,
      50.0f, 100,   1000,  100,   true, false, false, false,
-     0x40,  A0,    A1,    11.0f, 0.0f, 0.0f,  1.0f,  1.0f},
-    {3.1f,  3.2f, 3.5f, 3.4f,  9.0f, 10.0f, 5.0f,  33.0f,
+     0x40,  A0,    A1,    11.0f, 0.0f, 0.0f,  1.0f,  1.0f, "24VDCDC"},
+    {3.1f,  3.2f, 3.4f, 3.5f,  9.0f, 10.0f, 5.0f,  33.0f,
      50.0f, 100,  1000, 100,   true, false, false, false,
-     0x40,  A0,   A1,   11.0f, 0.0f, 0.0f,  1.0f,  1.0f}};
+     0x40,  A0,   A1,   11.0f, 0.0f, 0.0f,  1.0f,  1.0f, "3.3VDCDC"},
+    {11.8f,  11.9f, 12.5f, 12.4f,  19.0f, 20.0f, 5.0f,  240.0f,
+     50.0f, 100,  1000, 100,   true, false, false, false,
+     0x40,  A0,   A1,   11.0f, 0.0f, 0.0f,  1.0f,  1.0f, "12VDCDC"}};
 INA226 BatteryMonitor::g_ina226_[kNumberOfBatteries] = {
-    INA226(0x40), INA226(0x40), INA226(0x40), INA226(0x40)};
-uint8_t BatteryMonitor::gINA226_DeviceIndexes_[kNumberOfBatteries] = {2, 3, 4, 5};
+    INA226(0x40), INA226(0x40), INA226(0x40), INA226(0x40), INA226(0x40)};
+uint8_t BatteryMonitor::gINA226_DeviceIndexes_[kNumberOfBatteries] = {2, 3, 4, 5, 6};
 
 BatteryMonitor::BatteryMonitor()
     : multiplexer_available_(false), setup_completed_(false) {
@@ -189,7 +192,8 @@ void BatteryMonitor::sendStatusMessage(size_t idx) {
   String message = "idx:" + String(idx) + ",V:" + String(getVoltage(idx), 2) +
                    ",A:" + String(getCurrent(idx), 2) + ",charge:" +
                    String(estimateChargePercentage(getVoltage(idx))) +
-                   ",state:" + String(batteryStateToString(state_[idx]));
+                   ",state:" + String(batteryStateToString(state_[idx])) +
+                  ",location:" + String(g_battery_config_[idx].battery_name);
 
   SerialManager::getInstance().sendMessage("BATT", message.c_str());
 }
@@ -266,12 +270,17 @@ void BatteryMonitor::updateBatteryState(size_t idx) {
   float voltage = getVoltage(idx);
   float current = getCurrent(idx);
 
-  if (voltage < config_.critical_low_voltage ||
-      abs(current) > config_.critical_high_current) {
+  if (voltage < g_battery_config_[idx].critical_low_voltage ||
+      abs(current) > g_battery_config_[idx].critical_high_current) {
+        char message[128];
+        snprintf(message, sizeof(message),
+                 "Battery %zu in CRITICAL state: voltage=%.2f, current=%.2f, critical_low_voltage=%.2f, critical_high_voltage=%.2f, critical_high_current=%.2f",
+                 idx, voltage, current, config_.critical_low_voltage, config_.critical_high_voltage, config_.critical_high_current);
+        SerialManager::getInstance().sendMessage("WARNING", message);
     state_[idx] = BatteryState::CRITICAL;
-  } else if (voltage < config_.warning_low_voltage) {
+  } else if (voltage < g_battery_config_[idx].warning_low_voltage) {
     state_[idx] = BatteryState::WARNING;
-  } else if (current > config_.high_current_threshold) {
+  } else if (current > g_battery_config_[idx] .high_current_threshold) {
     state_[idx] = BatteryState::CHARGING;
   } else {
     state_[idx] = BatteryState::NORMAL;

@@ -46,8 +46,7 @@ enum class MessageType {
   SAFETY,       ///< Safety status and conditions
   IMU,          ///< IMU sensor data (orientation, gyro, accel)
   ESTOP,        ///< E-stop notifications
-  DIAGNOSTIC,   ///< Structured diagnostic messages (DIAG)
-  LOG,          ///< Log/diagnostic text messages (INFO, WARN, ERROR, etc.)
+  DIAGNOSTIC,   ///< Diagnostic and error messages
   CONFIG,       ///< Configuration responses
   UNKNOWN       ///< Unrecognized message type
 };
@@ -73,6 +72,7 @@ struct BatteryData {
   double percentage = 0.0;              ///< Charge percentage (0.0-1.0)
   std::string state = "UNKNOWN";        ///< Battery state string
   std::string sensors = "";             ///< Available sensor types
+  std::string location = "";            ///< Battery location/description
   bool valid = false;                   ///< Data validity flag
 };
 

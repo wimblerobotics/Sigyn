@@ -69,13 +69,6 @@ bool MessageParser::ParseMessage(const std::string& message, rclcpp::Time timest
       // DIAG messages are free-form diagnostic text - just log and continue
       data["message"] = content;
       RCLCPP_DEBUG(logger_, "DIAG: %s", content.c_str());
-    } else if (type == MessageType::LOG) {
-      // LOG messages are simple text messages from TeensyV2 modules
-      // Store the original message type and content for formatted output
-      std::string type_str = message.substr(0, colon_pos);
-      data["level"] = type_str;
-      data["message"] = content;
-      RCLCPP_DEBUG(logger_, "%s: %s", type_str.c_str(), content.c_str());
     } else {
       // All other messages use key:value format
       data = ParseKeyValuePairs(content);
@@ -151,6 +144,11 @@ BatteryData MessageParser::ParseBatteryData(const MessageData& data) const {
     it = data.find("sensors");
     if (it != data.end()) {
       battery.sensors = it->second;
+    }
+    
+    it = data.find("location");
+    if (it != data.end()) {
+      battery.location = it->second;
     }
     
     battery.valid = true;
@@ -454,6 +452,9 @@ sensor_msgs::msg::BatteryState MessageParser::ToBatteryStateMsg(const BatteryDat
   msg.design_capacity = NAN;  // Not directly provided
   msg.percentage = static_cast<float>(data.percentage);
   
+  // Set location field from battery data
+  msg.location = data.location;
+  
   // Map state string to enum
   if (data.state == "CHARGING") {
     msg.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_CHARGING;
@@ -685,28 +686,13 @@ bool MessageParser::ValidateMessage(const std::string& message) const {
 }
 
 MessageType MessageParser::StringToMessageType(const std::string& type_str) const {
-  // Structured data messages
   if (type_str == "BATT") return MessageType::BATTERY;
   if (type_str == "PERF") return MessageType::PERFORMANCE;
   if (type_str == "SAFETY") return MessageType::SAFETY;
   if (type_str == "IMU") return MessageType::IMU;
   if (type_str == "ESTOP") return MessageType::ESTOP;
-  if (type_str == "CONFIG") return MessageType::CONFIG;
-  
-  // Structured diagnostic messages
   if (type_str == "DIAG") return MessageType::DIAGNOSTIC;
-  
-  // Log/diagnostic text messages (like rosout)
-  if (type_str == "INFO") return MessageType::LOG;
-  if (type_str == "WARN") return MessageType::LOG;
-  if (type_str == "ERROR") return MessageType::LOG;
-  if (type_str == "DEBUG") return MessageType::LOG;
-  if (type_str == "CRITICAL") return MessageType::LOG;
-  if (type_str == "FATAL") return MessageType::LOG;
-  if (type_str == "FAULT") return MessageType::LOG;
-  if (type_str == "SAFETY_CRITICAL") return MessageType::LOG;
-  if (type_str == "INIT") return MessageType::LOG;
-  
+  if (type_str == "CONFIG") return MessageType::CONFIG;
   return MessageType::UNKNOWN;
 }
 
@@ -718,7 +704,6 @@ std::string MessageParser::MessageTypeToString(MessageType type) const {
     case MessageType::IMU: return "IMU";
     case MessageType::ESTOP: return "ESTOP";
     case MessageType::DIAGNOSTIC: return "DIAG";
-    case MessageType::LOG: return "LOG";
     case MessageType::CONFIG: return "CONFIG";
     default: return "UNKNOWN";
   }
