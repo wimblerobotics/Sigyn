@@ -44,6 +44,18 @@
         "/opt/ros/jazzy/lib/python3.12/site-packages"
     ],
     "files.associations": {
-        "typeinfo": "cpp"
-    }
+        "typeinfo": "cpp",
+        "*.h": "c",
+        "*.hpp": "cpp",
+        "*.cpp": "cpp",
+        "*.ino": "cpp"
+    },
+    "C_Cpp.errorSquiggles": "enabled",
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.configurationWarnings": "enabled",
+    "C_Cpp.default.compilerPath": "/home/ros/.platformio/packages/toolchain-gccarmnoneeabi-teensy/bin/arm-none-eabi-g++",
+    "C_Cpp.default.cStandard": "c11",
+    "C_Cpp.default.cppStandard": "c++17",
+    "C_Cpp.default.intelliSenseMode": "gcc-arm",
+    "C_Cpp.loggingLevel": "Debug"
 }
