@@ -16,14 +16,11 @@ This package serves as the primary communication bridge between the TeensyV2 emb
 
 ### Node Structure
 
-The package implements a modular node architecture:
+The package implements a streamlined single-node architecture:
 
 ```
 sigyn_to_sensor_v2/
-├── teensy_bridge_node      # Main communication bridge
-├── battery_monitor_node    # Battery monitoring and safety
-├── performance_monitor_node # System performance tracking
-└── safety_coordinator_node # E-stop and safety management
+└── teensy_bridge_node      # Main communication bridge and data processing
 ```
 
 ### Communication Flow
@@ -32,10 +29,12 @@ sigyn_to_sensor_v2/
 [Teensy Board 1] ←→ [teensy_bridge_node] ←→ [ROS2 Topics/Services]
 [Teensy Board 2] ←→ [teensy_bridge_node] ←→ [ROS2 Topics/Services]
                               ↓
-                    [Specialized Monitor Nodes]
+                    [Direct Topic Publishing]
                               ↓
-                    [Safety Topics & Parameters]
+                    [Battery, IMU, Safety, Performance Topics]
 ```
+
+**Note**: Previous architecture with separate monitor nodes has been consolidated into the main bridge node for improved performance and reduced complexity.
 
 ## Features
 
@@ -83,13 +82,11 @@ source install/setup.bash
 
 ### Running
 ```bash
-# Launch all TeensyV2 interface nodes
+# Launch the TeensyV2 interface bridge
 ros2 launch sigyn_to_sensor_v2 teensy_bridge.launch.py
 
-# Or run individual nodes
+# Or run the main bridge node directly
 ros2 run sigyn_to_sensor_v2 teensy_bridge_node
-ros2 run sigyn_to_sensor_v2 battery_monitor_node
-ros2 run sigyn_to_sensor_v2 safety_coordinator_node
 ```
 
 ### Configuration
@@ -110,41 +107,42 @@ ros2 param set /performance_monitor max_execution_time_ms 2.0
 
 ### Published Topics
 
-#### Safety and Status
-- `/sigyn/safety/estop_status` (std_msgs/Bool) - Current E-stop state
-- `/sigyn/safety/safety_status` (diagnostic_msgs/DiagnosticArray) - Detailed safety status
-- `/sigyn/safety/violations` (sigyn_interfaces/SafetyViolation) - Safety violation reports
-
 #### Battery Monitoring
-- `/sigyn/battery/status` (sensor_msgs/BatteryState) - Battery voltage, current, percentage
-- `/sigyn/battery/diagnostics` (diagnostic_msgs/DiagnosticArray) - Battery health diagnostics
+- `/battery_state` (sensor_msgs/BatteryState) - Battery voltage, current, percentage, and location
+  - **New Feature**: `location` field indicates physical battery location (e.g., "36VLIPO", "5VDCDC")
+  - Supports multiple battery types: 36V LiPo main battery, 5V DC-DC, 24V DC-DC, 3.3V DC-DC, 12V DC-DC
 
-#### Performance Monitoring
-- `/sigyn/performance/system_stats` (sigyn_interfaces/PerformanceStats) - System performance metrics
-- `/sigyn/performance/module_stats` (sigyn_interfaces/ModulePerformance) - Per-module performance
+#### IMU Data
+- `/imu/sensor0` (sensor_msgs/Imu) - Primary IMU sensor data (quaternion orientation)
+- `/imu/sensor1` (sensor_msgs/Imu) - Secondary IMU sensor data (quaternion orientation)
 
-#### Sensor Data
-- `/sigyn/sensors/board1/status` (diagnostic_msgs/DiagnosticArray) - Board 1 sensor status
-- `/sigyn/sensors/board2/status` (diagnostic_msgs/DiagnosticArray) - Board 2 sensor status
+#### Safety and Diagnostics
+- `/estop_status` (custom message) - Emergency stop events and status
+- `/diagnostics` (diagnostic_msgs/DiagnosticArray) - System diagnostic messages
+- `/performance_stats` (custom message) - Real-time performance monitoring
 
 ### Subscribed Topics
 
 #### Commands
-- `/sigyn/commands/estop` (std_msgs/Bool) - Software E-stop trigger
-- `/sigyn/commands/reset_estop` (std_msgs/String) - E-stop reset commands
-- `/sigyn/commands/config_update` (sigyn_interfaces/ConfigUpdate) - Runtime configuration updates
+- `/commands/config` - Configuration update commands
+- `/commands/estop` - Software E-stop trigger commands
+
+### Message Format Notes
+
+#### BATT Messages
+The TeensyV2 system now includes battery location information in BATT messages:
+```
+BATT:idx:0,V:42.51,A:1.15,charge:1.00,state:NORMAL,location:36VLIPO
+```
+
+The `location` field maps to the `location` field in the ROS2 `sensor_msgs/BatteryState` message, providing clear identification of which physical battery is reporting data.
 
 ## Services
 
-### Safety Services
-- `/sigyn/safety/trigger_estop` (sigyn_interfaces/TriggerEstop) - Trigger emergency stop
-- `/sigyn/safety/reset_estop` (sigyn_interfaces/ResetEstop) - Reset emergency stop
-- `/sigyn/safety/get_status` (sigyn_interfaces/GetSafetyStatus) - Get detailed safety status
-
 ### Configuration Services
-- `/sigyn/config/update_parameters` (sigyn_interfaces/UpdateParameters) - Bulk parameter updates
-- `/sigyn/config/save_parameters` (std_srvs/Empty) - Save current parameters to embedded system
-- `/sigyn/config/reset_parameters` (std_srvs/Empty) - Reset to default parameters
+- Configuration updates are handled via the messaging protocol
+- Parameter changes are synchronized with the embedded system automatically
+- No dedicated services - all configuration is parameter-driven
 
 ## Parameters
 

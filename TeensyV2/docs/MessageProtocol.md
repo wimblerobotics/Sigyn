@@ -43,7 +43,7 @@ Battery monitoring data from INA226 sensors and analog voltage monitoring.
 
 **Format:**
 ```
-BATT:idx:<sensor_id>,V:<voltage>,A:<current>,charge:<percentage>,state:<state>
+BATT:idx:<sensor_id>,V:<voltage>,A:<current>,charge:<percentage>,state:<state>,location:<location>
 ```
 
 **Parameters:**
@@ -52,12 +52,15 @@ BATT:idx:<sensor_id>,V:<voltage>,A:<current>,charge:<percentage>,state:<state>
 - `A`: Current in amperes (float, 2 decimal places, positive=discharge)
 - `charge`: Charge percentage (float, 0.0-1.0)
 - `state`: Battery state (UNKNOWN, CHARGING, DISCHARGING, CRITICAL, WARNING, NORMAL)
+- `location`: Battery physical location/name (string, from battery configuration)
 
 **Examples:**
 ```
-BATT:idx:0,V:42.51,A:1.15,charge:1.00,state:NORMAL
-BATT:idx:0,V:32.10,A:0.12,charge:0.15,state:CRITICAL
-BATT:idx:0,V:41.50,A:-2.34,charge:0.95,state:CHARGING
+BATT:idx:0,V:42.51,A:1.15,charge:1.00,state:NORMAL,location:36VLIPO
+BATT:idx:1,V:5.02,A:0.85,charge:0.92,state:NORMAL,location:5VDCDC
+BATT:idx:2,V:23.80,A:1.20,charge:0.78,state:NORMAL,location:24VDCDC
+BATT:idx:3,V:3.25,A:0.35,charge:0.88,state:NORMAL,location:3.3VDCDC
+BATT:idx:4,V:12.10,A:2.10,charge:0.65,state:WARNING,location:12VDCDC
 ```
 
 ### PERF - Performance Monitoring Messages
@@ -284,16 +287,17 @@ IMU:id:1,qx:0.0987,qy:-0.6543,qz:0.3210,qw:0.6789
 ### Topic Mapping
 
 #### Published Topics (Teensy → ROS2)
-- `BATT` messages → `/sigyn/battery/status` (sensor_msgs/BatteryState)
-- `PERF` messages → `/sigyn/performance/stats` (custom message)
-- `SAFETY` messages → `/sigyn/safety/status` (diagnostic_msgs/DiagnosticArray)
-- `ESTOP` messages → `/sigyn/safety/estop_events` (custom message)
-- `DIAG` messages → `/sigyn/diagnostics` (diagnostic_msgs/DiagnosticArray)
+- `BATT` messages → `/battery_state` (sensor_msgs/BatteryState)
+- `PERF` messages → `/performance_stats` (custom message)
+- `SAFETY` messages → `/safety_status` (diagnostic_msgs/DiagnosticArray)
+- `ESTOP` messages → `/estop_status` (custom message)
+- `DIAG` messages → `/diagnostics` (diagnostic_msgs/DiagnosticArray)
+- `IMU` messages → `/imu/sensor0`, `/imu/sensor1` (sensor_msgs/Imu)
 
 #### Subscribed Topics (ROS2 → Teensy)
-- `/sigyn/commands/config` → `CONFIG` messages
-- `/sigyn/commands/estop` → `ESTOP` trigger commands
-- `/sigyn/parameters/*` → `CONFIG` parameter updates
+- `/commands/config` → `CONFIG` messages
+- `/commands/estop` → `ESTOP` trigger commands
+- `/parameters/*` → `CONFIG` parameter updates
 
 ### Parameter Integration
 - ROS2 parameters automatically sync with embedded system
