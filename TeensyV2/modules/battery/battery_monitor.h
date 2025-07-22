@@ -32,9 +32,9 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "../common/core/module.h"  // Ensure Module base class is included
+#include "../../common/core/module.h"  // Ensure Module base class is included
 #include "INA226.h"
-#include "serial_manager.h"
+#include "../../common/core/serial_manager.h"
 
 namespace sigyn_teensy {
 /**

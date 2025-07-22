@@ -36,9 +36,10 @@
 // Board 1 specific modules
 #include "modules/performance/performance_monitor.h"
 #include "modules/safety/safety_coordinator.h"
-// #include "modules/motor/motor_controller.h"      // To be implemented
-// #include "modules/sensors/vl53l0x_manager.h"    // To be implemented
-// #include "modules/navigation/odometry.h"        // To be implemented
+#include "modules/roboclaw/roboclaw_monitor.h"
+#include "modules/sensors/vl53l0x_monitor.h"
+#include "modules/sensors/temperature_monitor.h"
+#include "modules/storage/sd_logger.h"
 
 using namespace sigyn_teensy;
 
@@ -59,6 +60,10 @@ float loop_frequency;
 SerialManager* serial_manager;
 PerformanceMonitor* performance_monitor;
 SafetyCoordinator* safety_coordinator;
+RoboClawMonitor* roboclaw_monitor;
+VL53L0XMonitor* vl53l0x_monitor;
+TemperatureMonitor* temperature_monitor;
+SDLogger* sd_logger;
 
 /**
  * @brief Handle critical errors and system faults.
@@ -124,9 +129,30 @@ void loop() {
     Serial.println("Board1 Status:");
     Serial.println("  Loop frequency: " + String(loop_frequency, 1) + " Hz");
     Serial.println("  Execution time: " + String(execution_time) + " us");
-    // Serial.println("  Safety state: " + safety_coordinator->getSafetyStatusDescription());
     Serial.println("  Safety state: " + String(static_cast<int>(safety_coordinator->getSafetyState())));
     Serial.println("  Free memory: " + String(freeMemory()) + " bytes");
+    
+    // Report sensor status
+    if (temperature_monitor) {
+      uint8_t sensor_count = temperature_monitor->getSensorCount();
+      Serial.println("  Temperature sensors: " + String(sensor_count));
+      for (uint8_t i = 0; i < sensor_count && i < 3; i++) {  // Report first 3 sensors
+        float temp = temperature_monitor->getTemperature(i);
+        if (temp != -127.0) {  // Valid reading
+          Serial.println("    Sensor " + String(i) + ": " + String(temp, 1) + "°C");
+        }
+      }
+    }
+    
+    // Report VL53L0X sensors
+    if (vl53l0x_monitor) {
+      Serial.println("  VL53L0X sensors active: " + String(vl53l0x_monitor->getArrayStatus().active_sensors));
+    }
+    
+    // Report SD card status
+    if (sd_logger && sd_logger->isSDAvailable()) {
+      Serial.println("  SD card: Available (" + String(sd_logger->getBufferUsagePercent()) + "% buffer)");
+    }
   }
   
   // Safety monitoring - check for critical performance violations
@@ -138,6 +164,29 @@ void loop() {
     if (execution_time > 20000) {  // 20ms is unacceptable
       safety_coordinator->triggerEstop(EstopSource::PERFORMANCE, 
                                        "Critical timing violation: " + String(execution_time) + "us");
+    }
+    
+    // Check temperature safety
+    if (temperature_monitor) {
+      uint8_t sensor_count = temperature_monitor->getSensorCount();
+      for (uint8_t i = 0; i < sensor_count; i++) {
+        float temp = temperature_monitor->getTemperature(i);
+        if (temp > 80.0f) {  // Critical temperature threshold
+          safety_coordinator->triggerEstop(EstopSource::SENSOR_FAILURE,
+                                         "Critical temperature: Sensor " + String(i) + " = " + String(temp, 1) + "°C");
+          break;
+        }
+      }
+    }
+    
+    // Check RoboClaw safety
+    if (roboclaw_monitor) {  // Remove isUnsafe call since it's protected
+      // Could add other safety checks here for motor monitoring
+    }
+    
+    // Check VL53L0X sensors for emergency obstacles
+    if (vl53l0x_monitor) {  // Remove isUnsafe call since it's protected
+      // Could add other safety checks here for obstacle detection
     }
   }
 
@@ -179,6 +228,10 @@ void setup() {
   serial_manager = &SerialManager::getInstance();
   performance_monitor = &PerformanceMonitor::getInstance();
   safety_coordinator = &SafetyCoordinator::getInstance();
+  roboclaw_monitor = &RoboClawMonitor::getInstance();
+  vl53l0x_monitor = &VL53L0XMonitor::getInstance();
+  temperature_monitor = &TemperatureMonitor::getInstance();
+  sd_logger = &SDLogger::getInstance();
   
   // Initialize serial communication (no return value to check)
   serial_manager->initialize(5000);

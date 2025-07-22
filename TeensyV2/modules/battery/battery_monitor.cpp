@@ -68,7 +68,7 @@ system
 #include <cmath>
 
 #include "INA226.h"
-#include "serial_manager.h"
+#include "common/core/serial_manager.h"
 
 namespace sigyn_teensy {
 
@@ -272,11 +272,6 @@ void BatteryMonitor::updateBatteryState(size_t idx) {
 
   if (voltage < g_battery_config_[idx].critical_low_voltage ||
       abs(current) > g_battery_config_[idx].critical_high_current) {
-        char message[128];
-        snprintf(message, sizeof(message),
-                 "Battery %zu in CRITICAL state: voltage=%.2f, current=%.2f, critical_low_voltage=%.2f, critical_high_voltage=%.2f, critical_high_current=%.2f",
-                 idx, voltage, current, config_.critical_low_voltage, config_.critical_high_voltage, config_.critical_high_current);
-        SerialManager::getInstance().sendMessage("WARNING", message);
     state_[idx] = BatteryState::CRITICAL;
   } else if (voltage < g_battery_config_[idx].warning_low_voltage) {
     state_[idx] = BatteryState::WARNING;
