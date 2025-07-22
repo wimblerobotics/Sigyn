@@ -1,9 +1,13 @@
 {
-  "recommendations": [
-    "ms-vscode.cpptools"
-  ],
-  "unwantedRecommendations": [
-    "llvm-vs-code-extensions.vscode-clangd",
-    "ms-vscode.cmake-tools"
-  ]
+    // See http://go.microsoft.com/fwlink/?LinkId=827846
+    // for the documentation about the extensions.json format
+    "recommendations": [
+        "ms-vscode.cpptools",
+        "platformio.platformio-ide"
+    ],
+    "unwantedRecommendations": [
+        "llvm-vs-code-extensions.vscode-clangd",
+        "ms-vscode.cmake-tools",
+        "ms-vscode.cpptools-extension-pack"
+    ]
 }

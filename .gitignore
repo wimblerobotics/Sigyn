@@ -62,3 +62,6 @@ CATKIN_IGNORE
 
 # EastEDA
 *_backup/
+
+# Platform IO
+.pio/
