@@ -42,6 +42,49 @@ ament_target_dependencies(teensy_bridge_node
   sigyn_interfaces
 )
 
+# Battery Monitor Node - Dedicated battery monitoring
+add_executable(battery_monitor_node
+  src/battery_monitor_node.cpp
+  src/battery_monitor.cpp
+)
+
+ament_target_dependencies(battery_monitor_node
+  rclcpp
+  std_msgs
+  sensor_msgs
+  diagnostic_msgs
+  rcl_interfaces
+  sigyn_interfaces
+)
+
+# Performance Monitor Node - System performance tracking
+add_executable(performance_monitor_node
+  src/performance_monitor_node.cpp
+  src/performance_monitor.cpp
+)
+
+ament_target_dependencies(performance_monitor_node
+  rclcpp
+  std_msgs
+  diagnostic_msgs
+  rcl_interfaces
+  sigyn_interfaces
+)
+
+# Safety Coordinator Node - E-stop and safety management
+add_executable(safety_coordinator_node
+  src/safety_coordinator_node.cpp
+  src/safety_coordinator.cpp
+)
+
+ament_target_dependencies(safety_coordinator_node
+  rclcpp
+  std_msgs
+  std_srvs
+  diagnostic_msgs
+  rcl_interfaces
+  sigyn_interfaces
+)
 
 # IMU Monitor Node - Dual BNO055 sensor monitoring
 add_executable(imu_monitor_node
@@ -61,6 +104,9 @@ ament_target_dependencies(imu_monitor_node
 # Install executables
 install(TARGETS
   teensy_bridge_node
+  battery_monitor_node
+  performance_monitor_node
+  safety_coordinator_node
   imu_monitor_node
   DESTINATION lib/${PROJECT_NAME}
 )
