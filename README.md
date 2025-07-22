@@ -76,3 +76,16 @@ The robot can be run in simulation by running the following command:
 ``` bash
 ros2 launch base sigyn.launch.py use_sim_time:=true
 ```
+
+## Recent Updates
+
+### TeensyV2 System Enhancements
+- **Modular Embedded Architecture**: Updated TeensyV2 system with improved real-time performance
+- **Enhanced Battery Monitoring**: Battery messages now include location information for multi-battery setups
+- **Streamlined ROS2 Bridge**: Consolidated monitoring into a single efficient bridge node
+- **Updated Message Protocol**: Comprehensive documentation of communication protocol with examples
+
+For detailed information about the TeensyV2 system and message protocol, see:
+- [`TeensyV2/README.md`](TeensyV2/README.md) - Complete embedded system documentation
+- [`TeensyV2/docs/MessageProtocol.md`](TeensyV2/docs/MessageProtocol.md) - Communication protocol specification
+- [`sigyn_to_sensor_v2/README.md`](sigyn_to_sensor_v2/README.md) - ROS2 bridge documentation
