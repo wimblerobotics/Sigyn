@@ -44,7 +44,7 @@ board (Board 2) for TeensyV2 system
 #include "common/core/serial_manager.h"
 #include "modules/battery/battery_monitor.h"
 #include "modules/performance/performance_monitor.h"
-// #include "../../modules/sensors/imu_manager.h"         // To be implemented
+#include "modules/bno055/bno055_monitor.h"
 // #include "../../modules/sensors/temperature_monitor.h" // To be implemented
 
 using namespace sigyn_teensy;
@@ -66,6 +66,7 @@ float loop_frequency;
 SerialManager* serial_manager;
 PerformanceMonitor* performance_monitor;
 BatteryMonitor* battery_monitor;
+BNO055Monitor* bno055_monitor;
 
 /**
  * @brief Handle critical errors and system faults.
@@ -240,6 +241,7 @@ void setup() {
   serial_manager = &SerialManager::getInstance();
   performance_monitor = &PerformanceMonitor::getInstance();
   battery_monitor = &BatteryMonitor::getInstance();
+  bno055_monitor = &BNO055Monitor::getInstance();
 
   // Initialize all registered modules
   Module::setupAll();

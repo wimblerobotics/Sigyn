@@ -30,6 +30,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "sensor_msgs/msg/battery_state.hpp"
+#include "sensor_msgs/msg/imu.hpp"
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "diagnostic_msgs/msg/diagnostic_status.hpp"
 #include "diagnostic_msgs/msg/key_value.hpp"
@@ -43,6 +44,7 @@ enum class MessageType {
   BATTERY,      ///< Battery status and measurements
   PERFORMANCE,  ///< Performance metrics and timing
   SAFETY,       ///< Safety status and conditions
+  IMU,          ///< IMU sensor data (orientation, gyro, accel)
   ESTOP,        ///< E-stop notifications
   DIAGNOSTIC,   ///< Diagnostic and error messages
   CONFIG,       ///< Configuration responses
@@ -83,6 +85,21 @@ struct PerformanceData {
   int module_count = 0;                 ///< Number of active modules
   double avg_frequency = 0.0;           ///< Average frequency over time
   double max_execution_time = 0.0;      ///< Maximum execution time observed
+  bool valid = false;                   ///< Data validity flag
+};
+
+/**
+ * @brief IMU data structure parsed from IMU messages.
+ */
+struct IMUData {
+  int sensor_id = 0;                    ///< Sensor ID (0 or 1 for dual sensors)
+  double qx = 0.0, qy = 0.0, qz = 0.0, qw = 1.0;  ///< Quaternion orientation
+  double gyro_x = 0.0, gyro_y = 0.0, gyro_z = 0.0; ///< Angular velocity (rad/s)
+  double accel_x = 0.0, accel_y = 0.0, accel_z = 0.0; ///< Linear acceleration (m/s²)
+  uint8_t calibration_status = 0;       ///< Calibration status byte
+  uint8_t system_status = 0;            ///< System status byte
+  uint8_t system_error = 0;             ///< System error byte
+  uint64_t timestamp = 0;               ///< Sensor timestamp (ms)
   bool valid = false;                   ///< Data validity flag
 };
 
@@ -201,6 +218,14 @@ public:
   PerformanceData ParsePerformanceData(const MessageData& data) const;
 
   /**
+   * @brief Parse IMU data from message.
+   * 
+   * @param[in] data Parsed key-value data
+   * @return IMUData structure with parsed values
+   */
+  IMUData ParseIMUData(const MessageData& data) const;
+
+  /**
    * @brief Parse safety data from message.
    * 
    * @param[in] data Parsed key-value data
@@ -233,6 +258,16 @@ public:
    */
   sensor_msgs::msg::BatteryState ToBatteryStateMsg(const BatteryData& data,
                                                    rclcpp::Time timestamp) const;
+
+  /**
+   * @brief Convert IMU data to ROS2 Imu message.
+   * 
+   * @param[in] data Parsed IMU data
+   * @param[in] timestamp Message timestamp
+   * @return ROS2 Imu message
+   */
+  sensor_msgs::msg::Imu ToImuMsg(const IMUData& data,
+                                 rclcpp::Time timestamp) const;
 
   /**
    * @brief Convert diagnostic data to ROS2 DiagnosticArray message.

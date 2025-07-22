@@ -166,11 +166,7 @@ PerformanceData MessageParser::ParsePerformanceData(const MessageData& data) con
       perf.execution_time = SafeStringToDouble(it->second, 0.0);
     }
     
-    // Handle both old and new violation field names
-    it = data.find("mod_viol");
-    if (it == data.end()) {
-      it = data.find("viol");
-    }
+    it = data.find("viol");
     if (it != data.end()) {
       perf.violation_count = SafeStringToInt(it->second, 0);
     }
@@ -198,6 +194,117 @@ PerformanceData MessageParser::ParsePerformanceData(const MessageData& data) con
   }
   
   return perf;
+}
+
+IMUData MessageParser::ParseIMUData(const MessageData& data) const {
+  IMUData imu;
+  
+  try {
+    auto it = data.find("id");
+    if (it != data.end()) {
+      imu.sensor_id = SafeStringToInt(it->second, 0);
+    }
+    
+    // Parse quaternion data
+    it = data.find("qx");
+    if (it != data.end()) {
+      imu.qx = SafeStringToDouble(it->second, 0.0);
+    }
+    
+    it = data.find("qy");
+    if (it != data.end()) {
+      imu.qy = SafeStringToDouble(it->second, 0.0);
+    }
+    
+    it = data.find("qz");
+    if (it != data.end()) {
+      imu.qz = SafeStringToDouble(it->second, 0.0);
+    }
+    
+    it = data.find("qw");
+    if (it != data.end()) {
+      imu.qw = SafeStringToDouble(it->second, 1.0);
+    }
+    
+    // Parse gyroscope data
+    it = data.find("gx");
+    if (it != data.end()) {
+      imu.gyro_x = SafeStringToDouble(it->second, 0.0);
+    }
+    
+    it = data.find("gy");
+    if (it != data.end()) {
+      imu.gyro_y = SafeStringToDouble(it->second, 0.0);
+    }
+    
+    it = data.find("gz");
+    if (it != data.end()) {
+      imu.gyro_z = SafeStringToDouble(it->second, 0.0);
+    }
+    
+    // Parse accelerometer data
+    it = data.find("ax");
+    if (it != data.end()) {
+      imu.accel_x = SafeStringToDouble(it->second, 0.0);
+    }
+    
+    it = data.find("ay");
+    if (it != data.end()) {
+      imu.accel_y = SafeStringToDouble(it->second, 0.0);
+    }
+    
+    it = data.find("az");
+    if (it != data.end()) {
+      imu.accel_z = SafeStringToDouble(it->second, 0.0);
+    }
+    
+    // Parse status data
+    it = data.find("calib");
+    if (it != data.end()) {
+      // Handle hex format (0x prefix) or decimal
+      std::string calib_str = it->second;
+      if (calib_str.find("0x") == 0) {
+        imu.calibration_status = std::stoul(calib_str, nullptr, 16);
+      } else {
+        imu.calibration_status = SafeStringToInt(calib_str, 0);
+      }
+    }
+    
+    it = data.find("status");
+    if (it != data.end()) {
+      // Handle hex format (0x prefix) or decimal
+      std::string status_str = it->second;
+      if (status_str.find("0x") == 0) {
+        imu.system_status = std::stoul(status_str, nullptr, 16);
+      } else {
+        imu.system_status = SafeStringToInt(status_str, 0);
+      }
+    }
+    
+    it = data.find("error");
+    if (it != data.end()) {
+      // Handle hex format (0x prefix) or decimal
+      std::string error_str = it->second;
+      if (error_str.find("0x") == 0) {
+        imu.system_error = std::stoul(error_str, nullptr, 16);
+      } else {
+        imu.system_error = SafeStringToInt(error_str, 0);
+      }
+    }
+    
+    it = data.find("timestamp");
+    if (it != data.end()) {
+      imu.timestamp = SafeStringToInt(it->second, 0);
+    }
+    
+    imu.valid = true;
+    
+  } catch (const std::exception& e) {
+    RCLCPP_WARN(logger_, "Error parsing IMU data: %s", e.what());
+    imu.valid = false;
+  }
+  
+  return imu;
 }
 
 SafetyData MessageParser::ParseSafetyData(const MessageData& data) const {
@@ -350,6 +457,40 @@ sensor_msgs::msg::BatteryState MessageParser::ToBatteryStateMsg(const BatteryDat
   msg.power_supply_health = sensor_msgs::msg::BatteryState::POWER_SUPPLY_HEALTH_GOOD;
   msg.power_supply_technology = sensor_msgs::msg::BatteryState::POWER_SUPPLY_TECHNOLOGY_LION;
   msg.present = true;
+  
+  return msg;
+}
+
+sensor_msgs::msg::Imu MessageParser::ToImuMsg(const IMUData& data,
+                                               rclcpp::Time timestamp) const {
+  sensor_msgs::msg::Imu msg;
+  
+  msg.header.stamp = timestamp;
+  msg.header.frame_id = "imu_" + std::to_string(data.sensor_id);
+  
+  // Set orientation (quaternion)
+  msg.orientation.x = data.qx;
+  msg.orientation.y = data.qy;
+  msg.orientation.z = data.qz;
+  msg.orientation.w = data.qw;
+  
+  // Set angular velocity (rad/s)
+  msg.angular_velocity.x = data.gyro_x;
+  msg.angular_velocity.y = data.gyro_y;
+  msg.angular_velocity.z = data.gyro_z;
+  
+  // Set linear acceleration (m/s²)
+  msg.linear_acceleration.x = data.accel_x;
+  msg.linear_acceleration.y = data.accel_y;
+  msg.linear_acceleration.z = data.accel_z;
+  
+  // Set covariance matrices (unknown/identity for now)
+  // In a real implementation, these would be calibrated values
+  for (int i = 0; i < 9; i++) {
+    msg.orientation_covariance[i] = (i % 4 == 0) ? 0.01 : 0.0;  // Small diagonal covariance
+    msg.angular_velocity_covariance[i] = (i % 4 == 0) ? 0.01 : 0.0;
+    msg.linear_acceleration_covariance[i] = (i % 4 == 0) ? 0.01 : 0.0;
+  }
   
   return msg;
 }
@@ -533,6 +674,7 @@ MessageType MessageParser::StringToMessageType(const std::string& type_str) cons
   if (type_str == "BATT") return MessageType::BATTERY;
   if (type_str == "PERF") return MessageType::PERFORMANCE;
   if (type_str == "SAFETY") return MessageType::SAFETY;
+  if (type_str == "IMU") return MessageType::IMU;
   if (type_str == "ESTOP") return MessageType::ESTOP;
   if (type_str == "DIAG") return MessageType::DIAGNOSTIC;
   if (type_str == "CONFIG") return MessageType::CONFIG;
@@ -544,6 +686,7 @@ std::string MessageParser::MessageTypeToString(MessageType type) const {
     case MessageType::BATTERY: return "BATT";
     case MessageType::PERFORMANCE: return "PERF";
     case MessageType::SAFETY: return "SAFETY";
+    case MessageType::IMU: return "IMU";
     case MessageType::ESTOP: return "ESTOP";
     case MessageType::DIAGNOSTIC: return "DIAG";
     case MessageType::CONFIG: return "CONFIG";
