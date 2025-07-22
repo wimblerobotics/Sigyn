@@ -118,6 +118,46 @@ Standardize topic names following ROS2 conventions:
 - Current: Mixed naming (`teensy_v2/battery_state`, `~/imu/sensor_0`)
 - Target: Consistent namespace (`~/teensy_v2/battery/state`, `~/teensy_v2/imu/sensor_0`)
 
+## **FIXED: Topic Naming and Diagnostic Routing**
+
+### **Updated Topic Structure (Consistent Naming)**
+With namespace `sigyn` and node `teensy_bridge`, the topics now follow a consistent pattern:
+
+| Data Type | Topic | Message Type | Description |
+|-----------|-------|-------------|-------------|
+| Battery State | `/sigyn/teensy_bridge/teensy_v2/battery/state` | `sensor_msgs/BatteryState` | Battery voltage, current, temperature |
+| All Diagnostics | `/sigyn/teensy_bridge/teensy_v2/diagnostics` | `diagnostic_msgs/DiagnosticArray` | **ALL** diagnostic messages |
+| E-stop Status | `/sigyn/teensy_bridge/teensy_v2/safety/estop_status` | `std_msgs/Bool` | Emergency stop status |
+| IMU Sensor 0 | `/sigyn/teensy_bridge/teensy_v2/imu/sensor_0` | `sensor_msgs/Imu` | BNO055 sensor 0 data |
+| IMU Sensor 1 | `/sigyn/teensy_bridge/teensy_v2/imu/sensor_1` | `sensor_msgs/Imu` | BNO055 sensor 1 data |
+
+### **Diagnostic Message Routing - IMPORTANT**
+
+**ALL diagnostic types** from TeensyV2 are published to the **same topic**: `/sigyn/teensy_bridge/teensy_v2/diagnostics`
+
+This includes:
+- **Module DIAG messages** (DIAG:module_name:message...)
+- **Module WARN messages** (WARN:module_name:message...)  
+- **Module ERROR messages** (ERROR:module_name:message...)
+- **Performance diagnostics** (from HandlePerformanceMessage)
+- **Parser statistics** (from DiagnosticsTimerCallback)
+
+**Message Types Handled:**
+- `MessageType::DIAGNOSTIC` → `HandleDiagnosticMessage()` → `diagnostics_pub_`
+- `MessageType::PERFORMANCE` → `HandlePerformanceMessage()` → `diagnostics_pub_` 
+- Parser stats timer → `DiagnosticsTimerCallback()` → `diagnostics_pub_`
+
+**Previous Issues Fixed:**
+1. ✅ **Consistent naming**: All topics now use `~/teensy_v2/` prefix
+2. ✅ **Accurate topic name**: `diagnostics` (not `battery_diagnostics`) since it handles ALL diagnostics
+3. ✅ **Proper namespace**: All topics under same logical grouping
+
+**Potential Future Enhancement:**
+Consider separating diagnostic types into different topics:
+- `/teensy_v2/diagnostics/modules` (DIAG/WARN/ERROR from TeensyV2 modules)
+- `/teensy_v2/diagnostics/performance` (system performance stats)
+- `/teensy_v2/diagnostics/parser` (message parsing statistics)
+
 ## Impact Assessment
 
 ### Resource Savings

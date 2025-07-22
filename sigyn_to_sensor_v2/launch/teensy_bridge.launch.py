@@ -2,11 +2,9 @@
 """
 Launch file for TeensyV2 communication system.
 
-Starts all nodes required for communication with TeensyV2 embedded system:
-- teensy_bridge_node: Main communication bridge
-- battery_monitor_node: Battery monitoring and safety
-- performance_monitor_node: System performance tracking  
-- safety_coordinator_node: E-stop and safety management
+Starts the unified TeensyV2 communication bridge:
+- teensy_bridge_node: Main communication bridge handling all TeensyV2 functionality
+  including battery monitoring, diagnostics, and sensor data
 
 Author: Sigyn Robotics
 Date: 2025
@@ -115,53 +113,7 @@ def generate_launch_description():
                 respawn_delay=2.0,
             ),
             
-            # Battery monitoring node
-            Node(
-                package='sigyn_to_sensor_v2',
-                executable='battery_monitor_node',
-                name='battery_monitor',
-                namespace=LaunchConfiguration('namespace'),
-                parameters=[
-                    LaunchConfiguration('config_file'),
-                    common_params,
-                ],
-                output='screen',
-                arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')],
-                respawn=True,
-                respawn_delay=2.0,
-            ),
-            
-            # Performance monitoring node
-            Node(
-                package='sigyn_to_sensor_v2',
-                executable='performance_monitor_node',
-                name='performance_monitor',
-                namespace=LaunchConfiguration('namespace'),
-                parameters=[
-                    LaunchConfiguration('config_file'),
-                    common_params,
-                ],
-                output='screen',
-                arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')],
-                respawn=True,
-                respawn_delay=2.0,
-            ),
-            
-            # Safety coordination node
-            Node(
-                package='sigyn_to_sensor_v2',
-                executable='safety_coordinator_node',
-                name='safety_coordinator',
-                namespace=LaunchConfiguration('namespace'),
-                parameters=[
-                    LaunchConfiguration('config_file'),
-                    common_params,
-                ],
-                output='screen',
-                arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')],
-                respawn=True,
-                respawn_delay=2.0,
-            ),
+
         ]
     )
     
@@ -195,33 +147,7 @@ def generate_launch_description():
                             common_params,
                         ],
                     ),
-                    ComposableNode(
-                        package='sigyn_to_sensor_v2',
-                        plugin='sigyn_to_sensor_v2::BatteryMonitorNode',
-                        name='battery_monitor',
-                        parameters=[
-                            LaunchConfiguration('config_file'),
-                            common_params,
-                        ],
-                    ),
-                    ComposableNode(
-                        package='sigyn_to_sensor_v2',
-                        plugin='sigyn_to_sensor_v2::PerformanceMonitorNode',
-                        name='performance_monitor',
-                        parameters=[
-                            LaunchConfiguration('config_file'),
-                            common_params,
-                        ],
-                    ),
-                    ComposableNode(
-                        package='sigyn_to_sensor_v2',
-                        plugin='sigyn_to_sensor_v2::SafetyCoordinatorNode',
-                        name='safety_coordinator',
-                        parameters=[
-                            LaunchConfiguration('config_file'),
-                            common_params,
-                        ],
-                    ),
+
                 ],
             ),
         ]
