@@ -64,6 +64,11 @@ TeensyBridge::TeensyBridge()
     [this](const MessageData& data, rclcpp::Time timestamp) {
       HandleDiagnosticMessage(data, timestamp);
     });
+    
+  message_parser_->RegisterCallback(MessageType::LOG,
+    [this](const MessageData& data, rclcpp::Time timestamp) {
+      HandleLogMessage(data, timestamp);
+    });
   
   // Start serial communication
   StartSerialCommunication();
@@ -100,22 +105,26 @@ void TeensyBridge::InitializeParameters() {
 }
 
 void TeensyBridge::InitializePublishersAndSubscribers() {
-  // Publishers - Use standard topic naming convention
+  // Publishers - Use consistent relative naming convention under teensy_v2 namespace
   battery_pub_ = this->create_publisher<sensor_msgs::msg::BatteryState>(
-    "teensy_v2/battery_state", 10);
+    "~/teensy_v2/battery/state", 10);
     
   diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
-    "teensy_v2/battery_diagnostics", 10);
+    "~/teensy_v2/diagnostics", 10);
     
   estop_status_pub_ = this->create_publisher<std_msgs::msg::Bool>(
-    "~/safety/estop_status", 10);
+    "~/teensy_v2/safety/estop_status", 10);
     
   // IMU publishers for dual sensors
   imu_sensor0_pub_ = this->create_publisher<sensor_msgs::msg::Imu>(
-    "~/imu/sensor_0", 10);
+    "~/teensy_v2/imu/sensor_0", 10);
     
   imu_sensor1_pub_ = this->create_publisher<sensor_msgs::msg::Imu>(
-    "~/imu/sensor_1", 10);
+    "~/teensy_v2/imu/sensor_1", 10);
+    
+  // TeensyV2 diagnostic/log messages (like rosout)
+  teensy_diagnostics_pub_ = this->create_publisher<std_msgs::msg::String>(
+    "~/teensy_v2/diagnostics_out", 10);
   
   // Subscribers
   estop_cmd_sub_ = this->create_subscription<std_msgs::msg::Bool>(
@@ -552,6 +561,38 @@ void TeensyBridge::DiagnosticsTimerCallback() {
   if (message_parser_) {
     auto stats_msg = message_parser_->GetParsingStatistics();
     diagnostics_pub_->publish(stats_msg);
+  }
+}
+
+void TeensyBridge::HandleLogMessage(const MessageData& data, rclcpp::Time timestamp) {
+  auto level_it = data.find("level");
+  auto message_it = data.find("message");
+  
+  if (level_it != data.end() && message_it != data.end()) {
+    // Format like rosout: "LEVEL:message content"
+    std::string formatted_message = level_it->second + ":" + message_it->second;
+    
+    auto msg = std_msgs::msg::String();
+    msg.data = formatted_message;
+    teensy_diagnostics_pub_->publish(msg);
+    
+    // Also log to ROS2 logger with appropriate level
+    if (level_it->second == "ERROR" || level_it->second == "FATAL" || 
+        level_it->second == "CRITICAL" || level_it->second == "FAULT") {
+      RCLCPP_ERROR(this->get_logger(), "TeensyV2 %s: %s", 
+                   level_it->second.c_str(), message_it->second.c_str());
+    } else if (level_it->second == "WARN" || level_it->second == "SAFETY_CRITICAL") {
+      RCLCPP_WARN(this->get_logger(), "TeensyV2 %s: %s", 
+                  level_it->second.c_str(), message_it->second.c_str());
+    } else if (level_it->second == "INFO" || level_it->second == "INIT") {
+      RCLCPP_INFO(this->get_logger(), "TeensyV2 %s: %s", 
+                  level_it->second.c_str(), message_it->second.c_str());
+    } else {
+      RCLCPP_DEBUG(this->get_logger(), "TeensyV2 %s: %s", 
+                   level_it->second.c_str(), message_it->second.c_str());
+    }
+  } else {
+    RCLCPP_WARN(this->get_logger(), "Malformed LOG message received");
   }
 }
 

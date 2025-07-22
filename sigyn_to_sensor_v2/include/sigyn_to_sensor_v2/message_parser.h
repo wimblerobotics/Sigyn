@@ -46,7 +46,8 @@ enum class MessageType {
   SAFETY,       ///< Safety status and conditions
   IMU,          ///< IMU sensor data (orientation, gyro, accel)
   ESTOP,        ///< E-stop notifications
-  DIAGNOSTIC,   ///< Diagnostic and error messages
+  DIAGNOSTIC,   ///< Structured diagnostic messages (DIAG)
+  LOG,          ///< Log/diagnostic text messages (INFO, WARN, ERROR, etc.)
   CONFIG,       ///< Configuration responses
   UNKNOWN       ///< Unrecognized message type
 };
