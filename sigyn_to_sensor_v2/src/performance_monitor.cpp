@@ -23,11 +23,13 @@ PerformanceMonitor::PerformanceMonitor() : Node("performance_monitor") {
   frequency_pub_ = this->create_publisher<std_msgs::msg::Float32>(
     "teensy_v2/loop_frequency", 10);
   
-  execution_time_pub_ = this->create_publisher<std_msgs::msg::Int32>(
-    "teensy_v2/execution_time", 10);
+  // NOTE: execution_time_pub_ and memory_usage_pub_ are orphaned - ProcessPerformanceData() is never called
+  // TODO: Remove these publishers or implement proper data flow from teensy_bridge
+  // execution_time_pub_ = this->create_publisher<std_msgs::msg::Int32>(
+  //   "teensy_v2/execution_time", 10);
   
-  memory_usage_pub_ = this->create_publisher<std_msgs::msg::Int32>(
-    "teensy_v2/memory_usage", 10);
+  // memory_usage_pub_ = this->create_publisher<std_msgs::msg::Int32>(
+  //   "teensy_v2/memory_usage", 10);
 
   // Create diagnostics timer
   diagnostics_timer_ = this->create_wall_timer(
@@ -98,14 +100,6 @@ void PerformanceMonitor::ProcessPerformanceData(uint8_t board_id, float loop_fre
   auto frequency_msg = std_msgs::msg::Float32();
   frequency_msg.data = loop_frequency;
   frequency_pub_->publish(frequency_msg);
-
-  auto exec_time_msg = std_msgs::msg::Int32();
-  exec_time_msg.data = static_cast<int32_t>(avg_execution_time);
-  execution_time_pub_->publish(exec_time_msg);
-
-  auto memory_msg = std_msgs::msg::Int32();
-  memory_msg.data = static_cast<int32_t>(memory_usage);
-  memory_usage_pub_->publish(memory_msg);
 
   // Log violations if they increased
   if (violations_count > state.last_violations_count) {

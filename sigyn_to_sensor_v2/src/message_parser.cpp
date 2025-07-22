@@ -65,6 +65,10 @@ bool MessageParser::ParseMessage(const std::string& message, rclcpp::Time timest
     if (type == MessageType::PERFORMANCE) {
       // PERF messages use JSON format
       data = ParseJsonContent(content);
+    } else if (type == MessageType::DIAGNOSTIC) {
+      // DIAG messages are free-form diagnostic text - just log and continue
+      data["message"] = content;
+      RCLCPP_DEBUG(logger_, "DIAG: %s", content.c_str());
     } else {
       // All other messages use key:value format
       data = ParseKeyValuePairs(content);
@@ -659,6 +663,9 @@ bool MessageParser::ValidateMessage(const std::string& message) const {
     // PERF messages should start with { (JSON format)
     if (type_str == "PERF") {
       return !content.empty() && content[0] == '{';
+    } else if (type_str == "DIAG") {
+      // DIAG messages are free-form diagnostic text - no strict validation
+      return !content.empty();
     } else {
       // Other messages should use key:value or key=value format
       std::regex pattern(R"([a-zA-Z0-9_]+[:=][^,]*(,[a-zA-Z0-9_]+[:=][^,]*)*)", 
