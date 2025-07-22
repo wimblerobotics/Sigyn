@@ -59,6 +59,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <cmath>
+#include <limits>
 #include "module.h"
 
 namespace sigyn_teensy {
@@ -185,6 +186,13 @@ class PerformanceMonitor : public Module {
    */
   void updateConfig(const PerformanceConfig& new_config);
 
+  /**
+   * @brief Initialize minimum value for sensor if not already set.
+   * @param sensor_id ID of the sensor module
+   * @param value Minimum value to set
+   */
+  void initializeMinValueIfUnset(uint8_t sensor_id, float value);
+
   // --- Module Overrides ---
   /**
    * @brief Initialize the performance monitor.
@@ -231,11 +239,28 @@ class PerformanceMonitor : public Module {
   void checkModuleExecutionTimes();
   void getPerformanceStats(char* buffer, size_t size);
   void reportStats();
+  void initializeStatsIfUnset(uint8_t module_id);
 
   // --- Member Variables ---
   PerformanceConfig config_;
   ViolationTracker violations_;
   uint32_t last_stats_report_ms_ = 0;
+  uint32_t first_report_delay_ms_ = 0;  ///< Delay before first PERF report to allow modules to initialize
+
+  struct PerformanceStats {
+    float min = std::numeric_limits<float>::max();
+    float max = 0.0f;
+    float avg = 0.0f;
+    float last = 0.0f;
+    uint32_t count = 0;
+    uint32_t loop_count = 0;
+    uint32_t duration_sum_us = 0;
+    uint32_t duration_min_us = std::numeric_limits<uint32_t>::max();
+    uint32_t duration_max_us = 0;
+  };
+
+  constexpr static uint8_t kMaxSensors = 4; // Define kMaxSensors
+  PerformanceStats performance_stats_[kMaxSensors];
 };
 
 }  // namespace sigyn_teensy

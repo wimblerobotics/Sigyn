@@ -49,7 +49,11 @@
  * @version 2.0
  */
 
-#include <Arduino.h>
+#include <Arduino.h>  // Provides millis, delay, snprintf, etc.
+#include <Wire.h>     // Provides I2C communication support
+#include <limits> // For std::numeric_limits
+#include <cstdio>    // For snprintf
+
 #include "bno055_monitor.h"
 
 #include "common/core/serial_manager.h"
@@ -123,13 +127,16 @@ void BNO055Monitor::setup() {
       char msg[64];
       snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d initialized successfully", i);
       SerialManager::getInstance().sendMessage("INFO", msg);
-      
-      // Prime the sensor with initial readings to stabilize fusion engine
-      // This prevents slow first readings in loop() that cause performance violations
+
+      // Prime the sensor with additional diagnostics
       if (!primeSensorReadings(i)) {
         char warn_msg[64];
         snprintf(warn_msg, sizeof(warn_msg), "BNO055Monitor: Sensor %d priming incomplete", i);
         SerialManager::getInstance().sendMessage("WARN", warn_msg);
+      } else {
+        char info_msg[64];
+        snprintf(info_msg, sizeof(info_msg), "BNO055Monitor: Sensor %d primed successfully", i);
+        SerialManager::getInstance().sendMessage("INFO", info_msg);
       }
     } else {
       sensor_states_[i] = IMUState::FAILED;
@@ -142,6 +149,11 @@ void BNO055Monitor::setup() {
   char msg[64];
   snprintf(msg, sizeof(msg), "BNO055Monitor: %d/%d sensors initialized", active_sensor_count_, kMaxSensors);
   SerialManager::getInstance().sendMessage("INFO", msg);
+
+  // Initialize performance stats
+  for (uint8_t i = 0; i < kMaxSensors; i++) {
+    performance_stats_[i] = {0, 0, 0, 0, 0};
+  }
 
   setup_completed_ = true;
 }
@@ -163,25 +175,26 @@ void BNO055Monitor::loop() {
     // Check if it's time to start reading this sensor
     if (current_read_state_[i] == ReadState::IDLE && 
         now >= next_sensor_start_time_[i]) {
-      
       // Select sensor and start the read sequence
       selectSensor(sensor_configs_[i].mux_channel);
       current_read_state_[i] = ReadState::READ_QUATERNION;
-      
+
       // Initialize the data structure
       sensor_data_[i].timestamp_ms = now;
       sensor_data_[i].valid = false;
-      
+
       // Schedule next read cycle
       next_sensor_start_time_[i] = now + sensor_configs_[i].read_interval_ms;
     }
 
-    // Process current state for this sensor (one operation per loop call)
+    // Process current state for this sensor (simplified to quaternion only)
     switch (current_read_state_[i]) {
       case ReadState::READ_QUATERNION:
         if (readQuaternion(sensor_data_[i].qw, sensor_data_[i].qx, 
                           sensor_data_[i].qy, sensor_data_[i].qz)) {
-          current_read_state_[i] = ReadState::READ_GYROSCOPE;
+          // Only read quaternion - this contains the fused orientation data
+          // Skip status reads as they're not essential and causing failures
+          current_read_state_[i] = ReadState::COMPLETE;
         } else {
           // Read failed, mark sensor as critical and reset state
           sensor_states_[i] = IMUState::CRITICAL;
@@ -190,72 +203,11 @@ void BNO055Monitor::loop() {
           snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d quaternion read failed", i);
           SerialManager::getInstance().sendMessage("ERROR", msg);
         }
-        break; // Don't return, continue processing other sensors
-        
-      case ReadState::READ_GYROSCOPE:
-        if (readGyroscope(sensor_data_[i].gx, sensor_data_[i].gy, sensor_data_[i].gz)) {
-          current_read_state_[i] = ReadState::READ_ACCELERATION;
-        } else {
-          sensor_states_[i] = IMUState::CRITICAL;
-          current_read_state_[i] = ReadState::IDLE;
-          char msg[64];
-          snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d gyroscope read failed", i);
-          SerialManager::getInstance().sendMessage("ERROR", msg);
-        }
-        break;
-        
-      case ReadState::READ_ACCELERATION:
-        if (readLinearAcceleration(sensor_data_[i].ax, sensor_data_[i].ay, sensor_data_[i].az)) {
-          current_read_state_[i] = ReadState::READ_EULER;
-        } else {
-          sensor_states_[i] = IMUState::CRITICAL;
-          current_read_state_[i] = ReadState::IDLE;
-          char msg[64];
-          snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d acceleration read failed", i);
-          SerialManager::getInstance().sendMessage("ERROR", msg);
-        }
-        break;
-        
-      case ReadState::READ_EULER:
-        if (readEulerAngles(sensor_data_[i].euler_h, sensor_data_[i].euler_r, 
-                           sensor_data_[i].euler_p)) {
-          current_read_state_[i] = ReadState::READ_STATUS;
-        } else {
-          sensor_states_[i] = IMUState::CRITICAL;
-          current_read_state_[i] = ReadState::IDLE;
-          char msg[64];
-          snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d Euler read failed", i);
-          SerialManager::getInstance().sendMessage("ERROR", msg);
-        }
-        break;
-        
-      case ReadState::READ_STATUS:
-        if (readStatus(sensor_data_[i].system_status, sensor_data_[i].system_error, 
-                      sensor_data_[i].calibration_status)) {
-          current_read_state_[i] = ReadState::COMPLETE;
-        } else {
-          sensor_states_[i] = IMUState::CRITICAL;
-          current_read_state_[i] = ReadState::IDLE;
-          char msg[64];
-          snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d status read failed", i);
-          SerialManager::getInstance().sendMessage("ERROR", msg);
-        }
         break;
         
       case ReadState::COMPLETE:
-        // All reads successful, mark data as valid
+        // Quaternion read successful, mark data as valid
         sensor_data_[i].valid = true;
-        
-        // Check for system errors
-        if (sensor_data_[i].system_error != 0) {
-          sensor_states_[i] = IMUState::WARNING;
-          char msg[64];
-          snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d system error: 0x%02X", 
-                  i, sensor_data_[i].system_error);
-          SerialManager::getInstance().sendMessage("WARN", msg);
-        } else if (sensor_states_[i] == IMUState::WARNING) {
-          sensor_states_[i] = IMUState::NORMAL;
-        }
         
         // Reset state for next cycle
         current_read_state_[i] = ReadState::IDLE;
@@ -264,6 +216,11 @@ void BNO055Monitor::loop() {
         
       case ReadState::IDLE:
         // Nothing to do, continue to next sensor
+        break;
+        
+      default:
+        // Reset any invalid states to IDLE
+        current_read_state_[i] = ReadState::IDLE;
         break;
     }
   }
@@ -642,18 +599,12 @@ void BNO055Monitor::sendStatusMessage(uint8_t sensor_id) {
 
   const IMUData& data = sensor_data_[sensor_id];
 
-  // Create status message
-  char message[256];
+  // Create simplified status message with quaternion only
+  char message[128];
   snprintf(message, sizeof(message),
-           "id:%d,qx:%.4f,qy:%.4f,qz:%.4f,qw:%.4f,"
-           "gx:%.4f,gy:%.4f,gz:%.4f,"
-           "ax:%.4f,ay:%.4f,az:%.4f,"
-           "calib:0x%02X,status:0x%02X",
+           "id:%d,qx:%.4f,qy:%.4f,qz:%.4f,qw:%.4f",
            sensor_id,
-           data.qx, data.qy, data.qz, data.qw,
-           data.gx, data.gy, data.gz,
-           data.ax, data.ay, data.az,
-           data.calibration_status, data.system_status);
+           data.qx, data.qy, data.qz, data.qw);
 
   SerialManager::getInstance().sendMessage("IMU", message);
 }
@@ -671,83 +622,73 @@ void BNO055Monitor::convertQuaternionToROS(float bno_w, float bno_x, float bno_y
 }
 
 bool BNO055Monitor::primeSensorReadings(uint8_t sensor_id) {
-  /**
-   * @brief Prime sensor with initial readings to stabilize BNO055 fusion engine
-   * 
-   * The BNO055 sensor fusion engine requires time to stabilize after switching to NDOF mode.
-   * Initial readings can be slow (4-5ms) as the fusion algorithms initialize internal state,
-   * collect baseline samples, and stabilize output. By performing a complete read cycle
-   * during setup(), we absorb this startup overhead and ensure subsequent loop() calls
-   * are fast and deterministic.
-   * 
-   * This prevents the ~4860μs performance violation seen on first loop() execution.
-   * By performing two read cycles, we ensure that any "first-read" latency for
-   * each data type is fully absorbed during initialization.
-   */
   if (sensor_id >= kMaxSensors) {
     return false;
   }
 
   // Select the sensor
   selectSensor(sensor_configs_[sensor_id].mux_channel);
-  
+
   // Allow extra time for sensor fusion to stabilize after mode switch
   delay(100);  // BNO055 NDOF mode stabilization time
-  
+
   IMUData& data = sensor_data_[sensor_id];
   data.timestamp_ms = millis();
   data.valid = false;
 
-  // Perform complete initial read cycle to prime the sensor
-  // This absorbs the startup latency in setup() rather than loop()
+  // Perform multiple read cycles to fully initialize the sensor's data pipeline
   bool success = true;
-  
-  char debug_msg[80];
-  snprintf(debug_msg, sizeof(debug_msg), "BNO055Monitor: Priming sensor %d with initial readings (Cycle 1)", sensor_id);
-  SerialManager::getInstance().sendMessage("INFO", debug_msg);
-  
-  // Read all data types to fully initialize the sensor's data pipeline
-  success &= readQuaternion(data.qw, data.qx, data.qy, data.qz);
-  success &= readGyroscope(data.gx, data.gy, data.gz);
-  success &= readLinearAcceleration(data.ax, data.ay, data.az);
-  success &= readEulerAngles(data.euler_h, data.euler_r, data.euler_p);
-  success &= readStatus(data.system_status, data.system_error, data.calibration_status);
-
-  // Perform a second read cycle to ensure the sensor is fully responsive
-  if (success) {
-    snprintf(debug_msg, sizeof(debug_msg), "BNO055Monitor: Priming sensor %d with initial readings (Cycle 2)", sensor_id);
+  for (int cycle = 1; cycle <= 3; cycle++) {
+    char debug_msg[80];
+    snprintf(debug_msg, sizeof(debug_msg), "BNO055Monitor: Priming sensor %d (Cycle %d) - quaternion only", sensor_id, cycle);
     SerialManager::getInstance().sendMessage("INFO", debug_msg);
-    delay(10); // Small delay between priming cycles
-    success &= readQuaternion(data.qw, data.qx, data.qy, data.qz);
-    success &= readGyroscope(data.gx, data.gy, data.gz);
-    success &= readLinearAcceleration(data.ax, data.ay, data.az);
-    success &= readEulerAngles(data.euler_h, data.euler_r, data.euler_p);
-    success &= readStatus(data.system_status, data.system_error, data.calibration_status);
-  }
 
+    uint32_t start_time = micros();
+    success = readQuaternion(data.qw, data.qx, data.qy, data.qz);
+    uint32_t elapsed_time = micros() - start_time;
+    snprintf(debug_msg, sizeof(debug_msg), "readQuaternion: success=%d, time=%luus", success, elapsed_time);
+    SerialManager::getInstance().sendMessage("DEBUG", debug_msg);
+
+    if (!success) {
+      snprintf(debug_msg, sizeof(debug_msg), "BNO055Monitor: Sensor %d priming failed during cycle %d", sensor_id, cycle);
+      SerialManager::getInstance().sendMessage("ERROR", debug_msg);
+      break;
+    }
+
+    delay(50); // Small delay between priming cycles
+  }
 
   if (success) {
     data.valid = true;
-    
-    // Log initial calibration status
-    snprintf(debug_msg, sizeof(debug_msg), 
-             "BNO055Monitor: Sensor %d primed, calib=0x%02X, status=0x%02X", 
-             sensor_id, data.calibration_status, data.system_status);
-    SerialManager::getInstance().sendMessage("INFO", debug_msg);
-    
-    // Check for any system errors during priming
-    if (data.system_error != 0) {
-      snprintf(debug_msg, sizeof(debug_msg), 
-               "BNO055Monitor: Sensor %d priming detected error: 0x%02X", 
-               sensor_id, data.system_error);
-      SerialManager::getInstance().sendMessage("WARN", debug_msg);
-    }
-  } else {
-    snprintf(debug_msg, sizeof(debug_msg), "BNO055Monitor: Sensor %d priming failed", sensor_id);
-    SerialManager::getInstance().sendMessage("ERROR", debug_msg);
+    char info_msg[80];
+    snprintf(info_msg, sizeof(info_msg), "BNO055Monitor: Sensor %d primed successfully", sensor_id);
+    SerialManager::getInstance().sendMessage("INFO", info_msg);
   }
 
   return success;
+}
+
+bool BNO055Monitor::validateGyroscopeReadsDuringPriming(uint8_t sensor_id) {
+  for (int attempt = 0; attempt < 3; ++attempt) {
+    float gx, gy, gz;
+    if (readGyroscope(gx, gy, gz)) { // Corrected function call
+      return true;
+    }
+    char error_msg[64];
+    snprintf(error_msg, sizeof(error_msg), "Gyroscope read failed during priming for sensor %d", sensor_id);
+    SerialManager::getInstance().sendMessage("ERROR", error_msg);
+    delay(50); // Retry delay
+  }
+  return false;
+}
+
+void BNO055Monitor::initializeMinValueIfUnset(uint8_t sensor_id, float value) {
+  if (performance_stats_[sensor_id].min == std::numeric_limits<float>::max()) {
+    performance_stats_[sensor_id].min = value;
+    char info_msg[64];
+    snprintf(info_msg, sizeof(info_msg), "Initialized min value for sensor %d with value %.2f", sensor_id, value);
+    SerialManager::getInstance().sendMessage("INFO", info_msg);
+  }
 }
 
 } // namespace sigyn_teensy

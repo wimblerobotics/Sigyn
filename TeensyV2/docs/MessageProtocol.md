@@ -221,6 +221,37 @@ CONFIG:status=OK,module=PerformanceMonitor,param=target_frequency,value=85.0
 CONFIG:status=ERROR,module=InvalidModule,param=unknown,error=Module not found
 ```
 
+### IMU - Inertial Measurement Unit Messages
+
+Orientation data from BNO055 9-DOF IMU sensors for robot navigation.
+
+**Format:**
+```
+IMU:id:<sensor_id>,qx:<quat_x>,qy:<quat_y>,qz:<quat_z>,qw:<quat_w>
+```
+
+**Parameters:**
+- `id`: Sensor identifier (0-1 for dual sensor setup)
+- `qx`, `qy`, `qz`, `qw`: Quaternion components (normalized, float)
+
+**Key Features:**
+- **Dual Sensor Support**: Two BNO055 sensors on I2C multiplexer channels 0 and 1
+- **Fusion Data**: Quaternion represents fused orientation from gyro/accel/magnetometer
+- **Real-time Performance**: Optimized for <1ms execution time per sensor
+- **ROS2 Integration**: Direct compatibility with robot_localization EKF filter
+
+**Examples:**
+```
+IMU:id:0,qx:0.1234,qy:-0.5678,qz:0.2468,qw:0.7890
+IMU:id:1,qx:0.0987,qy:-0.6543,qz:0.3210,qw:0.6789
+```
+
+**Notes:**
+- Only quaternion data is transmitted for efficiency (gyro/accel removed)
+- Status and calibration data removed to improve performance
+- Message rate: ~20Hz per sensor (40Hz total for dual setup)
+- Coordinate frame: X-forward, Y-left, Z-up (ROS REP-103 compatible)
+
 ## Communication Protocol
 
 ### Serial Configuration

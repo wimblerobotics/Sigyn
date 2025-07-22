@@ -44,9 +44,11 @@
  * @version 2.0
  */
 
+#include <Arduino.h>
 #include "performance_monitor.h"
 #include "serial_manager.h"
 #include "module.h"
+#include <limits>
 
 namespace sigyn_teensy {
 
@@ -167,7 +169,8 @@ void PerformanceMonitor::loop() {
   checkPerformance();
 
   uint32_t now = millis();
-  if (now - last_stats_report_ms_ >= config_.stats_report_interval_ms) {
+  if (now - last_stats_report_ms_ >= config_.stats_report_interval_ms && 
+      now >= first_report_delay_ms_) {
     reportStats();
     last_stats_report_ms_ = now;
   }
@@ -207,36 +210,36 @@ void PerformanceMonitor::getPerformanceStats(char* buffer, size_t size) {
   if (modules_written > 0 && written + modules_written < (int)size) {
     written += modules_written;
     
-    // Add each module's timing data with detailed statistics
+    // Iterate through all registered modules using Module::getModuleCount and Module::getModule
     for (uint16_t i = 0; i < Module::getModuleCount(); ++i) {
-      Module* mod = Module::getModule(i);
-      if (mod != nullptr) {
-        float exec_time_ms = mod->getLastExecutionTimeUs() / 1000.0f;
-        bool is_violation = exec_time_ms > config_.max_module_time_ms;
-        
-        // Get detailed performance statistics from the module
-        const PerformanceStats& stats = mod->getPerformanceStats();
-        float avg_us = (stats.loop_count > 0) ? (stats.duration_sum_us / stats.loop_count) : 0.0f;
-        
-        // Convert microseconds to milliseconds for readability
-        float min_ms = stats.duration_min_us / 1000.0f;
-        float max_ms = stats.duration_max_us / 1000.0f;
-        float avg_ms = avg_us / 1000.0f;
-        
-        int mod_written = snprintf(buffer + written, size - written,
-          "%s{\"name\":\"%s\",\"min\":%.2f,\"max\":%.2f,\"avg\":%.2f,\"last\":%.2f,\"count\":%lu,\"violation\":%s}",
-          i > 0 ? "," : "",
-          mod->name(),
-          min_ms, max_ms, avg_ms, exec_time_ms,
-          (unsigned long)stats.loop_count,
-          is_violation ? "true" : "false");
-        
-        if (mod_written > 0 && written + mod_written < (int)size) {
-          written += mod_written;
-        } else {
-          break; // Buffer full
+        Module* mod = Module::getModule(i);
+        if (mod) {
+            const auto& stats = mod->getPerformanceStats(); // Ensure the correct type is returned
+            float exec_time_ms = mod->getLastExecutionTimeUs() / 1000.0f;
+            bool is_violation = exec_time_ms > config_.max_module_time_ms;
+
+            // Get detailed performance statistics from the module
+            float avg_us = (stats.loop_count > 0) ? (stats.duration_sum_us / stats.loop_count) : 0.0f;
+
+            // Convert microseconds to milliseconds for readability
+            float min_ms = stats.duration_min_us / 1000.0f;
+            float max_ms = stats.duration_max_us / 1000.0f;
+            float avg_ms = avg_us / 1000.0f;
+
+            int mod_written = snprintf(buffer + written, size - written,
+                "%s{\"name\":\"%s\",\"min\":%.2f,\"max\":%.2f,\"avg\":%.2f,\"last\":%.2f,\"count\":%lu,\"violation\":%s}",
+                i > 0 ? "," : "",
+                mod->name(),
+                min_ms, max_ms, avg_ms, exec_time_ms,
+                (unsigned long)stats.loop_count,
+                is_violation ? "true" : "false");
+
+            if (mod_written > 0 && written + mod_written < (int)size) {
+                written += mod_written;
+            } else {
+                break; // Buffer full
+            }
         }
-      }
     }
   }
 
@@ -264,10 +267,16 @@ void PerformanceMonitor::setup() {
   // Initialization code for PerformanceMonitor, if any.
   // For example, load configuration from EEPROM or set initial values.
   last_stats_report_ms_ = millis();
+  
+  // Delay first report to allow modules to complete at least one execution cycle
+  // This prevents showing invalid min values (MAXFLOAT) in the first PERF report
+  first_report_delay_ms_ = 2000; // Wait 2 seconds before first PERF report
 }
 
 void PerformanceMonitor::updateConfig(const PerformanceConfig& new_config) {
   config_ = new_config;
 }
+
+
 
 }  // namespace sigyn_teensy

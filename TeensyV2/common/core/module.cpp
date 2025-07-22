@@ -219,7 +219,8 @@ void Module::updatePerformanceStats(Module* module,
   float exec_time_float = static_cast<float>(execution_time_us);
 
   // Update timing statistics
-  if (exec_time_float < stats.duration_min_us) {
+  // Handle first measurement case for min value
+  if (stats.loop_count == 0 || exec_time_float < stats.duration_min_us) {
     stats.duration_min_us = exec_time_float;
   }
   if (exec_time_float > stats.duration_max_us) {

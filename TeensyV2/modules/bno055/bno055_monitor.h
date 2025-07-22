@@ -438,6 +438,40 @@ private:
   static constexpr float kScaleGyro = 16.0f;        // 16 LSB/°/s
   static constexpr float kScaleEuler = 16.0f;       // 16 LSB/°
   static constexpr float kRadPerDeg = 0.01745329251994329576923690768489f; // PI / 180
+
+  /**
+   * @brief Performance statistics for each sensor.
+   */
+  struct PerformanceStats {
+    float min = 0.0f;
+    float max = 0.0f;
+    float avg = 0.0f;
+    float last = 0.0f;
+    uint32_t count = 0;
+  };
+
+  PerformanceStats performance_stats_[kMaxSensors];
+
+  /**
+   * @brief Validate gyroscope reads during priming.
+   * 
+   * Ensures that gyroscope reads are successful before completing priming.
+   * Logs failures and retries if necessary.
+   * 
+   * @param sensor_id The ID of the sensor to validate (0 or 1).
+   * @return True if gyroscope reads are successful, false otherwise.
+   */
+  bool validateGyroscopeReadsDuringPriming(uint8_t sensor_id);
+
+  /**
+   * @brief Initialize min value in performance stats on first successful read.
+   * 
+   * Ensures that the min value is set correctly during the first valid sensor read.
+   * 
+   * @param sensor_id The ID of the sensor to update (0 or 1).
+   * @param value The value to initialize the min field with.
+   */
+  void initializeMinValueIfUnset(uint8_t sensor_id, float value);
 };
 
 } // namespace sigyn_teensy
