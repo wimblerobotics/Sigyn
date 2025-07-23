@@ -147,13 +147,68 @@ void RoboClawMonitor::loop() {
 }
 
 bool RoboClawMonitor::isUnsafe() {
-  return emergency_stop_active_ || 
-         motor1_status_.runaway_detected || 
-         motor2_status_.runaway_detected ||
-         motor1_status_.overcurrent || 
-         motor2_status_.overcurrent ||
-         !motor1_status_.communication_ok ||
-         !motor2_status_.communication_ok;
+  String safety_reasons = "";
+  bool unsafe = false;
+  
+  // Check local safety flags
+  if (emergency_stop_active_) {
+    safety_reasons += "emergency_stop_active ";
+    unsafe = true;
+  }
+  
+  if (motor1_status_.runaway_detected) {
+    safety_reasons += "motor1_runaway ";
+    unsafe = true;
+  }
+  
+  if (motor2_status_.runaway_detected) {
+    safety_reasons += "motor2_runaway ";
+    unsafe = true;
+  }
+  
+  if (motor1_status_.overcurrent) {
+    safety_reasons += "motor1_overcurrent ";
+    unsafe = true;
+  }
+  
+  if (motor2_status_.overcurrent) {
+    safety_reasons += "motor2_overcurrent ";
+    unsafe = true;
+  }
+  
+  if (!motor1_status_.communication_ok) {
+    safety_reasons += "motor1_comm_fail ";
+    unsafe = true;
+  }
+  
+  if (!motor2_status_.communication_ok) {
+    safety_reasons += "motor2_comm_fail ";
+    unsafe = true;
+  }
+  
+  // Check RoboClaw error status for safety-critical errors
+  uint32_t error = system_status_.error_status;
+  bool roboclaw_unsafe = (error & static_cast<uint32_t>(RoboClawError::M1_OVERCURRENT)) ||
+                        (error & static_cast<uint32_t>(RoboClawError::M2_OVERCURRENT)) ||
+                        (error & static_cast<uint32_t>(RoboClawError::E_STOP)) ||
+                        (error & static_cast<uint32_t>(RoboClawError::TEMPERATURE_ERROR)) ||
+                        (error & static_cast<uint32_t>(RoboClawError::M1_DRIVER_FAULT)) ||
+                        (error & static_cast<uint32_t>(RoboClawError::M2_DRIVER_FAULT)) ||
+                        (error & static_cast<uint32_t>(RoboClawError::MAIN_BATTERY_LOW));
+  
+  if (roboclaw_unsafe) {
+    String error_details = decodeErrorStatus(error);
+    safety_reasons += "roboclaw_hw_error[" + error_details + "] ";
+    unsafe = true;
+  }
+  
+  // Log safety status if unsafe condition detected
+  if (unsafe && safety_reasons.length() > 0) {
+    SerialManager::getInstance().sendMessage("WARN", 
+      ("RoboClawMonitor unsafe - reasons: " + safety_reasons).c_str());
+  }
+  
+  return unsafe;
 }
 
 void RoboClawMonitor::resetSafetyFlags() {
@@ -496,6 +551,7 @@ void RoboClawMonitor::sendStatusReports() {
   status_msg += ",\"LeftMotorSpeed\":" + String(motor1_status_.speed_qpps);
   status_msg += ",\"RightMotorSpeed\":" + String(motor2_status_.speed_qpps);
   status_msg += ",\"Error\":" + String(system_status_.error_status, HEX);
+  status_msg += ",\"ErrorDecoded\":\"" + decodeErrorStatus(system_status_.error_status) + "\"";
   status_msg += "}";
   
   SerialManager::getInstance().sendMessage("ROBOCLAW", status_msg.c_str());
@@ -511,6 +567,96 @@ void RoboClawMonitor::sendDiagnosticReports() {
   
   SerialManager::getInstance().sendMessage("DIAG", 
     ("level:INFO,module:RoboClawMonitor,msg:Diagnostic report,details:" + diag_msg).c_str());
+}
+
+String RoboClawMonitor::decodeErrorStatus(uint32_t error_status) const {
+  if (error_status == 0) {
+    return "No errors";
+  }
+  
+  String errors = "";
+  bool first = true;
+  
+  // Check each error bit and add description
+  if (error_status & static_cast<uint32_t>(RoboClawError::M1_OVERCURRENT)) {
+    if (!first) errors += ", ";
+    errors += "M1_OVERCURRENT";
+    first = false;
+  }
+  
+  if (error_status & static_cast<uint32_t>(RoboClawError::M2_OVERCURRENT)) {
+    if (!first) errors += ", ";
+    errors += "M2_OVERCURRENT";
+    first = false;
+  }
+  
+  if (error_status & static_cast<uint32_t>(RoboClawError::E_STOP)) {
+    if (!first) errors += ", ";
+    errors += "E_STOP_ACTIVE";
+    first = false;
+  }
+  
+  if (error_status & static_cast<uint32_t>(RoboClawError::TEMPERATURE_ERROR)) {
+    if (!first) errors += ", ";
+    errors += "TEMPERATURE_ERROR";
+    first = false;
+  }
+  
+  if (error_status & static_cast<uint32_t>(RoboClawError::M1_DRIVER_FAULT)) {
+    if (!first) errors += ", ";
+    errors += "M1_DRIVER_FAULT";
+    first = false;
+  }
+  
+  if (error_status & static_cast<uint32_t>(RoboClawError::M2_DRIVER_FAULT)) {
+    if (!first) errors += ", ";
+    errors += "M2_DRIVER_FAULT";
+    first = false;
+  }
+  
+  if (error_status & static_cast<uint32_t>(RoboClawError::MAIN_BATTERY_HIGH)) {
+    if (!first) errors += ", ";
+    errors += "MAIN_BATTERY_HIGH";
+    first = false;
+  }
+  
+  if (error_status & static_cast<uint32_t>(RoboClawError::LOGIC_BATTERY_HIGH)) {
+    if (!first) errors += ", ";
+    errors += "LOGIC_BATTERY_HIGH";
+    first = false;
+  }
+  
+  if (error_status & static_cast<uint32_t>(RoboClawError::LOGIC_BATTERY_LOW)) {
+    if (!first) errors += ", ";
+    errors += "LOGIC_BATTERY_LOW";
+    first = false;
+  }
+  
+  if (error_status & static_cast<uint32_t>(RoboClawError::MAIN_BATTERY_LOW)) {
+    if (!first) errors += ", ";
+    errors += "MAIN_BATTERY_LOW";
+    first = false;
+  }
+  
+  // Check for unknown error bits
+  uint32_t known_errors = static_cast<uint32_t>(RoboClawError::M1_OVERCURRENT) |
+                         static_cast<uint32_t>(RoboClawError::M2_OVERCURRENT) |
+                         static_cast<uint32_t>(RoboClawError::E_STOP) |
+                         static_cast<uint32_t>(RoboClawError::TEMPERATURE_ERROR) |
+                         static_cast<uint32_t>(RoboClawError::M1_DRIVER_FAULT) |
+                         static_cast<uint32_t>(RoboClawError::M2_DRIVER_FAULT) |
+                         static_cast<uint32_t>(RoboClawError::MAIN_BATTERY_HIGH) |
+                         static_cast<uint32_t>(RoboClawError::LOGIC_BATTERY_HIGH) |
+                         static_cast<uint32_t>(RoboClawError::LOGIC_BATTERY_LOW) |
+                         static_cast<uint32_t>(RoboClawError::MAIN_BATTERY_LOW);
+  
+  uint32_t unknown_errors = error_status & ~known_errors;
+  if (unknown_errors != 0) {
+    if (!first) errors += ", ";
+    errors += "UNKNOWN_ERROR_BITS:0x" + String(unknown_errors, HEX);
+  }
+  
+  return errors;
 }
 
 } // namespace sigyn_teensy
