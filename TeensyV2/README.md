@@ -207,7 +207,6 @@ TeensyV2/
 ├── platformio.ini              # PlatformIO configuration for both boards
 └── .gitignore                  # Git ignore patterns
 ```
-```
 
 ## Message Protocol
 
@@ -220,6 +219,46 @@ Examples:
 - `BATT:id=0,v=39.8,p=0.82,c=1.2,s=OK`
 - `IMU:id=0,qx=0.1,qy=0.2,qz=0.3,qw=0.9`
 - `ESTOP:src=motor,state=active,reason=overcurrent`
+- `TEMP:id=0,temp=23.5,status=OK` (Temperature sensor data)
+
+### Performance (PERF) JSON Format
+
+The performance monitoring system outputs detailed JSON reports for real-time system analysis. Field names are abbreviated to reduce bandwidth and prevent buffer overflow:
+
+**Top-Level Fields:**
+- `freq`: Current loop frequency in Hz
+- `tfreq`: Target minimum loop frequency threshold in Hz  
+- `mviol`: Total count of module timing violations since startup
+- `fviol`: Total count of frequency violations since startup
+
+**Violation Details (violdet) - only present when violations are active:**
+- `cmod`: Consecutive module timing violations count
+- `cfreq`: Consecutive frequency violations count  
+- `lastms`: Timestamp (milliseconds) of last violation
+
+**Module Performance Array (mods) - one entry per registered module:**
+- `n`: Module name (string)
+- `min`: Minimum execution time in milliseconds since startup
+- `max`: Maximum execution time in milliseconds since startup
+- `avg`: Average execution time in milliseconds since startup
+- `last`: Last execution time in milliseconds
+- `cnt`: Total execution count since startup
+- `viol`: Violation status - "T" (true) if last execution exceeded threshold, "F" (false) otherwise
+
+**Example PERF Message:**
+```json
+PERF:{"freq":85.2, "tfreq":75.0, "mviol":0, "fviol":0, "mods":[
+  {"n":"PerformanceMonitor","min":0.01,"max":0.15,"avg":0.05,"last":0.06,"cnt":12543,"viol":"F"},
+  {"n":"BatteryMonitor","min":0.20,"max":1.85,"avg":0.75,"last":0.82,"cnt":12543,"viol":"F"},
+  {"n":"RoboClawMonitor","min":2.10,"max":8.45,"avg":4.25,"last":3.80,"cnt":12543,"viol":"F"}
+]}
+```
+
+**Temperature Sensor Messages:**
+Temperature sensors now use the standardized message format:
+- `TEMP:id=<sensor_id>,temp=<temperature_celsius>,status=<OK|ERROR>`
+- Example: `TEMP:id=0,temp=23.5,status=OK`
+- Example: `TEMP:id=1,temp=45.2,status=ERROR`
 
 ## Performance Requirements
 

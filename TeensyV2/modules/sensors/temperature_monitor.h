@@ -3,11 +3,11 @@
  * @brief Temperature monitoring system for TeensyV2
  *
  * Provides real-time temperature monitoring for motors and system components
- * using DS18B20 or similar temperature sensors. Integrates with the safety
+ * using analog TMP36 temperature sensors. Integrates with the safety
  * system for thermal protection and provides comprehensive diagnostic reporting.
  *
  * Features:
- * - Support for multiple DS18B20 temperature sensors
+ * - Support for multiple analog TMP36 temperature sensors
  * - Real-time temperature monitoring with configurable thresholds
  * - Safety integration with automatic thermal protection
  * - Temperature trend analysis and prediction
@@ -27,8 +27,6 @@
 #pragma once
 
 #include <Arduino.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
 #include <cstdint>
 #include <cmath>
 
@@ -37,14 +35,19 @@
 
 namespace sigyn_teensy {
 
+// Maximum number of temperature sensors supported
+static constexpr uint8_t kMaxTemperatureSensors = 8;
+// Default number of sensors configured (left and right motor)
+static constexpr uint8_t kDefaultSensorsConfigured = 2;
+
 /**
  * @brief Temperature sensor configuration and thresholds.
  */
 struct TemperatureSensorConfig {
   // Sensor identification
   String sensor_name;                       ///< Human-readable sensor name
-  uint8_t sensor_address[8];                ///< DS18B20 unique address
   String location;                          ///< Physical location description
+  uint8_t analog_pin = 255;                 ///< Analog pin number for TMP36 sensors (255 = not configured)
   
   // Temperature thresholds (Celsius)
   float critical_high_temp = 85.0f;         ///< Critical high temperature (°C)
@@ -68,9 +71,7 @@ struct TemperatureSensorConfig {
  */
 struct TemperatureMonitorConfig {
   // Hardware configuration
-  uint8_t onewire_pin = 2;                  ///< OneWire bus pin
-  uint8_t max_sensors = 8;                  ///< Maximum number of sensors
-  uint32_t onewire_timeout_ms = 1000;       ///< OneWire communication timeout
+  uint8_t max_sensors = kMaxTemperatureSensors; ///< Maximum number of sensors
   
   // System thresholds
   float system_critical_temp = 80.0f;       ///< System-wide critical temperature
@@ -78,8 +79,6 @@ struct TemperatureMonitorConfig {
   
   // Operational parameters
   uint32_t scan_interval_ms = 5000;         ///< Sensor discovery scan interval
-  uint32_t conversion_time_ms = 750;        ///< Temperature conversion time
-  bool parallel_conversion = true;          ///< Use parallel temperature conversion
   
   // Reporting intervals
   uint32_t status_report_interval_ms = 2000; ///< Status reporting interval
@@ -154,13 +153,12 @@ struct TemperatureSystemStatus {
   uint32_t total_readings = 0;              ///< Total system readings
   uint32_t total_errors = 0;                ///< Total system errors
   float system_reading_rate_hz = 0.0f;      ///< Overall system reading rate
-  bool onewire_bus_ok = false;              ///< OneWire bus functioning
 };
 
 /**
  * @brief Temperature monitoring module for TeensyV2 system.
  * 
- * This module provides comprehensive temperature monitoring using DS18B20
+ * This module provides comprehensive temperature monitoring using analog TMP36
  * sensors with real-time safety protection, trend analysis, and diagnostic
  * reporting. It follows the TeensyV2 module architecture with minimal
  * impact on real-time performance.
@@ -213,19 +211,14 @@ private:
   
   // Core functionality
   void updateTemperatureReadings();
-  void performTemperatureConversion();
-  void readTemperatureSensors();
   void updateSystemStatus();
   void checkSafetyConditions();
   void analyzeTemperatureTrends();
   void sendStatusReports();
   void sendDiagnosticReports();
   
-  // OneWire and sensor management
-  void initializeOneWire();
-  void discoverSensors();
+  // Sensor management
   bool readSingleSensor(uint8_t sensor_index);
-  void configureSensorResolution(uint8_t sensor_index);
   void handleSensorError(uint8_t sensor_index);
   
   // Safety and thermal protection
@@ -244,22 +237,10 @@ private:
   TemperatureSystemStatus system_status_;
   TempState temp_state_;
   
-  // Hardware interface
-  OneWire onewire_bus_;
-  DallasTemperature temperature_sensors_;
-  bool onewire_initialized_;
-  
   // Sensor management
-  TemperatureSensorConfig sensor_configs_[8];
-  TemperatureSensorStatus sensor_status_[8];
-  DeviceAddress sensor_addresses_[8];
-  bool sensor_configured_[8];
-  
-  // Operational state
-  uint32_t conversion_start_time_ms_;
-  uint8_t sensors_discovered_;
-  bool conversion_in_progress_;
-  uint8_t current_sensor_reading_;
+  TemperatureSensorConfig sensor_configs_[kMaxTemperatureSensors];
+  TemperatureSensorStatus sensor_status_[kMaxTemperatureSensors];
+  bool sensor_configured_[kMaxTemperatureSensors];
   
   // Safety state tracking
   uint32_t warning_start_time_ms_;
@@ -270,7 +251,6 @@ private:
   uint32_t last_status_report_time_ms_;
   uint32_t last_diagnostic_report_time_ms_;
   uint32_t last_sensor_scan_time_ms_;
-  uint32_t last_conversion_time_ms_;
   uint32_t last_safety_check_time_ms_;
   
   // Performance tracking

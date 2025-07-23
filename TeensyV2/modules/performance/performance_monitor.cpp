@@ -182,9 +182,9 @@ void PerformanceMonitor::getPerformanceStats(char* buffer, size_t size) {
   // Get current frequency from Module system for accurate reporting
   float current_frequency = Module::getCurrentLoopFrequency();
   
-  // Start with basic frequency and violation counts
+  // Start with basic frequency and violation counts - using shortened field names
   int written = snprintf(buffer, size, 
-    "{\"freq\":%.1f, \"target_freq\":%.1f, \"mod_viol\":%lu, \"freq_viol\":%lu",
+    "{\"freq\":%.1f, \"tfreq\":%.1f, \"mviol\":%lu, \"fviol\":%lu",
     current_frequency,
     config_.min_loop_frequency_hz,
     (unsigned long)violations_.total_module_violations,
@@ -192,10 +192,10 @@ void PerformanceMonitor::getPerformanceStats(char* buffer, size_t size) {
 
   if (written < 0 || (size_t)written >= size) return;
 
-  // Add violation details if there are any
+  // Add violation details if there are any - using shortened field names
   if (violations_.safety_violation_active) {
     int details_written = snprintf(buffer + written, size - written,
-      ", \"violation_details\":{\"consecutive_mod\":%d,\"consecutive_freq\":%d,\"last_viol_ms\":%lu}",
+      ", \"violdet\":{\"cmod\":%d,\"cfreq\":%d,\"lastms\":%lu}",
       violations_.consecutive_module_violations,
       violations_.consecutive_frequency_violations,
       (unsigned long)violations_.last_violation_time_ms);
@@ -205,8 +205,8 @@ void PerformanceMonitor::getPerformanceStats(char* buffer, size_t size) {
     }
   }
 
-  // Add module timing information
-  int modules_written = snprintf(buffer + written, size - written, ", \"modules\":[");
+  // Add module timing information - using shortened field names
+  int modules_written = snprintf(buffer + written, size - written, ", \"mods\":[");
   if (modules_written > 0 && written + modules_written < (int)size) {
     written += modules_written;
     
@@ -227,31 +227,72 @@ void PerformanceMonitor::getPerformanceStats(char* buffer, size_t size) {
             float avg_ms = avg_us / 1000.0f;
 
             int mod_written = snprintf(buffer + written, size - written,
-                "%s{\"name\":\"%s\",\"min\":%.2f,\"max\":%.2f,\"avg\":%.2f,\"last\":%.2f,\"count\":%lu,\"violation\":%s}",
+                "%s{\"n\":\"%s\",\"min\":%.2f,\"max\":%.2f,\"avg\":%.2f,\"last\":%.2f,\"cnt\":%lu,\"viol\":%s}",
                 i > 0 ? "," : "",
                 mod->name(),
                 min_ms, max_ms, avg_ms, exec_time_ms,
                 (unsigned long)stats.loop_count,
-                is_violation ? "true" : "false");
+                is_violation ? "T" : "F");
 
-            if (mod_written > 0 && written + mod_written < (int)size) {
+            if (mod_written > 0 && written + mod_written < (int)size - 50) { // Leave more buffer space
                 written += mod_written;
             } else {
+                // Debug: Log buffer overflow
+                char debug_msg[100];
+                snprintf(debug_msg, sizeof(debug_msg), "PERF buffer overflow at module %d, written=%d, need=%d, size=%d", 
+                         i, written, mod_written, (int)size);
+                SerialManager::getInstance().sendMessage("DEBUG", debug_msg);
                 break; // Buffer full
             }
         }
     }
   }
 
-  // Close JSON structure
-  if (written < (int)size - 3) {
-    snprintf(buffer + written, size - written, "]}");
+  // Close JSON structure with proper bounds checking
+  if (written < (int)size - 10) {  // Ensure we have enough space for closing
+    int closing_written = snprintf(buffer + written, size - written, "]}");
+    if (closing_written > 0) {
+      written += closing_written;
+    }
+  } else {
+    // Force close the JSON even if we're running out of space
+    if (written < (int)size - 3) {
+      buffer[written] = ']';
+      buffer[written + 1] = '}';
+      buffer[written + 2] = '\0';
+    }
   }
+  
+  // Ensure null termination
+  buffer[size - 1] = '\0';
 }
 
 void PerformanceMonitor::reportStats() {
-  char stats_json[512]; // Increased buffer size for detailed module information
+  char stats_json[3072]; // Increased buffer size for larger JSON output
   getPerformanceStats(stats_json, sizeof(stats_json));
+  
+  // Debug: Check for buffer overflow and ensure null termination
+  size_t json_len = strlen(stats_json);
+  stats_json[sizeof(stats_json) - 1] = '\0'; // Ensure null termination
+  
+  // Check if the message exceeds SerialManager limits (768 bytes including "PERF:" prefix)
+  const size_t MAX_SERIAL_PAYLOAD = 760; // Leave room for "PERF:" prefix and terminator
+  
+  if (json_len > MAX_SERIAL_PAYLOAD) {
+    // Message too long - truncate gracefully by removing some module details
+    SerialManager::getInstance().sendMessage("WARN", 
+      ("PERF message truncated: " + String(json_len) + " > " + String(MAX_SERIAL_PAYLOAD)).c_str());
+    
+    // Force truncation at a safe JSON boundary
+    stats_json[MAX_SERIAL_PAYLOAD - 10] = ']';  // Close modules array
+    stats_json[MAX_SERIAL_PAYLOAD - 9] = '}';   // Close main object
+    stats_json[MAX_SERIAL_PAYLOAD - 8] = '\0';  // Null terminate
+    json_len = strlen(stats_json);
+  }
+  
+  SerialManager::getInstance().sendMessage("DEBUG", 
+    ("PERF JSON length: " + String(json_len) + "/" + String(sizeof(stats_json))).c_str());
+  
   SerialManager::getInstance().sendMessage("PERF", stats_json);
 }
 

@@ -98,7 +98,14 @@ void VL53L0XMonitor::loop() {
   }
 
   uint32_t now = millis();
-
+  
+  // Debug: Add periodic debug output to verify module is running
+  static uint32_t last_debug_time = 0;
+  if (now - last_debug_time > 10000) { // Every 10 seconds
+    SerialManager::getInstance().sendMessage("DEBUG", "VL53L0XMonitor::loop() executing");
+    last_debug_time = now;
+  }
+  
   // Update sensor measurement cycle
   updateSensorCycle();
 
