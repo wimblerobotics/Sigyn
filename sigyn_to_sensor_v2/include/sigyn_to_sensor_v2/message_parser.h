@@ -52,6 +52,8 @@ enum class MessageType {
   ESTOP,        ///< E-stop notifications
   DIAGNOSTIC,   ///< Diagnostic and error messages
   CONFIG,       ///< Configuration responses
+  INIT,         ///< Initialization messages
+  CRITICAL,     ///< Critical system messages
   UNKNOWN       ///< Unrecognized message type
 };
 
@@ -345,20 +347,6 @@ public:
    */
   void ResetStatistics();
 
-  /**
-   * @brief Set parsing validation strictness.
-   * 
-   * @param[in] strict true for strict validation, false for lenient
-   */
-  void SetStrictValidation(bool strict) { strict_validation_ = strict; }
-
-  /**
-   * @brief Get current validation mode.
-   * 
-   * @return true if strict validation is enabled
-   */
-  bool IsStrictValidation() const { return strict_validation_; }
-
 private:
   /**
    * @brief Parse message type from message string.
@@ -448,9 +436,6 @@ private:
 
   // Message type callbacks
   std::unordered_map<MessageType, MessageCallback> callbacks_;
-
-  // Parsing configuration
-  bool strict_validation_;
 
   // Statistics tracking
   mutable uint64_t total_messages_received_;

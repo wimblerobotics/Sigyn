@@ -53,6 +53,7 @@ private:
   void HandleDiagnosticMessage(const MessageData& data, rclcpp::Time timestamp);
   void HandleTemperatureMessage(const MessageData& data, rclcpp::Time timestamp);
   void HandleVL53L0XMessage(const MessageData& data, rclcpp::Time timestamp);
+  void HandleRoboClawMessage(const MessageData& data, rclcpp::Time timestamp);
   
   // ROS2 callbacks
   void EstopCommandCallback(const std_msgs::msg::Bool::SharedPtr msg);

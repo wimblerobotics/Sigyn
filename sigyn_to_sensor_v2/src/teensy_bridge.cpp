@@ -74,6 +74,11 @@ TeensyBridge::TeensyBridge()
     [this](const MessageData& data, rclcpp::Time timestamp) {
       HandleVL53L0XMessage(data, timestamp);
     });
+    
+  message_parser_->RegisterCallback(MessageType::ROBOCLAW,
+    [this](const MessageData& data, rclcpp::Time timestamp) {
+      HandleRoboClawMessage(data, timestamp);
+    });
   
   // Start serial communication
   StartSerialCommunication();
@@ -587,9 +592,14 @@ void TeensyBridge::HandleTemperatureMessage(const MessageData& data, rclcpp::Tim
 
 void TeensyBridge::HandleVL53L0XMessage(const MessageData& data, rclcpp::Time timestamp) {
   auto vl53l0x_data = message_parser_->ParseVL53L0XData(data);
+  RCLCPP_INFO(this->get_logger(), "VL53L0X data valid: %s, distances size: %zu", 
+              vl53l0x_data.valid ? "true" : "false", vl53l0x_data.distances_mm.size());
+  
   if (vl53l0x_data.valid) {
     // Publish range data for each sensor in the distances array
     for (size_t i = 0; i < vl53l0x_data.distances_mm.size() && i < 8; ++i) {
+      RCLCPP_INFO(this->get_logger(), "Sensor %zu: distance = %u mm", i, vl53l0x_data.distances_mm[i]);
+      
       if (vl53l0x_data.distances_mm[i] > 0) {  // 0 indicates invalid reading
         sensor_msgs::msg::Range range_msg;
         range_msg.header.stamp = timestamp;
@@ -602,6 +612,8 @@ void TeensyBridge::HandleVL53L0XMessage(const MessageData& data, rclcpp::Time ti
         // Convert mm to meters
         range_msg.range = vl53l0x_data.distances_mm[i] / 1000.0;
         
+        RCLCPP_INFO(this->get_logger(), "Publishing range for sensor %zu: %.3f m", i, range_msg.range);
+        
         // Route to appropriate publisher based on sensor index
         auto publishers = std::vector<rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr>{
           vl53l0x_sensor0_pub_, vl53l0x_sensor1_pub_, vl53l0x_sensor2_pub_, vl53l0x_sensor3_pub_,
@@ -610,10 +622,52 @@ void TeensyBridge::HandleVL53L0XMessage(const MessageData& data, rclcpp::Time ti
         
         if (i < publishers.size() && publishers[i]) {
           publishers[i]->publish(range_msg);
+        } else {
+          RCLCPP_WARN(this->get_logger(), "No publisher for sensor %zu", i);
         }
       }
     }
+  } else {
+    RCLCPP_WARN(this->get_logger(), "VL53L0X data is not valid");
   }
+}
+
+void TeensyBridge::HandleRoboClawMessage(const MessageData& data, rclcpp::Time timestamp) {
+  // Parse RoboClaw data and convert to diagnostic message for now
+  // In the future, this could be extended to publish motor controller specific messages
+  auto diag_msg = diagnostic_msgs::msg::DiagnosticArray();
+  diag_msg.header.stamp = timestamp;
+  
+  auto roboclaw_status = diagnostic_msgs::msg::DiagnosticStatus();
+  roboclaw_status.name = "roboclaw_motor_controller";
+  roboclaw_status.hardware_id = "roboclaw_v2";
+  
+  // Check for error conditions
+  auto error_it = data.find("Error");
+  auto error_decoded_it = data.find("ErrorDecoded");
+  
+  if (error_it != data.end() && error_it->second != "0") {
+    roboclaw_status.level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
+    if (error_decoded_it != data.end()) {
+      roboclaw_status.message = "RoboClaw Error: " + error_decoded_it->second;
+    } else {
+      roboclaw_status.message = "RoboClaw Error Code: " + error_it->second;
+    }
+  } else {
+    roboclaw_status.level = diagnostic_msgs::msg::DiagnosticStatus::OK;
+    roboclaw_status.message = "RoboClaw operating normally";
+  }
+  
+  // Add all RoboClaw data as key-value pairs
+  for (const auto& kv : data) {
+    auto roboclaw_kv = diagnostic_msgs::msg::KeyValue();
+    roboclaw_kv.key = kv.first;
+    roboclaw_kv.value = kv.second;
+    roboclaw_status.values.push_back(roboclaw_kv);
+  }
+  
+  diag_msg.status.push_back(roboclaw_status);
+  diagnostics_pub_->publish(diag_msg);
 }
 
 void TeensyBridge::EstopCommandCallback(const std_msgs::msg::Bool::SharedPtr msg) {

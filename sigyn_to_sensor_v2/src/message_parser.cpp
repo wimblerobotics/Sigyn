@@ -16,7 +16,6 @@ namespace sigyn_to_sensor_v2 {
 
 MessageParser::MessageParser(rclcpp::Logger logger)
     : logger_(logger),
-      strict_validation_(false),  // Disabled to allow JSON and diagnostic messages
       total_messages_received_(0),
       total_messages_parsed_(0),
       total_parsing_errors_(0),
@@ -50,16 +49,12 @@ bool MessageParser::ParseMessage(const std::string& message, rclcpp::Time timest
       return false;
     }
     
-    // Find colon separator
+    // Find colon separator (validation ensures it exists)
     size_t colon_pos = message.find(':');
-    if (colon_pos == std::string::npos) {
-      total_parsing_errors_++;
-      return false;
-    }
+    MessageData data;
     
     // Get message content after the colon
     std::string content = message.substr(colon_pos + 1);
-    MessageData data;
     
     // Parse content based on message type
     if (type == MessageType::PERFORMANCE || type == MessageType::VL53L0X || 
@@ -67,10 +62,11 @@ bool MessageParser::ParseMessage(const std::string& message, rclcpp::Time timest
         (type == MessageType::TEMPERATURE && content.find('{') == 0)) {
       // PERF, VL53L0X, ROBOCLAW, and TEMPERATURE (array format) messages use JSON format
       data = ParseJsonContent(content);
-    } else if (type == MessageType::DIAGNOSTIC) {
-      // DIAG messages are free-form diagnostic text - just log and continue
+    } else if (type == MessageType::DIAGNOSTIC || type == MessageType::INIT || type == MessageType::CRITICAL) {
+      // DIAG, INIT, and CRITICAL messages are free-form diagnostic text
       data["message"] = content;
-      RCLCPP_DEBUG(logger_, "DIAG: %s", content.c_str());
+      RCLCPP_DEBUG(logger_, "%s: %s", 
+                   message.substr(0, colon_pos).c_str(), content.c_str());
     } else {
       // All other messages (including TEMP individual format) use key:value format
       data = ParseKeyValuePairs(content);
@@ -606,6 +602,7 @@ void MessageParser::ResetStatistics() {
 MessageType MessageParser::ParseMessageType(const std::string& message) const {
   size_t colon_pos = message.find(':');
   if (colon_pos == std::string::npos) {
+    // Messages without colons are invalid
     return MessageType::UNKNOWN;
   }
   
@@ -649,27 +646,21 @@ MessageData MessageParser::ParseKeyValuePairs(const std::string& content) const 
 }
 
 bool MessageParser::ValidateMessage(const std::string& message) const {
-  if (message.empty() || message.length() > 2048) {  // Increased for JSON support
+  if (message.empty() || message.length() > 2048) {
     return false;
   }
   
-  // Check for required colon separator
+  // Check for colon separator - all valid messages must have one
   size_t colon_pos = message.find(':');
   if (colon_pos == std::string::npos || colon_pos == 0) {
-    return false;
+    return false;  // Reject messages without colons or with colon as first character
   }
   
   // Get message type and content
   std::string type_str = message.substr(0, colon_pos);
   std::string content = message.substr(colon_pos + 1);
   
-  // For now, disable strict validation to allow all valid message formats through
-  // This includes JSON messages, key-value messages, and free-form diagnostic messages
-  if (!strict_validation_) {
-    return true;
-  }
-  
-  // Basic format validation for strict mode
+  // Check if message type is recognized
   MessageType type = StringToMessageType(type_str);
   if (type == MessageType::UNKNOWN) {
     return false;
@@ -681,9 +672,10 @@ bool MessageParser::ValidateMessage(const std::string& message) const {
     return !content.empty() && content[0] == '{';
   } 
   
-  // Diagnostic messages are free-form text
+  // Diagnostic messages are free-form text (but must have recognized type)
   if (type_str == "DIAG" || type_str == "WARNING" || type_str == "DEBUG" || 
-      type_str == "INFO" || type_str == "ERROR") {
+      type_str == "INFO" || type_str == "ERROR" || type_str == "CRITICAL" || 
+      type_str == "INIT") {
     return !content.empty();
   }
   
@@ -704,6 +696,8 @@ MessageType MessageParser::StringToMessageType(const std::string& type_str) cons
   if (type_str == "ESTOP") return MessageType::ESTOP;
   if (type_str == "DIAG") return MessageType::DIAGNOSTIC;
   if (type_str == "CONFIG") return MessageType::CONFIG;
+  if (type_str == "INIT") return MessageType::INIT;
+  if (type_str == "CRITICAL") return MessageType::CRITICAL;
   // Handle free-form diagnostic messages
   if (type_str == "WARNING" || type_str == "DEBUG" || type_str == "INFO" || 
       type_str == "ERROR" || type_str == "WARN") {
@@ -720,9 +714,13 @@ std::string MessageParser::MessageTypeToString(MessageType type) const {
     case MessageType::IMU: return "IMU";
     case MessageType::TEMPERATURE: return "TEMP";
     case MessageType::VL53L0X: return "VL53L0X";
+    case MessageType::ROBOCLAW: return "ROBOCLAW";
+    case MessageType::ODOM: return "ODOM";
     case MessageType::ESTOP: return "ESTOP";
     case MessageType::DIAGNOSTIC: return "DIAG";
     case MessageType::CONFIG: return "CONFIG";
+    case MessageType::INIT: return "INIT";
+    case MessageType::CRITICAL: return "CRITICAL";
     default: return "UNKNOWN";
   }
 }
@@ -846,6 +844,54 @@ MessageData MessageParser::ParseJsonContent(const std::string& content) const {
     std::string freq_viol = extractJsonValue("freq_viol");
     if (!freq_viol.empty()) data["freq_viol"] = freq_viol;
     
+    // Extract VL53L0X fields
+    std::string total_sensors = extractJsonValue("total_sensors");
+    if (!total_sensors.empty()) data["total_sensors"] = total_sensors;
+    
+    std::string active_sensors = extractJsonValue("active_sensors");
+    if (!active_sensors.empty()) data["active_sensors"] = active_sensors;
+    
+    std::string min_distance = extractJsonValue("min_distance");
+    if (!min_distance.empty()) data["min_distance"] = min_distance;
+    
+    std::string max_distance = extractJsonValue("max_distance");
+    if (!max_distance.empty()) data["max_distance"] = max_distance;
+    
+    std::string obstacles = extractJsonValue("obstacles");
+    if (!obstacles.empty()) data["obstacles"] = obstacles;
+    
+    // Extract distances array - special handling needed
+    std::string search = "\"distances\":";
+    size_t pos = content.find(search);
+    if (pos != std::string::npos) {
+      pos += search.length();
+      // Skip whitespace
+      while (pos < content.length() && (content[pos] == ' ' || content[pos] == '\t')) {
+        pos++;
+      }
+      // Look for opening bracket
+      if (pos < content.length() && content[pos] == '[') {
+        size_t end_pos = content.find(']', pos);
+        if (end_pos != std::string::npos) {
+          std::string distances_array = content.substr(pos, end_pos - pos + 1);
+          data["distances"] = distances_array;
+        }
+      }
+    }
+    
+    // Extract TEMPERATURE fields
+    std::string temperatures = extractJsonValue("temperatures");
+    if (!temperatures.empty()) data["temperatures"] = temperatures;
+    
+    std::string avg_temp = extractJsonValue("avg_temp");
+    if (!avg_temp.empty()) data["avg_temp"] = avg_temp;
+    
+    std::string max_temp = extractJsonValue("max_temp");
+    if (!max_temp.empty()) data["max_temp"] = max_temp;
+    
+    std::string min_temp = extractJsonValue("min_temp");
+    if (!min_temp.empty()) data["min_temp"] = min_temp;
+    
   } catch (const std::exception& e) {
     RCLCPP_WARN(logger_, "Error extracting JSON values: %s", e.what());
     // Still keep the raw JSON even if extraction fails
@@ -891,9 +937,17 @@ TemperatureData MessageParser::ParseTemperatureData(const MessageData& data, boo
       
     } else {
       // Parse TEMP message (individual sensor format)
+      RCLCPP_DEBUG(logger_, "Parsing TEMP individual format, data size: %zu", data.size());
+      for (const auto& kv : data) {
+        RCLCPP_DEBUG(logger_, "  Key: '%s', Value: '%s'", kv.first.c_str(), kv.second.c_str());
+      }
+      
       temp_data.sensor_id = SafeStringToInt(data.find("id") != data.end() ? data.at("id") : "0", 0);
       temp_data.temperature_c = SafeStringToDouble(data.find("temp") != data.end() ? data.at("temp") : "0", 0.0);
       temp_data.status = data.find("status") != data.end() ? data.at("status") : "UNKNOWN";
+      
+      RCLCPP_DEBUG(logger_, "Parsed: sensor_id=%d, temperature_c=%.2f, status=%s", 
+                   temp_data.sensor_id, temp_data.temperature_c, temp_data.status.c_str());
     }
     
   } catch (const std::exception& e) {
@@ -922,13 +976,22 @@ VL53L0XData MessageParser::ParseVL53L0XData(const MessageData& data) const {
     auto it = data.find("distances");
     if (it != data.end()) {
       std::string dist_array = it->second;
-      // Simple array parsing - look for numbers and null values
+      // Parse JSON array format: [45,53,40,44,1007,616,1031,8191]
+      // Remove brackets
+      if (!dist_array.empty() && dist_array.front() == '[') {
+        dist_array = dist_array.substr(1);
+      }
+      if (!dist_array.empty() && dist_array.back() == ']') {
+        dist_array = dist_array.substr(0, dist_array.length() - 1);
+      }
+      
+      // Split by comma
       std::istringstream stream(dist_array);
       std::string token;
       while (std::getline(stream, token, ',')) {
-        // Remove brackets and whitespace
+        // Remove whitespace
         token.erase(std::remove_if(token.begin(), token.end(), 
-                   [](char c) { return c == '[' || c == ']' || c == ' '; }), token.end());
+                   [](char c) { return c == ' ' || c == '\t'; }), token.end());
         
         if (token == "null" || token.empty()) {
           vl53_data.distances_mm.push_back(0);  // 0 indicates invalid reading
