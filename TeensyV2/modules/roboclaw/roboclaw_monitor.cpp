@@ -48,6 +48,12 @@ RoboClawMonitor::RoboClawMonitor()
       last_runaway_check_time_ms_(0),
       last_runaway_encoder_m1_(0),
       last_runaway_encoder_m2_(0),
+      current_pose_(),
+      current_velocity_(),
+      prev_encoder_m1_(0),
+      prev_encoder_m2_(0),
+      last_odom_update_time_us_(0),
+      odometry_initialized_(false),
       last_status_report_time_ms_(0),
       last_diagnostic_report_time_ms_(0),
       last_safety_check_time_ms_(0),
@@ -117,16 +123,24 @@ void RoboClawMonitor::loop() {
       break;
       
     case ConnectionState::CONNECTED:
-      // Normal operation
-      updateMotorStatus();  // Now uses state machine, much faster
+      // HIGH FREQUENCY OPERATIONS (aim for ≥70Hz)
+      // Odometry needs fresh encoder data, so read encoders first, then calculate odometry
+      if (now - last_reading_time_ms_ >= 14) { // ~70Hz for encoder readings + odometry
+        updateCriticalMotorStatus(); // Read fresh encoder values
+        updateOdometry();           // Calculate odometry with fresh data
+        last_reading_time_ms_ = now;
+      }
       
-      // Periodic safety checks
-      if (now - last_safety_check_time_ms_ >= 50) { // 20Hz safety checks
+      // HIGH FREQUENCY cmd_vel processing (can be independent)
+      processVelocityCommands(); // Critical: cmd_vel processing at high frequency
+      
+      // MEDIUM FREQUENCY OPERATIONS (~10Hz) - safety checks
+      if (now - last_safety_check_time_ms_ >= 100) { // 10Hz safety checks
         checkSafetyConditions();
         last_safety_check_time_ms_ = now;
       }
       
-      // Handle command timeouts
+      // Handle command timeouts (check every loop but lightweight)
       if (now - last_velocity_command_.timestamp_ms > MAX_MS_TO_WAIT_FOR_CMD_VEL_BEFORE_STOP_MOTORS) {
         // Timeout - stop motors
         setMotorSpeeds(0, 0);
@@ -135,13 +149,15 @@ void RoboClawMonitor::loop() {
       break;
   }
   
-  // Periodic reporting (regardless of connection state)
-  if (now - last_status_report_time_ms_ >= config_.status_report_interval_ms) {
+  // LOW FREQUENCY OPERATIONS (~3Hz) - heavy system status
+  if (now - last_status_report_time_ms_ >= 333) { // ~3Hz for heavy readings (voltage, current, etc.)
+    updateSystemStatus(); // Voltage, current, error reads - slow operations
     sendStatusReports();
     last_status_report_time_ms_ = now;
   }
   
-  if (now - last_diagnostic_report_time_ms_ >= config_.diagnostic_report_interval_ms) {
+  // DIAGNOSTIC REPORTING (~1Hz)
+  if (now - last_diagnostic_report_time_ms_ >= 1000) { // 1Hz for diagnostics
     sendDiagnosticReports();
     last_diagnostic_report_time_ms_ = now;
   }
@@ -413,7 +429,7 @@ void RoboClawMonitor::updateMotorStatus() {
   
   // Limit reading frequency to prevent overloading serial communication
   // Spread reads across multiple cycles: each state should take ~1-2ms
-  if (now - last_reading_time_ms_ < 10) { // Minimum 10ms between reads
+  if (now - last_reading_time_ms_ < 25) { // Increased to 25ms for better performance (40Hz max)
     return;
   }
   
@@ -425,40 +441,28 @@ void RoboClawMonitor::updateMotorStatus() {
     case ReadingState::READ_ENCODER_M1:
       motor1_status_.encoder_count = roboclaw_.ReadEncM1(config_.address, &status, &valid);
       motor1_status_.encoder_valid = valid;
-      if (!valid) {
-        handleCommunicationError();
-        return;
-      }
+      // Continue even if invalid to maintain performance
       reading_state_ = ReadingState::READ_SPEED_M1;
       break;
       
     case ReadingState::READ_SPEED_M1:
       motor1_status_.speed_qpps = roboclaw_.ReadSpeedM1(config_.address, &status, &valid);
       motor1_status_.speed_valid = valid;
-      if (!valid) {
-        handleCommunicationError();
-        return;
-      }
+      // Continue even if invalid to maintain performance
       reading_state_ = ReadingState::READ_ENCODER_M2;
       break;
       
     case ReadingState::READ_ENCODER_M2:
       motor2_status_.encoder_count = roboclaw_.ReadEncM2(config_.address, &status, &valid);
       motor2_status_.encoder_valid = valid;
-      if (!valid) {
-        handleCommunicationError();
-        return;
-      }
+      // Continue even if invalid to maintain performance
       reading_state_ = ReadingState::READ_SPEED_M2;
       break;
       
     case ReadingState::READ_SPEED_M2:
       motor2_status_.speed_qpps = roboclaw_.ReadSpeedM2(config_.address, &status, &valid);
       motor2_status_.speed_valid = valid;
-      if (!valid) {
-        handleCommunicationError();
-        return;
-      }
+      // Continue even if invalid to maintain performance
       reading_state_ = ReadingState::READ_CURRENTS;
       break;
       
@@ -475,8 +479,7 @@ void RoboClawMonitor::updateMotorStatus() {
         } else {
           motor1_status_.current_valid = false;
           motor2_status_.current_valid = false;
-          handleCommunicationError();
-          return;
+          // Continue even if invalid to maintain performance
         }
         reading_state_ = ReadingState::READ_VOLTAGES;
       }
@@ -490,8 +493,26 @@ void RoboClawMonitor::updateMotorStatus() {
       
     case ReadingState::COMPLETE:
       // All readings complete for this cycle
-      motor1_status_.communication_ok = true;
-      motor2_status_.communication_ok = true;
+      // Only set communication_ok if we had some valid readings
+      bool any_valid = motor1_status_.encoder_valid || motor1_status_.speed_valid ||
+                      motor2_status_.encoder_valid || motor2_status_.speed_valid ||
+                      motor1_status_.current_valid;
+      
+      motor1_status_.communication_ok = any_valid;
+      motor2_status_.communication_ok = any_valid;
+      
+      // Track consecutive communication failures for error handling
+      static uint8_t consecutive_failures = 0;
+      if (!any_valid) {
+        consecutive_failures++;
+        if (consecutive_failures >= 5) { // Only trigger error after 5 consecutive failures
+          handleCommunicationError();
+          consecutive_failures = 0;
+        }
+      } else {
+        consecutive_failures = 0; // Reset on success
+      }
+      
       reading_state_ = ReadingState::READ_ENCODER_M1; // Start next cycle
       break;
   }
@@ -510,7 +531,7 @@ void RoboClawMonitor::updateSystemStatus() {
   // This will be called from the reading state machine
   static uint8_t system_read_counter = 0;
   
-  switch (system_read_counter % 4) {
+  switch (system_read_counter % 8) { // Increased cycle count to reduce frequency further
     case 0:
       // Read main battery voltage
       {
@@ -522,7 +543,20 @@ void RoboClawMonitor::updateSystemStatus() {
       break;
       
     case 1:
-      // Read logic battery voltage
+      // Skip this cycle to reduce load
+      break;
+      
+    case 2:
+      // Read error status (critical - read more frequently)
+      system_status_.error_status = roboclaw_.ReadError(config_.address, &valid);
+      break;
+      
+    case 3:
+      // Skip this cycle to reduce load
+      break;
+      
+    case 4:
+      // Read logic battery voltage (less frequent)
       {
         uint16_t logic_voltage = roboclaw_.ReadLogicBatteryVoltage(config_.address, &valid);
         if (valid) {
@@ -531,13 +565,16 @@ void RoboClawMonitor::updateSystemStatus() {
       }
       break;
       
-    case 2:
-      // Read error status
-      system_status_.error_status = roboclaw_.ReadError(config_.address, &valid);
+    case 5:
+      // Skip this cycle to reduce load
       break;
       
-    case 3:
-      // Read temperature if available (this might be slower, so do it last)
+    case 6:
+      // Skip this cycle to reduce load  
+      break;
+      
+    case 7:
+      // Read temperature if available (slowest, do least frequently)
       {
         uint16_t temp;
         if (roboclaw_.ReadTemp(config_.address, temp)) {
@@ -551,26 +588,196 @@ void RoboClawMonitor::updateSystemStatus() {
   system_status_.last_status_update_ms = millis();
 }
 
+void RoboClawMonitor::updateCriticalMotorStatus() {
+  if (connection_state_ != ConnectionState::CONNECTED) {
+    return;
+  }
+  
+  // High-frequency updates: ALWAYS read encoders (critical for odometry)
+  bool valid;
+  uint8_t status;
+  
+  // Read encoders first - these are critical for odometry
+  motor1_status_.encoder_count = roboclaw_.ReadEncM1(config_.address, &status, &valid);
+  motor1_status_.encoder_valid = valid;
+  
+  motor2_status_.encoder_count = roboclaw_.ReadEncM2(config_.address, &status, &valid);
+  motor2_status_.encoder_valid = valid;
+  
+  // Read speeds less frequently to reduce serial load
+  static uint8_t speed_read_counter = 0;
+  if ((speed_read_counter % 3) == 0) { // Read speeds every 3rd call (~23Hz)
+    motor1_status_.speed_qpps = roboclaw_.ReadSpeedM1(config_.address, &status, &valid);
+    motor1_status_.speed_valid = valid;
+    
+    motor2_status_.speed_qpps = roboclaw_.ReadSpeedM2(config_.address, &status, &valid);
+    motor2_status_.speed_valid = valid;
+  }
+  speed_read_counter++;
+}
+
+void RoboClawMonitor::updateOdometry() {
+  if (connection_state_ != ConnectionState::CONNECTED) {
+    return;
+  }
+  
+  uint32_t current_time_us = micros();
+  
+  // Initialize odometry on first run
+  if (!odometry_initialized_) {
+    prev_encoder_m1_ = motor1_status_.encoder_count;
+    prev_encoder_m2_ = motor2_status_.encoder_count;
+    last_odom_update_time_us_ = current_time_us;
+    odometry_initialized_ = true;
+    return;
+  }
+  
+  // Calculate time delta
+  float dt_s = (current_time_us - last_odom_update_time_us_) / 1000000.0f;
+  
+  // Skip if time delta is too small (avoid noise) or too large (avoid jumps)
+  if (dt_s < 0.010f || dt_s > 0.1f) return; // Minimum 10ms between updates, max 100ms
+  
+  // Use the latest encoder readings from motor status
+  if (!motor1_status_.encoder_valid || !motor2_status_.encoder_valid) {
+    return; // Skip if encoder readings invalid
+  }
+  
+  // Calculate encoder deltas
+  int32_t delta_encoder_m1 = motor1_status_.encoder_count - prev_encoder_m1_;
+  int32_t delta_encoder_m2 = motor2_status_.encoder_count - prev_encoder_m2_;
+  
+  // Skip update if no significant movement (reduce noise)
+  if (abs(delta_encoder_m1) < 2 && abs(delta_encoder_m2) < 2) {
+    return; // Not enough movement to calculate meaningful odometry
+  }
+  
+  // Update previous values
+  prev_encoder_m1_ = motor1_status_.encoder_count;
+  prev_encoder_m2_ = motor2_status_.encoder_count;
+  last_odom_update_time_us_ = current_time_us;
+  
+  // Convert encoder ticks to distances (meters)
+  float wheel_circumference = M_PI * WHEEL_DIAMETER_M;
+  float dist_m1 = (static_cast<float>(delta_encoder_m1) / QUADRATURE_PULSES_PER_REVOLUTION) * wheel_circumference;
+  float dist_m2 = (static_cast<float>(delta_encoder_m2) / QUADRATURE_PULSES_PER_REVOLUTION) * wheel_circumference;
+  
+  // Calculate robot motion
+  float delta_distance = (dist_m1 + dist_m2) / 2.0f;
+  float delta_theta = (dist_m2 - dist_m1) / WHEEL_BASE_M;
+  
+  // Update pose (using midpoint integration)
+  current_pose_.x += delta_distance * cos(current_pose_.theta + delta_theta / 2.0f);
+  current_pose_.y += delta_distance * sin(current_pose_.theta + delta_theta / 2.0f);
+  current_pose_.theta += delta_theta;
+  
+  // Normalize angle to [-π, π]
+  while (current_pose_.theta > M_PI) current_pose_.theta -= 2.0f * M_PI;
+  while (current_pose_.theta < -M_PI) current_pose_.theta += 2.0f * M_PI;
+  
+  // Update velocity
+  current_velocity_.linear_x = delta_distance / dt_s;
+  current_velocity_.angular_z = delta_theta / dt_s;
+  
+  // Send odometry message (compact format for high frequency)
+  float q[4]; // quaternion [w, x, y, z]
+  float half_theta = current_pose_.theta / 2.0f;
+  q[0] = cos(half_theta); // w
+  q[1] = 0.0f;            // x
+  q[2] = 0.0f;            // y  
+  q[3] = sin(half_theta); // z
+  
+  char msg[256];
+  snprintf(msg, sizeof(msg),
+           "px=%.3f,py=%.3f,ox=%.3f,oy=%.3f,oz=%.3f,ow=%.3f,vx=%.3f,vy=%.3f,wz=%.3f",
+           current_pose_.x, current_pose_.y, q[1], q[2], q[3], q[0],
+           current_velocity_.linear_x, 0.0f, current_velocity_.angular_z);
+  SerialManager::getInstance().sendMessage("ODOM", msg);
+}
+
+void RoboClawMonitor::processVelocityCommands() {
+  if (connection_state_ != ConnectionState::CONNECTED) {
+    return;
+  }
+  
+  uint32_t now = millis();
+  
+  // Check for command timeout
+  if (now - last_velocity_command_.timestamp_ms > MAX_MS_TO_WAIT_FOR_CMD_VEL_BEFORE_STOP_MOTORS) {
+    // Timeout - ensure motors are stopped
+    if (last_commanded_m1_qpps_ != 0 || last_commanded_m2_qpps_ != 0) {
+      setMotorSpeeds(0, 0);
+    }
+    return;
+  }
+  
+  // Rate limit motor commands to prevent overwhelming the controller
+  // But still allow high frequency for responsiveness  
+  static uint32_t last_command_time = 0;
+  if (now - last_command_time < 15) { // ~67Hz max command rate
+    return;
+  }
+  last_command_time = now;
+  
+  // Convert twist to motor speeds
+  int32_t m1_qpps, m2_qpps;
+  velocityToMotorSpeeds(last_velocity_command_.linear_x, 
+                       last_velocity_command_.angular_z, 
+                       m1_qpps, m2_qpps);
+  
+  // Only send command if it changed significantly or periodically
+  static uint32_t last_forced_update = 0;
+  bool significant_change = (abs(m1_qpps - last_commanded_m1_qpps_) > 10) || 
+                           (abs(m2_qpps - last_commanded_m2_qpps_) > 10);
+  bool force_update = (now - last_forced_update > 100); // Force update every 100ms
+  
+  if (significant_change || force_update) {
+    executeMotorCommand(m1_qpps, m2_qpps);
+    last_commanded_m1_qpps_ = m1_qpps;
+    last_commanded_m2_qpps_ = m2_qpps;
+    last_command_time_ms_ = now;
+    
+    if (force_update) {
+      last_forced_update = now;
+    }
+  }
+}
+
 void RoboClawMonitor::checkSafetyConditions() {
+  // Rate limiting for ESTOP messages
+  static uint32_t last_estop_msg_time = 0;
+  const uint32_t ESTOP_MSG_INTERVAL = 1000; // 1 second between ESTOP messages
+  uint32_t now = millis();
+  
   // Check for overcurrent conditions
   if (motor1_status_.current_valid && 
       abs(motor1_status_.current_amps) > config_.max_current_m1) {
     motor1_status_.overcurrent = true;
     total_safety_violations_++;
-     SerialManager::getInstance().sendMessage("ESTOP",
-      ("active:true,source:ROBOCLAW_CURRENT,reason:Motor 1 overcurrent," +
-      String("value:") + String(motor1_status_.current_amps) +
-      ",manual_reset:false,time:" + String(millis())).c_str());
+    
+    // Rate-limited ESTOP message
+    if (now - last_estop_msg_time >= ESTOP_MSG_INTERVAL) {
+      SerialManager::getInstance().sendMessage("ESTOP",
+        ("active:true,source:ROBOCLAW_CURRENT,reason:Motor 1 overcurrent," +
+        String("value:") + String(motor1_status_.current_amps) +
+        ",manual_reset:false,time:" + String(millis())).c_str());
+      last_estop_msg_time = now;
+    }
   }
   
   if (motor2_status_.current_valid && 
       abs(motor2_status_.current_amps) > config_.max_current_m2) {
     motor2_status_.overcurrent = true;
     total_safety_violations_++;
-     SerialManager::getInstance().sendMessage("ESTOP",
-      ("active:true,source:ROBOCLAW_CURRENT,reason:Motor 2 overcurrent," +
-      String("value:") + String(motor2_status_.current_amps) +
-      ",manual_reset:false,time:" + String(millis())).c_str());
+    
+    // Rate-limited ESTOP message
+    if (now - last_estop_msg_time >= ESTOP_MSG_INTERVAL) {
+      SerialManager::getInstance().sendMessage("ESTOP",
+        ("active:true,source:ROBOCLAW_CURRENT,reason:Motor 2 overcurrent," +
+        String("value:") + String(motor2_status_.current_amps) +
+        ",manual_reset:false,time:" + String(millis())).c_str());
+      last_estop_msg_time = now;
+    }
   }
   
   // Check for runaway detection
@@ -587,23 +794,37 @@ void RoboClawMonitor::detectMotorRunaway() {
     return;
   }
   
+  // Rate limiting for runaway ESTOP messages
+  static uint32_t last_runaway_msg_time = 0;
+  const uint32_t RUNAWAY_MSG_INTERVAL = 1000; // 1 second between runaway messages
+  
   // Check if motors are running away (moving when commanded to stop)
   if (last_commanded_m1_qpps_ == 0 && abs(motor1_status_.speed_qpps) > 100) {
     motor1_status_.runaway_detected = true;
     total_safety_violations_++;
-     SerialManager::getInstance().sendMessage("ESTOP",
-      ("active:true,source:MOTOR_RUNAWAY,reason:Motor 1 runaway detected," +
-      String("value:") + String(motor1_status_.speed_qpps) +
-      ",manual_reset:false,time:" + String(millis())).c_str());
+    
+    // Rate-limited ESTOP message
+    if (now - last_runaway_msg_time >= RUNAWAY_MSG_INTERVAL) {
+      SerialManager::getInstance().sendMessage("ESTOP",
+        ("active:true,source:MOTOR_RUNAWAY,reason:Motor 1 runaway detected," +
+        String("value:") + String(motor1_status_.speed_qpps) +
+        ",manual_reset:false,time:" + String(millis())).c_str());
+      last_runaway_msg_time = now;
+    }
   }
   
   if (last_commanded_m2_qpps_ == 0 && abs(motor2_status_.speed_qpps) > 100) {
     motor2_status_.runaway_detected = true;
     total_safety_violations_++;
-     SerialManager::getInstance().sendMessage("ESTOP",
-      ("active:true,source:MOTOR_RUNAWAY,reason:Motor 2 runaway detected," +
-      String("value:") + String(motor2_status_.speed_qpps) +
-      ",manual_reset:false,time:" + String(millis())).c_str());
+    
+    // Rate-limited ESTOP message
+    if (now - last_runaway_msg_time >= RUNAWAY_MSG_INTERVAL) {
+      SerialManager::getInstance().sendMessage("ESTOP",
+        ("active:true,source:MOTOR_RUNAWAY,reason:Motor 2 runaway detected," +
+        String("value:") + String(motor2_status_.speed_qpps) +
+        ",manual_reset:false,time:" + String(millis())).c_str());
+      last_runaway_msg_time = now;
+    }
   }
   
   last_runaway_check_time_ms_ = now;

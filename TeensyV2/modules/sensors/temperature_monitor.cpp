@@ -515,6 +515,9 @@ void TemperatureMonitor::checkSafetyConditions() {
 }
 
 void TemperatureMonitor::detectThermalRunaway() {
+    static uint32_t last_thermal_message_time = 0;
+    uint32_t now = millis();
+    
     for (uint8_t i = 0; i < config_.max_sensors && i < kMaxTemperatureSensors; i++) {
         if (!sensor_configured_[i] || !sensor_status_[i].reading_valid) {
             continue;
@@ -527,11 +530,15 @@ void TemperatureMonitor::detectThermalRunaway() {
         if (trend > sensor_configs_[i].thermal_runaway_rate && !sensor_status_[i].thermal_runaway) {
             sensor_status_[i].thermal_runaway = true;
             
-            String msg = "active:true,source:THERMAL_RUNAWAY,reason:" + sensor_configs_[i].sensor_name + 
-                        " thermal runaway detected,value:" + String(sensor_status_[i].temperature_c, 1) + 
-                        ",rate:" + String(trend, 1) + "C_per_min" +
-                        ",manual_reset:false,time:" + String(millis());
-            SerialManager::getInstance().sendMessage("ESTOP", msg.c_str());
+            // Rate limit thermal runaway messages (max once per 500ms)
+            if (now - last_thermal_message_time >= 500) {
+                String msg = "active:true,source:THERMAL_RUNAWAY,reason:" + sensor_configs_[i].sensor_name + 
+                            " thermal runaway detected,value:" + String(sensor_status_[i].temperature_c, 1) + 
+                            ",rate:" + String(trend, 1) + "C_per_min" +
+                            ",manual_reset:false,time:" + String(millis());
+                SerialManager::getInstance().sendMessage("ESTOP", msg.c_str());
+                last_thermal_message_time = now;
+            }
         }
     }
 }

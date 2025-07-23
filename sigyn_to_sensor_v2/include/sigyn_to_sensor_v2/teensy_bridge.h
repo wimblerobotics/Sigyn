@@ -19,6 +19,8 @@
 #include "std_msgs/msg/bool.hpp"
 #include "sensor_msgs/msg/battery_state.hpp"
 #include "sensor_msgs/msg/imu.hpp"
+#include "sensor_msgs/msg/temperature.hpp"
+#include "sensor_msgs/msg/range.hpp"
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 
 #include "sigyn_to_sensor_v2/message_parser.h"
@@ -49,6 +51,8 @@ private:
   void HandleIMUMessage(const MessageData& data, rclcpp::Time timestamp);
   void HandleEstopMessage(const MessageData& data, rclcpp::Time timestamp);
   void HandleDiagnosticMessage(const MessageData& data, rclcpp::Time timestamp);
+  void HandleTemperatureMessage(const MessageData& data, rclcpp::Time timestamp);
+  void HandleVL53L0XMessage(const MessageData& data, rclcpp::Time timestamp);
   
   // ROS2 callbacks
   void EstopCommandCallback(const std_msgs::msg::Bool::SharedPtr msg);
@@ -72,6 +76,16 @@ private:
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr estop_status_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_sensor0_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_sensor1_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Temperature>::SharedPtr temperature_motor0_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Temperature>::SharedPtr temperature_motor1_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr vl53l0x_sensor0_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr vl53l0x_sensor1_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr vl53l0x_sensor2_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr vl53l0x_sensor3_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr vl53l0x_sensor4_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr vl53l0x_sensor5_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr vl53l0x_sensor6_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr vl53l0x_sensor7_pub_;
   
   // Subscribers
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr estop_cmd_sub_;

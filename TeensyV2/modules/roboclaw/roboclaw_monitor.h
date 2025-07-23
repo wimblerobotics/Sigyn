@@ -53,7 +53,7 @@ struct RoboClawConfig {
   uint32_t max_speed_qpps = 10000;     ///< Maximum speed (quad pulses per second)
   
   // Runaway detection
-  uint32_t runaway_check_interval_ms = 100;    ///< Runaway detection check interval
+  uint32_t runaway_check_interval_ms = 200;    ///< Runaway detection check interval (reduced for performance)
   uint32_t runaway_encoder_threshold = 1000;   ///< Encoder change threshold for runaway
   uint32_t command_timeout_ms = 1000;          ///< Command timeout for runaway detection
   
@@ -187,6 +187,9 @@ private:
   
   // Core functionality
   void updateMotorStatus();
+  void updateCriticalMotorStatus();    // High-frequency: encoder/speed only
+  void updateOdometry();               // High-frequency: odometry calculation
+  void processVelocityCommands();      // High-frequency: cmd_vel processing
   void updateSystemStatus();
   void checkSafetyConditions();
   void handleRunawayDetection();
@@ -234,6 +237,25 @@ private:
   uint32_t last_runaway_check_time_ms_;
   int32_t last_runaway_encoder_m1_;
   int32_t last_runaway_encoder_m2_;
+  
+  // Odometry state for high-frequency updates
+  struct Pose2D {
+    float x = 0.0f;
+    float y = 0.0f;
+    float theta = 0.0f;
+  };
+  
+  struct Velocity2D {
+    float linear_x = 0.0f;
+    float angular_z = 0.0f;
+  };
+  
+  Pose2D current_pose_;
+  Velocity2D current_velocity_;
+  int32_t prev_encoder_m1_;
+  int32_t prev_encoder_m2_;
+  uint32_t last_odom_update_time_us_;
+  bool odometry_initialized_;
   
   // Timing for periodic operations
   uint32_t last_status_report_time_ms_;

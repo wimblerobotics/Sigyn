@@ -16,7 +16,7 @@ namespace sigyn_to_sensor_v2 {
 
 MessageParser::MessageParser(rclcpp::Logger logger)
     : logger_(logger),
-      strict_validation_(true),
+      strict_validation_(false),  // Disabled to allow JSON and diagnostic messages
       total_messages_received_(0),
       total_messages_parsed_(0),
       total_parsing_errors_(0),
@@ -62,15 +62,17 @@ bool MessageParser::ParseMessage(const std::string& message, rclcpp::Time timest
     MessageData data;
     
     // Parse content based on message type
-    if (type == MessageType::PERFORMANCE) {
-      // PERF messages use JSON format
+    if (type == MessageType::PERFORMANCE || type == MessageType::VL53L0X || 
+        type == MessageType::ROBOCLAW ||
+        (type == MessageType::TEMPERATURE && content.find('{') == 0)) {
+      // PERF, VL53L0X, ROBOCLAW, and TEMPERATURE (array format) messages use JSON format
       data = ParseJsonContent(content);
     } else if (type == MessageType::DIAGNOSTIC) {
       // DIAG messages are free-form diagnostic text - just log and continue
       data["message"] = content;
       RCLCPP_DEBUG(logger_, "DIAG: %s", content.c_str());
     } else {
-      // All other messages use key:value format
+      // All other messages (including TEMP individual format) use key:value format
       data = ParseKeyValuePairs(content);
     }
     
@@ -647,7 +649,7 @@ MessageData MessageParser::ParseKeyValuePairs(const std::string& content) const 
 }
 
 bool MessageParser::ValidateMessage(const std::string& message) const {
-  if (message.empty() || message.length() > 1024) {  // Increased for JSON support
+  if (message.empty() || message.length() > 2048) {  // Increased for JSON support
     return false;
   }
   
@@ -661,28 +663,32 @@ bool MessageParser::ValidateMessage(const std::string& message) const {
   std::string type_str = message.substr(0, colon_pos);
   std::string content = message.substr(colon_pos + 1);
   
-  // Basic format validation
-  if (strict_validation_) {
-    // Check if it's a valid message type
-    if (StringToMessageType(type_str) == MessageType::UNKNOWN) {
-      return false;
-    }
-    
-    // PERF messages should start with { (JSON format)
-    if (type_str == "PERF") {
-      return !content.empty() && content[0] == '{';
-    } else if (type_str == "DIAG") {
-      // DIAG messages are free-form diagnostic text - no strict validation
-      return !content.empty();
-    } else {
-      // Other messages should use key:value or key=value format
-      std::regex pattern(R"([a-zA-Z0-9_]+[:=][^,]*(,[a-zA-Z0-9_]+[:=][^,]*)*)", 
-                         std::regex_constants::optimize);
-      return std::regex_match(content, pattern);
-    }
+  // For now, disable strict validation to allow all valid message formats through
+  // This includes JSON messages, key-value messages, and free-form diagnostic messages
+  if (!strict_validation_) {
+    return true;
   }
   
-  return true;
+  // Basic format validation for strict mode
+  MessageType type = StringToMessageType(type_str);
+  if (type == MessageType::UNKNOWN) {
+    return false;
+  }
+  
+  // JSON messages should start with { 
+  if (type_str == "PERF" || type_str == "VL53L0X" || type_str == "ROBOCLAW" || 
+      (type_str == "TEMPERATURE" && !content.empty() && content[0] == '{')) {
+    return !content.empty() && content[0] == '{';
+  } 
+  
+  // Diagnostic messages are free-form text
+  if (type_str == "DIAG" || type_str == "WARNING" || type_str == "DEBUG" || 
+      type_str == "INFO" || type_str == "ERROR") {
+    return !content.empty();
+  }
+  
+  // All other messages should have some content
+  return !content.empty();
 }
 
 MessageType MessageParser::StringToMessageType(const std::string& type_str) const {
@@ -690,9 +696,19 @@ MessageType MessageParser::StringToMessageType(const std::string& type_str) cons
   if (type_str == "PERF") return MessageType::PERFORMANCE;
   if (type_str == "SAFETY") return MessageType::SAFETY;
   if (type_str == "IMU") return MessageType::IMU;
+  if (type_str == "TEMP") return MessageType::TEMPERATURE;
+  if (type_str == "TEMPERATURE") return MessageType::TEMPERATURE;
+  if (type_str == "VL53L0X") return MessageType::VL53L0X;
+  if (type_str == "ROBOCLAW") return MessageType::ROBOCLAW;
+  if (type_str == "ODOM") return MessageType::ODOM;
   if (type_str == "ESTOP") return MessageType::ESTOP;
   if (type_str == "DIAG") return MessageType::DIAGNOSTIC;
   if (type_str == "CONFIG") return MessageType::CONFIG;
+  // Handle free-form diagnostic messages
+  if (type_str == "WARNING" || type_str == "DEBUG" || type_str == "INFO" || 
+      type_str == "ERROR" || type_str == "WARN") {
+    return MessageType::DIAGNOSTIC;
+  }
   return MessageType::UNKNOWN;
 }
 
@@ -702,6 +718,8 @@ std::string MessageParser::MessageTypeToString(MessageType type) const {
     case MessageType::PERFORMANCE: return "PERF";
     case MessageType::SAFETY: return "SAFETY";
     case MessageType::IMU: return "IMU";
+    case MessageType::TEMPERATURE: return "TEMP";
+    case MessageType::VL53L0X: return "VL53L0X";
     case MessageType::ESTOP: return "ESTOP";
     case MessageType::DIAGNOSTIC: return "DIAG";
     case MessageType::CONFIG: return "CONFIG";
@@ -835,4 +853,102 @@ MessageData MessageParser::ParseJsonContent(const std::string& content) const {
   
   return data;
 }
-}  // namespace sigyn_to_sensor_v2
+
+TemperatureData MessageParser::ParseTemperatureData(const MessageData& data, bool is_array_format) const {
+  TemperatureData temp_data;
+  temp_data.valid = true;
+  
+  try {
+    if (is_array_format) {
+      // Parse TEMPERATURE message (JSON array format)
+      temp_data.total_sensors = SafeStringToInt(data.at("total_sensors"), 0);
+      temp_data.active_sensors = SafeStringToInt(data.at("active_sensors"), 0);
+      
+      // Parse temperatures array if present
+      auto it = data.find("temperatures");
+      if (it != data.end()) {
+        std::string temp_array = it->second;
+        // Simple array parsing - look for numbers and null values
+        std::istringstream stream(temp_array);
+        std::string token;
+        while (std::getline(stream, token, ',')) {
+          // Remove brackets and whitespace
+          token.erase(std::remove_if(token.begin(), token.end(), 
+                     [](char c) { return c == '[' || c == ']' || c == ' '; }), token.end());
+          
+          if (token == "null" || token.empty()) {
+            temp_data.temperatures.push_back(std::numeric_limits<double>::quiet_NaN());
+          } else {
+            temp_data.temperatures.push_back(SafeStringToDouble(token, 0.0));
+          }
+        }
+      }
+      
+      // Parse optional statistics
+      temp_data.reading_rate_hz = SafeStringToDouble(data.find("rate_hz") != data.end() ? data.at("rate_hz") : "0", 0.0);
+      temp_data.total_readings = SafeStringToInt(data.find("readings") != data.end() ? data.at("readings") : "0", 0);
+      temp_data.total_errors = SafeStringToInt(data.find("errors") != data.end() ? data.at("errors") : "0", 0);
+      
+    } else {
+      // Parse TEMP message (individual sensor format)
+      temp_data.sensor_id = SafeStringToInt(data.find("id") != data.end() ? data.at("id") : "0", 0);
+      temp_data.temperature_c = SafeStringToDouble(data.find("temp") != data.end() ? data.at("temp") : "0", 0.0);
+      temp_data.status = data.find("status") != data.end() ? data.at("status") : "UNKNOWN";
+    }
+    
+  } catch (const std::exception& e) {
+    RCLCPP_WARN(logger_, "Error parsing temperature data: %s", e.what());
+    temp_data.valid = false;
+  }
+  
+  return temp_data;
+}
+
+VL53L0XData MessageParser::ParseVL53L0XData(const MessageData& data) const {
+  VL53L0XData vl53_data;
+  vl53_data.valid = true;
+  
+  try {
+    vl53_data.total_sensors = SafeStringToInt(data.find("total_sensors") != data.end() ? data.at("total_sensors") : "0", 0);
+    vl53_data.active_sensors = SafeStringToInt(data.find("active_sensors") != data.end() ? data.at("active_sensors") : "0", 0);
+    vl53_data.min_distance_mm = static_cast<uint16_t>(SafeStringToInt(data.find("min_distance") != data.end() ? data.at("min_distance") : "65535", 65535));
+    vl53_data.max_distance_mm = static_cast<uint16_t>(SafeStringToInt(data.find("max_distance") != data.end() ? data.at("max_distance") : "0", 0));
+    
+    // Parse obstacles boolean
+    std::string obstacles_str = data.find("obstacles") != data.end() ? data.at("obstacles") : "false";
+    vl53_data.obstacles_detected = (obstacles_str == "true");
+    
+    // Parse distances array
+    auto it = data.find("distances");
+    if (it != data.end()) {
+      std::string dist_array = it->second;
+      // Simple array parsing - look for numbers and null values
+      std::istringstream stream(dist_array);
+      std::string token;
+      while (std::getline(stream, token, ',')) {
+        // Remove brackets and whitespace
+        token.erase(std::remove_if(token.begin(), token.end(), 
+                   [](char c) { return c == '[' || c == ']' || c == ' '; }), token.end());
+        
+        if (token == "null" || token.empty()) {
+          vl53_data.distances_mm.push_back(0);  // 0 indicates invalid reading
+        } else {
+          vl53_data.distances_mm.push_back(static_cast<uint16_t>(SafeStringToInt(token, 0)));
+        }
+      }
+    }
+    
+    // Parse optional statistics
+    vl53_data.measurement_rate_hz = SafeStringToDouble(data.find("rate_hz") != data.end() ? data.at("rate_hz") : "0", 0.0);
+    vl53_data.total_measurements = SafeStringToInt(data.find("measurements") != data.end() ? data.at("measurements") : "0", 0);
+    vl53_data.total_errors = SafeStringToInt(data.find("errors") != data.end() ? data.at("errors") : "0", 0);
+    
+  } catch (const std::exception& e) {
+    RCLCPP_WARN(logger_, "Error parsing VL53L0X data: %s", e.what());
+    vl53_data.valid = false;
+  }
+  
+  return vl53_data;
+}
+
+} // namespace sigyn_to_sensor_v2
