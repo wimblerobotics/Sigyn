@@ -55,8 +55,8 @@ enum class MessageType {
   INIT,         ///< Initialization messages
   CRITICAL,     ///< Critical system messages
   SDIR,         ///< SD card directory listing response
-  SDLINE,       ///< SD card file line response
-  SDEOF,        ///< SD card end-of-file response
+  SDLINE,       ///< SD card file content line
+  SDEOF,        ///< SD card file end marker
   UNKNOWN       ///< Unrecognized message type
 };
 

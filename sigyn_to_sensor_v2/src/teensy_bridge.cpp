@@ -469,13 +469,13 @@ void TeensyBridge::SerialReaderThread() {
       board3_fd_ = -1;
     }
     
-    // Send any queued messages (like cmd_vel) 
+    // Send any queued messages (like cmd_vel)
     if (board1_fd_ >= 0) {
       SendQueuedMessages();
     }
     
-    // Shorter delay for more responsive cmd_vel processing (5ms = 200Hz max rate)
-    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    // Small delay to prevent busy waiting
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 }
 
@@ -774,13 +774,16 @@ void TeensyBridge::DiagnosticsTimerCallback() {
 
 void TeensyBridge::CmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg) {
   // Queue the twist message - all serial communication happens in the main loop
+  RCLCPP_INFO(this->get_logger(), "Received cmd_vel: linear.x=%.3f, angular.z=%.3f", 
+              msg->linear.x, msg->angular.z);
+  
   std::ostringstream oss;
   oss << "TWIST:linear_x:" << msg->linear.x << ",angular_z:" << msg->angular.z << "\n";
   
   std::lock_guard<std::mutex> lock(outgoing_queue_mutex_);
   outgoing_message_queue_.push(oss.str());
   
-  RCLCPP_DEBUG(this->get_logger(), "Queued TWIST command: %s", oss.str().c_str());
+  RCLCPP_INFO(this->get_logger(), "Queued TWIST command: %s", oss.str().c_str());
 }
 
 void TeensyBridge::SendQueuedMessages() {
