@@ -174,7 +174,7 @@ private:
   void sendDiagnosticReports();
   
   // I2C multiplexer control
-  bool selectSensorChannel(uint8_t sensor_index);
+  void selectSensorChannel(uint8_t sensor_index);
   bool testMultiplexer();
   void resetMultiplexer();
   
@@ -188,6 +188,7 @@ private:
   void detectObstacles();
   void handleSystemError();
   void recoverFromErrors();
+  void recoverFailedSensors();
   
   // Configuration and state
   VL53L0XConfig config_;
