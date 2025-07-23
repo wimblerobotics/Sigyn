@@ -13,15 +13,21 @@
 #include <thread>
 #include <atomic>
 #include <chrono>
+#include <queue>
+#include <mutex>
+#include <future>
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_msgs/msg/bool.hpp"
+#include "geometry_msgs/msg/twist.hpp"
 #include "sensor_msgs/msg/battery_state.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/temperature.hpp"
 #include "sensor_msgs/msg/range.hpp"
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
+#include "sigyn_interfaces/srv/teensy_sd_get_dir.hpp"
+#include "sigyn_interfaces/srv/teensy_sd_get_file.hpp"
 
 #include "sigyn_to_sensor_v2/message_parser.h"
 
@@ -58,6 +64,23 @@ private:
   // ROS2 callbacks
   void EstopCommandCallback(const std_msgs::msg::Bool::SharedPtr msg);
   void ConfigCommandCallback(const std_msgs::msg::String::SharedPtr msg);
+  void CmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg);
+  
+  // Service handlers
+  void HandleSdGetDirRequest(
+      const std::shared_ptr<sigyn_interfaces::srv::TeensySdGetDir::Request> request,
+      std::shared_ptr<sigyn_interfaces::srv::TeensySdGetDir::Response> response);
+  void HandleSdGetFileRequest(
+      const std::shared_ptr<sigyn_interfaces::srv::TeensySdGetFile::Request> request,
+      std::shared_ptr<sigyn_interfaces::srv::TeensySdGetFile::Response> response);
+  
+  // Serial message handlers for service responses
+  void HandleSdirResponse(const std::string& data);
+  void HandleSdlineResponse(const std::string& data);
+  void HandleSdeofResponse(const std::string& data);
+  
+  // Outgoing message queue management
+  void SendQueuedMessages();
   
   // Timer callbacks
   void StatusTimerCallback();
@@ -91,6 +114,14 @@ private:
   // Subscribers
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr estop_cmd_sub_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr config_cmd_sub_;
+  rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_sub_;
+  
+  // Services
+  rclcpp::Service<sigyn_interfaces::srv::TeensySdGetDir>::SharedPtr sd_getdir_service_;
+  rclcpp::Service<sigyn_interfaces::srv::TeensySdGetFile>::SharedPtr sd_getfile_service_;
+  
+  // Callback groups
+  rclcpp::CallbackGroup::SharedPtr service_callback_group_;
   
   // Timers
   rclcpp::TimerBase::SharedPtr status_timer_;
@@ -102,6 +133,25 @@ private:
   // Serial communication
   std::atomic<bool> serial_running_;
   std::thread serial_thread_;
+  
+  // Outgoing message queue
+  std::queue<std::string> outgoing_message_queue_;
+  std::mutex outgoing_queue_mutex_;
+  
+  // Service request management structures
+  struct PendingServiceRequest {
+    std::string request_id;
+    std::string service_type;
+    std::shared_ptr<sigyn_interfaces::srv::TeensySdGetDir::Response> dir_response;
+    std::shared_ptr<sigyn_interfaces::srv::TeensySdGetFile::Response> file_response;
+    rclcpp::Time request_time;
+    rclcpp::Time last_activity_time;
+    std::shared_ptr<std::promise<bool>> completion_promise;
+    std::string accumulated_content;
+  };
+  
+  std::queue<PendingServiceRequest> pending_service_requests_;
+  std::mutex service_mutex_;
   
   // File descriptors for serial ports
   int board1_fd_;

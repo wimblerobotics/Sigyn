@@ -54,13 +54,56 @@ SerialManager& SerialManager::getInstance() {
 }
 
 void SerialManager::handleCommand(const char* command, const char* args) {
-  // Placeholder for command handling logic
-  // In a real implementation, this would parse 'args' and trigger actions
-  // Commands might include:
-  // - CONFIG: Update runtime parameters
-  // - STATUS: Request system status reports
-  // - ESTOP: Emergency stop commands
-  // - CALIBRATE: Sensor calibration requests
+  // Parse incoming commands and route them to appropriate modules
+  String full_command(command);
+  String cmd_type = full_command;
+  
+  // Remove the colon and everything after to get just the command type
+  int colon_pos = cmd_type.indexOf(':');
+  if (colon_pos >= 0) {
+    cmd_type = cmd_type.substring(0, colon_pos);
+  }
+  
+  if (cmd_type == "TWIST") {
+    // Store TWIST command for RoboClawMonitor to process
+    // Use a simple approach: send the command data as a special message type
+    sendMessage("DEBUG", ("TWIST command received: " + String(args)).c_str());
+    
+    // We'll create a mechanism for modules to check for commands
+    // For now, set a static variable that RoboClawMonitor can check
+    setLatestTwistCommand(String(args));
+    
+  } else if (cmd_type == "SDDIR") {
+    sendMessage("DEBUG", ("SDDIR command received: " + String(args)).c_str());
+    // TODO: Route to SD module when implemented
+    // For now, send a placeholder response
+    sendMessage("SDDIR", "feature_not_implemented");
+    
+  } else if (cmd_type == "SDFILE") {
+    sendMessage("DEBUG", ("SDFILE command received: " + String(args)).c_str());
+    // TODO: Route to SD module when implemented  
+    // For now, send a placeholder response
+    sendMessage("SDFILE", "feature_not_implemented");
+    
+  } else if (cmd_type == "CONFIG") {
+    sendMessage("DEBUG", ("CONFIG command received: " + String(args)).c_str());
+    // TODO: Implement configuration updates
+    
+  } else if (cmd_type == "STATUS") {
+    sendMessage("DEBUG", ("STATUS request received: " + String(args)).c_str());
+    // TODO: Send comprehensive status report
+    
+  } else if (cmd_type == "ESTOP") {
+    sendMessage("DEBUG", ("ESTOP command received: " + String(args)).c_str());
+    // TODO: Route to safety coordinator
+    
+  } else if (cmd_type == "CALIBRATE") {
+    sendMessage("DEBUG", ("CALIBRATE command received: " + String(args)).c_str());
+    // TODO: Route to appropriate sensor module
+    
+  } else {
+    sendMessage("ERROR", ("Unknown command type: " + cmd_type).c_str());
+  }
 }
 
 void SerialManager::initialize(uint32_t timeout_ms) {
@@ -119,6 +162,23 @@ void SerialManager::sendQueuedMessages() {
     queue_head_ = (queue_head_ + 1) % kMaxQueueSize;
     queue_count_--;
   }
+}
+
+void SerialManager::setLatestTwistCommand(const String& twist_data) {
+  latest_twist_command_ = twist_data;
+  has_new_twist_command_ = true;
+}
+
+String SerialManager::getLatestTwistCommand() {
+  return latest_twist_command_;
+}
+
+bool SerialManager::hasNewTwistCommand() {
+  if (has_new_twist_command_) {
+    has_new_twist_command_ = false;  // Mark as processed
+    return true;
+  }
+  return false;
 }
 
 }  // namespace sigyn_teensy

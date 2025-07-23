@@ -11,14 +11,13 @@
 namespace sigyn_teensy {
 
 // Hardware configuration constants
-constexpr uint8_t ANALOG_RESOLUTION = 10;     // 10-bit ADC resolution
-constexpr float REFERENCE_VOLTAGE = 3.25f;    // 3.25V reference voltage
+constexpr uint8_t ANALOG_RESOLUTION = 10;     // 10-bit ADC resolution (Teensy 4.1 default)
+constexpr float REFERENCE_VOLTAGE = 3.3f;     // 3.3V reference voltage (Teensy 4.1 default)
 constexpr uint32_t ADC_MAX_VALUE = 1024;      // 2^10 for 10-bit resolution
 
-// TMP36 sensor constants (based on old code)
-constexpr float TMP36_OFFSET_MV = 500.0f;     // TMP36 offset in millivolts
+// TMP36 sensor constants
+constexpr float TMP36_OFFSET_MV = 500.0f;     // TMP36 offset in millivolts (500mV at 0°C)
 constexpr float TMP36_SCALE_MV_PER_C = 10.0f; // TMP36 scale factor (10mV/°C)
-constexpr float TMP36_TEMP_OFFSET = 55.0f;    // Temperature offset for conversion
 
 TemperatureMonitor& TemperatureMonitor::getInstance() {
     static TemperatureMonitor instance;
@@ -370,9 +369,15 @@ bool TemperatureMonitor::readSingleSensor(uint8_t sensor_index) {
     // Convert to voltage (in millivolts)
     float voltage_mv = (raw_value * REFERENCE_VOLTAGE * 1000.0f) / ADC_MAX_VALUE;
     
-    // Convert voltage to temperature using TMP36 formula (based on old code)
-    float temp_mv = voltage_mv - TMP36_TEMP_OFFSET;
-    float temperature_c = (temp_mv - TMP36_OFFSET_MV) / TMP36_SCALE_MV_PER_C;
+    // Convert voltage to temperature using TMP36 formula
+    // TMP36: Temperature (°C) = (Voltage_mV - 500mV) / 10mV/°C
+    float temperature_c = (voltage_mv - TMP36_OFFSET_MV) / TMP36_SCALE_MV_PER_C;
+    
+    // Debug output to help troubleshoot temperature readings
+    String debug_msg = "Sensor " + String(sensor_index) + ": raw=" + String(raw_value) + 
+                      ", voltage=" + String(voltage_mv, 1) + "mV" +
+                      ", temp=" + String(temperature_c, 1) + "C";
+    SerialManager::getInstance().sendMessage("DEBUG", debug_msg.c_str());
     
     // Validate temperature reading (reasonable range for motor temperatures)
     if (temperature_c < -40.0f || temperature_c > 150.0f) {
