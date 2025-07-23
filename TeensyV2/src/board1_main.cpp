@@ -157,20 +157,17 @@ void loop() {
   
   // Safety monitoring - check for critical performance violations
   static uint32_t last_safety_check = 0;
-  if (current_time - last_safety_check > 200000) {  // Reduced frequency: Every 200ms (5Hz) instead of 100ms
+  if (current_time - last_safety_check > 100000) {  // Every 100ms (10Hz)
     last_safety_check = current_time;
     
     // If we can't keep up with basic timing, trigger safety system
-    if (execution_time > 15000) {  // Reduced threshold: 15ms instead of 20ms for better responsiveness
+    if (execution_time > 20000) {  // 20ms is unacceptable
       safety_coordinator->triggerEstop(EstopSource::PERFORMANCE, 
                                        "Critical timing violation: " + String(execution_time) + "us");
     }
     
-    // Only check temperature every other safety cycle to reduce load
-    static bool check_temp_this_cycle = false;
-    check_temp_this_cycle = !check_temp_this_cycle;
-    
-    if (check_temp_this_cycle && temperature_monitor) {
+    // Check temperature safety
+    if (temperature_monitor) {
       uint8_t sensor_count = temperature_monitor->getSensorCount();
       for (uint8_t i = 0; i < sensor_count; i++) {
         float temp = temperature_monitor->getTemperature(i);

@@ -13,18 +13,18 @@
 #include <thread>
 #include <atomic>
 #include <chrono>
-#include <queue>
 #include <mutex>
+#include <queue>
 #include <future>
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_msgs/msg/bool.hpp"
-#include "geometry_msgs/msg/twist.hpp"
 #include "sensor_msgs/msg/battery_state.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/temperature.hpp"
 #include "sensor_msgs/msg/range.hpp"
+#include "geometry_msgs/msg/twist.hpp"
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "sigyn_interfaces/srv/teensy_sd_get_dir.hpp"
 #include "sigyn_interfaces/srv/teensy_sd_get_file.hpp"
@@ -32,6 +32,18 @@
 #include "sigyn_to_sensor_v2/message_parser.h"
 
 namespace sigyn_to_sensor_v2 {
+
+// Structure to hold pending service requests
+struct PendingServiceRequest {
+  std::string request_id;
+  std::string service_type; // "get_dir" or "get_file"
+  std::shared_ptr<sigyn_interfaces::srv::TeensySdGetDir::Response> dir_response;
+  std::shared_ptr<sigyn_interfaces::srv::TeensySdGetFile::Response> file_response;
+  rclcpp::Time request_time;
+  rclcpp::Time last_activity_time; // Last time we received data for this request
+  std::shared_ptr<std::promise<bool>> completion_promise;
+  std::string accumulated_content; // For file dump responses
+};
 
 /**
  * @brief Main communication bridge between TeensyV2 and ROS2
@@ -138,18 +150,7 @@ private:
   std::queue<std::string> outgoing_message_queue_;
   std::mutex outgoing_queue_mutex_;
   
-  // Service request management structures
-  struct PendingServiceRequest {
-    std::string request_id;
-    std::string service_type;
-    std::shared_ptr<sigyn_interfaces::srv::TeensySdGetDir::Response> dir_response;
-    std::shared_ptr<sigyn_interfaces::srv::TeensySdGetFile::Response> file_response;
-    rclcpp::Time request_time;
-    rclcpp::Time last_activity_time;
-    std::shared_ptr<std::promise<bool>> completion_promise;
-    std::string accumulated_content;
-  };
-  
+  // Service request management
   std::queue<PendingServiceRequest> pending_service_requests_;
   std::mutex service_mutex_;
   

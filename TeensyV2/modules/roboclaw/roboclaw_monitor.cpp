@@ -123,16 +123,16 @@ void RoboClawMonitor::loop() {
       break;
       
     case ConnectionState::CONNECTED:
-      // HIGH FREQUENCY OPERATIONS (aim for ≥100Hz)
-      // Process cmd_vel first for responsiveness
-      processVelocityCommands(); // Critical: cmd_vel processing at highest frequency
-      
-      // Reduce encoder reading frequency to improve loop performance
-      if (now - last_reading_time_ms_ >= 20) { // ~50Hz for encoder readings + odometry (reduced from 70Hz)
+      // HIGH FREQUENCY OPERATIONS (aim for ≥70Hz)
+      // Odometry needs fresh encoder data, so read encoders first, then calculate odometry
+      if (now - last_reading_time_ms_ >= 14) { // ~70Hz for encoder readings + odometry
         updateCriticalMotorStatus(); // Read fresh encoder values
         updateOdometry();           // Calculate odometry with fresh data
         last_reading_time_ms_ = now;
       }
+      
+      // HIGH FREQUENCY cmd_vel processing (can be independent)
+      processVelocityCommands(); // Critical: cmd_vel processing at high frequency
       
       // MEDIUM FREQUENCY OPERATIONS (~10Hz) - safety checks
       if (now - last_safety_check_time_ms_ >= 100) { // 10Hz safety checks
