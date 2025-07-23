@@ -248,7 +248,35 @@ void setup() {
   
   // Initialize all modules through the module system
   Serial.println("Initializing modules...");
+  
+  // Debug: Print module count and names before setup
+  Serial.print("Number of registered modules: ");
+  Serial.println(Module::getModuleCount());
+  for (uint16_t i = 0; i < Module::getModuleCount(); i++) {
+    Module* mod = Module::getModule(i);
+    if (mod) {
+      Serial.print("  Module ");
+      Serial.print(i);
+      Serial.print(": ");
+      Serial.println(mod->name());
+    }
+  }
+  
   Module::setupAll();
+  
+  // Debug: Verify modules after setup
+  Serial.println("Module setup complete. Registered modules:");
+  for (uint16_t i = 0; i < Module::getModuleCount(); i++) {
+    Module* mod = Module::getModule(i);
+    if (mod) {
+      Serial.print("  ");
+      Serial.print(mod->name());
+      Serial.print(" - Performance stats: ");
+      const auto& stats = mod->getPerformanceStats();
+      Serial.print("count=");
+      Serial.println(stats.loop_count);
+    }
+  }
   
   // Initialize timing
   loop_start_time = micros();

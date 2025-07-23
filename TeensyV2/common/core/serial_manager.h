@@ -70,8 +70,9 @@ class SerialManager {
  public:
   /**
    * @brief Maximum length of a single message including terminator.
+   * Increased to 768 to support larger PERF JSON messages with all module details.
    */
-  static constexpr size_t kMaxMessageLength = 512;
+  static constexpr size_t kMaxMessageLength = 768;
 
   /**
    * @brief Maximum size of the outgoing message queue.

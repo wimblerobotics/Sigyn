@@ -174,6 +174,17 @@ private:
     ERROR_RECOVERY
   };
   
+  enum class ReadingState {
+    READ_ENCODER_M1,
+    READ_SPEED_M1,
+    READ_ENCODER_M2,
+    READ_SPEED_M2,
+    READ_CURRENTS,
+    READ_VOLTAGES,
+    READ_ERROR_STATUS,
+    COMPLETE
+  };
+  
   // Core functionality
   void updateMotorStatus();
   void updateSystemStatus();
@@ -203,6 +214,8 @@ private:
   // Hardware interface
   RoboClaw roboclaw_;
   ConnectionState connection_state_;
+  ReadingState reading_state_;
+  uint32_t last_reading_time_ms_;
   
   // Status tracking
   MotorStatus motor1_status_;

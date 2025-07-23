@@ -34,6 +34,8 @@ RoboClawMonitor::RoboClawMonitor()
       config_(),
       roboclaw_(&ROBOCLAW_SERIAL, config_.timeout_us),
       connection_state_(ConnectionState::DISCONNECTED),
+      reading_state_(ReadingState::READ_ENCODER_M1),
+      last_reading_time_ms_(0),
       motor1_status_(),
       motor2_status_(),
       system_status_(),
@@ -116,8 +118,7 @@ void RoboClawMonitor::loop() {
       
     case ConnectionState::CONNECTED:
       // Normal operation
-      updateMotorStatus();
-      updateSystemStatus();
+      updateMotorStatus();  // Now uses state machine, much faster
       
       // Periodic safety checks
       if (now - last_safety_check_time_ms_ >= 50) { // 20Hz safety checks
@@ -408,46 +409,94 @@ void RoboClawMonitor::updateMotorStatus() {
     return;
   }
   
-  // Update Motor 1 status
-  bool valid;
-  uint8_t status;
+  uint32_t now = millis();
   
-  // Read encoder
-  motor1_status_.encoder_count = roboclaw_.ReadEncM1(config_.address, &status, &valid);
-  motor1_status_.encoder_valid = valid;
-  if (!valid) {
-    handleCommunicationError();
+  // Limit reading frequency to prevent overloading serial communication
+  // Spread reads across multiple cycles: each state should take ~1-2ms
+  if (now - last_reading_time_ms_ < 10) { // Minimum 10ms between reads
     return;
   }
   
-  // Read speed
-  motor1_status_.speed_qpps = roboclaw_.ReadSpeedM1(config_.address, &status, &valid);
-  motor1_status_.speed_valid = valid;
+  bool valid;
+  uint8_t status;
   
-  // Update Motor 2 status
-  motor2_status_.encoder_count = roboclaw_.ReadEncM2(config_.address, &status, &valid);
-  motor2_status_.encoder_valid = valid;
-  
-  motor2_status_.speed_qpps = roboclaw_.ReadSpeedM2(config_.address, &status, &valid);
-  motor2_status_.speed_valid = valid;
-  
-  // Read currents
-  int16_t current1, current2;
-  bool current_valid = roboclaw_.ReadCurrents(config_.address, current1, current2);
-  
-  if (current_valid) {
-    motor1_status_.current_amps = current1 / 100.0f;
-    motor2_status_.current_amps = current2 / 100.0f;
-    motor1_status_.current_valid = true;
-    motor2_status_.current_valid = true;
-  } else {
-    motor1_status_.current_valid = false;
-    motor2_status_.current_valid = false;
+  // State machine to spread serial reads across multiple loop cycles
+  switch (reading_state_) {
+    case ReadingState::READ_ENCODER_M1:
+      motor1_status_.encoder_count = roboclaw_.ReadEncM1(config_.address, &status, &valid);
+      motor1_status_.encoder_valid = valid;
+      if (!valid) {
+        handleCommunicationError();
+        return;
+      }
+      reading_state_ = ReadingState::READ_SPEED_M1;
+      break;
+      
+    case ReadingState::READ_SPEED_M1:
+      motor1_status_.speed_qpps = roboclaw_.ReadSpeedM1(config_.address, &status, &valid);
+      motor1_status_.speed_valid = valid;
+      if (!valid) {
+        handleCommunicationError();
+        return;
+      }
+      reading_state_ = ReadingState::READ_ENCODER_M2;
+      break;
+      
+    case ReadingState::READ_ENCODER_M2:
+      motor2_status_.encoder_count = roboclaw_.ReadEncM2(config_.address, &status, &valid);
+      motor2_status_.encoder_valid = valid;
+      if (!valid) {
+        handleCommunicationError();
+        return;
+      }
+      reading_state_ = ReadingState::READ_SPEED_M2;
+      break;
+      
+    case ReadingState::READ_SPEED_M2:
+      motor2_status_.speed_qpps = roboclaw_.ReadSpeedM2(config_.address, &status, &valid);
+      motor2_status_.speed_valid = valid;
+      if (!valid) {
+        handleCommunicationError();
+        return;
+      }
+      reading_state_ = ReadingState::READ_CURRENTS;
+      break;
+      
+    case ReadingState::READ_CURRENTS:
+      {
+        int16_t current1, current2;
+        bool current_valid = roboclaw_.ReadCurrents(config_.address, current1, current2);
+        
+        if (current_valid) {
+          motor1_status_.current_amps = current1 / 100.0f;
+          motor2_status_.current_amps = current2 / 100.0f;
+          motor1_status_.current_valid = true;
+          motor2_status_.current_valid = true;
+        } else {
+          motor1_status_.current_valid = false;
+          motor2_status_.current_valid = false;
+          handleCommunicationError();
+          return;
+        }
+        reading_state_ = ReadingState::READ_VOLTAGES;
+      }
+      break;
+      
+    case ReadingState::READ_VOLTAGES:
+      // This could be split further if needed, but voltages are typically fast
+      updateSystemStatus();  // This contains voltage and error reads
+      reading_state_ = ReadingState::COMPLETE;
+      break;
+      
+    case ReadingState::COMPLETE:
+      // All readings complete for this cycle
+      motor1_status_.communication_ok = true;
+      motor2_status_.communication_ok = true;
+      reading_state_ = ReadingState::READ_ENCODER_M1; // Start next cycle
+      break;
   }
   
-  // Update communication status
-  motor1_status_.communication_ok = true;
-  motor2_status_.communication_ok = true;
+  last_reading_time_ms_ = now;
 }
 
 void RoboClawMonitor::updateSystemStatus() {
@@ -457,27 +506,48 @@ void RoboClawMonitor::updateSystemStatus() {
   
   bool valid;
   
-  // Read main battery voltage
-  uint16_t main_voltage = roboclaw_.ReadMainBatteryVoltage(config_.address, &valid);
-  if (valid) {
-    system_status_.main_battery_voltage = main_voltage / 10.0f;
+  // Only read one system parameter per call to keep it fast
+  // This will be called from the reading state machine
+  static uint8_t system_read_counter = 0;
+  
+  switch (system_read_counter % 4) {
+    case 0:
+      // Read main battery voltage
+      {
+        uint16_t main_voltage = roboclaw_.ReadMainBatteryVoltage(config_.address, &valid);
+        if (valid) {
+          system_status_.main_battery_voltage = main_voltage / 10.0f;
+        }
+      }
+      break;
+      
+    case 1:
+      // Read logic battery voltage
+      {
+        uint16_t logic_voltage = roboclaw_.ReadLogicBatteryVoltage(config_.address, &valid);
+        if (valid) {
+          system_status_.logic_battery_voltage = logic_voltage / 10.0f;
+        }
+      }
+      break;
+      
+    case 2:
+      // Read error status
+      system_status_.error_status = roboclaw_.ReadError(config_.address, &valid);
+      break;
+      
+    case 3:
+      // Read temperature if available (this might be slower, so do it last)
+      {
+        uint16_t temp;
+        if (roboclaw_.ReadTemp(config_.address, temp)) {
+          system_status_.temperature_c = temp / 10.0f;
+        }
+      }
+      break;
   }
   
-  // Read logic battery voltage
-  uint16_t logic_voltage = roboclaw_.ReadLogicBatteryVoltage(config_.address, &valid);
-  if (valid) {
-    system_status_.logic_battery_voltage = logic_voltage / 10.0f;
-  }
-  
-  // Read error status
-  system_status_.error_status = roboclaw_.ReadError(config_.address, &valid);
-  
-  // Read temperature if available
-  uint16_t temp;
-  if (roboclaw_.ReadTemp(config_.address, temp)) {
-    system_status_.temperature_c = temp / 10.0f;
-  }
-  
+  system_read_counter++;
   system_status_.last_status_update_ms = millis();
 }
 
