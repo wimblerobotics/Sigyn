@@ -148,6 +148,9 @@ public:
   
   // Message handling
   void handleTwistMessage(const String& data);
+  
+  // Error decoding
+  String decodeErrorStatus(uint32_t error_status) const;
 
 protected:
   // Module interface implementation
@@ -228,6 +231,33 @@ private:
   uint32_t total_commands_sent_;
   uint32_t total_communication_errors_;
   uint32_t total_safety_violations_;
+};
+
+// RoboClaw error status bit definitions
+enum class RoboClawError : uint32_t {
+  M1_OVERCURRENT = 0x000001,
+  M2_OVERCURRENT = 0x000002,
+  E_STOP = 0x000004,
+  TEMPERATURE_ERROR = 0x000008,
+  TEMPERATURE2_ERROR = 0x000010,
+  MAIN_BATTERY_HIGH = 0x000020,
+  LOGIC_BATTERY_HIGH = 0x000040,
+  LOGIC_BATTERY_LOW = 0x000080,
+  M1_DRIVER_FAULT = 0x000100,
+  M2_DRIVER_FAULT = 0x000200,
+  MAIN_BATTERY_LOW = 0x000400,
+  M1_SPEED_ERROR = 0x000800,
+  M2_SPEED_ERROR = 0x001000,
+  M1_POSITION_ERROR = 0x002000,
+  M2_POSITION_ERROR = 0x004000,
+  M1_CURRENT_ERROR = 0x008000,
+  M2_CURRENT_ERROR = 0x010000,
+  LOGIC_VOLTAGE_FAULT = 0x100000,
+  COMM_ERROR = 0x01000000,
+  M1_HOME = 0x10000000,
+  M2_HOME = 0x20000000,
+  S3_MODE = 0x40000000,
+  S4_MODE = 0x80000000
 };
 
 } // namespace sigyn_teensy
