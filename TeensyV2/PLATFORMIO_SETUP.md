@@ -28,10 +28,12 @@ TeensyV2/
 │       ├── module.h/.cpp
 │       └── serial_manager.h/.cpp
 ├── modules/                 # Feature modules
-│   ├── performance/
-│   ├── battery/
-│   └── safety/
-├── src/                     # Board-specific main programs
+│   ├── performance/          # Real-time performance monitoring
+│   ├── battery/              # Battery and power management
+│   ├── roboclaw/             # Motor control with high-frequency odometry
+│   ├── sensors/              # VL53L0X, temperature sensors
+│   └── safety/               # Safety coordinator
+├── platform/                # Board-specific main programs
 │   ├── board1_main.cpp      # Main program for board 1 (navigation/safety)
 │   └── board2_main.cpp      # Main program for board 2 (power/sensors)
 ├── docs/                    # Documentation
@@ -108,6 +110,7 @@ Each board has specific feature flags enabled:
 - `ENABLE_SAFETY_COORDINATOR`
 - `ENABLE_MOTOR_CONTROL`
 - `ENABLE_VL53L0X_SENSORS`
+- High-frequency odometry and motor control (≥70Hz)
 
 ### Board 2 (Power/Sensors):
 - `BOARD_ID=2`
@@ -115,6 +118,7 @@ Each board has specific feature flags enabled:
 - `ENABLE_BATTERY_MONITOR`
 - `ENABLE_IMU_SENSORS`
 - `ENABLE_TEMPERATURE_SENSORS`
+- Comprehensive sensor monitoring and diagnostics
 
 ## Serial Monitor
 
@@ -123,7 +127,7 @@ Each board has specific feature flags enabled:
 pio device monitor
 
 # Monitor with specific port and baud rate
-pio device monitor --port /dev/ttyACM0 --baud 115200
+pio device monitor --port /dev/ttyACM0 --baud 921600
 ```
 
 ## Debugging

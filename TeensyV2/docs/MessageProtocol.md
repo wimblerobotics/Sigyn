@@ -335,6 +335,66 @@ bool parseMessage(const std::string& message) {
 }
 ```
 
+### ODOM - Odometry Messages
+
+High-frequency robot odometry data from wheel encoders, published at ≥70Hz for precise localization.
+
+**Format:**
+```
+ODOM:px=<x_pos>,py=<y_pos>,ox=<quat_x>,oy=<quat_y>,oz=<quat_z>,ow=<quat_w>,vx=<lin_vel_x>,vy=<lin_vel_y>,wz=<ang_vel_z>
+```
+
+**Parameters:**
+- `px`: X position in meters (float, 3 decimal places)
+- `py`: Y position in meters (float, 3 decimal places)
+- `ox`: Quaternion X component (float, 3 decimal places)
+- `oy`: Quaternion Y component (float, 3 decimal places)
+- `oz`: Quaternion Z component (float, 3 decimal places)
+- `ow`: Quaternion W component (float, 3 decimal places)
+- `vx`: Linear velocity X in m/s (float, 3 decimal places)
+- `vy`: Linear velocity Y in m/s (float, typically 0.0 for differential drive)
+- `wz`: Angular velocity Z in rad/s (float, 3 decimal places)
+
+**Examples:**
+```
+ODOM:px=0.123,py=0.456,ox=0.000,oy=0.000,oz=0.707,ow=0.707,vx=0.500,vy=0.000,wz=0.100
+ODOM:px=1.250,py=-0.780,ox=0.000,oy=0.000,oz=-0.259,ow=0.966,vx=0.000,vy=0.000,wz=0.000
+```
+
+**Frequency:** 70-85Hz (limited by encoder read performance)
+**Latency:** <15ms from wheel movement to message publication
+
+### ROBOCLAW - Motor Controller Status Messages
+
+Motor controller status and diagnostic information, published at ~3Hz for efficiency.
+
+**Format (JSON):**
+```
+ROBOCLAW:<json_object>
+```
+
+**JSON Structure:**
+- `LogicVoltage`: Logic battery voltage in volts (float, 1 decimal)
+- `MainVoltage`: Main battery voltage in volts (float, 1 decimal)
+- `Encoder_Left`: Left motor encoder count (integer)
+- `Encoder_Right`: Right motor encoder count (integer)
+- `LeftMotorCurrent`: Left motor current in amps (float, 3 decimals)
+- `RightMotorCurrent`: Right motor current in amps (float, 3 decimals)
+- `LeftMotorSpeed`: Left motor speed in QPPS (integer)
+- `RightMotorSpeed`: Right motor speed in QPPS (integer)
+- `Error`: RoboClaw error status register (hexadecimal)
+- `ErrorDecoded`: Human-readable error description (string)
+
+**Examples:**
+```
+ROBOCLAW:{"LogicVoltage":4.1,"MainVoltage":27.0,"Encoder_Left":12345,"Encoder_Right":12340,"LeftMotorCurrent":2.150,"RightMotorCurrent":2.200,"LeftMotorSpeed":850,"RightMotorSpeed":855,"Error":0,"ErrorDecoded":"No errors"}
+
+ROBOCLAW:{"LogicVoltage":4.0,"MainVoltage":26.8,"Encoder_Left":15678,"Encoder_Right":15680,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":0,"Error":1,"ErrorDecoded":"M1_OVERCURRENT"}
+```
+
+**Frequency:** ~3Hz (optimized for minimal performance impact)
+**Content:** Complete motor controller status including safety-critical error information
+
 ### Configuration Options
 
 The message validation can be controlled via ROS2 parameters:

@@ -1,8 +1,8 @@
 {
   "name": "TeensyV2",
   "version": "2.0.0",
-  "description": "Advanced modular embedded system for Sigyn robotic platform",
-  "keywords": ["teensy", "robotics", "embedded", "modular", "real-time"],
+  "description": "Advanced modular embedded system for Sigyn robotic platform with high-frequency odometry and real-time motor control",
+  "keywords": ["teensy", "robotics", "embedded", "modular", "real-time", "odometry", "motor-control"],
   "authors": [
     {
       "name": "Wimble Robotics Team",
@@ -22,6 +22,9 @@
     "common/core/serial_manager.h",
     "modules/performance/performance_monitor.h",
     "modules/battery/battery_monitor.h",
+    "modules/roboclaw/roboclaw_monitor.h",
+    "modules/sensors/vl53l0x_monitor.h",
+    "modules/sensors/temperature_monitor.h",
     "modules/safety/safety_coordinator.h"
   ],
   "include": [
