@@ -2,7 +2,19 @@
 
 ## Overview
 
-TeensyV2 is a professionally designed, real-time embedded control system for the Sigyn autonomous robot. Built on a modular architecture, it provides high-performance sensor monitoring, motor control, and comprehensive safety systems across multiple Teensy 4.1 microcontrollers.
+TeensyV2 is a professionally designed, real-time embedded control system for the Sigyn autonomous robot. Built on a modular ar### Directory Structure
+
+```
+TeensyV2/
+├── README.md                   # This file
+├── PLATFORMIO_SETUP.md         # PlatformIO build system guide  
+├── docs/                       # Architecture and design documentation
+│   ├── Architecture.md         # Detailed system architecture
+│   ├── MessageProtocol.md      # Communication protocol specification
+│   └── SafetySystem.md         # E-stop and safety architecture
+├── common/                     # Shared code across all boards
+│   ├── core/                   # Core framework (Module, SerialManager, etc.)
+│   ├── safety/                 # Safety and E-stop coordinationt provides high-performance sensor monitoring, motor control, and comprehensive safety systems across multiple Teensy 4.1 microcontrollers.
 
 The system follows modern embedded software engineering practices including:
 - **Modular Architecture**: Clean separation of concerns with automatic module registration
@@ -15,7 +27,9 @@ The system follows modern embedded software engineering practices including:
 
 ### Real-Time Performance Monitoring
 - Maintains 80-100Hz control loops with microsecond-precision timing
-- Automatic detection of performance violations (>2ms execution time)
+- High-frequency odometry updates (≥70Hz) for precise robot localization
+- Optimized motor control with separated frequency tiers for maximum responsiveness
+- Automatic detection of performance violations (>4ms execution time for critical modules)
 - Configurable thresholds for different operational modes
 - Comprehensive diagnostic reporting for optimization
 
@@ -122,9 +136,13 @@ The TeensyV2 architecture implements a distributed control system with two speci
 
 ### Board Assignments
 - **Board 1 (Main Controller)**: 
-  - Motor control and odometry processing
-  - VL53L0X time-of-flight sensor management
-  - RoboClaw motor driver interface
+  - **High-frequency odometry processing (≥70Hz)** for precise robot localization
+  - **Real-time motor control with optimized cmd_vel handling** for maximum responsiveness  
+  - VL53L0X time-of-flight sensor management with non-blocking reads
+  - RoboClaw motor driver interface with separated frequency tiers:
+    - Critical operations (encoder reads + odometry): 70Hz
+    - Motor status monitoring: 30Hz  
+    - System diagnostics: 3Hz
   - Primary E-stop coordination and safety management
   - High-priority ROS2 communication (navigation commands, odometry)
   - Target frequency: 85Hz for precise motor control
@@ -192,19 +210,18 @@ TeensyV2/
 ├── common/                     # Shared code across all boards
 │   ├── core/                   # Core framework (Module, SerialManager, etc.)
 │   ├── safety/                 # Safety and E-stop coordination
-│   ├── utils/                  # Utility functions and helpers
-│   └── config/                 # Configuration management
 ├── modules/                    # Sensor and device modules
 │   ├── battery/                # Battery monitoring (INA226, analog)
 │   ├── imu/                    # BNO055 IMU sensors
-│   ├── motor/                  # RoboClaw motor control
-│   ├── sensors/                # VL53L0X, SONAR, temperature
+│   ├── roboclaw/               # RoboClaw motor control with high-frequency odometry
+│   ├── sensors/                # VL53L0X, temperature sensors  
+│   ├── safety/                 # Safety coordinator
 │   └── performance/            # Performance monitoring
-├── src/                        # Board-specific main programs
-│   ├── board1_main.cpp         # Main program for board 1 (navigation/safety)
-│   └── board2_main.cpp         # Main program for board 2 (power/sensors)
-├── docs/                       # Documentation
+├── platform/                   # Board-specific main programs
+│   ├── board1/                 # Main program for board 1 (navigation/safety)
+│   └── board2/                 # Main program for board 2 (power/sensors)
 ├── platformio.ini              # PlatformIO configuration for both boards
+├── library.json                # PlatformIO library metadata
 └── .gitignore                  # Git ignore patterns
 ```
 
@@ -218,8 +235,30 @@ TYPE:key1=val1,key2=val2,...
 Examples:
 - `BATT:id=0,v=39.8,p=0.82,c=1.2,s=OK`
 - `IMU:id=0,qx=0.1,qy=0.2,qz=0.3,qw=0.9`
+- `ODOM:px=0.123,py=0.456,ox=0.0,oy=0.0,oz=0.707,ow=0.707,vx=0.5,vy=0.0,wz=0.1` (High-frequency odometry)
+- `ROBOCLAW:{"LogicVoltage":4.1,"MainVoltage":27.0,"Encoder_Left":12345,"Encoder_Right":12340,...}` (Motor status)
 - `ESTOP:src=motor,state=active,reason=overcurrent`
 - `TEMP:id=0,temp=23.5,status=OK` (Temperature sensor data)
+
+### Odometry Message Format (ODOM)
+
+High-frequency odometry messages are published at ≥70Hz for precise robot localization:
+```
+ODOM:px=<x_position>,py=<y_position>,ox=<quat_x>,oy=<quat_y>,oz=<quat_z>,ow=<quat_w>,vx=<linear_vel_x>,vy=<linear_vel_y>,wz=<angular_vel_z>
+```
+
+- **Position**: `px`, `py` in meters (robot position in odometry frame)
+- **Orientation**: `ox`, `oy`, `oz`, `ow` as quaternion components
+- **Velocity**: `vx`, `vy` in m/s, `wz` in rad/s (current robot velocities)
+- **Update Rate**: 70-85Hz depending on encoder read performance
+- **Precision**: 3 decimal places for position/orientation, velocities as needed
+
+### RoboClaw Status Message Format (ROBOCLAW)
+
+Motor controller status published at ~3Hz for efficiency:
+```json
+ROBOCLAW:{"LogicVoltage":4.1,"MainVoltage":27.0,"Encoder_Left":12345,"Encoder_Right":12340,"LeftMotorCurrent":2.150,"RightMotorCurrent":2.200,"LeftMotorSpeed":850,"RightMotorSpeed":855,"Error":0,"ErrorDecoded":"No errors"}
+```
 
 ### Performance (PERF) JSON Format
 
@@ -271,9 +310,16 @@ The TeensyV2 system maintains strict real-time performance requirements to ensur
 - **Tolerance**: ±5Hz acceptable, >10Hz deviation triggers warnings
 
 **Module Execution Limits:**
-- **Individual Module**: Maximum 2ms execution time per loop iteration
-- **Total System**: Maximum 8ms total execution time per loop
-- **Safety Margin**: 4ms reserved for interrupt handling and system overhead
+- **Critical Modules (RoboClawMonitor)**: Maximum 4ms execution time per loop iteration
+- **Standard Modules**: Maximum 2ms execution time per loop iteration  
+- **Total System**: Maximum 10ms total execution time per loop
+- **Safety Margin**: 2ms reserved for interrupt handling and system overhead
+
+**RoboClawMonitor Performance Tiers:**
+- **High Frequency (≥70Hz)**: Encoder reads and odometry calculation for precise localization
+- **Medium Frequency (~30Hz)**: Motor status monitoring and safety checks
+- **Low Frequency (~3Hz)**: System diagnostics (voltage, current, temperature)
+- **Cmd_vel Processing**: Up to 67Hz with intelligent rate limiting for responsive control
 
 **Memory Constraints:**
 - **Flash Usage**: <100KB per board (leaving 7.9MB available for future expansion)
@@ -289,8 +335,9 @@ The TeensyV2 system maintains strict real-time performance requirements to ensur
 Continuous monitoring ensures system health and early problem detection:
 
 **Automatic Violation Detection:**
-- Module execution time exceeding 2ms threshold
-- Loop frequency dropping below 75Hz for more than 3 consecutive cycles
+- Critical module execution time exceeding 4ms threshold (RoboClawMonitor)
+- Standard module execution time exceeding 2ms threshold
+- Loop frequency dropping below 70Hz for more than 3 consecutive cycles
 - Memory usage approaching 80% of available capacity
 - Communication errors or timeouts
 
@@ -298,6 +345,76 @@ Continuous monitoring ensures system health and early problem detection:
 1. **Warning Level**: Log message, increase monitoring frequency
 2. **Error Level**: Reduce non-critical functionality, notify ROS2 system
 3. **Critical Level**: Trigger controlled shutdown, activate E-stop if necessary
+
+## Motor Control Optimization
+
+### RoboClawMonitor Performance Architecture
+
+The RoboClawMonitor has been extensively optimized for high-frequency odometry and responsive motor control, implementing a tiered execution model based on the legacy roboclaw_module.cpp design:
+
+#### Execution Frequency Tiers
+
+**Tier 1: High-Frequency Operations (≥70Hz)**
+- **Encoder Reading**: Direct read of both motor encoders for odometry calculation
+- **Odometry Calculation**: Real-time pose and velocity computation with microsecond timestamps
+- **Cmd_vel Processing**: Velocity command processing with up to 67Hz rate limiting
+- **Execution Time**: 2-4ms per cycle (includes encoder I/O and calculations)
+
+**Tier 2: Medium-Frequency Operations (~30Hz)**  
+- **Motor Status Monitoring**: Speed readings and basic system health checks
+- **Safety Checks**: Overcurrent detection and runaway motor monitoring
+- **Execution Time**: 1-2ms per cycle (spread across multiple loop iterations)
+
+**Tier 3: Low-Frequency Operations (~3Hz)**
+- **System Diagnostics**: Voltage, current, and temperature readings
+- **Error Status**: RoboClaw error register monitoring  
+- **Status Reporting**: JSON-formatted status messages to ROS2
+- **Execution Time**: <1ms per cycle (minimal impact on real-time performance)
+
+#### Odometry Performance
+
+**High-Frequency Odometry Updates:**
+- **Update Rate**: 70-85Hz (limited by encoder read speed, not computation)
+- **Latency**: <15ms from wheel movement to ODOM message publication
+- **Precision**: 3 decimal places for position (millimeter accuracy)
+- **Integration Method**: Midpoint integration for improved accuracy over time
+- **Data Freshness**: Encoder values read immediately before each odometry calculation
+
+**Optimization Techniques:**
+- **Direct Encoder Access**: Bypasses state machine for critical odometry reads
+- **Minimal Computation**: Optimized trigonometric calculations
+- **Reduced Message Overhead**: Compact ODOM message format
+- **Smart Rate Limiting**: Only publishes when meaningful motion detected
+
+#### Motor Command Processing
+
+**Responsive Command Handling:**
+- **Command Rate**: Up to 67Hz for velocity commands (15ms intervals)
+- **Significant Change Detection**: Only sends commands when motor speeds change >10 QPPS
+- **Force Updates**: Periodic updates every 100ms to maintain control authority
+- **Timeout Protection**: Automatic motor stop after 200ms without commands
+
+**Control Flow Optimization:**
+- **Bypass State Machine**: Critical motor commands bypass slower diagnostic reads
+- **Intelligent Batching**: Groups related motor operations for efficiency
+- **Error Recovery**: Continues operation even with temporary communication errors
+- **Rate Limiting**: Prevents overwhelming the RoboClaw controller
+
+### Legacy Design Integration
+
+The optimizations are based on proven patterns from the legacy roboclaw_module.cpp:
+
+**Adopted Patterns:**
+- **Frequency Separation**: Different update rates for odometry vs status reporting
+- **Direct Hardware Access**: Minimal abstraction for time-critical operations  
+- **Rate Limiting Logic**: Proven algorithms for preventing controller overload
+- **Command Batching**: Efficient grouping of related motor operations
+
+**Modern Improvements:**
+- **State Machine Architecture**: Better error handling and recovery
+- **Safety Integration**: Unified safety coordination across all modules
+- **Performance Monitoring**: Real-time execution time tracking
+- **Modular Design**: Clean separation of concerns for maintainability
 
 ## Safety System
 
@@ -337,8 +454,9 @@ The safety system implements defense-in-depth principles with multiple independe
 - Temperature: >60°C (thermal protection)
 
 **Performance Safety:**
-- Module Timeout: >2ms execution time (indicates runaway code)
-- System Frequency: <75Hz for >3 cycles (indicates system overload)
+- Critical Module Timeout: >4ms execution time for RoboClawMonitor (indicates performance issues)
+- Standard Module Timeout: >2ms execution time (indicates runaway code)
+- System Frequency: <70Hz for >3 cycles (indicates system overload)
 - Memory Usage: >90% (indicates memory leak or excessive allocation)
 
 **Communication Safety:**

@@ -4,7 +4,10 @@
 
 ### 1. Real-Time Performance First
 - Target: 80-100Hz main control loop
-- Maximum module execution time: 2ms per loop()
+- **Critical modules (RoboClawMonitor)**: Maximum 4ms execution time per loop()
+- **Standard modules**: Maximum 2ms execution time per loop()
+- **High-frequency odometry**: ≥70Hz for precise robot localization
+- **Optimized frequency tiers**: Different operations at optimal update rates
 - Non-blocking I/O operations throughout
 - Performance monitoring with automatic safety violations
 
@@ -126,6 +129,51 @@ private:
 };
 ```
 
+#### RoboClawMonitor Architecture (`modules/roboclaw/roboclaw_monitor.h`)
+
+The RoboClawMonitor implements an optimized tiered execution model for high-frequency odometry and responsive motor control:
+
+```cpp
+class RoboClawMonitor : public Module {
+public:
+  // High-level interface
+  void setVelocityCommand(float linear_x, float angular_z);
+  void setMotorSpeeds(int32_t m1_qpps, int32_t m2_qpps);
+  
+  // Odometry data access
+  const Pose2D& getCurrentPose() const { return current_pose_; }
+  const Velocity2D& getCurrentVelocity() const { return current_velocity_; }
+
+private:
+  // Tiered execution functions
+  void updateCriticalMotorStatus();    // ≥70Hz: encoder reads only
+  void updateOdometry();               // ≥70Hz: pose calculation 
+  void processVelocityCommands();      // up to 67Hz: cmd_vel processing
+  void updateSystemStatus();           // ~3Hz: diagnostics
+  
+  // Execution frequency management
+  uint32_t last_reading_time_ms_;      // Controls critical operations frequency
+  uint32_t last_status_report_time_ms_;// Controls diagnostic frequency
+  
+  // Odometry state
+  Pose2D current_pose_;
+  Velocity2D current_velocity_;
+  int32_t prev_encoder_m1_, prev_encoder_m2_;
+  uint32_t last_odom_update_time_us_;  // Microsecond precision for accuracy
+};
+```
+
+**Frequency Separation Strategy:**
+- **Tier 1 (≥70Hz)**: Encoder reads + odometry calculation (time-critical)
+- **Tier 2 (~30Hz)**: Motor speed monitoring, safety checks (important)  
+- **Tier 3 (~3Hz)**: Voltage, current, temperature, error status (diagnostic)
+
+**Performance Optimizations:**
+- **Direct encoder access**: Bypasses state machine for critical reads
+- **Intelligent rate limiting**: Commands only sent when speeds change significantly
+- **Minimal computation**: Optimized odometry calculations with midpoint integration
+- **State separation**: Heavy diagnostics don't block time-critical operations
+
 #### Message Protocol
 
 All messages use a compact key-value format for efficient parsing:
@@ -151,17 +199,28 @@ PARAM_REQ:param=all                    // Request all parameter values
 
 #### Board 1: Motor Control & Safety Coordination
 **Primary Responsibilities:**
-- RoboClaw motor control with safety monitoring
-- Wheel odometry calculation and reporting
-- VL53L0X distance sensor array
+- **High-frequency RoboClaw motor control** with optimized tiered execution:
+  - Critical operations (encoder reads + odometry): ≥70Hz
+  - Motor status monitoring: ~30Hz
+  - System diagnostics: ~3Hz
+- **Real-time wheel odometry calculation** (70-85Hz) for precise robot localization
+- **Responsive cmd_vel processing** (up to 67Hz) for maximum robot responsiveness
+- VL53L0X distance sensor array with non-blocking reads
 - E-stop coordination (receives from Board 2, triggers hardware)
 - SONAR sensor management
 - Performance monitoring for entire system
 
-**Critical Timing:**
-- Motor commands: 50Hz minimum (every 20ms)
-- Safety monitoring: 100Hz (every 10ms)
-- Sensor readings: Variable by sensor type
+**Critical Timing Optimizations:**
+- **Odometry updates: 70-85Hz** (encoder read limited, not computation limited)
+- **Motor commands: up to 67Hz** with intelligent rate limiting
+- **Safety monitoring: 10Hz** (reduced from 100Hz for performance)
+- **Sensor readings**: Variable by sensor type, optimized for non-blocking operation
+
+**Performance Architecture:**
+- **Frequency separation**: Different operations run at optimal frequencies
+- **Direct hardware access**: Critical odometry bypasses slower diagnostic reads  
+- **State machine optimization**: Heavy diagnostics separated from time-critical operations
+- **Legacy-inspired design**: Based on proven roboclaw_module.cpp patterns
 
 #### Board 2: Sensor Monitoring
 **Primary Responsibilities:**
