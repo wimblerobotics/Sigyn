@@ -64,6 +64,16 @@ TeensyBridge::TeensyBridge()
     [this](const MessageData& data, rclcpp::Time timestamp) {
       HandleDiagnosticMessage(data, timestamp);
     });
+    
+  message_parser_->RegisterCallback(MessageType::TEMPERATURE,
+    [this](const MessageData& data, rclcpp::Time timestamp) {
+      HandleTemperatureMessage(data, timestamp);
+    });
+    
+  message_parser_->RegisterCallback(MessageType::VL53L0X,
+    [this](const MessageData& data, rclcpp::Time timestamp) {
+      HandleVL53L0XMessage(data, timestamp);
+    });
   
   // Start serial communication
   StartSerialCommunication();
@@ -116,6 +126,38 @@ void TeensyBridge::InitializePublishersAndSubscribers() {
     
   imu_sensor1_pub_ = this->create_publisher<sensor_msgs::msg::Imu>(
     "~/imu/sensor_1", 10);
+    
+  // Temperature publishers for motor sensors
+  temperature_motor0_pub_ = this->create_publisher<sensor_msgs::msg::Temperature>(
+    "~/temperature/motor_0", 10);
+    
+  temperature_motor1_pub_ = this->create_publisher<sensor_msgs::msg::Temperature>(
+    "~/temperature/motor_1", 10);
+    
+  // VL53L0X range sensor publishers
+  vl53l0x_sensor0_pub_ = this->create_publisher<sensor_msgs::msg::Range>(
+    "~/range/vl53l0x_0", 10);
+    
+  vl53l0x_sensor1_pub_ = this->create_publisher<sensor_msgs::msg::Range>(
+    "~/range/vl53l0x_1", 10);
+    
+  vl53l0x_sensor2_pub_ = this->create_publisher<sensor_msgs::msg::Range>(
+    "~/range/vl53l0x_2", 10);
+    
+  vl53l0x_sensor3_pub_ = this->create_publisher<sensor_msgs::msg::Range>(
+    "~/range/vl53l0x_3", 10);
+    
+  vl53l0x_sensor4_pub_ = this->create_publisher<sensor_msgs::msg::Range>(
+    "~/range/vl53l0x_4", 10);
+    
+  vl53l0x_sensor5_pub_ = this->create_publisher<sensor_msgs::msg::Range>(
+    "~/range/vl53l0x_5", 10);
+    
+  vl53l0x_sensor6_pub_ = this->create_publisher<sensor_msgs::msg::Range>(
+    "~/range/vl53l0x_6", 10);
+    
+  vl53l0x_sensor7_pub_ = this->create_publisher<sensor_msgs::msg::Range>(
+    "~/range/vl53l0x_7", 10);
   
   // Subscribers
   estop_cmd_sub_ = this->create_subscription<std_msgs::msg::Bool>(
@@ -500,6 +542,77 @@ void TeensyBridge::HandleDiagnosticMessage(const MessageData& data, rclcpp::Time
   if (diagnostic_data.valid) {
     auto msg = message_parser_->ToDiagnosticArrayMsg(diagnostic_data, timestamp);
     diagnostics_pub_->publish(msg);
+  }
+}
+
+void TeensyBridge::HandleTemperatureMessage(const MessageData& data, rclcpp::Time timestamp) {
+  auto temperature_data = message_parser_->ParseTemperatureData(data);
+  if (temperature_data.valid) {
+    // Handle single sensor reading or multiple readings
+    if (temperature_data.temperatures.empty()) {
+      // Single sensor reading
+      sensor_msgs::msg::Temperature temp_msg;
+      temp_msg.header.stamp = timestamp;
+      temp_msg.header.frame_id = "motor_" + std::to_string(temperature_data.sensor_id);
+      temp_msg.temperature = temperature_data.temperature_c;
+      temp_msg.variance = 0.1;  // Conservative variance estimate
+      
+      // Route to appropriate publisher based on sensor ID
+      if (temperature_data.sensor_id == 0 && temperature_motor0_pub_) {
+        temperature_motor0_pub_->publish(temp_msg);
+      } else if (temperature_data.sensor_id == 1 && temperature_motor1_pub_) {
+        temperature_motor1_pub_->publish(temp_msg);
+      }
+    } else {
+      // Multiple sensor readings (array format)
+      for (size_t i = 0; i < temperature_data.temperatures.size() && i < 2; ++i) {
+        if (!std::isnan(temperature_data.temperatures[i])) {
+          sensor_msgs::msg::Temperature temp_msg;
+          temp_msg.header.stamp = timestamp;
+          temp_msg.header.frame_id = "motor_" + std::to_string(i);
+          temp_msg.temperature = temperature_data.temperatures[i];
+          temp_msg.variance = 0.1;  // Conservative variance estimate
+          
+          // Route to appropriate publisher based on index
+          if (i == 0 && temperature_motor0_pub_) {
+            temperature_motor0_pub_->publish(temp_msg);
+          } else if (i == 1 && temperature_motor1_pub_) {
+            temperature_motor1_pub_->publish(temp_msg);
+          }
+        }
+      }
+    }
+  }
+}
+
+void TeensyBridge::HandleVL53L0XMessage(const MessageData& data, rclcpp::Time timestamp) {
+  auto vl53l0x_data = message_parser_->ParseVL53L0XData(data);
+  if (vl53l0x_data.valid) {
+    // Publish range data for each sensor in the distances array
+    for (size_t i = 0; i < vl53l0x_data.distances_mm.size() && i < 8; ++i) {
+      if (vl53l0x_data.distances_mm[i] > 0) {  // 0 indicates invalid reading
+        sensor_msgs::msg::Range range_msg;
+        range_msg.header.stamp = timestamp;
+        range_msg.header.frame_id = "vl53l0x_" + std::to_string(i);
+        range_msg.radiation_type = sensor_msgs::msg::Range::INFRARED;
+        range_msg.field_of_view = 0.44;  // ~25 degrees in radians for VL53L0X
+        range_msg.min_range = 0.03;      // 3cm minimum range
+        range_msg.max_range = 2.0;       // 2m maximum range
+        
+        // Convert mm to meters
+        range_msg.range = vl53l0x_data.distances_mm[i] / 1000.0;
+        
+        // Route to appropriate publisher based on sensor index
+        auto publishers = std::vector<rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr>{
+          vl53l0x_sensor0_pub_, vl53l0x_sensor1_pub_, vl53l0x_sensor2_pub_, vl53l0x_sensor3_pub_,
+          vl53l0x_sensor4_pub_, vl53l0x_sensor5_pub_, vl53l0x_sensor6_pub_, vl53l0x_sensor7_pub_
+        };
+        
+        if (i < publishers.size() && publishers[i]) {
+          publishers[i]->publish(range_msg);
+        }
+      }
+    }
   }
 }
 

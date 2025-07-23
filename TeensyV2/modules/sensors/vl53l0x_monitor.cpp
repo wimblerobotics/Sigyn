@@ -39,6 +39,7 @@ VL53L0XMonitor::VL53L0XMonitor()
   // Initialize sensor arrays
   for (uint8_t i = 0; i < 8; i++) {
     sensor_status_[i] = SensorStatus();
+    sensor_status_[i].last_successful_read_time_ms = 0; // Initialize timing
     sensor_states_[i] = SensorState::UNINITIALIZED;
     sensor_enabled_[i] = (i < config_.enabled_sensors);
   }
@@ -257,20 +258,45 @@ void VL53L0XMonitor::updateSensorCycle() {
     last_measurement_cycle_time_ms_ = now;
   }
 
-  // Process current sensor if enabled and initialized
-  if (current_sensor_index_ < config_.enabled_sensors &&
-      sensor_enabled_[current_sensor_index_] &&
-      sensor_status_[current_sensor_index_].initialized) {
-    if (measureSingleSensor(current_sensor_index_)) {
-      updateSensorPerformance(current_sensor_index_);
-      total_system_measurements_++;
-    } else {
-      total_system_errors_++;
+  // Process sensors in round-robin fashion, but respect per-sensor timing
+  if (current_sensor_index_ < config_.enabled_sensors) {
+    bool sensor_processed = false;
+    
+    // Find next sensor that's ready to be read (respecting 50ms minimum interval)
+    for (uint8_t attempts = 0; attempts < config_.enabled_sensors && !sensor_processed; attempts++) {
+      uint8_t sensor_idx = (current_sensor_index_ + attempts) % config_.enabled_sensors;
+      
+      if (sensor_enabled_[sensor_idx] && 
+          sensor_status_[sensor_idx].initialized) {
+        
+        // Check if enough time has passed since last read (50ms minimum)
+        uint32_t time_since_last_read = now - sensor_status_[sensor_idx].last_successful_read_time_ms;
+        
+        if (time_since_last_read >= 50 || sensor_status_[sensor_idx].last_successful_read_time_ms == 0) {
+          // Sensor is ready to be read
+          if (measureSingleSensor(sensor_idx)) {
+            updateSensorPerformance(sensor_idx);
+            total_system_measurements_++;
+            sensor_status_[sensor_idx].last_successful_read_time_ms = now;
+          } else {
+            total_system_errors_++;
+          }
+          
+          // Move to next sensor for next cycle
+          current_sensor_index_ = (sensor_idx + 1) % config_.enabled_sensors;
+          sensor_processed = true;
+        }
+        // If sensor not ready (< 50ms), skip to next sensor without reading
+      }
+    }
+    
+    // If no sensor was ready, advance to next sensor anyway to prevent getting stuck
+    if (!sensor_processed) {
+      current_sensor_index_ = (current_sensor_index_ + 1) % config_.enabled_sensors;
     }
   }
 
-  // Move to next sensor
-  current_sensor_index_++;
+  // Reset cycle when we've processed all sensors
   if (current_sensor_index_ >= config_.enabled_sensors) {
     current_sensor_index_ = 0;
   }
@@ -332,16 +358,16 @@ bool VL53L0XMonitor::initializeSingleSensor(uint8_t sensor_index) {
     return false;
   }
 
-  // Configure the sensor for good accuracy
-  // Use high accuracy mode with longer range capability
-  sensors_[sensor_index].setSignalRateLimit(0.1);
-  sensors_[sensor_index].setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
+  // Configure the sensor for good balance of speed and accuracy
+  // Use faster timing budget for reduced execution time
+  sensors_[sensor_index].setTimeout(50); // Reduced from 70ms
+  sensors_[sensor_index].setSignalRateLimit(0.25); // Increased for faster reads
+  sensors_[sensor_index].setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 14); // Reduced for speed
   sensors_[sensor_index].setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange,
-                                             14);
+                                             10); // Reduced for speed
 
-  // Set timing budget for faster measurements
-  if (!sensors_[sensor_index].setMeasurementTimingBudget(
-          config_.timing_budget_us)) {
+  // Set faster timing budget for quicker measurements (reduced from 33ms)
+  if (!sensors_[sensor_index].setMeasurementTimingBudget(20000)) { // 20ms instead of 33ms
     String msg = "VL53L0XMonitor: Failed to set timing budget for sensor " +
                  String(sensor_index);
     SerialManager::getInstance().sendMessage("WARN", msg.c_str());
@@ -579,6 +605,8 @@ void VL53L0XMonitor::checkSafetyConditions() {
 
 void VL53L0XMonitor::detectObstacles() {
   bool critical_obstacle = false;
+  static uint32_t last_estop_message_time = 0;
+  uint32_t now = millis();
 
   for (uint8_t i = 0; i < config_.enabled_sensors; i++) {
     if (!sensor_enabled_[i] || !sensor_status_[i].measurement_valid) {
@@ -588,13 +616,17 @@ void VL53L0XMonitor::detectObstacles() {
     if (sensor_status_[i].distance_mm < 100) {  // Critical distance
       critical_obstacle = true;
 
-      String msg =
-          "active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle "
-          "detected," +
-          String("value:") + String(sensor_status_[i].distance_mm) +
-          ",sensor:" + String(i) +
-          ",manual_reset:false,time:" + String(millis());
-      SerialManager::getInstance().sendMessage("ESTOP", msg.c_str());
+      // Rate limit ESTOP messages to reduce spam (max once per 200ms)
+      if (now - last_estop_message_time >= 200) {
+        String msg =
+            "active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle "
+            "detected," +
+            String("value:") + String(sensor_status_[i].distance_mm) +
+            ",sensor:" + String(i) +
+            ",manual_reset:false,time:" + String(millis());
+        SerialManager::getInstance().sendMessage("ESTOP", msg.c_str());
+        last_estop_message_time = now;
+      }
     }
   }
 
@@ -710,6 +742,17 @@ void VL53L0XMonitor::sendDiagnosticReports() {
   diag_msg += ",rate_hz:" + String(array_status_.system_measurement_rate_hz, 1);
   diag_msg +=
       ",multiplexer_ok:" + String(multiplexer_available_ ? "true" : "false");
+  
+  // Add per-sensor read timing info for performance monitoring
+  diag_msg += ",sensor_timing:[";
+  uint32_t now = millis();
+  for (uint8_t i = 0; i < config_.enabled_sensors; i++) {
+    if (i > 0) diag_msg += ",";
+    uint32_t time_since_read = (sensor_status_[i].last_successful_read_time_ms > 0) ? 
+                               now - sensor_status_[i].last_successful_read_time_ms : 9999;
+    diag_msg += String(time_since_read);
+  }
+  diag_msg += "]";
 
   String full_msg =
       "level:INFO,module:VL53L0XMonitor,msg:Diagnostic report,details:" +

@@ -56,7 +56,7 @@ struct VL53L0XConfig {
   uint16_t max_range_mm = 2000;               ///< Maximum measurement range (mm)
   
   // Operational parameters
-  uint32_t sensor_cycle_time_ms = 100;        ///< Time between sensor cycles
+  uint32_t sensor_cycle_time_ms = 50;         ///< Time between sensor cycles (min 50ms per sensor)
   uint32_t initialization_retry_ms = 1000;    ///< Retry interval for failed sensors
   uint32_t error_recovery_time_ms = 5000;     ///< Time before attempting error recovery
   
@@ -89,6 +89,7 @@ struct SensorStatus {
   uint32_t total_measurements = 0;            ///< Total measurements taken
   uint32_t error_count = 0;                   ///< Number of measurement errors
   uint32_t last_measurement_time_ms = 0;      ///< Time of last measurement
+  uint32_t last_successful_read_time_ms = 0;  ///< Time of last successful read (for 50ms timing)
   float measurement_frequency_hz = 0.0f;      ///< Current measurement frequency
 };
 

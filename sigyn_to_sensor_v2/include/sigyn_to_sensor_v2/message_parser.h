@@ -45,6 +45,10 @@ enum class MessageType {
   PERFORMANCE,  ///< Performance metrics and timing
   SAFETY,       ///< Safety status and conditions
   IMU,          ///< IMU sensor data (orientation, gyro, accel)
+  TEMPERATURE,  ///< Temperature sensor data (individual TEMP and array TEMPERATURE)
+  VL53L0X,      ///< VL53L0X time-of-flight sensor data
+  ROBOCLAW,     ///< RoboClaw motor controller data
+  ODOM,         ///< Odometry data (position, orientation, velocity)
   ESTOP,        ///< E-stop notifications
   DIAGNOSTIC,   ///< Diagnostic and error messages
   CONFIG,       ///< Configuration responses
@@ -138,6 +142,38 @@ struct DiagnosticData {
   std::string message = "";             ///< Diagnostic message
   std::string details = "";             ///< Additional details
   uint64_t timestamp = 0;               ///< Message timestamp
+  bool valid = false;                   ///< Data validity flag
+};
+
+/**
+ * @brief Temperature sensor data structure parsed from TEMP and TEMPERATURE messages.
+ */
+struct TemperatureData {
+  int sensor_id = 0;                    ///< Sensor ID/index
+  double temperature_c = 0.0;           ///< Temperature in Celsius
+  std::string status = "UNKNOWN";       ///< Sensor status (OK, ERROR, etc.)
+  int total_sensors = 0;                ///< Total number of sensors (from array message)
+  int active_sensors = 0;               ///< Number of active sensors
+  std::vector<double> temperatures;     ///< Array of all temperatures (NaN for invalid)
+  double reading_rate_hz = 0.0;         ///< System reading rate
+  uint64_t total_readings = 0;          ///< Total readings since startup
+  uint64_t total_errors = 0;            ///< Total errors since startup
+  bool valid = false;                   ///< Data validity flag
+};
+
+/**
+ * @brief VL53L0X time-of-flight sensor data structure parsed from VL53L0X messages.
+ */
+struct VL53L0XData {
+  int total_sensors = 0;                ///< Total number of sensors
+  int active_sensors = 0;               ///< Number of active sensors
+  uint16_t min_distance_mm = 65535;     ///< Minimum distance reading (mm)
+  uint16_t max_distance_mm = 0;         ///< Maximum distance reading (mm)
+  bool obstacles_detected = false;      ///< Any obstacles detected
+  std::vector<uint16_t> distances_mm;   ///< Array of distances (0 for invalid)
+  double measurement_rate_hz = 0.0;     ///< System measurement rate
+  uint64_t total_measurements = 0;      ///< Total measurements since startup
+  uint64_t total_errors = 0;            ///< Total errors since startup
   bool valid = false;                   ///< Data validity flag
 };
 
@@ -249,6 +285,23 @@ public:
    * @return DiagnosticData structure with parsed values
    */
   DiagnosticData ParseDiagnosticData(const MessageData& data) const;
+
+  /**
+   * @brief Parse temperature data from TEMP/TEMPERATURE message.
+   * 
+   * @param[in] data Parsed key-value or JSON data
+   * @param[in] is_array_format True if TEMPERATURE format, false if TEMP format
+   * @return TemperatureData structure with parsed values
+   */
+  TemperatureData ParseTemperatureData(const MessageData& data, bool is_array_format = false) const;
+
+  /**
+   * @brief Parse VL53L0X data from VL53L0X message.
+   * 
+   * @param[in] data Parsed JSON data
+   * @return VL53L0XData structure with parsed values
+   */
+  VL53L0XData ParseVL53L0XData(const MessageData& data) const;
 
   /**
    * @brief Convert battery data to ROS2 BatteryState message.
