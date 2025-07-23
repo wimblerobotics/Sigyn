@@ -122,6 +122,27 @@ class SerialManager {
    */
   void processIncomingMessages();
 
+  /**
+   * @brief Set the latest TWIST command for modules to access.
+   *
+   * @param[in] twist_data The TWIST command data
+   */
+  void setLatestTwistCommand(const String& twist_data);
+
+  /**
+   * @brief Get the latest TWIST command data.
+   *
+   * @return Latest TWIST command data, or empty string if none
+   */
+  String getLatestTwistCommand();
+
+  /**
+   * @brief Check if there's a new TWIST command and mark it as processed.
+   *
+   * @return True if there was a new command, false otherwise
+   */
+  bool hasNewTwistCommand();
+
  private:
   /**
    * @brief Private constructor for singleton pattern.
@@ -191,6 +212,18 @@ class SerialManager {
    * @brief Number of messages currently in the queue.
    */
   size_t queue_count_ = 0;
+
+  // --- Command Storage ---
+
+  /**
+   * @brief Storage for the latest TWIST command.
+   */
+  String latest_twist_command_;
+
+  /**
+   * @brief Flag indicating if there's a new TWIST command.
+   */
+  bool has_new_twist_command_ = false;
 };
 
 }  // namespace sigyn_teensy

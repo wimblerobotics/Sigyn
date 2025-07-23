@@ -14,6 +14,7 @@
 #include <sys/select.h>
 #include <cerrno>
 #include <cstring>
+#include <sstream>
 
 using namespace std::chrono_literals;
 
@@ -78,6 +79,28 @@ TeensyBridge::TeensyBridge()
   message_parser_->RegisterCallback(MessageType::ROBOCLAW,
     [this](const MessageData& data, rclcpp::Time timestamp) {
       HandleRoboClawMessage(data, timestamp);
+    });
+    
+  message_parser_->RegisterCallback(MessageType::SDIR,
+    [this](const MessageData& data, rclcpp::Time timestamp) {
+      auto content_it = data.find("content");
+      if (content_it != data.end()) {
+        HandleSdirResponse(content_it->second);
+      }
+    });
+    
+  message_parser_->RegisterCallback(MessageType::SDLINE,
+    [this](const MessageData& data, rclcpp::Time timestamp) {
+      auto content_it = data.find("content");
+      if (content_it != data.end()) {
+        HandleSdlineResponse(content_it->second);
+      }
+    });
+    
+  message_parser_->RegisterCallback(MessageType::SDEOF,
+    [this](const MessageData& data, rclcpp::Time timestamp) {
+      auto content_it = data.find("content");
+      HandleSdeofResponse(content_it != data.end() ? content_it->second : "");
     });
   
   // Start serial communication
@@ -176,6 +199,35 @@ void TeensyBridge::InitializePublishersAndSubscribers() {
     [this](const std_msgs::msg::String::SharedPtr msg) {
       ConfigCommandCallback(msg);
     });
+    
+  cmd_vel_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
+    "/sigyn/cmd_vel", 10,
+    [this](const geometry_msgs::msg::Twist::SharedPtr msg) {
+      CmdVelCallback(msg);
+    });
+  
+  // Create callback group for services
+  service_callback_group_ = this->create_callback_group(
+      rclcpp::CallbackGroupType::MutuallyExclusive);
+  
+  // Services
+  sd_getdir_service_ = this->create_service<sigyn_interfaces::srv::TeensySdGetDir>(
+      "teensy_sensor_sd_getdir",
+      [this](const std::shared_ptr<sigyn_interfaces::srv::TeensySdGetDir::Request> request,
+             std::shared_ptr<sigyn_interfaces::srv::TeensySdGetDir::Response> response) {
+        HandleSdGetDirRequest(request, response);
+      },
+      rmw_qos_profile_services_default,
+      service_callback_group_);
+      
+  sd_getfile_service_ = this->create_service<sigyn_interfaces::srv::TeensySdGetFile>(
+      "teensy_sensor_sd_getfile",
+      [this](const std::shared_ptr<sigyn_interfaces::srv::TeensySdGetFile::Request> request,
+             std::shared_ptr<sigyn_interfaces::srv::TeensySdGetFile::Response> response) {
+        HandleSdGetFileRequest(request, response);
+      },
+      rmw_qos_profile_services_default,
+      service_callback_group_);
   
   // Timers
   status_timer_ = this->create_wall_timer(
@@ -417,8 +469,13 @@ void TeensyBridge::SerialReaderThread() {
       board3_fd_ = -1;
     }
     
-    // Small delay to prevent busy waiting
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    // Send any queued messages (like cmd_vel) 
+    if (board1_fd_ >= 0) {
+      SendQueuedMessages();
+    }
+    
+    // Shorter delay for more responsive cmd_vel processing (5ms = 200Hz max rate)
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
   }
 }
 
@@ -592,14 +649,10 @@ void TeensyBridge::HandleTemperatureMessage(const MessageData& data, rclcpp::Tim
 
 void TeensyBridge::HandleVL53L0XMessage(const MessageData& data, rclcpp::Time timestamp) {
   auto vl53l0x_data = message_parser_->ParseVL53L0XData(data);
-  RCLCPP_INFO(this->get_logger(), "VL53L0X data valid: %s, distances size: %zu", 
-              vl53l0x_data.valid ? "true" : "false", vl53l0x_data.distances_mm.size());
   
   if (vl53l0x_data.valid) {
     // Publish range data for each sensor in the distances array
     for (size_t i = 0; i < vl53l0x_data.distances_mm.size() && i < 8; ++i) {
-      RCLCPP_INFO(this->get_logger(), "Sensor %zu: distance = %u mm", i, vl53l0x_data.distances_mm[i]);
-      
       if (vl53l0x_data.distances_mm[i] > 0) {  // 0 indicates invalid reading
         sensor_msgs::msg::Range range_msg;
         range_msg.header.stamp = timestamp;
@@ -612,8 +665,6 @@ void TeensyBridge::HandleVL53L0XMessage(const MessageData& data, rclcpp::Time ti
         // Convert mm to meters
         range_msg.range = vl53l0x_data.distances_mm[i] / 1000.0;
         
-        RCLCPP_INFO(this->get_logger(), "Publishing range for sensor %zu: %.3f m", i, range_msg.range);
-        
         // Route to appropriate publisher based on sensor index
         auto publishers = std::vector<rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr>{
           vl53l0x_sensor0_pub_, vl53l0x_sensor1_pub_, vl53l0x_sensor2_pub_, vl53l0x_sensor3_pub_,
@@ -622,13 +673,12 @@ void TeensyBridge::HandleVL53L0XMessage(const MessageData& data, rclcpp::Time ti
         
         if (i < publishers.size() && publishers[i]) {
           publishers[i]->publish(range_msg);
-        } else {
-          RCLCPP_WARN(this->get_logger(), "No publisher for sensor %zu", i);
+          RCLCPP_DEBUG(this->get_logger(), "Published range for sensor %zu: %.3f m", i, range_msg.range);
         }
       }
     }
   } else {
-    RCLCPP_WARN(this->get_logger(), "VL53L0X data is not valid");
+    RCLCPP_DEBUG(this->get_logger(), "Received invalid VL53L0X data");
   }
 }
 
@@ -719,6 +769,210 @@ void TeensyBridge::DiagnosticsTimerCallback() {
   if (message_parser_) {
     auto stats_msg = message_parser_->GetParsingStatistics();
     diagnostics_pub_->publish(stats_msg);
+  }
+}
+
+void TeensyBridge::CmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg) {
+  // Queue the twist message - all serial communication happens in the main loop
+  std::ostringstream oss;
+  oss << "TWIST:linear_x:" << msg->linear.x << ",angular_z:" << msg->angular.z << "\n";
+  
+  std::lock_guard<std::mutex> lock(outgoing_queue_mutex_);
+  outgoing_message_queue_.push(oss.str());
+  
+  RCLCPP_DEBUG(this->get_logger(), "Queued TWIST command: %s", oss.str().c_str());
+}
+
+void TeensyBridge::SendQueuedMessages() {
+  std::lock_guard<std::mutex> lock(outgoing_queue_mutex_);
+  
+  while (!outgoing_message_queue_.empty()) {
+    const std::string& message = outgoing_message_queue_.front();
+    
+    ssize_t bytes_written = write(board1_fd_, message.c_str(), message.length());
+    if (bytes_written < 0) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to write to serial");
+      break;
+    } else {
+      // Force immediate transmission
+      fsync(board1_fd_);
+    }
+    
+    outgoing_message_queue_.pop();
+  }
+}
+
+void TeensyBridge::HandleSdGetDirRequest(
+    const std::shared_ptr<sigyn_interfaces::srv::TeensySdGetDir::Request> request,
+    std::shared_ptr<sigyn_interfaces::srv::TeensySdGetDir::Response> response) {
+  
+  (void)request;  // Unused parameter
+  
+  if (board1_fd_ < 0) {
+    response->success = false;
+    response->error_message = "Serial connection not available";
+    response->directory_listing = "";
+    return;
+  }
+
+  // Create a promise for async completion
+  auto completion_promise = std::make_shared<std::promise<bool>>();
+  auto completion_future = completion_promise->get_future();
+
+  // Store the service request for async completion
+  {
+    std::lock_guard<std::mutex> lock(service_mutex_);
+    pending_service_requests_.push({
+      "sdir_request",
+      "get_dir",
+      response,
+      nullptr,
+      this->get_clock()->now(),
+      this->get_clock()->now(),
+      completion_promise,
+      ""
+    });
+  }
+  
+  // Queue the serial message
+  {
+    std::lock_guard<std::mutex> lock(outgoing_queue_mutex_);
+    outgoing_message_queue_.push("SDDIR:\n");
+  }
+  
+  // Wait for completion with timeout
+  auto status = completion_future.wait_for(std::chrono::seconds(10));
+  
+  if (status == std::future_status::timeout) {
+    // Handle timeout
+    std::lock_guard<std::mutex> lock(service_mutex_);
+    
+    // Remove the request from the queue if still there
+    std::queue<PendingServiceRequest> temp_queue;
+    while (!pending_service_requests_.empty()) {
+      auto req = pending_service_requests_.front();
+      pending_service_requests_.pop();
+      if (req.request_id != "sdir_request") {
+        temp_queue.push(req);
+      }
+    }
+    pending_service_requests_ = temp_queue;
+    
+    response->success = false;
+    response->error_message = "Request timed out";
+    response->directory_listing = "";
+  }
+}
+
+void TeensyBridge::HandleSdGetFileRequest(
+    const std::shared_ptr<sigyn_interfaces::srv::TeensySdGetFile::Request> request,
+    std::shared_ptr<sigyn_interfaces::srv::TeensySdGetFile::Response> response) {
+  
+  if (board1_fd_ < 0) {
+    response->success = false;
+    response->error_message = "Serial connection not available";
+    response->file_contents = "";
+    return;
+  }
+
+  if (request->filename.empty()) {
+    response->success = false;
+    response->error_message = "Filename cannot be empty";
+    response->file_contents = "";
+    return;
+  }
+
+  // Create a promise for async completion
+  auto completion_promise = std::make_shared<std::promise<bool>>();
+  auto completion_future = completion_promise->get_future();
+
+  // Store the service request for async completion
+  {
+    std::lock_guard<std::mutex> lock(service_mutex_);
+    pending_service_requests_.push({
+      "sdfile_request",
+      "get_file",
+      nullptr,
+      response,
+      this->get_clock()->now(),
+      this->get_clock()->now(),
+      completion_promise,
+      ""
+    });
+  }
+  
+  // Queue the serial message
+  {
+    std::lock_guard<std::mutex> lock(outgoing_queue_mutex_);
+    std::string message = "SDFILE:" + request->filename + "\n";
+    outgoing_message_queue_.push(message);
+  }
+  
+  // Wait for completion with timeout
+  auto status = completion_future.wait_for(std::chrono::seconds(30));
+  
+  if (status == std::future_status::timeout) {
+    // Handle timeout
+    std::lock_guard<std::mutex> lock(service_mutex_);
+    
+    // Remove the request from the queue if still there
+    std::queue<PendingServiceRequest> temp_queue;
+    while (!pending_service_requests_.empty()) {
+      auto req = pending_service_requests_.front();
+      pending_service_requests_.pop();
+      if (req.request_id != "sdfile_request") {
+        temp_queue.push(req);
+      }
+    }
+    pending_service_requests_ = temp_queue;
+    
+    response->success = false;
+    response->error_message = "Request timed out";
+    response->file_contents = "";
+  }
+}
+
+void TeensyBridge::HandleSdirResponse(const std::string& data) {
+  std::lock_guard<std::mutex> lock(service_mutex_);
+  
+  if (!pending_service_requests_.empty() && 
+      pending_service_requests_.front().service_type == "get_dir") {
+    auto& request = pending_service_requests_.front();
+    request.dir_response->directory_listing += data + "\n";
+    request.last_activity_time = this->get_clock()->now();
+  }
+}
+
+void TeensyBridge::HandleSdlineResponse(const std::string& data) {
+  std::lock_guard<std::mutex> lock(service_mutex_);
+  
+  if (!pending_service_requests_.empty() && 
+      pending_service_requests_.front().service_type == "get_file") {
+    auto& request = pending_service_requests_.front();
+    request.accumulated_content += data + "\n";
+    request.last_activity_time = this->get_clock()->now();
+  }
+}
+
+void TeensyBridge::HandleSdeofResponse(const std::string& data) {
+  std::lock_guard<std::mutex> lock(service_mutex_);
+  
+  if (!pending_service_requests_.empty()) {
+    auto request = pending_service_requests_.front();
+    pending_service_requests_.pop();
+    
+    if (request.service_type == "get_dir") {
+      request.dir_response->success = true;
+      request.dir_response->error_message = "";
+      // Directory listing was accumulated in HandleSdirResponse
+    } else if (request.service_type == "get_file") {
+      request.file_response->success = true;
+      request.file_response->error_message = "";
+      request.file_response->file_contents = request.accumulated_content;
+    }
+    
+    // Signal completion
+    request.completion_promise->set_value(true);
   }
 }
 

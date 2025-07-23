@@ -698,6 +698,9 @@ MessageType MessageParser::StringToMessageType(const std::string& type_str) cons
   if (type_str == "CONFIG") return MessageType::CONFIG;
   if (type_str == "INIT") return MessageType::INIT;
   if (type_str == "CRITICAL") return MessageType::CRITICAL;
+  if (type_str == "SDIR") return MessageType::SDIR;
+  if (type_str == "SDLINE") return MessageType::SDLINE;
+  if (type_str == "SDEOF") return MessageType::SDEOF;
   // Handle free-form diagnostic messages
   if (type_str == "WARNING" || type_str == "DEBUG" || type_str == "INFO" || 
       type_str == "ERROR" || type_str == "WARN") {
@@ -721,6 +724,9 @@ std::string MessageParser::MessageTypeToString(MessageType type) const {
     case MessageType::CONFIG: return "CONFIG";
     case MessageType::INIT: return "INIT";
     case MessageType::CRITICAL: return "CRITICAL";
+    case MessageType::SDIR: return "SDIR";
+    case MessageType::SDLINE: return "SDLINE";
+    case MessageType::SDEOF: return "SDEOF";
     default: return "UNKNOWN";
   }
 }
