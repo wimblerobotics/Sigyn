@@ -61,7 +61,7 @@ SerialManager* serial_manager;
 PerformanceMonitor* performance_monitor;
 SafetyCoordinator* safety_coordinator;
 RoboClawMonitor* roboclaw_monitor;
-VL53L0XMonitor* vl53l0x_monitor;
+//###VL53L0XMonitor* vl53l0x_monitor;
 TemperatureMonitor* temperature_monitor;
 SDLogger* sd_logger;
 
@@ -184,20 +184,20 @@ void loop() {
       // Could add other safety checks here for motor monitoring
     }
     
-    // Check VL53L0X sensors for emergency obstacles
-    if (vl53l0x_monitor) {  // Remove isUnsafe call since it's protected
-      // Could add other safety checks here for obstacle detection
-    }
+    //### // Check VL53L0X sensors for emergency obstacles
+    // if (vl53l0x_monitor) {  // Remove isUnsafe call since it's protected
+    //   // Could add other safety checks here for obstacle detection
+    // }
   }
 
-  // Performance warnings
-  if (execution_time > 10000) {  // 10ms is critically slow
-    Serial.println("WARNING: Loop execution time exceeded 10ms (" + String(execution_time) + " us)");
-  }
+  //### // Performance warnings
+  // if (execution_time > 10000) {  // 10ms is critically slow
+  //   Serial.println("WARNING: Loop execution time exceeded 10ms (" + String(execution_time) + " us)");
+  // }
   
-  if (loop_frequency < 50.0f) {  // Below 50Hz is critically slow
-    Serial.println("WARNING: Loop frequency below 50Hz (" + String(loop_frequency, 1) + " Hz)");
-  }
+  // if (loop_frequency < 50.0f) {  // Below 50Hz is critically slow
+  //   Serial.println("WARNING: Loop frequency below 50Hz (" + String(loop_frequency, 1) + " Hz)");
+  // }
   
   // Small delay to prevent overwhelming the system
   // Target 85Hz = ~11.7ms period, so we can afford a small delay
@@ -222,14 +222,14 @@ void setup() {
     // Wait up to 3 seconds for serial connection
   }
   
-  Serial.println("===== TeensyV2 Board 1 (Main Controller) Starting =====");
+  //###Serial.println("===== TeensyV2 Board 1 (Main Controller) Starting =====");
   
   // Get singleton instances (this registers them with the module system)
   serial_manager = &SerialManager::getInstance();
   performance_monitor = &PerformanceMonitor::getInstance();
   safety_coordinator = &SafetyCoordinator::getInstance();
   roboclaw_monitor = &RoboClawMonitor::getInstance();
-  vl53l0x_monitor = &VL53L0XMonitor::getInstance();
+  //###vl53l0x_monitor = &VL53L0XMonitor::getInstance();
   temperature_monitor = &TemperatureMonitor::getInstance();
   sd_logger = &SDLogger::getInstance();
   

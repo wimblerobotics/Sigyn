@@ -28,9 +28,9 @@
 #pragma once
 
 #include <Arduino.h>
-#include <SD.h>
-#include <SPI.h>
+#include <SdFat.h>
 #include <cstdint>
+#include "sdios.h"
 
 #include "../../common/core/module.h"
 #include "../../common/core/serial_manager.h"
@@ -166,6 +166,13 @@ private:
     ERROR_RECOVERY
   };
   
+  // File dump state machine
+  enum class FileDumpState {
+    IDLE,
+    DUMPING_FILE,
+    DUMP_COMPLETE
+  };
+  
   // Core functionality
   void initializeSDCard();
   void updateCardStatus();
@@ -200,8 +207,8 @@ private:
   LoggerState logger_state_;
   
   // SD card interface
-  SdFat sd_card_;
-  File log_file_;
+  SdFs sd_card_;
+  FsFile log_file_;
   bool card_detection_enabled_;
   
   // Write buffer
@@ -218,10 +225,13 @@ private:
   };
   
   DumpState dump_state_;
-  File dump_file_;
+  FsFile dump_file_;
   String dump_filename_;
   uint32_t dump_position_;
   uint32_t dump_bytes_sent_;
+  
+  // State machine processing
+  void processDumpStateMachine();
   
   // Directory caching
   String cached_directory_listing_;
@@ -240,8 +250,8 @@ private:
   uint32_t last_rate_calculation_time_ms_;
   
   // Constants
-  static constexpr uint8_t SD_CS_PIN = BUILTIN_SDCARD;
-  static constexpr uint32_t SD_SPI_SPEED = SD_SCK_MHZ(25);
+  static constexpr uint8_t SD_CS_PIN = 10;  // Use standard SD CS pin
+  static constexpr uint32_t SD_SPI_SPEED = 25000000;  // 25MHz
   static constexpr uint32_t MAX_FILENAME_LENGTH = 32;
   static constexpr uint32_t DUMP_CHUNK_SIZE = 512;
 };
