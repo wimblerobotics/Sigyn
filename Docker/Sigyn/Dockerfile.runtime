@@ -1,0 +1,123 @@
+FROM osrf/ros:jazzy-desktop-full
+
+# Set environment variables for non-interactive installation
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TERM=xterm-256color
+
+# Set up workspace-agnostic environment
+ENV ROS_DOMAIN_ID=0
+ENV RMW_IMPLEMENTATION=rmw_cyclonedx_cpp
+
+# Use the existing ubuntu user (UID 1000) and rename it to ros for consistency
+ARG USERNAME=ros
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+# Add metadata
+ARG BUILD_DATE
+ARG VCS_REF
+LABEL maintainer="Sigyn Robot Development Team"
+LABEL build_date=$BUILD_DATE
+LABEL vcs_ref=$VCS_REF
+LABEL description="Workspace-agnostic development environment for Sigyn Robot"
+
+# Rename the existing ubuntu user to ros and set up sudo
+RUN apt-get update \
+    && apt-get install -y sudo \
+    && usermod -l ros ubuntu \
+    && groupmod -n ros ubuntu \
+    && usermod -d /home/ros -m ros \
+    && echo ros ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/ros \
+    && chmod 0440 /etc/sudoers.d/ros \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create workspace-agnostic .bashrc that will source any available workspace
+RUN echo '#!/bin/bash' > /home/ros/.bashrc && \
+    echo '' >> /home/ros/.bashrc && \
+    echo '# Source ROS2 setup' >> /home/ros/.bashrc && \
+    echo 'source /opt/ros/jazzy/setup.bash' >> /home/ros/.bashrc && \
+    echo '' >> /home/ros/.bashrc && \
+    echo '# Auto-source any workspace found in common locations' >> /home/ros/.bashrc && \
+    echo 'WORKSPACE_PATHS=("/workspace" "/home/$USER/ws" "/ws" "/colcon_ws" "/sigyn_ws")' >> /home/ros/.bashrc && \
+    echo 'for ws_path in "${WORKSPACE_PATHS[@]}"; do' >> /home/ros/.bashrc && \
+    echo '    if [ -f "$ws_path/install/setup.bash" ]; then' >> /home/ros/.bashrc && \
+    echo '        echo "Sourcing workspace: $ws_path"' >> /home/ros/.bashrc && \
+    echo '        source "$ws_path/install/setup.bash"' >> /home/ros/.bashrc && \
+    echo '        export ROS_WORKSPACE="$ws_path"' >> /home/ros/.bashrc && \
+    echo '        break' >> /home/ros/.bashrc && \
+    echo '    fi' >> /home/ros/.bashrc && \
+    echo 'done' >> /home/ros/.bashrc && \
+    echo '' >> /home/ros/.bashrc && \
+    echo '# Useful aliases' >> /home/ros/.bashrc && \
+    echo 'alias cb="colcon build --symlink-install"' >> /home/ros/.bashrc && \
+    echo 'alias ct="colcon test"' >> /home/ros/.bashrc && \
+    echo 'alias ll="ls -la"' >> /home/ros/.bashrc && \
+    echo 'alias l="ls -l"' >> /home/ros/.bashrc && \
+    echo '' >> /home/ros/.bashrc && \
+    echo '# Set up colcon completion' >> /home/ros/.bashrc && \
+    echo 'if command -v colcon >/dev/null 2>&1; then' >> /home/ros/.bashrc && \
+    echo '    source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash' >> /home/ros/.bashrc && \
+    echo 'fi' >> /home/ros/.bashrc && \
+    echo '' >> /home/ros/.bashrc && \
+    chown ros:ros /home/ros/.bashrc
+
+# Create a script to install packages at runtime (when network is available)
+RUN echo '#!/bin/bash' > /usr/local/bin/install-dev-packages.sh && \
+    echo 'set -e' >> /usr/local/bin/install-dev-packages.sh && \
+    echo 'echo "Installing development packages..."' >> /usr/local/bin/install-dev-packages.sh && \
+    echo 'apt-get update' >> /usr/local/bin/install-dev-packages.sh && \
+    echo 'apt-get install -y --no-install-recommends \' >> /usr/local/bin/install-dev-packages.sh && \
+    echo '    wget vim nano tree htop tmux screen gdb valgrind strace \' >> /usr/local/bin/install-dev-packages.sh && \
+    echo '    bash-completion usbutils iputils-ping net-tools iproute2 \' >> /usr/local/bin/install-dev-packages.sh && \
+    echo '    x11-apps x11-utils x11-xserver-utils xauth xvfb mesa-utils \' >> /usr/local/bin/install-dev-packages.sh && \
+    echo '    software-properties-common python3-serial minicom picocom \' >> /usr/local/bin/install-dev-packages.sh && \
+    echo '    nlohmann-json3-dev || echo "Some packages failed to install but continuing..."' >> /usr/local/bin/install-dev-packages.sh && \
+    echo 'rm -rf /var/lib/apt/lists/*' >> /usr/local/bin/install-dev-packages.sh && \
+    echo 'echo "Package installation complete!"' >> /usr/local/bin/install-dev-packages.sh && \
+    chmod +x /usr/local/bin/install-dev-packages.sh
+
+# Set the user and working directory
+USER ros
+WORKDIR /home/ros
+
+# Create entrypoint script
+USER root
+RUN echo '#!/bin/bash' > /usr/local/bin/docker-entrypoint.sh && \
+    echo 'set -e' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '# Install packages if not already done' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'if [ ! -f /tmp/.packages-installed ]; then' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '    echo "First run - installing development packages..."' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '    /usr/local/bin/install-dev-packages.sh && touch /tmp/.packages-installed' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'fi' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '# Handle udev rules from mounted workspace' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'for ws_path in /workspace /home/ros/ws /ws /colcon_ws /sigyn_ws; do' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '    if [ -d "$ws_path/src" ] && find "$ws_path" -name "*.rules" -type f | head -1 >/dev/null 2>&1; then' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '        echo "Copying udev rules from workspace: $ws_path"' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '        find "$ws_path" -name "*.rules" -exec cp {} /etc/udev/rules.d/ \; 2>/dev/null || echo "Could not copy udev rules (no sudo?)"' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '        break' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '    fi' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'done' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '# Handle user/group ID mapping from environment variables' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'if [ -n "$USER_ID" ] && [ -n "$GROUP_ID" ]; then' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '    echo "Mapping user ID $USER_ID and group ID $GROUP_ID"' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '    usermod -u $USER_ID ros 2>/dev/null || echo "Could not change user ID"' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '    groupmod -g $GROUP_ID ros 2>/dev/null || echo "Could not change group ID"' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'fi' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '# Switch to ros user and execute command' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'if [ "$#" -eq 0 ]; then' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '    exec gosu ros bash' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'else' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '    exec gosu ros "$@"' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'fi' >> /usr/local/bin/docker-entrypoint.sh && \
+    chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Install gosu for user switching
+RUN apt-get update && apt-get install -y gosu && rm -rf /var/lib/apt/lists/*
+
+# Set the entrypoint
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["bash"]
