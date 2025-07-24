@@ -103,21 +103,107 @@ RUN wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor 
     install -o root -g root -m 644 packages.microsoft.gpg /etc/apt/trusted.gpg.d/ && \
     echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/trusted.gpg.d/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list
 
-# Install additional ROS2 packages and VS Code
+# Install additional system dependencies found in workspace analysis
 RUN apt-get update && apt-get install -y \
+    # OpenCV and image processing libraries
+    libopencv-dev \
+    python3-opencv \
+    # YAML and configuration libraries
+    libyaml-cpp-dev \
+    # Geometry libraries
+    libeigen3-dev \
+    # Python packages for robotics
+    python3-pip \
+    python3-dev \
+    python3-setuptools \
+    python3-wheel \
+    python3-numpy \
+    python3-scipy \
+    python3-matplotlib \
+    # USB and hardware interface packages
+    libusb-1.0-0-dev \
+    # Additional development tools
+    socat \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install additional ROS2 packages and VS Code based on workspace dependencies
+RUN apt-get update && apt-get install -y \
+    # Core ROS2 control packages
     ros-jazzy-controller-manager \
     ros-jazzy-ros2-control \
     ros-jazzy-ros2-controllers \
     ros-jazzy-hardware-interface \
     ros-jazzy-controller-interface \
     ros-jazzy-joint-state-broadcaster \
+    ros-jazzy-joint-state-publisher \
+    ros-jazzy-joint-state-publisher-gui \
+    ros-jazzy-forward-command-controller \
+    ros-jazzy-ros2controlcli \
+    # Movement and control
     ros-jazzy-diff-drive-controller \
     ros-jazzy-velocity-controllers \
     ros-jazzy-position-controllers \
     ros-jazzy-effort-controllers \
+    # CycloneDDS middleware
     ros-jazzy-cyclonedds \
     ros-jazzy-rmw-cyclonedds-cpp \
+    # Navigation and behavior trees (from workspace analysis)
+    ros-jazzy-behaviortree-cpp \
+    ros-jazzy-nav2-behaviors \
+    ros-jazzy-nav2-behavior-tree \
+    ros-jazzy-nav2-bringup \
+    ros-jazzy-nav2-common \
+    ros-jazzy-nav2-core \
+    ros-jazzy-nav2-msgs \
+    ros-jazzy-nav2-smac-planner \
+    ros-jazzy-nav2-util \
+    ros-jazzy-navigation2 \
+    # Localization and mapping
+    ros-jazzy-cartographer \
+    ros-jazzy-cartographer-ros \
+    ros-jazzy-robot-localization \
+    ros-jazzy-pointcloud-to-laserscan \
+    ros-jazzy-laser-filters \
+    # Visualization and RViz
+    ros-jazzy-rviz2 \
+    ros-jazzy-rviz-common \
+    ros-jazzy-rviz-ogre-vendor \
+    ros-jazzy-robot-state-publisher \
+    # Additional perception and utilities
+    ros-jazzy-cv-bridge \
+    ros-jazzy-image-transport \
+    ros-jazzy-vision-opencv \
+    ros-jazzy-pcl-conversions \
+    ros-jazzy-pcl-ros \
+    ros-jazzy-backward-ros \
+    ros-jazzy-launch-ros \
+    ros-jazzy-tf2 \
+    ros-jazzy-tf2-ros \
+    ros-jazzy-tf2-geometry-msgs \
+    ros-jazzy-xacro \
+    # Additional packages from workspace analysis
+    ros-jazzy-geometry-msgs \
+    ros-jazzy-sensor-msgs \
+    ros-jazzy-std-msgs \
+    ros-jazzy-nav-msgs \
+    ros-jazzy-diagnostic-msgs \
+    ros-jazzy-trajectory-msgs \
+    ros-jazzy-visualization-msgs \
+    ros-jazzy-action-msgs \
+    ros-jazzy-builtin-interfaces \
+    ros-jazzy-unique-identifier-msgs \
+    # Gazebo and simulation
+    ros-jazzy-urdf \
+    ros-jazzy-kdl-parser \
+    # Communication and interfaces
+    ros-jazzy-rclcpp \
+    ros-jazzy-rclpy \
+    ros-jazzy-lifecycle-msgs \
+    ros-jazzy-rosidl-default-generators \
+    ros-jazzy-rosidl-default-runtime \
+    # System packages and development tools
     ros-jazzy-rosidl-generator-type-description \
+    ros-jazzy-pluginlib \
     code \
     && rm -rf /var/lib/apt/lists/*
 

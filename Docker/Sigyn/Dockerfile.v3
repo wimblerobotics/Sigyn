@@ -6,7 +6,7 @@ ENV TERM=xterm-256color
 
 # Set up workspace-agnostic environment
 ENV ROS_DOMAIN_ID=0
-ENV RMW_IMPLEMENTATION=rmw_cyclonedx_cpp
+ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 
 # Add metadata
 ARG BUILD_DATE
@@ -98,6 +98,121 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     picocom \
     && rm -rf /var/lib/apt/lists/*
 
+# Add Microsoft repository for VS Code
+RUN wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg && \
+    install -o root -g root -m 644 packages.microsoft.gpg /etc/apt/trusted.gpg.d/ && \
+    echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/trusted.gpg.d/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list
+
+# Install additional system dependencies found in workspace analysis
+RUN apt-get update && apt-get install -y \
+    # OpenCV and image processing libraries
+    libopencv-dev \
+    python3-opencv \
+    # YAML and configuration libraries
+    libyaml-cpp-dev \
+    # Geometry libraries
+    libeigen3-dev \
+    # Python packages for robotics
+    python3-pip \
+    python3-dev \
+    python3-setuptools \
+    python3-wheel \
+    python3-numpy \
+    python3-scipy \
+    python3-matplotlib \
+    # USB and hardware interface packages
+    libusb-1.0-0-dev \
+    # Additional development tools
+    socat \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install additional ROS2 packages and VS Code based on workspace dependencies
+RUN apt-get update && apt-get install -y \
+    # Core ROS2 control packages
+    ros-jazzy-controller-manager \
+    ros-jazzy-ros2-control \
+    ros-jazzy-ros2-controllers \
+    ros-jazzy-hardware-interface \
+    ros-jazzy-controller-interface \
+    ros-jazzy-joint-state-broadcaster \
+    ros-jazzy-joint-state-publisher \
+    ros-jazzy-joint-state-publisher-gui \
+    ros-jazzy-forward-command-controller \
+    ros-jazzy-ros2controlcli \
+    # Movement and control
+    ros-jazzy-diff-drive-controller \
+    ros-jazzy-velocity-controllers \
+    ros-jazzy-position-controllers \
+    ros-jazzy-effort-controllers \
+    # CycloneDDS middleware
+    ros-jazzy-cyclonedds \
+    ros-jazzy-rmw-cyclonedds-cpp \
+    # Navigation and behavior trees (from workspace analysis)
+    ros-jazzy-behaviortree-cpp \
+    ros-jazzy-nav2-behaviors \
+    ros-jazzy-nav2-behavior-tree \
+    ros-jazzy-nav2-bringup \
+    ros-jazzy-nav2-common \
+    ros-jazzy-nav2-core \
+    ros-jazzy-nav2-msgs \
+    ros-jazzy-nav2-smac-planner \
+    ros-jazzy-nav2-util \
+    ros-jazzy-navigation2 \
+    # Localization and mapping
+    ros-jazzy-cartographer \
+    ros-jazzy-cartographer-ros \
+    ros-jazzy-robot-localization \
+    ros-jazzy-pointcloud-to-laserscan \
+    ros-jazzy-laser-filters \
+    # Visualization and RViz
+    ros-jazzy-rviz2 \
+    ros-jazzy-rviz-common \
+    ros-jazzy-rviz-ogre-vendor \
+    ros-jazzy-robot-state-publisher \
+    # Additional perception and utilities
+    ros-jazzy-cv-bridge \
+    ros-jazzy-image-transport \
+    ros-jazzy-vision-opencv \
+    ros-jazzy-pcl-conversions \
+    ros-jazzy-pcl-ros \
+    ros-jazzy-backward-ros \
+    ros-jazzy-launch-ros \
+    ros-jazzy-tf2 \
+    ros-jazzy-tf2-ros \
+    ros-jazzy-tf2-geometry-msgs \
+    ros-jazzy-xacro \
+    # Additional packages from workspace analysis
+    ros-jazzy-geometry-msgs \
+    ros-jazzy-sensor-msgs \
+    ros-jazzy-std-msgs \
+    ros-jazzy-nav-msgs \
+    ros-jazzy-diagnostic-msgs \
+    ros-jazzy-trajectory-msgs \
+    ros-jazzy-visualization-msgs \
+    ros-jazzy-action-msgs \
+    ros-jazzy-builtin-interfaces \
+    ros-jazzy-unique-identifier-msgs \
+    # Gazebo Harmonic packages (gz-* based)
+    ros-jazzy-ros-gz-bridge \
+    ros-jazzy-ros-gz-image \
+    ros-jazzy-ros-gz-interfaces \
+    ros-jazzy-ros-gz-sim \
+    ros-jazzy-ros-gz-sim-demos \
+    ros-jazzy-gz-ros2-control \
+    ros-jazzy-urdf \
+    ros-jazzy-kdl-parser \
+    # Communication and interfaces
+    ros-jazzy-rclcpp \
+    ros-jazzy-rclpy \
+    ros-jazzy-lifecycle-msgs \
+    ros-jazzy-rosidl-default-generators \
+    ros-jazzy-rosidl-default-runtime \
+    # System packages and development tools
+    ros-jazzy-rosidl-generator-type-description \
+    ros-jazzy-pluginlib \
+    code \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create workspace-agnostic .bashrc that will source any available workspace
 RUN echo '#!/bin/bash' > /home/ros/.bashrc && \
     echo '' >> /home/ros/.bashrc && \
@@ -115,15 +230,73 @@ RUN echo '#!/bin/bash' > /home/ros/.bashrc && \
     echo '    fi' >> /home/ros/.bashrc && \
     echo 'done' >> /home/ros/.bashrc && \
     echo '' >> /home/ros/.bashrc && \
-    echo '# Useful aliases' >> /home/ros/.bashrc && \
+    echo '# Sigyn Robot Development Aliases' >> /home/ros/.bashrc && \
+    echo '# Build and Package Management' >> /home/ros/.bashrc && \
     echo 'alias cb="colcon build --symlink-install"' >> /home/ros/.bashrc && \
+    echo 'alias cb-release="colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release"' >> /home/ros/.bashrc && \
     echo 'alias ct="colcon test"' >> /home/ros/.bashrc && \
+    echo 'alias rd="rosdep install --from-paths src --ignore-src -r -y"' >> /home/ros/.bashrc && \
+    echo 'alias clean-build="rm -rf build/ install/ log/"' >> /home/ros/.bashrc && \
+    echo '' >> /home/ros/.bashrc && \
+    echo '# Navigation and Movement' >> /home/ros/.bashrc && \
+    echo 'alias nav="cd /workspace && ros2 launch base nav.launch.py"' >> /home/ros/.bashrc && \
+    echo 'alias map="cd /workspace && ros2 launch base map.launch.py"' >> /home/ros/.bashrc && \
+    echo 'alias sim="cd /workspace && ros2 launch base sim.launch.py"' >> /home/ros/.bashrc && \
+    echo 'alias bringup="cd /workspace && ros2 launch base bringup.launch.py"' >> /home/ros/.bashrc && \
+    echo 'alias tele="ros2 run teleop_twist_keyboard teleop_twist_keyboard"' >> /home/ros/.bashrc && \
+    echo 'alias pm="ros2 topic pub --rate 10 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.2}}\""' >> /home/ros/.bashrc && \
+    echo 'alias stop="ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist \"{}\""' >> /home/ros/.bashrc && \
+    echo '' >> /home/ros/.bashrc && \
+    echo '# Hardware Interfaces' >> /home/ros/.bashrc && \
+    echo 'alias gripper="cd /workspace && ros2 launch gripper gripper.launch.py"' >> /home/ros/.bashrc && \
+    echo 'alias sensor="cd /workspace && ros2 launch sigyn_to_sensor sensor.launch.py"' >> /home/ros/.bashrc && \
+    echo 'alias boardMonitor="cd /workspace && python3 scripts/boardMonitor.py"' >> /home/ros/.bashrc && \
+    echo 'alias teensyMonitor="cd /workspace && python3 scripts/teensyMonitor.py"' >> /home/ros/.bashrc && \
+    echo '' >> /home/ros/.bashrc && \
+    echo '# Teensy Development' >> /home/ros/.bashrc && \
+    echo 'alias buildBoard1="cd /workspace && source /opt/teensy_venv/bin/activate && python3 scripts/compileAndUploadBoard.py 1"' >> /home/ros/.bashrc && \
+    echo 'alias buildBoard2="cd /workspace && source /opt/teensy_venv/bin/activate && python3 scripts/compileAndUploadBoard.py 2"' >> /home/ros/.bashrc && \
+    echo 'alias compileBoard1="cd /workspace && source /opt/teensy_venv/bin/activate && python3 scripts/compileBoard.py 1"' >> /home/ros/.bashrc && \
+    echo 'alias compileBoard2="cd /workspace && source /opt/teensy_venv/bin/activate && python3 scripts/compileBoard.py 2"' >> /home/ros/.bashrc && \
+    echo 'alias uploadBoard1="cd /workspace && source /opt/teensy_venv/bin/activate && python3 scripts/uploadBoard.py 1"' >> /home/ros/.bashrc && \
+    echo 'alias uploadBoard2="cd /workspace && source /opt/teensy_venv/bin/activate && python3 scripts/uploadBoard.py 2"' >> /home/ros/.bashrc && \
+    echo '' >> /home/ros/.bashrc && \
+    echo '# Debugging and Analysis' >> /home/ros/.bashrc && \
+    echo 'alias dla="ros2 daemon log analysis"' >> /home/ros/.bashrc && \
+    echo 'alias nodes="ros2 node list"' >> /home/ros/.bashrc && \
+    echo 'alias topics="ros2 topic list"' >> /home/ros/.bashrc && \
+    echo 'alias services="ros2 service list"' >> /home/ros/.bashrc && \
+    echo 'alias params="ros2 param list"' >> /home/ros/.bashrc && \
+    echo 'alias fr="ros2 run tf2_tools view_frames"' >> /home/ros/.bashrc && \
+    echo 'alias tf-tree="ros2 run tf2_tools view_frames"' >> /home/ros/.bashrc && \
+    echo 'alias rqt-graph="rqt_graph"' >> /home/ros/.bashrc && \
+    echo 'alias monitor-cpu="htop"' >> /home/ros/.bashrc && \
+    echo '' >> /home/ros/.bashrc && \
+    echo '# System shortcuts' >> /home/ros/.bashrc && \
     echo 'alias ll="ls -la"' >> /home/ros/.bashrc && \
     echo 'alias l="ls -l"' >> /home/ros/.bashrc && \
+    echo 'alias ..="cd .."' >> /home/ros/.bashrc && \
+    echo 'alias ...="cd ../.."' >> /home/ros/.bashrc && \
+    echo 'alias workspace="cd /workspace"' >> /home/ros/.bashrc && \
+    echo 'alias ws="cd /workspace"' >> /home/ros/.bashrc && \
     echo '' >> /home/ros/.bashrc && \
-    echo '# Set up colcon completion' >> /home/ros/.bashrc && \
+    echo '# Set up bash and ROS2 completion' >> /home/ros/.bashrc && \
     echo 'if command -v colcon >/dev/null 2>&1; then' >> /home/ros/.bashrc && \
     echo '    source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash' >> /home/ros/.bashrc && \
+    echo 'fi' >> /home/ros/.bashrc && \
+    echo '' >> /home/ros/.bashrc && \
+    echo '# Enable ROS2 command completion' >> /home/ros/.bashrc && \
+    echo 'if command -v ros2 >/dev/null 2>&1; then' >> /home/ros/.bashrc && \
+    echo '    source /opt/ros/jazzy/share/ros2cli/environment/ros2-argcomplete.bash' >> /home/ros/.bashrc && \
+    echo 'fi' >> /home/ros/.bashrc && \
+    echo '' >> /home/ros/.bashrc && \
+    echo '# Enable general bash completion' >> /home/ros/.bashrc && \
+    echo 'if ! shopt -oq posix; then' >> /home/ros/.bashrc && \
+    echo '    if [ -f /usr/share/bash-completion/bash_completion ]; then' >> /home/ros/.bashrc && \
+    echo '        . /usr/share/bash-completion/bash_completion' >> /home/ros/.bashrc && \
+    echo '    elif [ -f /etc/bash_completion ]; then' >> /home/ros/.bashrc && \
+    echo '        . /etc/bash_completion' >> /home/ros/.bashrc && \
+    echo '    fi' >> /home/ros/.bashrc && \
     echo 'fi' >> /home/ros/.bashrc && \
     echo '' >> /home/ros/.bashrc && \
     chown ros:ros /home/ros/.bashrc
@@ -179,6 +352,26 @@ RUN echo '#!/bin/bash' > /usr/local/bin/docker-entrypoint.sh && \
     echo '    fi' >> /usr/local/bin/docker-entrypoint.sh && \
     echo 'fi' >> /usr/local/bin/docker-entrypoint.sh && \
     chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Create CycloneDDS configuration for network interface enp37s0
+RUN mkdir -p /home/ros/.ros && \
+    echo '<?xml version="1.0" encoding="UTF-8" ?>' > /home/ros/.ros/cyclonedds_config.xml && \
+    echo '<CycloneDDS>' >> /home/ros/.ros/cyclonedds_config.xml && \
+    echo '    <Domain>' >> /home/ros/.ros/cyclonedds_config.xml && \
+    echo '        <General>' >> /home/ros/.ros/cyclonedds_config.xml && \
+    echo '            <NetworkInterfaceAddress>enp37s0</NetworkInterfaceAddress>' >> /home/ros/.ros/cyclonedds_config.xml && \
+    echo '            <AllowMulticast>true</AllowMulticast>' >> /home/ros/.ros/cyclonedds_config.xml && \
+    echo '            <MaxMessageSize>65500</MaxMessageSize>' >> /home/ros/.ros/cyclonedds_config.xml && \
+    echo '        </General>' >> /home/ros/.ros/cyclonedds_config.xml && \
+    echo '        <Discovery>' >> /home/ros/.ros/cyclonedds_config.xml && \
+    echo '            <ParticipantIndex>auto</ParticipantIndex>' >> /home/ros/.ros/cyclonedds_config.xml && \
+    echo '        </Discovery>' >> /home/ros/.ros/cyclonedds_config.xml && \
+    echo '    </Domain>' >> /home/ros/.ros/cyclonedds_config.xml && \
+    echo '</CycloneDDS>' >> /home/ros/.ros/cyclonedds_config.xml && \
+    chown -R ros:ros /home/ros/.ros
+
+# Set CycloneDDS configuration environment variable
+ENV CYCLONEDDS_URI=file:///home/ros/.ros/cyclonedds_config.xml
 
 # Set the user and working directory
 USER ros
