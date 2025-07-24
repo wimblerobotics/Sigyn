@@ -124,12 +124,12 @@ void TemperatureMonitor::setup() {
 void TemperatureMonitor::loop() {
     uint32_t now = millis();
     
-    // Debug: Add periodic debug output to verify module is running
-    static uint32_t last_debug_time = 0;
-    if (now - last_debug_time > 10000) { // Every 10 seconds
-        SerialManager::getInstance().sendMessage("DEBUG", "TemperatureMonitor::loop() executing");
-        last_debug_time = now;
-    }
+    //### // Debug: Add periodic debug output to verify module is running
+    // static uint32_t last_debug_time = 0;
+    // if (now - last_debug_time > 10000) { // Every 10 seconds
+    //     SerialManager::getInstance().sendMessage("DEBUG", "TemperatureMonitor::loop() executing");
+    //     last_debug_time = now;
+    // }
     
     // Update temperature readings
     updateTemperatureReadings();
@@ -373,11 +373,11 @@ bool TemperatureMonitor::readSingleSensor(uint8_t sensor_index) {
     // TMP36: Temperature (°C) = (Voltage_mV - 500mV) / 10mV/°C
     float temperature_c = (voltage_mv - TMP36_OFFSET_MV) / TMP36_SCALE_MV_PER_C;
     
-    // Debug output to help troubleshoot temperature readings
-    String debug_msg = "Sensor " + String(sensor_index) + ": raw=" + String(raw_value) + 
-                      ", voltage=" + String(voltage_mv, 1) + "mV" +
-                      ", temp=" + String(temperature_c, 1) + "C";
-    SerialManager::getInstance().sendMessage("DEBUG", debug_msg.c_str());
+    // // Debug output to help troubleshoot temperature readings
+    // String debug_msg = "Sensor " + String(sensor_index) + ": raw=" + String(raw_value) + 
+    //                   ", voltage=" + String(voltage_mv, 1) + "mV" +
+    //                   ", temp=" + String(temperature_c, 1) + "C";
+    // SerialManager::getInstance().sendMessage("DEBUG", debug_msg.c_str());
     
     // Validate temperature reading (reasonable range for motor temperatures)
     if (temperature_c < -40.0f || temperature_c > 150.0f) {

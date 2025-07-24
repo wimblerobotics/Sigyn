@@ -1,8 +1,6 @@
 # TODO
 * Implement IsUnsafe, ResetSafetyFlags for battery.
-* Implement temperature module for both temps.
 * Board1 should pick up roboclaw temp, motor1 current, motor2 current, etc.
-* Battery_monitor, add list of battery names by index and publish battery name as 'location' value.
 * Battery message is not showing capacity for LIPO. Is there a field for 'is charging'?
 
 

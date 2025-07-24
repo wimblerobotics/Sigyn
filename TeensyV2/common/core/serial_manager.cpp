@@ -75,15 +75,13 @@ void SerialManager::handleCommand(const char* command, const char* args) {
     
   } else if (cmd_type == "SDDIR") {
     sendMessage("DEBUG", ("SDDIR command received: " + String(args)).c_str());
-    // TODO: Route to SD module when implemented
-    // For now, send a placeholder response
-    sendMessage("SDDIR", "feature_not_implemented");
+    // Store SDDIR command for SDLogger to process
+    setLatestSDDirCommand(String(args));
     
   } else if (cmd_type == "SDFILE") {
     sendMessage("DEBUG", ("SDFILE command received: " + String(args)).c_str());
-    // TODO: Route to SD module when implemented  
-    // For now, send a placeholder response
-    sendMessage("SDFILE", "feature_not_implemented");
+    // Store SDFILE command for SDLogger to process
+    setLatestSDFileCommand(String(args));
     
   } else if (cmd_type == "CONFIG") {
     sendMessage("DEBUG", ("CONFIG command received: " + String(args)).c_str());
@@ -176,6 +174,40 @@ String SerialManager::getLatestTwistCommand() {
 bool SerialManager::hasNewTwistCommand() {
   if (has_new_twist_command_) {
     has_new_twist_command_ = false;  // Mark as processed
+    return true;
+  }
+  return false;
+}
+
+void SerialManager::setLatestSDDirCommand(const String& sddir_data) {
+  latest_sddir_command_ = sddir_data;
+  has_new_sddir_command_ = true;
+}
+
+String SerialManager::getLatestSDDirCommand() {
+  return latest_sddir_command_;
+}
+
+bool SerialManager::hasNewSDDirCommand() {
+  if (has_new_sddir_command_) {
+    has_new_sddir_command_ = false;  // Mark as processed
+    return true;
+  }
+  return false;
+}
+
+void SerialManager::setLatestSDFileCommand(const String& sdfile_data) {
+  latest_sdfile_command_ = sdfile_data;
+  has_new_sdfile_command_ = true;
+}
+
+String SerialManager::getLatestSDFileCommand() {
+  return latest_sdfile_command_;
+}
+
+bool SerialManager::hasNewSDFileCommand() {
+  if (has_new_sdfile_command_) {
+    has_new_sdfile_command_ = false;  // Mark as processed
     return true;
   }
   return false;

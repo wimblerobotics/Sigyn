@@ -396,6 +396,7 @@ void TeensyBridge::SerialReaderThread() {
             if (!line.empty()) {
               // Parse message
               auto timestamp = this->now();
+              RCLCPP_INFO(this->get_logger(), "Received from Board 1: '%s'", line.c_str());
               if (!message_parser_->ParseMessage(line, timestamp)) {
                 RCLCPP_WARN(this->get_logger(), "Failed to parse message from board 1: %s", line.c_str());
               }
@@ -792,11 +793,14 @@ void TeensyBridge::SendQueuedMessages() {
   while (!outgoing_message_queue_.empty()) {
     const std::string& message = outgoing_message_queue_.front();
     
+    RCLCPP_INFO(this->get_logger(), "Sending message to Teensy: '%s'", message.c_str());
+    
     ssize_t bytes_written = write(board1_fd_, message.c_str(), message.length());
     if (bytes_written < 0) {
       RCLCPP_ERROR(this->get_logger(), "Failed to write to serial");
       break;
     } else {
+      RCLCPP_INFO(this->get_logger(), "Sent %zd bytes to Teensy", bytes_written);
       // Force immediate transmission
       fsync(board1_fd_);
     }
@@ -811,12 +815,17 @@ void TeensyBridge::HandleSdGetDirRequest(
   
   (void)request;  // Unused parameter
   
+  RCLCPP_INFO(this->get_logger(), "SD GetDir service called");
+  
   if (board1_fd_ < 0) {
+    RCLCPP_ERROR(this->get_logger(), "SD GetDir failed: Serial connection not available");
     response->success = false;
     response->error_message = "Serial connection not available";
     response->directory_listing = "";
     return;
   }
+
+  RCLCPP_INFO(this->get_logger(), "Sending SDDIR command to Teensy");
 
   // Create a promise for async completion
   auto completion_promise = std::make_shared<std::promise<bool>>();
@@ -841,12 +850,14 @@ void TeensyBridge::HandleSdGetDirRequest(
   {
     std::lock_guard<std::mutex> lock(outgoing_queue_mutex_);
     outgoing_message_queue_.push("SDDIR:\n");
+    RCLCPP_INFO(this->get_logger(), "Queued SDDIR message for sending");
   }
   
   // Wait for completion with timeout
   auto status = completion_future.wait_for(std::chrono::seconds(10));
   
   if (status == std::future_status::timeout) {
+    RCLCPP_ERROR(this->get_logger(), "SD GetDir request timed out after 10 seconds");
     // Handle timeout
     std::lock_guard<std::mutex> lock(service_mutex_);
     
@@ -864,6 +875,8 @@ void TeensyBridge::HandleSdGetDirRequest(
     response->success = false;
     response->error_message = "Request timed out";
     response->directory_listing = "";
+  } else {
+    RCLCPP_INFO(this->get_logger(), "SD GetDir request completed successfully");
   }
 }
 
@@ -936,13 +949,28 @@ void TeensyBridge::HandleSdGetFileRequest(
 }
 
 void TeensyBridge::HandleSdirResponse(const std::string& data) {
+  RCLCPP_INFO(this->get_logger(), "Received SDIR response: '%s'", data.c_str());
+  
   std::lock_guard<std::mutex> lock(service_mutex_);
   
   if (!pending_service_requests_.empty() && 
       pending_service_requests_.front().service_type == "get_dir") {
-    auto& request = pending_service_requests_.front();
-    request.dir_response->directory_listing += data + "\n";
-    request.last_activity_time = this->get_clock()->now();
+    
+    // For directory requests, complete immediately after SDIR response
+    auto request = pending_service_requests_.front();
+    pending_service_requests_.pop();
+    
+    // Set the directory listing and mark as successful
+    request.dir_response->directory_listing = data;
+    request.dir_response->success = true;
+    request.dir_response->error_message = "";
+    
+    // Signal completion
+    request.completion_promise->set_value(true);
+    
+    RCLCPP_INFO(this->get_logger(), "Completed directory listing request");
+  } else {
+    RCLCPP_WARN(this->get_logger(), "Received SDIR response but no matching pending request");
   }
 }
 

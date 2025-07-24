@@ -290,8 +290,8 @@ void PerformanceMonitor::reportStats() {
     json_len = strlen(stats_json);
   }
   
-  SerialManager::getInstance().sendMessage("DEBUG", 
-    ("PERF JSON length: " + String(json_len) + "/" + String(sizeof(stats_json))).c_str());
+  //### SerialManager::getInstance().sendMessage("DEBUG", 
+  //   ("PERF JSON length: " + String(json_len) + "/" + String(sizeof(stats_json))).c_str());
   
   SerialManager::getInstance().sendMessage("PERF", stats_json);
 }

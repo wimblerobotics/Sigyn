@@ -74,7 +74,7 @@ BNO055Monitor* bno055_monitor;
  * This function is called by the Teensy runtime when critical errors occur.
  */
 void fault_handler() {
-  Serial.println("CRITICAL FAULT: Board2 system fault detected");
+  //### Serial.println("CRITICAL FAULT: Board2 system fault detected");
 
   // Send fault notification if possible
   if (serial_manager) {
@@ -149,43 +149,43 @@ void loop() {
     // For now, just report via serial - inter-board GPIO communication to be
     // added
     static bool last_critical_state = false;
-    if (battery_critical != last_critical_state) {
-      last_critical_state = battery_critical;
+    //### if (battery_critical != last_critical_state) {
+    //   last_critical_state = battery_critical;
 
-      if (battery_critical) {
-        Serial.println("SAFETY: Battery critical condition detected!");
-        Serial.println("  Voltage: " + String(voltage, 2) + " V");
-        Serial.println("  Current: " + String(current, 2) + " A");
+    //   if (battery_critical) {
+    //     Serial.println("SAFETY: Battery critical condition detected!");
+    //     Serial.println("  Voltage: " + String(voltage, 2) + " V");
+    //     Serial.println("  Current: " + String(current, 2) + " A");
 
-        // Send emergency message to ROS2 system
-        if (serial_manager) {
-          String safety_msg = "board=2,critical=true,reason=battery";
-          if (!isnan(voltage)) safety_msg += ",voltage=" + String(voltage, 2);
-          if (!isnan(current)) safety_msg += ",current=" + String(current, 2);
-          serial_manager->sendMessage("SAFETY_CRITICAL", safety_msg.c_str());
-        }
-      } else {
-        Serial.println("SAFETY: Battery condition returned to normal");
+    //     // Send emergency message to ROS2 system
+    //     if (serial_manager) {
+    //       String safety_msg = "board=2,critical=true,reason=battery";
+    //       if (!isnan(voltage)) safety_msg += ",voltage=" + String(voltage, 2);
+    //       if (!isnan(current)) safety_msg += ",current=" + String(current, 2);
+    //       serial_manager->sendMessage("SAFETY_CRITICAL", safety_msg.c_str());
+    //     }
+    //   } else {
+    //     Serial.println("SAFETY: Battery condition returned to normal");
 
-        if (serial_manager) {
-          serial_manager->sendMessage(
-              "SAFETY_CRITICAL",
-              "board=2,critical=false,reason=battery_recovered");
-        }
-      }
-    }
+    //     if (serial_manager) {
+    //       serial_manager->sendMessage(
+    //           "SAFETY_CRITICAL",
+    //           "board=2,critical=false,reason=battery_recovered");
+    //     }
+    //   }
+    // }
   }
 
-  // Performance warnings (less strict than Board 1)
-  if (execution_time > 15000) {  // 15ms is concerning for Board 2
-    Serial.println("WARNING: Board2 execution time exceeded 15ms (" +
-                   String(execution_time) + " us)");
-  }
+  //### // Performance warnings (less strict than Board 1)
+  // if (execution_time > 15000) {  // 15ms is concerning for Board 2
+  //   Serial.println("WARNING: Board2 execution time exceeded 15ms (" +
+  //                  String(execution_time) + " us)");
+  // }
 
-  if (loop_frequency < 20.0f) {  // Below 20Hz is concerning for Board 2
-    Serial.println("WARNING: Board2 frequency below 20Hz (" +
-                   String(loop_frequency, 1) + " Hz)");
-  }
+  // if (loop_frequency < 20.0f) {  // Below 20Hz is concerning for Board 2
+  //   Serial.println("WARNING: Board2 frequency below 20Hz (" +
+  //                  String(loop_frequency, 1) + " Hz)");
+  // }
 
   // Longer delay acceptable for Board 2 since it's primarily sensor
   // monitoring Target 50Hz = 20ms period

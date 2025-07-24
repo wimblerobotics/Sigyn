@@ -143,6 +143,44 @@ class SerialManager {
    */
   bool hasNewTwistCommand();
 
+  // --- SD Command Methods ---
+
+  /**
+   * @brief Set the latest SDDIR command.
+   * @param[in] sddir_data The SDDIR command data
+   */
+  void setLatestSDDirCommand(const String& sddir_data);
+
+  /**
+   * @brief Get the latest SDDIR command.
+   * @return String containing the SDDIR command data
+   */
+  String getLatestSDDirCommand();
+
+  /**
+   * @brief Check if there's a new SDDIR command available.
+   * @return true if a new command is available, false otherwise
+   */
+  bool hasNewSDDirCommand();
+
+  /**
+   * @brief Set the latest SDFILE command.
+   * @param[in] sdfile_data The SDFILE command data
+   */
+  void setLatestSDFileCommand(const String& sdfile_data);
+
+  /**
+   * @brief Get the latest SDFILE command.
+   * @return String containing the SDFILE command data
+   */
+  String getLatestSDFileCommand();
+
+  /**
+   * @brief Check if there's a new SDFILE command available.
+   * @return true if a new command is available, false otherwise
+   */
+  bool hasNewSDFileCommand();
+
  private:
   /**
    * @brief Private constructor for singleton pattern.
@@ -224,6 +262,26 @@ class SerialManager {
    * @brief Flag indicating if there's a new TWIST command.
    */
   bool has_new_twist_command_ = false;
+
+  /**
+   * @brief Storage for the latest SDDIR command.
+   */
+  String latest_sddir_command_;
+
+  /**
+   * @brief Flag indicating if there's a new SDDIR command.
+   */
+  bool has_new_sddir_command_ = false;
+
+  /**
+   * @brief Storage for the latest SDFILE command.
+   */
+  String latest_sdfile_command_;
+
+  /**
+   * @brief Flag indicating if there's a new SDFILE command.
+   */
+  bool has_new_sdfile_command_ = false;
 };
 
 }  // namespace sigyn_teensy
