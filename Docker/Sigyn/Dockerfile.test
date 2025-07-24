@@ -1,0 +1,10 @@
+FROM ubuntu:22.04
+
+# Test DNS resolution
+RUN echo 'nameserver 8.8.8.8' > /etc/resolv.conf && \
+    echo 'nameserver 8.8.4.4' >> /etc/resolv.conf
+
+# Test network connectivity
+RUN apt-get update && apt-get install -y curl && \
+    curl -I http://archive.ubuntu.com/ubuntu/ && \
+    echo "Network test successful"
