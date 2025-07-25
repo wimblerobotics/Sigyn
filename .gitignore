@@ -65,3 +65,16 @@ CATKIN_IGNORE
 
 # Platform IO
 .pio/
+
+# Auto-generated Docker files in Docker/Sigyn (keep only working versions)
+Docker/Sigyn/Dockerfile
+Docker/Sigyn/Dockerfile.minimal
+Docker/Sigyn/Dockerfile.runtime
+Docker/Sigyn/Dockerfile.test
+Docker/Sigyn/Dockerfile.v2
+Docker/Sigyn/Dockerfile.v4
+Docker/Sigyn/build.sh
+Docker/Sigyn/build-alternative.sh
+Docker/Sigyn/run.sh
+Docker/Sigyn/DEVELOPMENT.md
+Docker/Sigyn/TROUBLESHOOTING.md
