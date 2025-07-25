@@ -1,34 +1,58 @@
-# Sigyn Robot Development Docker Environment
+# Sigyn Docker Development Environment
 
-This directory contains a comprehensive Docker development environment for the Sigyn house patroller robot. The environment includes ROS2 Jazzy, Gazebo Harmonic, Arduino IDE with Teensyduino, Visual Studio Code, and all necessary dependencies for robot development, simulation, and Teensy programming.
+This directory contains the comprehensive Docker development environment for the Sigyn house patroller robot.
 
-## 🏗️ Architecture
+## 🏗️ Current Status
 
-The Docker setup is designed to be **workspace-agnostic**, meaning it doesn't assume any specific workspace structure inside the container. Instead, you mount your development workspace from the host system, allowing you to work with different projects and sync with GitHub as needed.
+**IMPORTANT**: This directory now contains only the working v3 comprehensive environment. All obsolete files have been cleaned up.
 
-### Key Features
+## 📁 Files
 
-- **ROS2 Jazzy Desktop Full** - Complete ROS2 development environment
-- **Gazebo Harmonic** - Robot simulation with GPU acceleration support
-- **Arduino IDE 2.x + Teensyduino** - Teensy 4.1 development environment
-- **Visual Studio Code** - Full IDE with extensions support
-- **PlatformIO** - Advanced Arduino/Teensy development
-- **Python Development** - Complete Python ecosystem with robotics packages
-- **Hardware Access** - USB device support for Teensy programming and robot communication
-- **X11 Forwarding** - GUI applications work seamlessly
-- **User Mapping** - Proper file permissions when mounting host directories
+- `Dockerfile.v3` - The working comprehensive development environment with ROS2 Jazzy, CycloneDDS, Nav2, Gazebo Harmonic, and all workspace dependencies
+- `README.md` - This file
 
-## 📁 Directory Structure
+## 🚀 Quick Start
 
+Use the comprehensive v3 environment from the parent Docker directory:
+
+### Build the Environment
+```bash
+cd /home/ros/sigyn_ws/src/Sigyn/Docker
+./buildSigynV3Comprehensive.sh
 ```
-Docker/Sigyn/
-├── Dockerfile          # Main container definition
-├── build.sh            # Build script with options
-├── run.sh              # Comprehensive run script
-├── README.md           # This documentation
-├── DEVELOPMENT.md      # Development workflows and tips
-└── TROUBLESHOOTING.md  # Common issues and solutions
+
+### Run the Environment  
+```bash
+cd /home/ros/sigyn_ws/src/Sigyn/Docker
+./runSigynV3Comprehensive.sh
 ```
+
+## ✨ What's Included
+
+- **ROS2 Jazzy Desktop Full** with CycloneDDS RMW
+- **Navigation Stack**: Nav2, SLAM Toolbox, Cartographer
+- **Simulation**: Gazebo Harmonic with physics simulation
+- **Behavior Trees**: py_trees and nav2_behavior_tree
+- **Control**: ros2_control, joint_state_publisher
+- **Perception**: OpenCV, PCL, sensor packages
+- **Development Tools**: 30+ aliases, enhanced tab completion
+- **All Workspace Dependencies**: Systematically discovered from package.xml files
+
+## 🔧 Configuration
+
+The environment includes:
+- CycloneDDS configured for `enp37s0` network interface
+- Development aliases (`cb` for colcon build, `cs` for colcon source, etc.)
+- Proper user ID mapping for file permissions
+- Hardware device access for robot communication
+
+## � Notes
+
+- This replaces all previous Docker setups (v1, v2, minimal, runtime, test versions)
+- The comprehensive environment includes all dependencies needed for Sigyn development
+- Legacy documentation files may reference obsolete scripts - use the v3 comprehensive setup instead
+
+For detailed documentation about the Sigyn robot itself, see the main project documentation in the `Documentation/` directory.
 
 ## 🚀 Quick Start
 
