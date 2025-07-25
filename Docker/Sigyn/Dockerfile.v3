@@ -213,8 +213,34 @@ RUN apt-get update && apt-get install -y \
     code \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Arduino IDE 2.x
+RUN wget -O /tmp/arduino-ide.AppImage https://downloads.arduino.cc/arduino-ide/arduino-ide_2.3.3_Linux_64bit.AppImage && \
+    chmod +x /tmp/arduino-ide.AppImage && \
+    mkdir -p /opt/arduino-ide && \
+    cd /opt/arduino-ide && \
+    /tmp/arduino-ide.AppImage --appimage-extract && \
+    ln -sf /opt/arduino-ide/squashfs-root/AppRun /usr/local/bin/arduino-ide && \
+    rm /tmp/arduino-ide.AppImage
+
+# Install pipx and PlatformIO Core with Teensy support
+RUN apt-get update && apt-get install -y python3-venv python3-full pipx && \
+    rm -rf /var/lib/apt/lists/* && \
+    python3 -m pipx install platformio && \
+    python3 -m pipx ensurepath
+
+# Install Teensy platform and tools for PlatformIO (as ros user)
+USER ros
+RUN /home/ros/.local/bin/pio platform install teensy && \
+    mkdir -p /home/ros/.platformio
+
+# Switch back to root for rest of setup
+USER root
+
 # Create workspace-agnostic .bashrc that will source any available workspace
 RUN echo '#!/bin/bash' > /home/ros/.bashrc && \
+    echo '' >> /home/ros/.bashrc && \
+    echo '# Add pipx to PATH' >> /home/ros/.bashrc && \
+    echo 'export PATH="/home/ros/.local/bin:$PATH"' >> /home/ros/.bashrc && \
     echo '' >> /home/ros/.bashrc && \
     echo '# Source ROS2 setup' >> /home/ros/.bashrc && \
     echo 'source /opt/ros/jazzy/setup.bash' >> /home/ros/.bashrc && \
@@ -254,6 +280,8 @@ RUN echo '#!/bin/bash' > /home/ros/.bashrc && \
     echo 'alias teensyMonitor="cd /workspace && python3 scripts/teensyMonitor.py"' >> /home/ros/.bashrc && \
     echo '' >> /home/ros/.bashrc && \
     echo '# Teensy Development' >> /home/ros/.bashrc && \
+    echo 'alias arduino="arduino-ide"' >> /home/ros/.bashrc && \
+    echo 'alias pio="platformio"' >> /home/ros/.bashrc && \
     echo 'alias buildBoard1="cd /workspace && source /opt/teensy_venv/bin/activate && python3 scripts/compileAndUploadBoard.py 1"' >> /home/ros/.bashrc && \
     echo 'alias buildBoard2="cd /workspace && source /opt/teensy_venv/bin/activate && python3 scripts/compileAndUploadBoard.py 2"' >> /home/ros/.bashrc && \
     echo 'alias compileBoard1="cd /workspace && source /opt/teensy_venv/bin/activate && python3 scripts/compileBoard.py 1"' >> /home/ros/.bashrc && \

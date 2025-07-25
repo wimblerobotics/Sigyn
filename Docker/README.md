@@ -8,7 +8,7 @@ This directory contains Docker configurations for the Sigyn robot development en
 - **Image**: `sigyn-dev-v3:comprehensive`
 - **Features**: Complete ROS2 Jazzy with all workspace dependencies
 - **Size**: ~5.9GB
-- **Includes**: Navigation, Cartographer, Behavior Trees, Gazebo Harmonic, ros2_control, VS Code
+- **Includes**: Navigation, Cartographer, Behavior Trees, Gazebo Harmonic, ros2_control, VS Code, Arduino IDE, PlatformIO
 
 ### Quick Start - Comprehensive Environment
 
@@ -38,6 +38,7 @@ This directory contains Docker configurations for the Sigyn robot development en
 
 ### Development Tools
 - **IDE**: VS Code with extensions
+- **Arduino/Teensy**: Arduino IDE and PlatformIO with Teensy platform support
 - **Debugging**: gdb, valgrind, comprehensive toolchain
 - **Build**: colcon with tab completion
 - **Monitoring**: htop, system tools
@@ -89,6 +90,33 @@ nav # Launch navigation stack
 ./runSigynV3Comprehensive.sh --help
 ```
 
+### Arduino/Teensy Development
+The environment includes full Arduino IDE and PlatformIO support for Teensy development:
+
+```bash
+# Create a new Teensy 4.1 project
+mkdir my_teensy_project && cd my_teensy_project
+pio project init --board teensy41
+
+# Available tools
+arduino-ide          # Launch Arduino IDE GUI
+pio --version         # PlatformIO CLI
+platformio --version  # PlatformIO full version
+
+# Build and upload (with Teensy connected)
+pio run              # Compile project
+pio run --target upload  # Upload to Teensy
+
+# Available Teensy boards in PlatformIO
+pio boards teensy    # List all supported Teensy boards
+```
+
+**Installed Teensy Tools:**
+- Arduino IDE with Teensy support
+- PlatformIO with Teensy platform (5.0.0)
+- Teensy toolchains (AVR and ARM)
+- Framework Arduino for Teensy (1.159.0)
+
 ### Testing Your Build
 ```bash
 # Quick validation test
@@ -103,7 +131,70 @@ The container supports X11 forwarding for GUI applications:
 - **Gazebo Harmonic**: gz sim simulation
 - **RViz2**: Robot visualization and debugging
 - **VS Code**: Full development environment
+- **Arduino IDE**: Teensy and Arduino development
 - **rqt**: ROS2 debugging tools
+
+## Software Updates
+
+### Docker Image Updates
+The Docker image contains pre-installed system packages that are **not automatically updated**. To get software updates:
+
+```bash
+# Rebuild the image to get latest packages
+./buildSigynV3Comprehensive.sh
+
+# Or update an existing container (temporary until container restart)
+sudo apt update && sudo apt upgrade -y
+```
+
+### Persistent vs Ephemeral Changes
+- **Ephemeral**: Changes made inside a running container (like `apt install`, `pip install`) are **lost when container stops**
+- **Persistent**: Only files in mounted volumes (`/workspace`, etc.) persist between container sessions
+- **Permanent**: Changes must be added to `Dockerfile.v3` and the image rebuilt
+
+### System Package Management
+```bash
+# Inside container - temporary until restart
+sudo apt update
+sudo apt upgrade -y
+sudo apt install new-package
+
+# For permanent changes - edit Dockerfile.v3 and rebuild
+./buildSigynV3Comprehensive.sh
+```
+
+### Preserving Container Changes
+You can save changes from a running container to a new image:
+
+```bash
+# Find your running container ID
+docker ps
+
+# Commit changes to a new image (from host, not inside container)
+docker commit <container_id> sigyn-dev-v3:custom-$(date +%Y%m%d)
+docker commit <container_id> sigyn-dev-v3:comprehensive  # Overwrite current
+
+# Example with meaningful tag
+docker commit abc123def456 sigyn-dev-v3:with-arduino-tools
+```
+
+**⚠️ Important Notes:**
+- **Best Practice**: Add changes to `Dockerfile.v3` and rebuild for reproducibility
+- **Container commits**: Create larger, less efficient images
+- **Version control**: Dockerfile changes can be tracked in Git
+- **Team sharing**: Dockerfile changes are easier to share than custom images
+
+**Recommended Workflow:**
+1. Test changes interactively in container
+2. Document working commands
+3. Add to `Dockerfile.v3` 
+4. Rebuild image with `./buildSigynV3Comprehensive.sh`
+5. Share Dockerfile changes via Git
+
+### Recommended Update Strategy
+1. **For development**: Use the container as-is, install temporary tools as needed
+2. **For production**: Regularly rebuild images to get security updates
+3. **For new tools**: Add to `Dockerfile.v3` for permanent installation
 
 ## Troubleshooting
 
@@ -122,6 +213,15 @@ docker image prune -f
 
 # Rebuild comprehensive environment
 ./buildSigynV3Comprehensive.sh
+
+# Clean up custom/tagged images
+docker images | grep sigyn-dev-v3
+docker rmi sigyn-dev-v3:custom-20250124  # Remove specific custom image
+docker rmi sigyn-dev-v3:with-arduino-tools  # Remove named custom image
+
+# Save/load custom images for backup or sharing
+docker save sigyn-dev-v3:custom-20250124 | gzip > sigyn-custom.tar.gz
+docker load < sigyn-custom.tar.gz
 ```
 
 ## Legacy Support
