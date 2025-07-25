@@ -127,5 +127,6 @@
   "clangd.enable": false,
   "clangd.path": "",
   "cmake-tools.configureOnOpen": false,
-  "ros.distro": "jazzy"
+  "ros.distro": "jazzy",
+  "python.defaultInterpreterPath": "${env:HOME}/sigyn-venv/bin/python"
 }

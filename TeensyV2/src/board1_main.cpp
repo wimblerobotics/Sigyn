@@ -63,7 +63,7 @@ SafetyCoordinator* safety_coordinator;
 RoboClawMonitor* roboclaw_monitor;
 //###VL53L0XMonitor* vl53l0x_monitor;
 TemperatureMonitor* temperature_monitor;
-SDLogger* sd_logger;
+//### SDLogger* sd_logger;
 
 /**
  * @brief Handle critical errors and system faults.
@@ -231,7 +231,7 @@ void setup() {
   roboclaw_monitor = &RoboClawMonitor::getInstance();
   //###vl53l0x_monitor = &VL53L0XMonitor::getInstance();
   temperature_monitor = &TemperatureMonitor::getInstance();
-  sd_logger = &SDLogger::getInstance();
+  //###sd_logger = &SDLogger::getInstance();
   
   // Initialize serial communication (no return value to check)
   serial_manager->initialize(5000);
