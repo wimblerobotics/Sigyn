@@ -535,17 +535,17 @@ def generate_launch_description():
     # )
     # ld.add_action(pc2ls)
     
-    battery_overlay = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(
-                get_package_share_directory('this_to_that'),
-                'launch',
-                'battery_voltage.launch.py'
-            )
-        ),
-        condition=UnlessCondition(use_sim_time),
-    )
-    ld.add_action(battery_overlay)
+    # battery_overlay = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(
+    #         os.path.join(
+    #             get_package_share_directory('this_to_that'),
+    #             'launch',
+    #             'battery_voltage.launch.py'
+    #         )
+    #     ),
+    #     condition=UnlessCondition(use_sim_time),sigyn
+    # )
+    # ld.add_action(battery_overlay)
     
     # wifi_logger = IncludeLaunchDescription(
     #   PythonLaunchDescriptionSource(
@@ -561,7 +561,7 @@ def generate_launch_description():
     # head_mapper = IncludeLaunchDescription(
     #   PythonLaunchDescriptionSource(
     #     os.path.join(
-    #       get_package_share_directory('wifi_logger_visualizer'),
+    #       get_package_share_directory('wifi_logger_visualizer'),sigyn
     #       'launch',
     #       'heat_mapper.launch.py'
     #     )
@@ -606,13 +606,25 @@ def generate_launch_description():
     )
     ld.add_action(nimbus_steelseries_joystick)
     
-    sigyn_to_sensor = Node(
-        package="sigyn_to_sensor",
-        condition=UnlessCondition(use_sim_time),
-        executable="sigyn_to_sensor",
-        name="sigyn_to_sensor",
-        output="screen",    )
-    ld.add_action(sigyn_to_sensor)
+    sigyn_to_sensor = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory("sigyn_to_sensor_v2"),
+                "launch",
+                "teensy_bridge.launch.py",
+            )
+        ),
+        condition=IfCondition(do_joystick),
+    )
+    ld.add_action(nimbus_steelseries_joystick)
+
+    # sigyn_to_sensor = Node(
+    #     package="sigyn_to_sensor_v",
+    #     condition=UnlessCondition(use_sim_time),
+    #     executable="sigyn_to_sensor",
+    #     name="sigyn_to_sensor",
+    #     output="screen",    )
+    # ld.add_action(sigyn_to_sensor)
     
     # sigyn_to_elevator = Node(
     #     package="sigyn_to_elevator",
