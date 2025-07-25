@@ -69,14 +69,24 @@ Automatically finds and sources workspaces from:
 
 ## Usage Examples
 
-### Basic Development
+### Basic Development (Default Workspace)
 ```bash
-# Start comprehensive environment
+# Start with default workspace (/home/ros/sigyn_ws)
 ./runSigynV3Comprehensive.sh
 
 # Inside container - auto-detects workspace
 cb  # Build workspace with symlink install
 nav # Launch navigation stack
+```
+
+### Custom Workspace Support
+```bash
+# Mount any workspace directory
+./runSigynV3Comprehensive.sh ~/my_other_ws
+./runSigynV3Comprehensive.sh /path/to/any/ros2_workspace
+
+# Show all options
+./runSigynV3Comprehensive.sh --help
 ```
 
 ### Testing Your Build
