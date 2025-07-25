@@ -25,6 +25,7 @@
 #include "sensor_msgs/msg/temperature.hpp"
 #include "sensor_msgs/msg/range.hpp"
 #include "geometry_msgs/msg/twist.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "sigyn_interfaces/srv/teensy_sd_get_dir.hpp"
 #include "sigyn_interfaces/srv/teensy_sd_get_file.hpp"
@@ -72,6 +73,7 @@ private:
   void HandleTemperatureMessage(const MessageData& data, rclcpp::Time timestamp);
   void HandleVL53L0XMessage(const MessageData& data, rclcpp::Time timestamp);
   void HandleRoboClawMessage(const MessageData& data, rclcpp::Time timestamp);
+  void HandleOdomMessage(const MessageData& data, rclcpp::Time timestamp);
   
   // ROS2 callbacks
   void EstopCommandCallback(const std_msgs::msg::Bool::SharedPtr msg);
@@ -112,6 +114,7 @@ private:
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr estop_status_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_sensor0_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_sensor1_pub_;
+  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Temperature>::SharedPtr temperature_motor0_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Temperature>::SharedPtr temperature_motor1_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr vl53l0x_sensor0_pub_;

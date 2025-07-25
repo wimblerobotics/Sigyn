@@ -81,6 +81,11 @@ TeensyBridge::TeensyBridge()
       HandleRoboClawMessage(data, timestamp);
     });
     
+  message_parser_->RegisterCallback(MessageType::ODOM,
+    [this](const MessageData& data, rclcpp::Time timestamp) {
+      HandleOdomMessage(data, timestamp);
+    });
+    
   message_parser_->RegisterCallback(MessageType::SDIR,
     [this](const MessageData& data, rclcpp::Time timestamp) {
       auto content_it = data.find("content");
@@ -154,6 +159,10 @@ void TeensyBridge::InitializePublishersAndSubscribers() {
     
   imu_sensor1_pub_ = this->create_publisher<sensor_msgs::msg::Imu>(
     "~/imu/sensor_1", 10);
+    
+  // Odometry publisher for wheel odometry
+  odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(
+    "/sigyn/wheel_odom", 10);
     
   // Temperature publishers for motor sensors
   temperature_motor0_pub_ = this->create_publisher<sensor_msgs::msg::Temperature>(
@@ -396,7 +405,6 @@ void TeensyBridge::SerialReaderThread() {
             if (!line.empty()) {
               // Parse message
               auto timestamp = this->now();
-              RCLCPP_INFO(this->get_logger(), "Received from Board 1: '%s'", line.c_str());
               if (!message_parser_->ParseMessage(line, timestamp)) {
                 RCLCPP_WARN(this->get_logger(), "Failed to parse message from board 1: %s", line.c_str());
               }
@@ -719,6 +727,71 @@ void TeensyBridge::HandleRoboClawMessage(const MessageData& data, rclcpp::Time t
   
   diag_msg.status.push_back(roboclaw_status);
   diagnostics_pub_->publish(diag_msg);
+}
+
+void TeensyBridge::HandleOdomMessage(const MessageData& data, rclcpp::Time timestamp) {
+  auto odom_msg = nav_msgs::msg::Odometry();
+  odom_msg.header.stamp = timestamp;
+  odom_msg.header.frame_id = "odom";
+  odom_msg.child_frame_id = "base_link";
+  
+  try {
+    // Parse position
+    auto px_it = data.find("px");
+    auto py_it = data.find("py");
+    if (px_it != data.end() && py_it != data.end()) {
+      odom_msg.pose.pose.position.x = std::stod(px_it->second);
+      odom_msg.pose.pose.position.y = std::stod(py_it->second);
+      odom_msg.pose.pose.position.z = 0.0;
+    } else {
+      RCLCPP_WARN(this->get_logger(), "Missing position data in odometry message");
+    }
+    
+    // Parse orientation quaternion
+    auto ox_it = data.find("ox");
+    auto oy_it = data.find("oy");
+    auto oz_it = data.find("oz");
+    auto ow_it = data.find("ow");
+    if (ox_it != data.end() && oy_it != data.end() && oz_it != data.end() && ow_it != data.end()) {
+      odom_msg.pose.pose.orientation.x = std::stod(ox_it->second);
+      odom_msg.pose.pose.orientation.y = std::stod(oy_it->second);
+      odom_msg.pose.pose.orientation.z = std::stod(oz_it->second);
+      odom_msg.pose.pose.orientation.w = std::stod(ow_it->second);
+    } else {
+      RCLCPP_WARN(this->get_logger(), "Missing orientation data in odometry message");
+    }
+    
+    // Parse velocity
+    auto vx_it = data.find("vx");
+    auto vy_it = data.find("vy");
+    auto wz_it = data.find("wz");
+    if (vx_it != data.end() && vy_it != data.end() && wz_it != data.end()) {
+      odom_msg.twist.twist.linear.x = std::stod(vx_it->second);
+      odom_msg.twist.twist.linear.y = std::stod(vy_it->second);
+      odom_msg.twist.twist.linear.z = 0.0;
+      odom_msg.twist.twist.angular.x = 0.0;
+      odom_msg.twist.twist.angular.y = 0.0;
+      odom_msg.twist.twist.angular.z = std::stod(wz_it->second);
+    } else {
+      RCLCPP_WARN(this->get_logger(), "Missing velocity data in odometry message");
+    }
+    
+    // Set covariance matrices (based on wheel odometry characteristics)
+    // Position covariance (uncertainty grows with distance traveled)
+    odom_msg.pose.covariance[0] = 0.001;  // x
+    odom_msg.pose.covariance[7] = 0.001;  // y
+    odom_msg.pose.covariance[35] = 0.001; // yaw
+    
+    // Velocity covariance (encoder-based, relatively accurate)
+    odom_msg.twist.covariance[0] = 0.0001;  // vx
+    odom_msg.twist.covariance[7] = 0.0001;  // vy
+    odom_msg.twist.covariance[35] = 0.0001; // wz
+    
+    odom_pub_->publish(odom_msg);
+    
+  } catch (const std::exception& e) {
+    RCLCPP_WARN(this->get_logger(), "Failed to parse odometry data: %s", e.what());
+  }
 }
 
 void TeensyBridge::EstopCommandCallback(const std_msgs::msg::Bool::SharedPtr msg) {
