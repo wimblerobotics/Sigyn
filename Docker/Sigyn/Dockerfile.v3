@@ -260,14 +260,13 @@ RUN echo '#!/bin/bash' > /home/ros/.bashrc && \
     echo '# Build and Package Management' >> /home/ros/.bashrc && \
     echo 'alias cb="colcon build --symlink-install"' >> /home/ros/.bashrc && \
     echo 'alias cb-release="colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release"' >> /home/ros/.bashrc && \
-    echo 'alias ct="colcon test"' >> /home/ros/.bashrc && \
     echo 'alias rd="rosdep install --from-paths src --ignore-src -r -y"' >> /home/ros/.bashrc && \
     echo 'alias clean-build="rm -rf build/ install/ log/"' >> /home/ros/.bashrc && \
     echo '' >> /home/ros/.bashrc && \
     echo '# Navigation and Movement' >> /home/ros/.bashrc && \
     echo 'alias nav="cd /workspace && ros2 launch base nav.launch.py"' >> /home/ros/.bashrc && \
     echo 'alias map="cd /workspace && ros2 launch base map.launch.py"' >> /home/ros/.bashrc && \
-    echo 'alias sim="cd /workspace && ros2 launch base sim.launch.py"' >> /home/ros/.bashrc && \
+    echo 'alias sim="clear;ros2 launch base sigyn.launch.py use_sim_time:=true do_rviz:=true"' >> /home/ros/.bashrc && \
     echo 'alias bringup="cd /workspace && ros2 launch base bringup.launch.py"' >> /home/ros/.bashrc && \
     echo 'alias tele="ros2 run teleop_twist_keyboard teleop_twist_keyboard"' >> /home/ros/.bashrc && \
     echo 'alias pm="ros2 topic pub --rate 10 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.2}}\""' >> /home/ros/.bashrc && \
@@ -282,12 +281,12 @@ RUN echo '#!/bin/bash' > /home/ros/.bashrc && \
     echo '# Teensy Development' >> /home/ros/.bashrc && \
     echo 'alias arduino="arduino-ide"' >> /home/ros/.bashrc && \
     echo 'alias pio="platformio"' >> /home/ros/.bashrc && \
-    echo 'alias buildBoard1="cd /workspace && source /opt/teensy_venv/bin/activate && python3 scripts/compileAndUploadBoard.py 1"' >> /home/ros/.bashrc && \
-    echo 'alias buildBoard2="cd /workspace && source /opt/teensy_venv/bin/activate && python3 scripts/compileAndUploadBoard.py 2"' >> /home/ros/.bashrc && \
-    echo 'alias compileBoard1="cd /workspace && source /opt/teensy_venv/bin/activate && python3 scripts/compileBoard.py 1"' >> /home/ros/.bashrc && \
-    echo 'alias compileBoard2="cd /workspace && source /opt/teensy_venv/bin/activate && python3 scripts/compileBoard.py 2"' >> /home/ros/.bashrc && \
-    echo 'alias uploadBoard1="cd /workspace && source /opt/teensy_venv/bin/activate && python3 scripts/uploadBoard.py 1"' >> /home/ros/.bashrc && \
-    echo 'alias uploadBoard2="cd /workspace && source /opt/teensy_venv/bin/activate && python3 scripts/uploadBoard.py 2"' >> /home/ros/.bashrc && \
+    echo 'alias buildBoard1="cd /workspace && python3 scripts/compileAndUploadBoard.py 1"' >> /home/ros/.bashrc && \
+    echo 'alias buildBoard2="cd /workspace && python3 scripts/compileAndUploadBoard.py 2"' >> /home/ros/.bashrc && \
+    echo 'alias compileBoard1="cd /workspace && python3 scripts/compileBoard.py 1"' >> /home/ros/.bashrc && \
+    echo 'alias compileBoard2="cd /workspace && python3 scripts/compileBoard.py 2"' >> /home/ros/.bashrc && \
+    echo 'alias uploadBoard1="cd /workspace && python3 scripts/uploadBoard.py 1"' >> /home/ros/.bashrc && \
+    echo 'alias uploadBoard2="cd /workspace && python3 scripts/uploadBoard.py 2"' >> /home/ros/.bashrc && \
     echo '' >> /home/ros/.bashrc && \
     echo '# Debugging and Analysis' >> /home/ros/.bashrc && \
     echo 'alias dla="ros2 daemon log analysis"' >> /home/ros/.bashrc && \
