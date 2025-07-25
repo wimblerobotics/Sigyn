@@ -1,56 +1,133 @@
-# Sigyn Docker Setup
+# Sigyn Docker Development Environment
 
-This directory contains Docker configuration and scripts for running the Sigyn robot simulation and development environment.
+This directory contains Docker configurations for the Sigyn robot development environment with comprehensive ROS2 Jazzy support.
 
-## Files
+## Available Configurations
 
-- `DockerSigynAmd` - Dockerfile for Ubuntu 24.04 with ROS 2 Jazzy and Gazebo Harmonic
-- `runSigynAmd.sh` - Main script to run the Docker container
-- `buildSigynAmd.sh` - Script to build the Docker image
-- `entrypoint.sh` - Container entry point script
-- Other legacy files for different configurations
+### Comprehensive Development Environment (Recommended)
+- **Image**: `sigyn-dev-v3:comprehensive`
+- **Features**: Complete ROS2 Jazzy with all workspace dependencies
+- **Size**: ~5.9GB
+- **Includes**: Navigation, Cartographer, Behavior Trees, Gazebo Harmonic, ros2_control, VS Code
 
-## Quick Start
+### Quick Start - Comprehensive Environment
 
-1. **Build the Docker image:**
+1. **Build the comprehensive development environment:**
    ```bash
-   ./buildSigynAmd.sh
+   ./buildSigynV3Comprehensive.sh
    ```
 
-2. **Run the container:**
+2. **Run with full hardware access:**
    ```bash
-   ./runSigynAmd.sh
+   ./runSigynV3Comprehensive.sh
    ```
 
-## Run Script Options
+### Legacy Configurations
+- `buildSigynAmd.sh` / `runSigynAmd.sh` - Basic Ubuntu 24.04 setup
+- Other build scripts for different hardware targets
 
-The `runSigynAmd.sh` script supports several options:
+## Comprehensive Environment Features
 
-- `--no-gpu` - Run without GPU support
-- `--mount-workspace` - Mount the host workspace directory
-- `--name NAME` - Set custom container name
-- `--detached` - Run in detached mode
-- `--privileged` - Run with privileged access (needed for some hardware)
-- `--force` - Force run even if already inside a Docker container (NOT RECOMMENDED)
-- `--help` - Show help message
+### ROS2 Packages Included (70+ packages)
+- **Navigation**: nav2_*, cartographer, robot_localization
+- **Control**: ros2_control, ros2_controllers, hardware_interface
+- **Simulation**: Gazebo Harmonic (gz-* packages)
+- **Behavior**: behaviortree_cpp with full nav2 integration
+- **Perception**: cv_bridge, image_transport, vision_opencv
+- **Communication**: CycloneDDS middleware configured
 
-## Docker-in-Docker Detection
+### Development Tools
+- **IDE**: VS Code with extensions
+- **Debugging**: gdb, valgrind, comprehensive toolchain
+- **Build**: colcon with tab completion
+- **Monitoring**: htop, system tools
 
-The run script automatically detects if you're already running inside a Docker container to prevent Docker-in-Docker issues. If detected, it will:
+### 30+ Sigyn-Specific Aliases
+- `cb` - colcon build --symlink-install
+- `nav` - launch navigation stack
+- `sim` - launch simulation
+- `gripper` - hardware interface controls
+- `nodes`, `topics`, `services` - ROS2 introspection
+- Plus debugging, Teensy development, and system shortcuts
 
-1. Show a warning with explanation
-2. Suggest running from the host system instead
-3. Provide option to force execution with `--force` flag
+## Configuration Details
 
-For detailed container environment analysis, use:
+### Workspace Auto-Detection
+Automatically finds and sources workspaces from:
+- `/workspace` (primary mount point)
+- `/sigyn_ws`, `/home/ros/ws`, `/ws`, `/colcon_ws`
+
+### CycloneDDS Configuration
+- **RMW**: rmw_cyclonedds_cpp
+- **Network**: enp37s0 interface configured
+- **Multicast**: Enabled for multi-robot communication
+
+### User Management
+- **User**: ros (uid:1000) with sudo access
+- **ID Mapping**: Automatic user/group ID mapping from host
+- **Permissions**: Hardware device access configured
+
+## Usage Examples
+
+### Basic Development
 ```bash
-/home/ros/sigyn_ws/src/Sigyn/scripts/check_docker.sh
+# Start comprehensive environment
+./runSigynV3Comprehensive.sh
+
+# Inside container - auto-detects workspace
+cb  # Build workspace with symlink install
+nav # Launch navigation stack
+```
+
+### Testing Your Build
+```bash
+# Quick validation test
+docker run --rm -it -v /home/ros/sigyn_ws:/workspace \
+  sigyn-dev-v3:comprehensive bash -c \
+  "source ~/.bashrc && alias cb && echo 'RMW:' && echo \$RMW_IMPLEMENTATION"
 ```
 
 ## GUI Applications
 
-The container is configured for X11 forwarding to support GUI applications like:
-- Gazebo simulation
+The container supports X11 forwarding for GUI applications:
+- **Gazebo Harmonic**: gz sim simulation
+- **RViz2**: Robot visualization and debugging
+- **VS Code**: Full development environment
+- **rqt**: ROS2 debugging tools
+
+## Troubleshooting
+
+### Common Issues
+- **No workspace found**: Ensure `/home/ros/sigyn_ws` exists and is built
+- **Permission issues**: Check user/group ID mapping in run script
+- **GUI not working**: Verify X11 forwarding and DISPLAY variable
+
+### Docker Images Management
+```bash
+# List Sigyn images
+docker images | grep sigyn
+
+# Remove old images
+docker image prune -f
+
+# Rebuild comprehensive environment
+./buildSigynV3Comprehensive.sh
+```
+
+## Legacy Support
+
+For older or alternative configurations:
+- `buildSigynAmd.sh` - Basic AMD64 setup
+- `runSigynAmd.sh` - Simple container execution
+- See individual scripts for specific options
+
+## Development
+
+The comprehensive environment is built from `Sigyn/Dockerfile.v3` which includes:
+- Systematic workspace dependency analysis
+- Gazebo Harmonic (not Classic) support
+- CycloneDDS network configuration
+- Complete development toolchain
 - RViz2 visualization
 - VS Code (if needed)
 
