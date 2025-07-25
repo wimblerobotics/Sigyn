@@ -241,6 +241,38 @@ docker commit abc123def456 sigyn-dev-v3:with-arduino-tools
 - **Permission issues**: Check user/group ID mapping in run script
 - **GUI not working**: Verify X11 forwarding and DISPLAY variable
 
+### Build Issues
+
+**DepthAI/OAK Camera Build Errors:**
+If you encounter `depthai` library not found errors during colcon build:
+
+```bash
+# Install dependencies first
+sudo apt update && sudo apt install -y libudev-dev libopencv-dev
+
+# Clone and build depthai-core library
+cd /tmp
+git clone --recursive https://github.com/luxonis/depthai-core.git
+cd depthai-core
+cmake -S . -B build -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local
+cmake --build build --parallel $(nproc)
+sudo cmake --build build --target install
+
+# Return to workspace and rebuild
+cd /workspace
+cb  # Rebuild workspace
+```
+
+**Alternative: Skip DepthAI packages temporarily:**
+```bash
+# Build without problematic packages
+cd /workspace
+colcon build --symlink-install --packages-skip depthai_bridge depthai_filters depthai_examples depthai_ros_driver
+
+# Test navigation without OAK camera support
+sim  # Should now work for simulation
+```
+
 ### Docker Images Management
 ```bash
 # List Sigyn images
