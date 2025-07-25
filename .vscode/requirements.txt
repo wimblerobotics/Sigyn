@@ -1,0 +1,22 @@
+# Core dependencies (from setup.py and imports)
+setuptools
+transforms3d
+tf_transformations
+numpy
+opencv-python
+depthai
+ultralytics
+pytest
+
+# ROS 2 Python client libraries (do NOT pip install; installed via ROS 2 apt)
+# rclpy
+# sensor_msgs
+# std_msgs
+# geometry_msgs
+# nav_msgs
+# map_msgs
+# visualization_msgs
+# cv_bridge
+# ament_index_python
+
+# Only pip install the above if you are running outside ROS 2.
