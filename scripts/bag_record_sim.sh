@@ -47,4 +47,4 @@ ros2 bag record \
   /transformed_global_plan \
   /unsmoothed_plan \
   /waypoints \
-  /wheel_odom
+  /sigyn/wheel_odom

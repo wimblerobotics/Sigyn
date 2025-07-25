@@ -235,7 +235,7 @@ local_costmap:
       inflation_layer:
         enabled: True
         cost_scaling_factor: 5.0   # steepen cost curve so robot centers itself in wider passages
-        inflation_radius: 0.24   # matches inscribed radius to prevent collisions
+        inflation_radius: 0.242743   # matches inscribed radius to prevent collisions
         plugin: "nav2_costmap_2d::InflationLayer"
 
       lidar_layer:

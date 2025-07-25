@@ -482,7 +482,7 @@ def generate_launch_description():
             {"use_sim_time": use_sim_time},
             ekf_config_path,
         ],
-        remappings=[("/odometry/filtered", "odom"), ("/odom/unfiltered", "wheel_odom")],
+        remappings=[("/odometry/filtered", "odom"), ("/odom/unfiltered", "/sigyn/wheel_odom")],
     )
     ld.add_action(start_robot_localization_cmd)
 

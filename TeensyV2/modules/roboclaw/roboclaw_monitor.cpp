@@ -647,9 +647,13 @@ void RoboClawMonitor::updateOdometry() {
   int32_t delta_encoder_m1 = motor1_status_.encoder_count - prev_encoder_m1_;
   int32_t delta_encoder_m2 = motor2_status_.encoder_count - prev_encoder_m2_;
   
-  // Skip update if no significant movement (reduce noise)
-  if (abs(delta_encoder_m1) < 2 && abs(delta_encoder_m2) < 2) {
-    return; // Not enough movement to calculate meaningful odometry
+  // Send odometry periodically even when stationary (like legacy implementation)
+  // This ensures ROS navigation stack receives regular odometry updates
+  bool has_movement = (abs(delta_encoder_m1) >= 2 || abs(delta_encoder_m2) >= 2);
+  bool should_send_periodic = (dt_s >= 0.033f); // Send at least every 33ms (~30Hz) like legacy
+  
+  if (!has_movement && !should_send_periodic) {
+    return; // Skip if no movement and not time for periodic update
   }
   
   // Update previous values
@@ -666,18 +670,24 @@ void RoboClawMonitor::updateOdometry() {
   float delta_distance = (dist_m1 + dist_m2) / 2.0f;
   float delta_theta = (dist_m2 - dist_m1) / WHEEL_BASE_M;
   
-  // Update pose (using midpoint integration)
-  current_pose_.x += delta_distance * cos(current_pose_.theta + delta_theta / 2.0f);
-  current_pose_.y += delta_distance * sin(current_pose_.theta + delta_theta / 2.0f);
-  current_pose_.theta += delta_theta;
-  
-  // Normalize angle to [-π, π]
-  while (current_pose_.theta > M_PI) current_pose_.theta -= 2.0f * M_PI;
-  while (current_pose_.theta < -M_PI) current_pose_.theta += 2.0f * M_PI;
-  
-  // Update velocity
-  current_velocity_.linear_x = delta_distance / dt_s;
-  current_velocity_.angular_z = delta_theta / dt_s;
+  // Update pose (using midpoint integration) - only if there's actual movement
+  if (has_movement) {
+    current_pose_.x += delta_distance * cos(current_pose_.theta + delta_theta / 2.0f);
+    current_pose_.y += delta_distance * sin(current_pose_.theta + delta_theta / 2.0f);
+    current_pose_.theta += delta_theta;
+    
+    // Normalize angle to [-π, π]
+    while (current_pose_.theta > M_PI) current_pose_.theta -= 2.0f * M_PI;
+    while (current_pose_.theta < -M_PI) current_pose_.theta += 2.0f * M_PI;
+    
+    // Update velocity
+    current_velocity_.linear_x = delta_distance / dt_s;
+    current_velocity_.angular_z = delta_theta / dt_s;
+  } else {
+    // Stationary: set velocities to zero but keep pose unchanged
+    current_velocity_.linear_x = 0.0f;
+    current_velocity_.angular_z = 0.0f;
+  }
   
   // Send odometry message (compact format for high frequency)
   float q[4]; // quaternion [w, x, y, z]
