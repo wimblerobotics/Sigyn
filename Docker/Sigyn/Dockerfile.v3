@@ -222,15 +222,15 @@ RUN wget -O /tmp/arduino-ide.AppImage https://downloads.arduino.cc/arduino-ide/a
     ln -sf /opt/arduino-ide/squashfs-root/AppRun /usr/local/bin/arduino-ide && \
     rm /tmp/arduino-ide.AppImage
 
-# Install pipx and PlatformIO Core with Teensy support
+# Install pipx and dependencies (but not PlatformIO yet)
 RUN apt-get update && apt-get install -y python3-venv python3-full pipx && \
-    rm -rf /var/lib/apt/lists/* && \
-    python3 -m pipx install platformio && \
-    python3 -m pipx ensurepath
+    rm -rf /var/lib/apt/lists/*
 
-# Install Teensy platform and tools for PlatformIO (as ros user)
+# Switch to ros user and install PlatformIO with Teensy support
 USER ros
-RUN /home/ros/.local/bin/pio platform install teensy && \
+RUN python3 -m pipx install platformio && \
+    python3 -m pipx ensurepath && \
+    /home/ros/.local/bin/pio platform install teensy && \
     mkdir -p /home/ros/.platformio
 
 # Switch back to root for rest of setup

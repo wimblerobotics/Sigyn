@@ -117,6 +117,44 @@ pio boards teensy    # List all supported Teensy boards
 - Teensy toolchains (AVR and ARM)
 - Framework Arduino for Teensy (1.159.0)
 
+### Sigyn TeensyV2 Development
+For working with the existing Sigyn TeensyV2 project:
+
+```bash
+# Navigate to TeensyV2 project directory
+cd /workspace/TeensyV2
+
+# Compile board1 (Navigation & Safety board)
+pio run -e board1
+
+# Compile board2 (Power & Sensors board)
+pio run -e board2
+
+# Compile and upload to connected Teensy
+pio run -e board1 --target upload
+pio run -e board2 --target upload
+
+# Debug builds with additional logging
+pio run -e board1_debug
+pio run -e board2_debug
+
+# Monitor serial output
+pio device monitor --environment board1
+pio device monitor --environment board2
+
+# Clean and rebuild
+pio run -e board1 --target clean
+pio run -e board1
+
+# Build all environments
+pio run
+```
+
+**TeensyV2 Board Configurations:**
+- **Board1**: Navigation & Safety (RoboClaw motor control, VL53L0X sensors, temperature monitoring)
+- **Board2**: Power & Sensors (Battery monitoring, BNO055 IMU, power management)
+- Both boards include performance monitoring and safety coordination
+
 ### Testing Your Build
 ```bash
 # Quick validation test
