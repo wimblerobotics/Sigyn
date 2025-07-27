@@ -848,8 +848,8 @@ void TeensyBridge::DiagnosticsTimerCallback() {
 
 void TeensyBridge::CmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg) {
   // Queue the twist message - all serial communication happens in the main loop
-  RCLCPP_INFO(this->get_logger(), "Received cmd_vel: linear.x=%.3f, angular.z=%.3f", 
-              msg->linear.x, msg->angular.z);
+  // RCLCPP_INFO(this->get_logger(), "Received cmd_vel: linear.x=%.3f, angular.z=%.3f", 
+  //             msg->linear.x, msg->angular.z);
   
   std::ostringstream oss;
   oss << "TWIST:linear_x:" << msg->linear.x << ",angular_z:" << msg->angular.z << "\n";
@@ -857,7 +857,7 @@ void TeensyBridge::CmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg
   std::lock_guard<std::mutex> lock(outgoing_queue_mutex_);
   outgoing_message_queue_.push(oss.str());
   
-  RCLCPP_INFO(this->get_logger(), "Queued TWIST command: %s", oss.str().c_str());
+  // RCLCPP_INFO(this->get_logger(), "Queued TWIST command: %s", oss.str().c_str());
 }
 
 void TeensyBridge::SendQueuedMessages() {
@@ -866,14 +866,14 @@ void TeensyBridge::SendQueuedMessages() {
   while (!outgoing_message_queue_.empty()) {
     const std::string& message = outgoing_message_queue_.front();
     
-    RCLCPP_INFO(this->get_logger(), "Sending message to Teensy: '%s'", message.c_str());
+    // RCLCPP_INFO(this->get_logger(), "Sending message to Teensy: '%s'", message.c_str());
     
     ssize_t bytes_written = write(board1_fd_, message.c_str(), message.length());
     if (bytes_written < 0) {
       RCLCPP_ERROR(this->get_logger(), "Failed to write to serial");
       break;
     } else {
-      RCLCPP_INFO(this->get_logger(), "Sent %zd bytes to Teensy", bytes_written);
+      // RCLCPP_INFO(this->get_logger(), "Sent %zd bytes to Teensy", bytes_written);
       // Force immediate transmission
       fsync(board1_fd_);
     }
@@ -888,7 +888,7 @@ void TeensyBridge::HandleSdGetDirRequest(
   
   (void)request;  // Unused parameter
   
-  RCLCPP_INFO(this->get_logger(), "SD GetDir service called");
+  // RCLCPP_INFO(this->get_logger(), "SD GetDir service called");
   
   if (board1_fd_ < 0) {
     RCLCPP_ERROR(this->get_logger(), "SD GetDir failed: Serial connection not available");
@@ -898,7 +898,7 @@ void TeensyBridge::HandleSdGetDirRequest(
     return;
   }
 
-  RCLCPP_INFO(this->get_logger(), "Sending SDDIR command to Teensy");
+  // RCLCPP_INFO(this->get_logger(), "Sending SDDIR command to Teensy");
 
   // Create a promise for async completion
   auto completion_promise = std::make_shared<std::promise<bool>>();
@@ -923,7 +923,7 @@ void TeensyBridge::HandleSdGetDirRequest(
   {
     std::lock_guard<std::mutex> lock(outgoing_queue_mutex_);
     outgoing_message_queue_.push("SDDIR:\n");
-    RCLCPP_INFO(this->get_logger(), "Queued SDDIR message for sending");
+    // RCLCPP_INFO(this->get_logger(), "Queued SDDIR message for sending");
   }
   
   // Wait for completion with timeout
@@ -949,7 +949,7 @@ void TeensyBridge::HandleSdGetDirRequest(
     response->error_message = "Request timed out";
     response->directory_listing = "";
   } else {
-    RCLCPP_INFO(this->get_logger(), "SD GetDir request completed successfully");
+    // RCLCPP_INFO(this->get_logger(), "SD GetDir request completed successfully");
   }
 }
 
@@ -1022,7 +1022,7 @@ void TeensyBridge::HandleSdGetFileRequest(
 }
 
 void TeensyBridge::HandleSdirResponse(const std::string& data) {
-  RCLCPP_INFO(this->get_logger(), "Received SDIR response: '%s'", data.c_str());
+  // RCLCPP_INFO(this->get_logger(), "Received SDIR response: '%s'", data.c_str());
   
   std::lock_guard<std::mutex> lock(service_mutex_);
   
@@ -1040,7 +1040,7 @@ void TeensyBridge::HandleSdirResponse(const std::string& data) {
     
     // Signal completion
     request.completion_promise->set_value(true);
-    
+    // 
     RCLCPP_INFO(this->get_logger(), "Completed directory listing request");
   } else {
     RCLCPP_WARN(this->get_logger(), "Received SDIR response but no matching pending request");
