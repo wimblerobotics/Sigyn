@@ -48,8 +48,11 @@
         "*.h": "c",
         "*.hpp": "cpp",
         "*.cpp": "cpp",
-        "*.ino": "cpp"
+        "*.ino": "cpp",
+        "*.c": "c"
     },
+    "C_Cpp.workspaceParsingPriority": "highest",
+    "C_Cpp.intelliSenseUpdateDelay": 1000,
     "C_Cpp.errorSquiggles": "enabled",
     "C_Cpp.intelliSenseEngine": "default",
     "C_Cpp.configurationWarnings": "enabled",
@@ -57,5 +60,12 @@
     "C_Cpp.default.cStandard": "c11",
     "C_Cpp.default.cppStandard": "c++17",
     "C_Cpp.default.intelliSenseMode": "gcc-arm",
-    "C_Cpp.loggingLevel": "Debug"
+    "C_Cpp.loggingLevel": "Debug",
+    "C_Cpp.enhancedColorization": "enabled",
+    "C_Cpp.autocomplete": "default",
+    "C_Cpp.suggestSnippets": true,
+    "C_Cpp.default.configurationProvider": "",
+    "C_Cpp.workspaceSymbols": "All",
+    "C_Cpp.autocompleteAddParentheses": true,
+    "C_Cpp.activeConfigName": "TeensyV2"
 }

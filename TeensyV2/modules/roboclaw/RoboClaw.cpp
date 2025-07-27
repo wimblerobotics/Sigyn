@@ -532,7 +532,7 @@ bool RoboClaw::ResetEncoders(uint8_t address) {
 }
 
 bool RoboClaw::ReadVersion(uint8_t address, char *version) {
-  uint8_t data;
+  int data;
   uint8_t trys = MAXRETRY;
   do {
     flush();

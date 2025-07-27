@@ -1,9 +1,6 @@
 /**
  * @file battery_monitor.cpp
- * @brief Implementation of comprehensive batteryINA226
-BatteryMonitor::g_ina226_[kNumberOfBatteries]; uint8_t
-BatteryMonitor::gINA226_DeviceIndexes_[kNumberOfBatteries] = {2, 3, 4};nitoring
-system
+ * @brief Implementation of comprehensive battery monitoring system
  *
  * This file implements the BatteryMonitor module that provides real-time
  * monitoring of battery voltage, current, power consumption, and state
