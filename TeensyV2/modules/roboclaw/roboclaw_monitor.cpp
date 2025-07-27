@@ -364,6 +364,21 @@ bool RoboClawMonitor::initializeRoboClaw() {
     SerialManager::getInstance().sendMessage("ERROR", "RoboClawMonitor: Communication test failed");
     return false;
   }
+
+  // Set Max current limits (if applicable)
+  if (!roboclaw_.SetM1MaxCurrent(config_.address, config_.max_current_m1 * 100) ||
+      !roboclaw_.SetM2MaxCurrent(config_.address, config_.max_current_m2 * 100)) {
+    SerialManager::getInstance().sendMessage("ERROR", "RoboClawMonitor: Failed to set max current limits");
+    return false;
+  } else {
+    uint32_t m1_max_current;
+    uint32_t m2_max_current;
+    roboclaw_.ReadM1MaxCurrent(config_.address, m1_max_current);
+    roboclaw_.ReadM2MaxCurrent(config_.address, m2_max_current);
+    SerialManager::getInstance().sendMessage("INFO", 
+      ("RoboClawMonitor: Max current limits set - M1: " + String(m1_max_current / 100.0f) + 
+      "A, M2: " + String(m2_max_current / 100.0f) + "A").c_str());
+  }
   
   // Set PID values (ported from legacy code)
   if (!roboclaw_.SetM1VelocityPID(config_.address, 7.26239f, 2.43f, 0.0f, 2437)) {
