@@ -125,7 +125,7 @@ void RoboClawMonitor::loop() {
     case ConnectionState::CONNECTED:
       // HIGH FREQUENCY OPERATIONS (aim for ≥70Hz)
       // Odometry needs fresh encoder data, so read encoders first, then calculate odometry
-      if (now - last_reading_time_ms_ >= 14) { // ~70Hz for encoder readings + odometry
+      if (now - last_reading_time_ms_ >= 15) { // ~67Hz for encoder readings + odometry
         updateCriticalMotorStatus(); // Read fresh encoder values
         updateOdometry();           // Calculate odometry with fresh data
         last_reading_time_ms_ = now;
@@ -288,9 +288,55 @@ void RoboClawMonitor::resetErrors() {
   
   // Attempt to clear RoboClaw errors if connected
   if (connection_state_ == ConnectionState::CONNECTED) {
-    // RoboClaw doesn't have a specific error reset command, 
-    // but stopping motors can help clear some error conditions
+    SerialManager::getInstance().sendMessage("INFO", "RoboClawMonitor: Attempting to clear RoboClaw errors");
+    
+    // Method 1: Stop all motor commands (sometimes clears latched errors)
     setMotorSpeeds(0, 0);
+    
+    // Method 2: Reset encoder counts (can clear some error states)
+    bool reset_success = roboclaw_.ResetEncoders(config_.address);
+    if (reset_success) {
+      SerialManager::getInstance().sendMessage("INFO", "RoboClawMonitor: Encoder reset successful");
+      // Reinitialize encoder tracking
+      prev_encoder_m1_ = 0;
+      prev_encoder_m2_ = 0;
+      odometry_initialized_ = false; // Force re-initialization
+    } else {
+      SerialManager::getInstance().sendMessage("WARN", "RoboClawMonitor: Encoder reset failed");
+    }
+    
+    // Method 3: Send a brief opposite direction pulse to clear motor driver state
+    // This can help clear latched overcurrent conditions
+    delay(100); // Allow previous commands to complete
+    
+    // Send very brief, low-speed pulse in both directions for M1
+    roboclaw_.SpeedM1(config_.address, 32);   // Very slow forward
+    delay(50);
+    roboclaw_.SpeedM1(config_.address, -32);  // Very slow reverse  
+    delay(50);
+    roboclaw_.SpeedM1(config_.address, 0);    // Stop
+    
+    // Same for M2 to be safe
+    roboclaw_.SpeedM2(config_.address, 32);   
+    delay(50);
+    roboclaw_.SpeedM2(config_.address, -32);  
+    delay(50);
+    roboclaw_.SpeedM2(config_.address, 0);    
+    
+    delay(100); // Allow error state to clear
+    
+    // Check if error cleared
+    bool valid;
+    uint32_t error_status = roboclaw_.ReadError(config_.address, &valid);
+    if (valid) {
+      if (error_status == 0) {
+        SerialManager::getInstance().sendMessage("INFO", "RoboClawMonitor: Error cleared successfully");
+      } else {
+        String msg = "RoboClawMonitor: Errors remain after reset: " + decodeErrorStatus(error_status);
+        SerialManager::getInstance().sendMessage("WARN", msg.c_str());
+      }
+      system_status_.error_status = error_status;
+    }
   }
 }
 
@@ -488,6 +534,12 @@ void RoboClawMonitor::updateMotorStatus() {
     case ReadingState::READ_VOLTAGES:
       // This could be split further if needed, but voltages are typically fast
       updateSystemStatus();  // This contains voltage and error reads
+      reading_state_ = ReadingState::READ_ERROR_STATUS;
+      break;
+      
+    case ReadingState::READ_ERROR_STATUS:
+      // Read error status directly here for better control
+      system_status_.error_status = roboclaw_.ReadError(config_.address, &valid);
       reading_state_ = ReadingState::COMPLETE;
       break;
       
@@ -598,11 +650,41 @@ void RoboClawMonitor::updateCriticalMotorStatus() {
   uint8_t status;
   
   // Read encoders first - these are critical for odometry
+  // Add retry logic for encoder reads
+  static uint32_t encoder_fail_count_m1 = 0;
+  static uint32_t encoder_fail_count_m2 = 0;
+  
   motor1_status_.encoder_count = roboclaw_.ReadEncM1(config_.address, &status, &valid);
   motor1_status_.encoder_valid = valid;
-  
+  if (!valid) {
+    encoder_fail_count_m1++;
+    // Try one immediate retry for encoder reads (no delay to maintain performance)
+    motor1_status_.encoder_count = roboclaw_.ReadEncM1(config_.address, &status, &valid);
+    motor1_status_.encoder_valid = valid;
+  }
+
   motor2_status_.encoder_count = roboclaw_.ReadEncM2(config_.address, &status, &valid);
   motor2_status_.encoder_valid = valid;
+  if (!valid) {
+    encoder_fail_count_m2++;
+    // Try one immediate retry for encoder reads (no delay to maintain performance)
+    motor2_status_.encoder_count = roboclaw_.ReadEncM2(config_.address, &status, &valid);
+    motor2_status_.encoder_valid = valid;
+  }
+  
+  // Log persistent encoder failures
+  static uint32_t last_fail_report = 0;
+  uint32_t now = millis();
+  if (now - last_fail_report > 10000) { // Every 10 seconds
+    if (encoder_fail_count_m1 > 0 || encoder_fail_count_m2 > 0) {
+      String msg = "Encoder fails - M1:" + String(encoder_fail_count_m1) + 
+                   " M2:" + String(encoder_fail_count_m2);
+      SerialManager::getInstance().sendMessage("WARN", msg.c_str());
+      encoder_fail_count_m1 = 0;
+      encoder_fail_count_m2 = 0;
+    }
+    last_fail_report = now;
+  }
   
   // Read speeds less frequently to reduce serial load
   static uint8_t speed_read_counter = 0;
@@ -618,6 +700,14 @@ void RoboClawMonitor::updateCriticalMotorStatus() {
 
 void RoboClawMonitor::updateOdometry() {
   if (connection_state_ != ConnectionState::CONNECTED) {
+    // Log why ODOM is not being sent
+    static uint32_t last_log_time = 0;
+    uint32_t now = millis();
+    if (now - last_log_time > 5000) { // Log every 5 seconds
+      String msg = "ODOM: Skipping - not connected, state=" + String(static_cast<int>(connection_state_));
+      SerialManager::getInstance().sendMessage("DEBUG", msg.c_str());
+      last_log_time = now;
+    }
     return;
   }
   
@@ -629,17 +719,67 @@ void RoboClawMonitor::updateOdometry() {
     prev_encoder_m2_ = motor2_status_.encoder_count;
     last_odom_update_time_us_ = current_time_us;
     odometry_initialized_ = true;
+    SerialManager::getInstance().sendMessage("DEBUG", "ODOM: Initialized");
     return;
   }
   
   // Calculate time delta
   float dt_s = (current_time_us - last_odom_update_time_us_) / 1000000.0f;
   
-  // Skip if time delta is too small (avoid noise) or too large (avoid jumps)
-  if (dt_s < 0.010f || dt_s > 0.1f) return; // Minimum 10ms between updates, max 100ms
+  // Skip if time delta is too small (avoid noise) or reset if too large (system overload)
+  if (dt_s < 0.010f) {
+    static uint32_t last_dt_log = 0;
+    uint32_t now = millis();
+    if (now - last_dt_log > 10000) { // Log every 10 seconds
+      String msg = "ODOM: Skipping - dt too small=" + String(dt_s, 6) + "s";
+      SerialManager::getInstance().sendMessage("DEBUG", msg.c_str());
+      last_dt_log = now;
+    }
+    return;
+  }
+  
+  if (dt_s > 0.1f) {
+    // System overload - reset timing and continue (don't block ODOM indefinitely)
+    static uint32_t last_reset_log = 0;
+    uint32_t now = millis();
+    if (now - last_reset_log > 5000) { // Log every 5 seconds
+      String msg = "ODOM: Reset timing - dt was " + String(dt_s, 6) + "s (system overload)";
+      SerialManager::getInstance().sendMessage("WARN", msg.c_str());
+      last_reset_log = now;
+    }
+    
+    // Reset timing but preserve encoder state for next update
+    prev_encoder_m1_ = motor1_status_.encoder_count;
+    prev_encoder_m2_ = motor2_status_.encoder_count;
+    last_odom_update_time_us_ = current_time_us;
+    
+    // Send zero-velocity ODOM to maintain ROS connection
+    char msg[256];
+    float half_theta = current_pose_.theta / 2.0f;
+    snprintf(msg, sizeof(msg),
+             "px=%.3f,py=%.3f,ox=%.3f,oy=%.3f,oz=%.3f,ow=%.3f,vx=%.3f,vy=%.3f,wz=%.3f",
+             current_pose_.x, current_pose_.y, 0.0f, 0.0f, sin(half_theta), cos(half_theta),
+             0.0f, 0.0f, 0.0f);
+    SerialManager::getInstance().sendMessage("ODOM", msg);
+    return;
+  }
   
   // Use the latest encoder readings from motor status
   if (!motor1_status_.encoder_valid || !motor2_status_.encoder_valid) {
+    // Log encoder validity issues
+    static uint32_t last_enc_log = 0;
+    static uint32_t enc_fail_count = 0;
+    uint32_t now = millis();
+    enc_fail_count++;
+    
+    if (now - last_enc_log > 2000) { // Log every 2 seconds
+      String msg = "ODOM: Encoder invalid - M1:" + String(motor1_status_.encoder_valid ? "OK" : "FAIL") + 
+                   " M2:" + String(motor2_status_.encoder_valid ? "OK" : "FAIL") + 
+                   " fails:" + String(enc_fail_count);
+      SerialManager::getInstance().sendMessage("WARN", msg.c_str());
+      last_enc_log = now;
+      enc_fail_count = 0;
+    }
     return; // Skip if encoder readings invalid
   }
   
@@ -703,6 +843,20 @@ void RoboClawMonitor::updateOdometry() {
            current_pose_.x, current_pose_.y, q[1], q[2], q[3], q[0],
            current_velocity_.linear_x, 0.0f, current_velocity_.angular_z);
   SerialManager::getInstance().sendMessage("ODOM", msg);
+  
+  // Track ODOM health statistics
+  static uint32_t odom_sent_count = 0;
+  static uint32_t last_health_report = 0;
+  odom_sent_count++;
+  
+  uint32_t now = millis();
+  if (now - last_health_report > 30000) { // Every 30 seconds
+    String msg = "ODOM: Sent " + String(odom_sent_count) + " messages in 30s, freq=" + 
+                 String(odom_sent_count / 30.0f, 1) + "Hz";
+    SerialManager::getInstance().sendMessage("DEBUG", msg.c_str());
+    last_health_report = now;
+    odom_sent_count = 0;
+  }
 }
 
 void RoboClawMonitor::processVelocityCommands() {
@@ -862,6 +1016,28 @@ void RoboClawMonitor::sendStatusReports() {
   status_msg += "}";
   
   SerialManager::getInstance().sendMessage("ROBOCLAW", status_msg.c_str());
+  
+  // Auto-recovery for latched overcurrent errors when current is actually low
+  if (system_status_.error_status != 0) {
+    bool m1_overcurrent = (system_status_.error_status & static_cast<uint32_t>(RoboClawError::M1_OVERCURRENT));
+    bool m2_overcurrent = (system_status_.error_status & static_cast<uint32_t>(RoboClawError::M2_OVERCURRENT));
+    
+    // If overcurrent error is flagged but actual current is low, attempt auto-recovery
+    if ((m1_overcurrent && motor1_status_.current_valid && abs(motor1_status_.current_amps) < 0.5f) ||
+        (m2_overcurrent && motor2_status_.current_valid && abs(motor2_status_.current_amps) < 0.5f)) {
+      
+      static uint32_t last_auto_recovery = 0;
+      uint32_t now = millis();
+      
+      // Only attempt auto-recovery every 30 seconds to avoid spam
+      if (now - last_auto_recovery > 30000) {
+        SerialManager::getInstance().sendMessage("INFO", 
+          "RoboClawMonitor: Attempting auto-recovery for latched overcurrent error");
+        resetErrors();
+        last_auto_recovery = now;
+      }
+    }
+  }
 }
 
 void RoboClawMonitor::sendDiagnosticReports() {

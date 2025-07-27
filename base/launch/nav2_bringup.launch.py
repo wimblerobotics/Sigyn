@@ -81,7 +81,7 @@ def generate_launch_description():
             source_file=params_file,
             root_key=namespace,
             param_rewrites=param_substitutions,
-            convert_types=True,
+            convert_types=False,
         ),
         allow_substs=True,
     )

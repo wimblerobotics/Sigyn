@@ -123,7 +123,8 @@ void loop() {
   uint32_t execution_time = micros() - loop_start_time;
   
   // Board 1 status reporting
-  static uint32_t last_perf_report = 0;
+  // Commented out for now - uncomment if needed for debugging
+  // static uint32_t last_perf_report = 0;
   // if (current_time - last_perf_report > 5000000) {  // Every 5 seconds
   //   last_perf_report = current_time;
   //   Serial.println("Board1 Status:");

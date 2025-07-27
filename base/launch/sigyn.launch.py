@@ -40,35 +40,59 @@ from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
 def launch_nav(context, ld, nav2_config_path, bt_xml, make_map, use_sim_time, map_path_sim, map_path_real, navigation_launch_path): 
-    # Create our own temporary YAML files that include substitutions
-    with open(nav2_config_path, "r") as f:
-        config_yaml = yaml.safe_load(f)
+    # COMMENTED OUT: Create our own temporary YAML files that include substitutions
+    # This approach was causing Nav2 to not properly load the MPPI plugin
+    # with open(nav2_config_path, "r") as f:
+    #     config_yaml = yaml.safe_load(f)
 
-    replacement_xml_path = context.perform_substitution(bt_xml)
-    xml_path = config_yaml["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"]
-    config_yaml["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"] = replacement_xml_path
+    # replacement_xml_path = context.perform_substitution(bt_xml)
+    # xml_path = config_yaml["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"]
+    # config_yaml["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"] = replacement_xml_path
     
-    # Override use_realtime_priority to false when using simulation
-    use_sim_time_bool = context.perform_substitution(use_sim_time).lower() == 'true'
-    if use_sim_time_bool:
-        # Disable realtime priority for simulation
-        if "controller_server" in config_yaml and "ros__parameters" in config_yaml["controller_server"]:
-            config_yaml["controller_server"]["ros__parameters"]["use_realtime_priority"] = False
-        if "velocity_smoother" in config_yaml and "ros__parameters" in config_yaml["velocity_smoother"]:
-            config_yaml["velocity_smoother"]["ros__parameters"]["use_realtime_priority"] = False
+    # # Disable realtime priority for both simulation and real robot
+    # # (most systems don't have proper realtime configuration)
+    # if "controller_server" in config_yaml and "ros__parameters" in config_yaml["controller_server"]:
+    #     config_yaml["controller_server"]["ros__parameters"]["use_realtime_priority"] = False
+    # if "velocity_smoother" in config_yaml and "ros__parameters" in config_yaml["velocity_smoother"]:
+    #     config_yaml["velocity_smoother"]["ros__parameters"]["use_realtime_priority"] = False
     
-    # config_yaml["map_server"]["ros__parameters"]["yaml_filename"] = map_path_sim ###
-    nav_config_tempfile = tempfile.NamedTemporaryFile(mode='w+t', delete=False)
-    # print(f"[launch_nav] fp.name: {nav_config_tempfile.name}, replacement_xml_path: {replacement_xml_path}")
-    with open(nav_config_tempfile.name, 'w') as f:
-        yaml.dump(config_yaml, f)
+    # # config_yaml["map_server"]["ros__parameters"]["yaml_filename"] = map_path_sim ###
+    # nav_config_tempfile = tempfile.NamedTemporaryFile(mode='w+t', delete=False)
+    # print(f"[launch_nav] DEBUG: FollowPath plugin before dump: {config_yaml.get('controller_server', {}).get('ros__parameters', {}).get('FollowPath', {}).get('plugin', 'NOT_FOUND')}")
+    # # print(f"[launch_nav] fp.name: {nav_config_tempfile.name}, replacement_xml_path: {replacement_xml_path}")
+    # with open(nav_config_tempfile.name, 'w') as f:
+    #     yaml.dump(config_yaml, f)
+    
+    # # Debug: Read back the file to see what was written
+    # with open(nav_config_tempfile.name, 'r') as f:
+    #     debug_content = f.read()
+    #     print(f"[launch_nav] DEBUG: Temp file contains FollowPath: {'FollowPath:' in debug_content}")
+    #     print(f"[launch_nav] DEBUG: Temp file contains MPPI: {'MPPIController' in debug_content}")
+    #     print(f"[launch_nav] DEBUG: Temp file path: {nav_config_tempfile.name}")
+    #     # Print a few lines around FollowPath
+    #     lines = debug_content.split('\n')
+    #     for i, line in enumerate(lines):
+    #         if 'FollowPath:' in line:
+    #             print(f"[launch_nav] DEBUG: FollowPath context (lines {max(0,i-2)} to {min(len(lines),i+10)}):")
+    #             for j in range(max(0,i-2), min(len(lines),i+10)):
+    #                 print(f"[launch_nav] DEBUG:   {j}: {lines[j]}")
+    #             break
+    #     # Also specifically search for the plugin line
+    #     for i, line in enumerate(lines):
+    #         if 'plugin:' in line and 'MPPI' in line:
+    #             print(f"[launch_nav] DEBUG: Found plugin line at {i}: {line}")
+    #             break
+    #     else:
+    #         print(f"[launch_nav] DEBUG: No 'plugin:' line with 'MPPI' found in temp file!")
+
+    print(f"[launch_nav] Using original navigation config file: {nav2_config_path}")
 
     # nav_sim= IfCondition(AndSubstitution(make_map, use_sim_time))
     # nav_real = IfCondition(AndSubstitution(make_map, NotSubstitution(use_sim_time)))
 
     log_nav_params = LogInfo(
         msg=[
-            f"[launch_nav] map_path_sim: {map_path_sim}, map_path_real: {map_path_real}, replacement_xml_path: {replacement_xml_path}, navigation_launch_path: {context.perform_substitution(navigation_launch_path)}",
+            f"[launch_nav] map_path_sim: {map_path_sim}, map_path_real: {map_path_real}, navigation_launch_path: {context.perform_substitution(navigation_launch_path)}",
         ]
     )
     ld.add_action(log_nav_params)
@@ -80,11 +104,13 @@ def launch_nav(context, ld, nav2_config_path, bt_xml, make_map, use_sim_time, ma
         launch_arguments={
             "autostart": "True",
             "map": map_path_sim,
-            "params_file": nav_config_tempfile.name,
+            "params_file": nav2_config_path,  # Use original config file
             "slam": "False",
-            "use_composition": "True",
+            "use_composition": "False",
             "use_respawn": "True",
             "use_sim_time": use_sim_time,
+            "use_localization": "True",
+            "container_name": "nav2_container",
         }.items(),
     )
     ld.add_action(nav2_launch_sim)
@@ -97,11 +123,13 @@ def launch_nav(context, ld, nav2_config_path, bt_xml, make_map, use_sim_time, ma
         launch_arguments={
             "autostart": "True",
             "map": map_path_real,
-            "params_file": nav_config_tempfile.name,
+            "params_file": nav2_config_path,  # Use original config file
             "slam": "False",
-            "use_composition": "True",
+            "use_composition": "False",
             "use_respawn": "True",
             "use_sim_time": use_sim_time,
+            "use_localization": "True",
+            "container_name": "nav2_container",
         }.items(),
     )
     ld.add_action(nav2_launch_real)
@@ -118,8 +146,11 @@ def launch_robot_state_publisher(
     # urdf_as_xml = Command(['xacro ', xacro_file_path, ' use_ros2_control:=', use_ros2_control, ' sim_mode:=', use_sim_time])
     # print(F"urdf_as_xml: {urdf_as_xml}")
 
+    # Determine if we should use ros2_control based on sim_time setting
+    use_ros2_control_value = "true" if use_sim_time.perform(context) == "true" else "false"
+    
     urdf_as_xml = xacro.process_file(
-        xacro_file_path, mappings={"use_ros2_control": "true", "sim_mode": use_sim_time.perform(context)}
+        xacro_file_path, mappings={"use_ros2_control": use_ros2_control_value, "sim_mode": use_sim_time.perform(context)}
     ).toxml()
     robot_state_publisher_node = Node(
         package="robot_state_publisher",
@@ -330,7 +361,7 @@ def generate_launch_description():
     controller_params_file = PathJoinSubstitution(
         [description_pkg, "config", "my_controllers.yaml"])
     controller_manager = Node(
-        condition=UnlessCondition(use_sim_time),
+        condition=IfCondition(use_sim_time),  # Only run ros2_control in simulation
         package="controller_manager",
         executable="ros2_control_node",
         parameters=[controller_params_file],
@@ -348,7 +379,7 @@ def generate_launch_description():
     diff_drive_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        condition=UnlessCondition(use_sim_time),
+        condition=IfCondition(use_sim_time),  # Only run in simulation
         arguments=["diff_cont"],
     )
     ld.add_action(diff_drive_spawner)
@@ -356,7 +387,7 @@ def generate_launch_description():
     joint_broad_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        condition=UnlessCondition(use_sim_time),
+        condition=IfCondition(use_sim_time),  # Only run in simulation
         arguments=["joint_broad"],
     )
     ld.add_action(joint_broad_spawner)
@@ -364,6 +395,7 @@ def generate_launch_description():
     fwcommand_spawner = Node(
         package="controller_manager",
         executable="spawner",
+        condition=IfCondition(use_sim_time),  # Only run in simulation
         arguments=["forward_position_controller", "--param-file", controller_params_file],
     )
     ld.add_action(fwcommand_spawner)
@@ -411,21 +443,37 @@ def generate_launch_description():
         # "/opt/ros/jazzy/share/nav2_bringup/params/nav2_params.yaml"
     )         
 
-    ld.add_action(
-        OpaqueFunction(
-            function=launch_nav,
-            args=[
-                ld,
-                nav2_config_path,
-                LaunchConfiguration("bt_xml"),
-                LaunchConfiguration("make_map"),
-                LaunchConfiguration("use_sim_time"),
-                map_path_sim,
-                map_path_real,
-                navigation_launch_path,
-            ],
-        )
+    nav2_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(navigation_launch_path),
+        condition=UnlessCondition(use_sim_time),
+        launch_arguments={
+            "autostart": "True",
+            "map": map_path_real,
+            "params_file": nav2_config_path,  # Use original config file
+            "slam": "False",
+            "use_composition": "True",
+            "use_respawn": "True",
+            "use_sim_time": use_sim_time,
+            "use_localization": "True",
+            "container_name": "nav2_container",
+        }.items(),
     )
+    ld.add_action(nav2_launch)
+    # ld.add_action(
+    #     OpaqueFunction(
+    #         function=launch_nav,
+    #         args=[
+    #             ld,
+    #             nav2_config_path,
+    #             LaunchConfiguration("bt_xml"),
+    #             LaunchConfiguration("make_map"),
+    #             LaunchConfiguration("use_sim_time"),
+    #             map_path_sim,
+    #             map_path_real,
+    #             navigation_launch_path,
+    #         ],
+    #     )
+    # )
     # nav2_launch_sim = IncludeLaunchDescription(
     #     PythonLaunchDescriptionSource(navigation_launch_path),
     #     # condition=IfCondition(AndSubstitution(NotSubstitution(make_map), use_sim_time)),
@@ -614,9 +662,12 @@ def generate_launch_description():
                 "teensy_bridge.launch.py",
             )
         ),
-        condition=IfCondition(do_joystick),
+        condition=UnlessCondition(use_sim_time),  # Only run for real robot
+        launch_arguments={
+            'namespace': 'sigyn',
+        }.items(),
     )
-    ld.add_action(nimbus_steelseries_joystick)
+    ld.add_action(sigyn_to_sensor)
 
     # sigyn_to_sensor = Node(
     #     package="sigyn_to_sensor_v",

@@ -581,7 +581,7 @@ void SDLogger::updateDirectoryCache() {
 
     // Create new log file exactly like legacy code
     char newLogFileName[20];
-    sprintf(newLogFileName, "LOG%05d.TXT", ++highest_log_number);
+    sprintf(newLogFileName, "LOG%05lu.TXT", ++highest_log_number);
     SerialManager::getInstance().sendMessage("DEBUG", ("Attempting to create log file: " + String(newLogFileName)).c_str());
     
     log_file_ = sd_card_.open(newLogFileName, FILE_WRITE);
