@@ -17,9 +17,8 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, LogInfo, GroupAction
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import Node, LoadComposableNodes
+from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-from launch_ros.descriptions import ComposableNode
 from ament_index_python.packages import get_package_share_directory
 
 
@@ -52,7 +51,7 @@ def generate_launch_description():
     use_composition_arg = DeclareLaunchArgument(
         'use_composition',
         default_value='false',
-        description='Use composed nodes for better performance'
+        description='Use composed nodes for better performance (currently not supported - always false)'
     )
     
     enable_diagnostics_arg = DeclareLaunchArgument(
@@ -95,9 +94,8 @@ def generate_launch_description():
         'board3_port': LaunchConfiguration('board3_port'),
     }
     
-    # Individual nodes (default mode)
+    # Individual nodes (default and only supported mode)
     individual_nodes = GroupAction(
-        condition=UnlessCondition(LaunchConfiguration('use_composition')),
         actions=[
             # Main communication bridge node
             Node(
@@ -109,45 +107,13 @@ def generate_launch_description():
                     LaunchConfiguration('config_file'),
                     common_params,
                 ],
+                remappings=[
+                    ('cmd_vel', '/cmd_vel'),
+                ],
                 output='screen',
                 arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')],
                 respawn=True,
                 respawn_delay=2.0,
-            ),
-        ]
-    )
-    
-    # Composed nodes (for better performance)
-    composed_nodes = GroupAction(
-        condition=IfCondition(LaunchConfiguration('use_composition')),
-        actions=[
-            # Container for composed nodes
-            Node(
-                package='rclcpp_components',
-                executable='component_container',
-                name='teensy_v2_container',
-                namespace=LaunchConfiguration('namespace'),
-                output='screen',
-                arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')],
-            ),
-            
-            # Load all components into the container
-            LoadComposableNodes(
-                target_container=PathJoinSubstitution([
-                    LaunchConfiguration('namespace'),
-                    'teensy_v2_container'
-                ]),
-                composable_node_descriptions=[
-                    ComposableNode(
-                        package='sigyn_to_sensor_v2',
-                        plugin='sigyn_to_sensor_v2::TeensyBridgeNode',
-                        name='teensy_bridge',
-                        parameters=[
-                            LaunchConfiguration('config_file'),
-                            common_params,
-                        ],
-                    ),
-                ],
             ),
         ]
     )
@@ -181,5 +147,4 @@ def generate_launch_description():
         
         # Node groups
         individual_nodes,
-        composed_nodes,
     ])

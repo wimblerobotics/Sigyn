@@ -1059,6 +1059,7 @@ void TeensyBridge::HandleSdlineResponse(const std::string& data) {
 }
 
 void TeensyBridge::HandleSdeofResponse(const std::string& data) {
+  (void)data;  // Mark parameter as intentionally unused
   std::lock_guard<std::mutex> lock(service_mutex_);
   
   if (!pending_service_requests_.empty()) {

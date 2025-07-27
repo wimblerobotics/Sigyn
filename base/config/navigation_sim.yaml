@@ -87,8 +87,8 @@ controller_server:
     progress_checker_plugins: ["progress_checker"]
     goal_checker_plugins: ["precise_goal_checker"]
     controller_plugins: ["FollowPath"]
-    use_realtime_priority: yes
-
+    use_realtime_priority: false  # Changed from 'yes' to 'false'
+    
     # Progress checker parameters
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
