@@ -3,21 +3,11 @@
 
 /**
  * @file board2_main.ino
- // Core TeensyV2 system
-#include "common/core/module.h"
-#include "common/core/serial_manager.h"
-
-// Board 2 specific modules
-#include "modules/performance/performance_monitor.h"
-#include "modules/battery/battery_monitor.h"
-// #include "modules/sensors/imu_manager.h"         // To be implemented
-// #include "modules/sensors/temperature_monitor.h" // To be implementedSensor
 board (Board 2) for TeensyV2 system
  *
  * This is the sensor monitoring board responsible for:
  * - Battery monitoring (INA226 and analog sensors)
  * - IMU sensor data collection
- * - Temperature monitoring
  * - Additional environmental sensors
  * - Safety monitoring and reporting to Board 1
  *
@@ -25,7 +15,6 @@ board (Board 2) for TeensyV2 system
  * - Teensy 4.1 microcontroller
  * - INA226 current/voltage sensors for battery monitoring
  * - IMU sensors (gyroscope, accelerometer, magnetometer)
- * - Temperature sensors
  * - Inter-board safety communication with Board 1
  *
  * Real-Time Requirements:
@@ -45,7 +34,6 @@ board (Board 2) for TeensyV2 system
 #include "modules/battery/battery_monitor.h"
 #include "modules/performance/performance_monitor.h"
 #include "modules/bno055/bno055_monitor.h"
-// #include "../../modules/sensors/temperature_monitor.h" // To be implemented
 
 using namespace sigyn_teensy;
 
@@ -53,7 +41,6 @@ using namespace sigyn_teensy;
 void fault_handler();
 uint32_t freeMemory();
 void loop();
-void processSensorData();
 void serialEvent();
 void setup();
 
@@ -123,57 +110,11 @@ void loop() {
   // Execute all modules through the module system
   Module::loopAll();
 
-  // Record performance metrics
-  uint32_t execution_time = micros() - loop_start_time;
-
   // Board 2 status reporting (less frequent than Board 1)
   static uint32_t last_status_report_ms = 0;
   if (current_time - last_status_report_ms > 10000000) {  // Every 10 seconds
     last_status_report_ms = current_time;
     // Add any 10-second reporting tasks here
-  }
-
-  // Safety monitoring - check for critical battery conditions
-  static uint32_t last_safety_check = 0;
-  if (current_time - last_safety_check > 200000) {  // Every 200ms (5Hz)
-    last_safety_check = current_time;
-
-    // Check battery safety conditions
-    float voltage = battery_monitor->getVoltage();
-    float current = battery_monitor->getCurrent();
-
-    // Send safety status to Board 1 (if inter-board communication is
-    // implemented)
-    bool battery_critical = (voltage < 32.0f) || (abs(current) > 15.0f);
-
-    // For now, just report via serial - inter-board GPIO communication to be
-    // added
-    static bool last_critical_state = false;
-    //### if (battery_critical != last_critical_state) {
-    //   last_critical_state = battery_critical;
-
-    //   if (battery_critical) {
-    //     Serial.println("SAFETY: Battery critical condition detected!");
-    //     Serial.println("  Voltage: " + String(voltage, 2) + " V");
-    //     Serial.println("  Current: " + String(current, 2) + " A");
-
-    //     // Send emergency message to ROS2 system
-    //     if (serial_manager) {
-    //       String safety_msg = "board=2,critical=true,reason=battery";
-    //       if (!isnan(voltage)) safety_msg += ",voltage=" + String(voltage, 2);
-    //       if (!isnan(current)) safety_msg += ",current=" + String(current, 2);
-    //       serial_manager->sendMessage("SAFETY_CRITICAL", safety_msg.c_str());
-    //     }
-    //   } else {
-    //     Serial.println("SAFETY: Battery condition returned to normal");
-
-    //     if (serial_manager) {
-    //       serial_manager->sendMessage(
-    //           "SAFETY_CRITICAL",
-    //           "board=2,critical=false,reason=battery_recovered");
-    //     }
-    //   }
-    // }
   }
 
   //### // Performance warnings (less strict than Board 1)
@@ -187,39 +128,9 @@ void loop() {
   //                  String(loop_frequency, 1) + " Hz)");
   // }
 
-  // Longer delay acceptable for Board 2 since it's primarily sensor
-  // monitoring Target 50Hz = 20ms period
-  delayMicroseconds(500);  // 0.5ms delay for stability
 }
 
-/**
- * @brief Handle sensor data collection and processing.
- *
- * This function demonstrates how sensor data would be collected and processed
- * in a complete implementation. Called from main loop at appropriate
- * intervals.
- */
-void processSensorData() {
-  // Example of how additional sensor modules would be integrated:
-
-  // IMU data collection (100Hz)
-  // static uint32_t last_imu_update = 0;
-  // if (micros() - last_imu_update >= 10000) {  // 10ms = 100Hz
-  //   last_imu_update = micros();
-  //   imu_manager->ReadSensors();
-  //   imu_manager->SendData();
-  // }
-
-  // Temperature monitoring (1Hz)
-  // static uint32_t last_temp_update = 0;
-  // if (millis() - last_temp_update >= 1000) {  // 1000ms = 1Hz
-  //   last_temp_update = millis();
-  //   temperature_monitor->ReadSensors();
-  //   temperature_monitor->CheckThresholds();
-  // }
-}
-
-/**
+ /**
  * @brief Handle serial events for configuration updates.
  *
  * This function is called automatically when serial data is available.

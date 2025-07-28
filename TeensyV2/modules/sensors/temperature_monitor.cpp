@@ -124,13 +124,6 @@ void TemperatureMonitor::setup() {
 void TemperatureMonitor::loop() {
     uint32_t now = millis();
     
-    //### // Debug: Add periodic debug output to verify module is running
-    // static uint32_t last_debug_time = 0;
-    // if (now - last_debug_time > 10000) { // Every 10 seconds
-    //     SerialManager::getInstance().sendMessage("DEBUG", "TemperatureMonitor::loop() executing");
-    //     last_debug_time = now;
-    // }
-    
     // Update temperature readings
     updateTemperatureReadings();
     
@@ -469,27 +462,25 @@ void TemperatureMonitor::checkSafetyConditions() {
         const TemperatureSensorConfig& config = sensor_configs_[i];
         
         // Check temperature thresholds
-        bool prev_critical = sensor_status_[i].critical_high || sensor_status_[i].critical_low;
-        
         sensor_status_[i].critical_high = (temp >= config.critical_high_temp);
         sensor_status_[i].warning_high = (temp >= config.warning_high_temp && temp < config.critical_high_temp);
         sensor_status_[i].warning_low = (temp <= config.warning_low_temp && temp > config.critical_low_temp);
         sensor_status_[i].critical_low = (temp <= config.critical_low_temp);
         
         // Log safety violations
-        if ((sensor_status_[i].critical_high || sensor_status_[i].critical_low) && !prev_critical) {
-            String msg = "active:true,source:TEMPERATURE_CRITICAL,reason:" + config.sensor_name + 
-                        " critical temperature,value:" + String(temp, 1) + 
-                        ",threshold:" + String(sensor_status_[i].critical_high ? config.critical_high_temp : config.critical_low_temp, 1) +
-                        ",manual_reset:false,time:" + String(millis());
-            SerialManager::getInstance().sendMessage("ESTOP", msg.c_str());
+        if ((sensor_status_[i].critical_high || sensor_status_[i].critical_low)) {
+            char msg[256];
+            snprintf(msg, sizeof(msg), "Temperature of: %s with a temperature of: %.1f°C is either critical high (>= %.3f) or critical low (<= %.3f)",
+                     config.sensor_name.c_str(), temp, config.critical_high_temp, config.critical_low_temp);
+            SerialManager::getInstance().sendMessage("CRITICAL", msg);
         }
         
         if ((sensor_status_[i].warning_high || sensor_status_[i].warning_low) && 
             !(sensor_status_[i].critical_high || sensor_status_[i].critical_low)) {
-            String msg = "TemperatureMonitor: " + config.sensor_name + " temperature warning: " + 
-                        String(temp, 1) + "°C";
-            SerialManager::getInstance().sendMessage("WARN", msg.c_str());
+            char msg[256];
+            snprintf(msg, sizeof(msg), "Temperature of: %s with a temperature of: %.1f°C is either warning high (>= %.3f) or warning low (<= %.3f)",
+                     config.sensor_name.c_str(), temp, config.warning_high_temp, config.warning_low_temp);
+            SerialManager::getInstance().sendMessage("WARNING", msg);
         }
     }
     

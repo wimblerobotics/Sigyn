@@ -122,40 +122,6 @@ void loop() {
   // Record performance metrics
   uint32_t execution_time = micros() - loop_start_time;
   
-  // Board 1 status reporting
-  // Commented out for now - uncomment if needed for debugging
-  // static uint32_t last_perf_report = 0;
-  // if (current_time - last_perf_report > 5000000) {  // Every 5 seconds
-  //   last_perf_report = current_time;
-  //   Serial.println("Board1 Status:");
-  //   Serial.println("  Loop frequency: " + String(loop_frequency, 1) + " Hz");
-  //   Serial.println("  Execution time: " + String(execution_time) + " us");
-  //   Serial.println("  Safety state: " + String(static_cast<int>(safety_coordinator->getSafetyState())));
-  //   Serial.println("  Free memory: " + String(freeMemory()) + " bytes");
-    
-  //   // Report sensor status
-  //   if (temperature_monitor) {
-  //     uint8_t sensor_count = temperature_monitor->getSensorCount();
-  //     Serial.println("  Temperature sensors: " + String(sensor_count));
-  //     for (uint8_t i = 0; i < sensor_count && i < 3; i++) {  // Report first 3 sensors
-  //       float temp = temperature_monitor->getTemperature(i);
-  //       if (temp != -127.0) {  // Valid reading
-  //         Serial.println("    Sensor " + String(i) + ": " + String(temp, 1) + "°C");
-  //       }
-  //     }
-  //   }
-    
-  //   // Report VL53L0X sensors
-  //   if (vl53l0x_monitor) {
-  //     Serial.println("  VL53L0X sensors active: " + String(vl53l0x_monitor->getArrayStatus().active_sensors));
-  //   }
-    
-  //   // Report SD card status
-  //   if (sd_logger && sd_logger->isSDAvailable()) {
-  //     Serial.println("  SD card: Available (" + String(sd_logger->getBufferUsagePercent()) + "% buffer)");
-  //   }
-  // }
-  
   // Safety monitoring - check for critical performance violations
   static uint32_t last_safety_check = 0;
   if (current_time - last_safety_check > 100000) {  // Every 100ms (10Hz)
@@ -165,24 +131,6 @@ void loop() {
     if (execution_time > 20000) {  // 20ms is unacceptable
       safety_coordinator->triggerEstop(EstopSource::PERFORMANCE, 
                                        "Critical timing violation: " + String(execution_time) + "us");
-    }
-    
-    // Check temperature safety
-    if (temperature_monitor) {
-      uint8_t sensor_count = temperature_monitor->getSensorCount();
-      for (uint8_t i = 0; i < sensor_count; i++) {
-        float temp = temperature_monitor->getTemperature(i);
-        if (temp > 80.0f) {  // Critical temperature threshold
-          safety_coordinator->triggerEstop(EstopSource::SENSOR_FAILURE,
-                                         "Critical temperature: Sensor " + String(i) + " = " + String(temp, 1) + "°C");
-          break;
-        }
-      }
-    }
-    
-    // Check RoboClaw safety
-    if (roboclaw_monitor) {  // Remove isUnsafe call since it's protected
-      // Could add other safety checks here for motor monitoring
     }
     
     //### // Check VL53L0X sensors for emergency obstacles
@@ -200,9 +148,6 @@ void loop() {
   //   Serial.println("WARNING: Loop frequency below 50Hz (" + String(loop_frequency, 1) + " Hz)");
   // }
   
-  // Small delay to prevent overwhelming the system
-  // Target 85Hz = ~11.7ms period, so we can afford a small delay
-  delayMicroseconds(100);  // 0.1ms delay for stability
 }
 
 /**
@@ -247,37 +192,7 @@ void setup() {
   safety_config.enable_auto_recovery = true;
   // safety_coordinator->Configure(safety_config); // TODO: Add updateConfig method
   
-  // // Initialize all modules through the module system
-  // Serial.println("Initializing modules...");
-  
-  // // Debug: Print module count and names before setup
-  // Serial.print("Number of registered modules: ");
-  // Serial.println(Module::getModuleCount());
-  // for (uint16_t i = 0; i < Module::getModuleCount(); i++) {
-  //   Module* mod = Module::getModule(i);
-  //   if (mod) {
-  //     Serial.print("  Module ");
-  //     Serial.print(i);
-  //     Serial.print(": ");
-  //     Serial.println(mod->name());
-  //   }
-  // }
-  
   Module::setupAll();
-  
-  // // Debug: Verify modules after setup
-  // Serial.println("Module setup complete. Registered modules:");
-  // for (uint16_t i = 0; i < Module::getModuleCount(); i++) {
-  //   Module* mod = Module::getModule(i);
-  //   if (mod) {
-  //     Serial.print("  ");
-  //     Serial.print(mod->name());
-  //     Serial.print(" - Performance stats: ");
-  //     const auto& stats = mod->getPerformanceStats();
-  //     Serial.print("count=");
-  //     Serial.println(stats.loop_count);
-  //   }
-  // }
   
   // Initialize timing
   loop_start_time = micros();
