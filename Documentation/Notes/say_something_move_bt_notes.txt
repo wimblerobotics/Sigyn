@@ -1,7 +1,7 @@
 clear;rm -rf build/sigyn_behavior_trees/ install/sigyn_behavior_trees/;cb
 clear;ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=true bt_xml:=/home/ros/sigyn_ws/install/base/share/base/config/bt1.xml
 
-The, in rviz2, select a nav goal
+Then, in rviz2, select a nav goal
 
 [component_container_isolated-11] [INFO] [1736932389.096631293] [bt_navigator]: Begin navigating from current location (8.81, 2.59) to (8.84, 2.60)
 [SaySomethingActionServer-8] [INFO] [1736932389.096972667] [SaySomethingActionServer]: Received goal request with message I am going to navigate to the goal location.

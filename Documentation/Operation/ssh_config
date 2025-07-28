@@ -16,6 +16,12 @@ Host    sigyn7900
         ForwardX11Trusted       yes
         ForwardX11              yes
         Compression             yes
+Host    sigyn7900a
+        User                    ros
+        HostName                sigyn7900a
+        ForwardX11Trusted       yes
+        ForwardX11              yes
+        Compression             yes
 Host    sigynpi
         User                    ros
         HostName                sigynpi.local
@@ -27,3 +33,4 @@ Host    sigynVision
         HostName                sigynVision
         ForwardX11Trusted       yes
         ForwardX11              yes
+        Compression             yes
