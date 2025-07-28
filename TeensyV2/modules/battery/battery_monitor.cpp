@@ -259,15 +259,27 @@ bool BatteryMonitor::testI2cMultiplexer() {
 }
 
 void BatteryMonitor::updateBatteryState(size_t idx) {
+  static bool last_critical_state = false;
+  char msg[256];
   float voltage = getVoltage(idx);
   float current = getCurrent(idx);
 
   if (voltage < g_battery_config_[idx].critical_low_voltage ||
       abs(current) > g_battery_config_[idx].critical_high_current) {
     state_[idx] = BatteryState::CRITICAL;
+    snprintf(msg, sizeof(msg),
+             "Battery %zu does not meet CRITICAL LOW VOLTAGE OF %4.3f or exceeds CRITICAL HIGH "
+             "CURRENT of %4.3f: V=%.2f A=%.2f",
+             idx, g_battery_config_[idx].critical_low_voltage,
+             g_battery_config_[idx].critical_high_current, voltage, current);
+    SerialManager::getInstance().sendMessage("CRITICAL", msg);
   } else if (voltage < g_battery_config_[idx].warning_low_voltage) {
     state_[idx] = BatteryState::WARNING;
-  } else if (current > g_battery_config_[idx].high_current_threshold) {
+    snprintf(msg, sizeof(msg),
+             "Battery %zu does not meet WARNING LOW VOLTAGE of %4.3f: V=%.2f A=%.2f", idx,
+             g_battery_config_[idx].warning_low_voltage, voltage, current);
+    SerialManager::getInstance().sendMessage("WARNING", msg);
+  } else if ((idx == 0) && (current < 0.0f)) {
     state_[idx] = BatteryState::CHARGING;
   } else {
     state_[idx] = BatteryState::NORMAL;
