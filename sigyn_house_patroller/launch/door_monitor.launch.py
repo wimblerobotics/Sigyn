@@ -47,7 +47,7 @@ def generate_launch_description():
             {'scan_timeout': 30.0},
             {'scan_topic': '/scan'},
             {'alert_cooldown': 120.0},
-            {'distance_tolerance': 0.1},
+            {'distance_threshold': 0.1},
             {'angle_tolerance': 0.1},
             {'enable_room_filtering': True},
             {'map_frame': 'map'},
