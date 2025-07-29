@@ -22,6 +22,7 @@ setup(
         'console_scripts': [
             'measure_wifi = py_scripts.measure_wifi:main',
             'show_time_skew = py_scripts.show_time_skew:main',
+            'topic_analysis = py_scripts.topic_analysis:main',
         ],
     },
 )

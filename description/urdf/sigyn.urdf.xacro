@@ -128,18 +128,18 @@
   <!-- IMU0 - Upside down (components facing down) -->
   <joint name="imu0_joint" type="fixed">
     <parent link="base_link" />
-    <child link="imu0_link" />
+    <child link="imu_0" />
     <origin xyz="-0.100 0.180 0.022" rpy="0 3.14159 0" />  <!-- 180° around Y-axis -->
   </joint>
 
-  <link name="imu0_link" />
+  <link name="imu_0" />
 
   <!-- IMU1 - Right-side up (components facing up) -->
   <joint name="imu1_joint" type="fixed">
     <parent link="base_link" />
-    <child link="imu1_link" />
+    <child link="imu_1" />
     <origin xyz="0.085 -0.185 0.022" rpy="0 0 0" />  <!-- No rotation needed -->
   </joint>
 
-  <link name="imu1_link" />
+  <link name="imu_1" />
 </robot>
