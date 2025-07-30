@@ -3,7 +3,7 @@
 ![alt text](Media/TeensySensor3DTilted.png)
 
 # Overview
-This board is an expansion board for the Teensy 4.1 development board and was originally designed for used in the Sigyn robot by Wimble Robotics. Sigyn uses three of these boards. 
+This board is an expansion board for the Teensy 4.1 development board and was originally designed for use in the Sigyn robot by Wimble Robotics. Sigyn uses three of these boards. 
 Just as an example, here is how Sigyn uses these boards as of the day of this writing.
 * Board1 supports
   * 8 Time of flight sensors
@@ -40,9 +40,9 @@ The board itself has the following features:
 * 2 UART ports with an extra signal.  
   The extra signal can be used, for example, to provide an extra signal to the UART-driven device. On Sigyn, this signal provides an e-stop signal to the RoboClaw motor controller.
 * 1 UART port without an extra signal.  
-  Like most pins brought out from the Teensy 4.1, you could repurpose this pins for other uses.
+  Like most pins brought out from the Teensy 4.1, you could repurpose this pin for other uses.
 * 4 level-shifted pins.  
-  Each port provides 5V, GND and a bidirecton, level shifted pin which translates beteen the 3.3V of the Teensy 4.1 and 5V to drive some external device.
+  Each port provides 5V, GND and a bidirectonal, level shifted pin which translates between the 3.3V of the Teensy 4.1 and 5V to drive some external device.
 * A 5V external power input port.  
   You can modify the Teensy 4.1 development board by cutting a pin so that the USB input only powers the development board USB port, and all other 5V power needs can be supplied by this external input port. This gets around the limited 5V drive capability provided by the Teensy 4.1 development board itself.
 * A custom, external power input port.  
@@ -55,7 +55,7 @@ The board itself has the following features:
 
 ![alt text](Media/TeensySensor2D_I2C_Multiplexer.png)
 
-In the picture, each of the 10 connectors has pin 1 at the top and pin 4 at the bottom. The leftmost 8 connectors are multiplexed I2C connectors and the rightmost 2 connectors are non multiplexed.
+In the picture, each of the 10 connectors has pin 1 at the top and pin 4 at the bottom. The leftmost 8 connectors are multiplexed I2C connectors and the rightmost 2 connectors are non-multiplexed.
 
 | Connector Pin | Teensy Signal Name | Teensy Digital Pin |
 | :-----------: | :----------------: | :----------------: |
@@ -64,7 +64,7 @@ In the picture, each of the 10 connectors has pin 1 at the top and pin 4 at the 
 |       3       |        SCL         |         19         |
 |       4       |        SDA         |         18         |
 
-Each multiplexed connector has a separate 3K ohm pullup resistor for the SCL (clock) and SDA (data) pins. The non multiplexed connectors share whatever, if any, pullup resistors you set for the first I2C channel of the Teensy 4.1 which is what also drives the I2C multiplexer.
+Each multiplexed connector has a separate 3K ohm pullup resistor for the SCL (clock) and SDA (data) pins. The non-multiplexed connectors share whatever, if any, pullup resistors you set for the first I2C channel of the Teensy 4.1 which is what also drives the I2C multiplexer.
 
 To use I2C devices connected to one of the 8 multiplexed connectors, you have to enable the multiplexer chip and then select which multiplexed connector to enable. Sample code below shows how to do this. `mI2C-0` is selected by passing `0` to the `selectSensorChannel` function and `mI2C-7` is selected by passing `7`. Here is some sample code:
 
@@ -136,7 +136,7 @@ bool testMultiplexer() {
 }
 ```
 
-Using the non multiplexed
+Using the non-multiplexed
 
 # Programming the 4 SONAR connectors.
 
@@ -156,8 +156,8 @@ Note that the Teensy 4.1 documents show the same logical 'CS' name for two diffe
 The four connectors are hardware designed to translate between the 5 voltes needed for HC-SR04 Ping sensors and the 3.3 volts used by the Teensy 4.1, so the TRIGGER and ECHO pins on each connector are 5 volt level signals.
 You can probably use any Arduino library that supports the HC-SR04, knowing the pin numbers for the TRIGGER and ECHO signals for each sensor.
 
-If you'd like to see a more sophisticated approach, in my github archive at 
-![https://github.com/wimblerobotics/teensy_monitor/tree/main/oldCode](https://github.com/wimblerobotics/teensy_monitor/tree/main/oldCode) in the `tsonar.h` and `tsonar.cpp` files, you can see a way of using a timer and a state machine to space out the handling of 4 SONAR sensor to minimize the interference with each other and to use interrupt handlers so that you don't have to waste time polling the sensors to get the distance results.
+If you'd like to see a more sophisticated approach, in my GitHub archive at 
+![https://github.com/wimblerobotics/teensy_monitor/tree/main/oldCode](https://github.com/wimblerobotics/teensy_monitor/tree/main/oldCode) in the `tsonar.h` and `tsonar.cpp` files, you can see a way of using a timer and a state machine to space out the handling of 4 SONAR sensors to minimize the interference with each other and to use interrupt handlers so that you don't have to waste time polling the sensors to get the distance results.
 
 # Programming the 8 Analog connectors.
 
@@ -201,7 +201,7 @@ In the picture, pin 6 is the leftmost pin for each of the two SPI connectors and
 |       5       |        SCK         |      13 (LED)      |
 |       6       |     OUT1C / CS     |       9 / 10       |
 
-That is, for the SPI-1 connector, pin6, the chip select pin is the OUT1C signal, which is digital pin 9 for the Teensy 4.1. For the SPI-2 connector, pint 6 is the CS signal, which is digital pin 10.
+That is, for the SPI-1 connector, pin6, the chip select pin is the OUT1C signal, which is digital pin 9 for the Teensy 4.1. For the SPI-2 connector, pin 6 is the CS signal, which is digital pin 10.
 
 # Programming the 4 RELAY connectors.
 
