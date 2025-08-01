@@ -1,0 +1,49 @@
+perimeter_roamer_v2:
+  ros__parameters:
+    # Speed settings - slower and more cautious
+    forward_speed: 0.12           # Normal forward speed (reduced)
+    turn_speed: 0.25              # Turning speed (reduced)
+    narrow_space_speed: 0.05      # Speed in narrow spaces (much slower)
+    
+    # Wall following parameters
+    wall_distance_setpoint: 0.40  # Desired distance from wall (increased)
+    wall_following_gain: 0.4      # Wall following gain (reduced)
+    kp_angular: 1.5               # Proportional gain for angular control (reduced)
+    max_angular_speed: 0.6        # Maximum angular velocity (reduced)
+    
+    # Robot physical dimensions (from your config)
+    robot_radius: 0.23            # 0.46m diameter / 2
+    robot_diameter: 0.46          # Full diameter
+    
+    # Space classification thresholds
+    doorway_width_threshold: 0.8  # Spaces narrower than this are doorways
+    narrow_hallway_threshold: 1.2 # Spaces narrower than this are narrow hallways  
+    very_narrow_threshold: 0.6    # Extremely tight spaces
+    
+    # LIDAR-based safety (no costmap dependency)
+    min_obstacle_distance: 0.20   # Absolute minimum safe distance (increased)
+    comfortable_distance: 0.35    # Preferred clearance distance (increased)
+    
+    # Control parameters
+    control_frequency: 10.0
+    base_frame: "base_link"
+    odom_frame: "odom"
+    
+    # Topic names
+    cmd_vel_topic: "/cmd_vel_nav"
+    scan_topic: "/scan"
+    odom_topic: "/odom"
+    
+    # Recovery behavior
+    recovery_backup_speed: -0.08  # Slow backup speed
+    recovery_backup_time: 1.5     # Time to back up
+    recovery_turn_time: 2.0       # Time to turn during recovery
+    
+    # Stuck detection
+    stuck_timeout: 8.0            # Time before considering robot stuck
+    stuck_distance_threshold: 0.03 # Minimum movement to not be stuck
+
+    # Doorway approach parameters
+    doorway_approach_distance: 0.6      # Distance to start centering approach
+    doorway_centering_tolerance: 0.05   # How centered we need to be (±5cm)
+    doorway_alignment_angle_tolerance: 0.1  # Angular tolerance in radians (~6°)

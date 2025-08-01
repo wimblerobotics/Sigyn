@@ -16,11 +16,11 @@ perimeter_roamer:
     costmap_check_points_front: 5
     robot_width: 0.46
     costmap_lethal_threshold: 254
-    costmap_inscribed_threshold: 99 # Default threshold for non-doorway collisions
+    costmap_inscribed_threshold: 200 # Much higher for very narrow hallways - almost only lethal obstacles trigger safety stop
 
     # Robot physical dimensions & Safety
     robot_radius: 0.23
-    safety_bubble_distance: 0.3    # Corrected from safety_bubble_radius
+    safety_bubble_distance: 0.10   # Very small for narrow hallways
 
     # Corner Collision Avoidance
     corner_lookahead_distance: 0.3
@@ -47,9 +47,9 @@ perimeter_roamer:
     doorway_scan_angle_end: 2.356   # 135 degrees in radians
 
     # --- State-Dependent Safety Parameters (Doorway) ---
-    doorway_safety_bubble_distance: 0.15 # meters
+    doorway_safety_bubble_distance: 0.08 # Very small for tight spaces
     doorway_costmap_check_distance: 0.25 # meters
-    doorway_cost_threshold: 80     # 0-100
+    doorway_cost_threshold: 200     # Match the main threshold
     doorway_detection_skew: 0.4 # meters
     doorway_max_angle_for_full_speed: 0.35 # radians (~20 degrees)
     doorway_commit_time: 2.0 # seconds to commit to a doorway before re-evaluating
