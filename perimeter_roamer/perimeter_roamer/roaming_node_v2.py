@@ -4,9 +4,10 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPo
 from rclpy.duration import Duration
 import math
 import tf2_ros
+import tf2_geometry_msgs
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
 import tf_transformations
-from geometry_msgs.msg import Twist, Point
+from geometry_msgs.msg import Twist, Point, PointStamped
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry, OccupancyGrid
 from map_msgs.msg import OccupancyGridUpdate
@@ -135,6 +136,10 @@ class PerimeterRoamerV2(Node):
         # --- Publishers and Subscribers ---
         self.cmd_vel_pub = self.create_publisher(Twist, self.cmd_vel_topic, 10)
         
+        # TF2 for coordinate frame transformations
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+        
         scan_qos = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
             history=HistoryPolicy.KEEP_LAST,
@@ -150,7 +155,55 @@ class PerimeterRoamerV2(Node):
         # Control timer
         self.timer = self.create_timer(1.0 / self.control_frequency, self.control_loop)
         
+        # Wait for transforms to become available
+        self.wait_for_transforms()
+        
         self.get_logger().info("Perimeter Roamer V2 Initialized.")
+    
+    def wait_for_transforms(self):
+        """Wait for tf2 transforms to become available before starting control loop."""
+        self.get_logger().info("Waiting for tf2 transforms to become available...")
+        
+        # Wait for laser scan data first
+        while self.last_scan is None and rclpy.ok():
+            self.get_logger().info("Waiting for first laser scan...")
+            rclpy.spin_once(self, timeout_sec=0.1)
+            
+        if not rclpy.ok():
+            return
+            
+        # Now wait for transform to be available
+        max_wait_time = 10.0  # Maximum time to wait in seconds
+        start_time = self.get_clock().now()
+        
+        while rclpy.ok():
+            try:
+                # IMPORTANT: Use the actual frame_id from the scan message, not hardcoded names
+                scan_frame_id = self.last_scan.header.frame_id
+                
+                # Try to get the transform from base_link to the actual LIDAR frame
+                transform = self.tf_buffer.lookup_transform(
+                    scan_frame_id,  # target frame (actual laser frame from scan)
+                    self.robot_base_frame,  # source frame (base_link)
+                    rclpy.time.Time(),  # latest available
+                    timeout=Duration(seconds=0.1)
+                )
+                self.get_logger().info(f"Transform from {self.robot_base_frame} to {scan_frame_id} is now available!")
+                break
+                
+            except (LookupException, ConnectivityException, ExtrapolationException) as e:
+                current_time = self.get_clock().now()
+                elapsed = (current_time - start_time).nanoseconds / 1e9
+                
+                if elapsed > max_wait_time:
+                    self.get_logger().warn(f"Timeout waiting for transform after {max_wait_time}s. Proceeding anyway...")
+                    break
+                    
+                if elapsed > 2.0:  # Only log every 2 seconds to avoid spam
+                    scan_frame_name = self.last_scan.header.frame_id if self.last_scan else "unknown"
+                    self.get_logger().info(f"Still waiting for transform ({elapsed:.1f}s): {self.robot_base_frame} -> {scan_frame_name}: {e}")
+                
+                rclpy.spin_once(self, timeout_sec=0.1)
     
     def scan_callback(self, msg):
         self.last_scan = msg
@@ -164,7 +217,8 @@ class PerimeterRoamerV2(Node):
     def change_state(self, new_state):
         if self.state == new_state:
             return
-        self.get_logger().info(f"STATE CHANGE: {self.state.name} -> {new_state.name}")
+        position_info = self.format_position_debug(f"STATE CHANGE: {self.state.name} -> {new_state.name}")
+        self.get_logger().info(position_info)
         self.state = new_state
         self.recovery_start_time = None
     
@@ -175,6 +229,51 @@ class PerimeterRoamerV2(Node):
             angle += 2.0 * math.pi
         return angle
     
+    def get_robot_position_in_map(self):
+        """
+        Get the robot's current position in the map frame.
+        Returns (x, y) tuple in map coordinates, or (None, None) if transform fails.
+        """
+        if self.current_odom_pose is None:
+            return None, None
+            
+        try:
+            # Create a PointStamped with robot position in odom frame
+            point_odom = PointStamped()
+            point_odom.header.frame_id = self.odom_frame
+            point_odom.header.stamp = self.get_clock().now().to_msg()
+            point_odom.point.x = self.current_odom_pose.position.x
+            point_odom.point.y = self.current_odom_pose.position.y
+            point_odom.point.z = 0.0
+            
+            # Transform to map frame
+            point_map = self.tf_buffer.transform(point_odom, 'map', timeout=Duration(seconds=0.1))
+            
+            return point_map.point.x, point_map.point.y
+            
+        except (LookupException, ConnectivityException, ExtrapolationException) as e:
+            # Log the transform failure and try base_link to map directly  
+            self.get_logger().debug(f"Odom->Map transform failed: {e}, trying base_link->map")
+            try:
+                # Alternative: try base_link to map transform directly
+                transform = self.tf_buffer.lookup_transform('map', self.robot_base_frame, rclpy.time.Time(), timeout=Duration(seconds=0.1))
+                return transform.transform.translation.x, transform.transform.translation.y
+            except (LookupException, ConnectivityException, ExtrapolationException) as e2:
+                # Only return odom coordinates as last resort and warn user
+                self.get_logger().warn(f"All map transforms failed ({e}, {e2}), returning odom coordinates as fallback")
+                return self.current_odom_pose.position.x, self.current_odom_pose.position.y
+    
+    def format_position_debug(self, message):
+        """
+        Add robot position information to debug messages.
+        Returns formatted string with position info in MAP frame.
+        """
+        map_x, map_y = self.get_robot_position_in_map()
+        if map_x is not None and map_y is not None:
+            return f"[Map: ({map_x:.2f}, {map_y:.2f})] {message}"
+        else:
+            return f"[Map: (unknown)] {message}"
+    
     def stop_robot(self):
         twist = Twist()
         self.cmd_vel_pub.publish(twist)
@@ -184,136 +283,193 @@ class PerimeterRoamerV2(Node):
         """
         Classify the current space based on LIDAR data.
         Returns SpaceType enum.
+        
+        Using tf2 to transform all measurements to base_link frame:
+        - Forward = +X direction 
+        - Left = +Y direction
+        - Right = -Y direction (using negative Y for right)
+        
         FIXED: Proper doorway detection - a doorway is a ~1m wide opening, not a large open space.
         """
         if self.last_scan is None:
             return SpaceType.OPEN
         
-        # Get distances to left and right
-        left_dist = self.get_side_distance('left')
-        right_dist = self.get_side_distance('right')
-        front_dist = self.get_front_distance()
+        # Get distances using tf2-transformed measurements to base_link frame
+        right_dist = self.get_side_distance('right')    # -Y direction in base_link
+        left_dist = self.get_side_distance('left')      # +Y direction in base_link
+        forward_dist = self.get_front_distance()        # +X direction in base_link
         
-        # Enhanced debug logging
-        self.get_logger().info(f"SPACE_CLASSIFY: L={left_dist:.2f}m, R={right_dist:.2f}m, F={front_dist:.2f}m", throttle_duration_sec=3)
+        # Enhanced debug logging with base_link coordinate frame references  
+        # Show the ratio analysis for doorway detection
+        right_left_ratio = right_dist / left_dist if left_dist > 0.1 else float('inf')
+        left_right_ratio = left_dist / right_dist if right_dist > 0.1 else float('inf')
+        
+        self.get_logger().info(self.format_position_debug(f"SPACE_CLASSIFY: Right(-Y)={right_dist:.2f}m, Left(+Y)={left_dist:.2f}m, Forward(+X)={forward_dist:.2f}m, R/L={right_left_ratio:.2f}, L/R={left_right_ratio:.2f}"), throttle_duration_sec=3)
         
         # CORRECTED: Real doorway detection logic
         # A doorway is approximately 0.8-1.2m wide opening in a wall, not a huge open space
         # We detect this by looking for a reasonable-sized opening (not infinite distances)
         
-        # First, check if we have walls on both sides (normal corridor)
-        if left_dist < 5.0 and right_dist < 5.0:
-            total_width = left_dist + right_dist
+        # First, check if we have walls on both right and left sides (normal corridor)
+        if right_dist < 5.0 and left_dist < 5.0:
+            # Calculate corridor width (distance from right wall to left wall)
+            corridor_width = right_dist + left_dist
             
-            # Space classification based on total width
-            if total_width < self.very_narrow_threshold:
-                self.get_logger().info(f"DETECTED: VERY_NARROW corridor (width={total_width:.2f}m)")
+            # Space classification based on total corridor width
+            if corridor_width < self.very_narrow_threshold:
+                self.get_logger().info(f"DETECTED: VERY_NARROW corridor (width={corridor_width:.2f}m)")
                 return SpaceType.VERY_NARROW
-            elif total_width < self.narrow_hallway_threshold:
-                self.get_logger().info(f"DETECTED: NARROW_HALLWAY (width={total_width:.2f}m)")
+            elif corridor_width < self.narrow_hallway_threshold:
+                self.get_logger().info(f"DETECTED: NARROW_HALLWAY (width={corridor_width:.2f}m)")
                 return SpaceType.NARROW_HALLWAY
             else:
-                self.get_logger().info(f"DETECTED: NORMAL corridor (width={total_width:.2f}m)")
+                self.get_logger().info(self.format_position_debug(f"DETECTED: NORMAL corridor (width={corridor_width:.2f}m, left={left_dist:.2f}m, right={right_dist:.2f}m) - no wall breaks detected"))
                 return SpaceType.OPEN
         
-        # Now check for actual doorways - look for reasonable doorway-sized openings
-        # A doorway is typically 0.8-1.2m wide, so we look ahead at angles to find the far wall
+        # Now check for actual doorways - look for BREAKS IN WALLS
+        # A doorway is simply a gap where there used to be a wall - not about depth beyond the wall
         
-        # Check for doorway on the right (robot's right side opens up)
-        if right_dist > 5.0 or right_dist == float('inf'):
-            # Look ahead at 30°, 45°, 60° to the right to find the far wall of a doorway
-            right_30 = self.get_front_distance(-math.pi/6)   # 30° right
-            right_45 = self.get_front_distance(-math.pi/4)   # 45° right
-            right_60 = self.get_front_distance(-math.pi/3)   # 60° right
+        # SIMPLIFIED: Check for doorway on the right (-Y) side 
+        # Look for significant increase in right side distance indicating a wall break
+        if right_dist > left_dist * 2.0 and right_dist > 1.5:  # Right side much more open - wall break detected
+            # This is a break in the right wall - likely a doorway
+            forward_clearance = self.get_front_distance()
+            min_approach_clearance = self.robot_diameter * 3.0  # Need substantial clearance to approach safely
             
-            # If we can see into the opening and it looks like a doorway (not just open space)
-            if 0.8 <= right_30 <= 2.0 or 0.8 <= right_45 <= 2.0 or 0.8 <= right_60 <= 2.0:
-                self.get_logger().info(f"DETECTED: DOORWAY on RIGHT (30°={right_30:.2f}m, 45°={right_45:.2f}m, 60°={right_60:.2f}m)")
+            if forward_clearance > min_approach_clearance:
+                self.get_logger().info(self.format_position_debug(f"DETECTED: DOORWAY on RIGHT(-Y) - Wall break detected (right={right_dist:.2f}m >> left={left_dist:.2f}m, ratio={right_dist/left_dist:.2f})"))
                 return SpaceType.DOORWAY
             else:
-                self.get_logger().info(f"DETECTED: OPEN space on right (not a doorway - no far wall detected)")
-                return SpaceType.OPEN
+                self.get_logger().info(self.format_position_debug(f"RIGHT wall break detected but insufficient forward clearance ({forward_clearance:.2f}m < {min_approach_clearance:.2f}m) - staying in corridor mode"))
+                return SpaceType.NARROW_HALLWAY
                 
-        # Check for doorway on the left (robot's left side opens up)
-        elif left_dist > 5.0 or left_dist == float('inf'):
-            # Look ahead at 30°, 45°, 60° to the left to find the far wall of a doorway
-            left_30 = self.get_front_distance(math.pi/6)    # 30° left
-            left_45 = self.get_front_distance(math.pi/4)    # 45° left
-            left_60 = self.get_front_distance(math.pi/3)    # 60° left
+        # SIMPLIFIED: Check for doorway on the left (+Y) side
+        elif left_dist > right_dist * 2.0 and left_dist > 1.5:  # Left side much more open - wall break detected
+            # This is a break in the left wall - likely a doorway
+            forward_clearance = self.get_front_distance()
+            min_approach_clearance = self.robot_diameter * 3.0  # Need substantial clearance to approach safely
             
-            # If we can see into the opening and it looks like a doorway
-            if 0.8 <= left_30 <= 2.0 or 0.8 <= left_45 <= 2.0 or 0.8 <= left_60 <= 2.0:
-                self.get_logger().info(f"DETECTED: DOORWAY on LEFT (30°={left_30:.2f}m, 45°={left_45:.2f}m, 60°={left_60:.2f}m)")
+            if forward_clearance > min_approach_clearance:
+                self.get_logger().info(self.format_position_debug(f"DETECTED: DOORWAY on LEFT(+Y) - Wall break detected (left={left_dist:.2f}m >> right={right_dist:.2f}m, ratio={left_dist/right_dist:.2f})"))
                 return SpaceType.DOORWAY
             else:
-                self.get_logger().info(f"DETECTED: OPEN space on left (not a doorway - no far wall detected)")
-                return SpaceType.OPEN
+                self.get_logger().info(self.format_position_debug(f"LEFT wall break detected but insufficient forward clearance ({forward_clearance:.2f}m < {min_approach_clearance:.2f}m) - staying in corridor mode"))
+                return SpaceType.NARROW_HALLWAY
         
         # Neither side is particularly open - probably a normal corridor or room
-        self.get_logger().info(f"DETECTED: OPEN space (L={left_dist:.2f}m, R={right_dist:.2f}m)")
+        self.get_logger().info(f"DETECTED: OPEN space (Right(-Y)={right_dist:.2f}m, Left(+Y)={left_dist:.2f}m)")
         return SpaceType.OPEN
+    
+    def get_distance_in_direction(self, direction_x, direction_y, max_range=10.0):
+        """
+        Get distance to obstacle in specified direction using tf2 to transform LIDAR data to base_link frame.
+        
+        Args:
+            direction_x: X component of direction vector in base_link frame (+X = forward)
+            direction_y: Y component of direction vector in base_link frame (+Y = left)
+            max_range: Maximum range to check
+            
+        Returns:
+            Distance to obstacle in meters, or float('inf') if no obstacle
+        """
+        if self.last_scan is None:
+            return float('inf')
+            
+        # Ensure we have a valid frame_id in the scan message
+        if not hasattr(self.last_scan, 'header') or not hasattr(self.last_scan.header, 'frame_id'):
+            self.get_logger().warn("Invalid scan message: missing header or frame_id")
+            return float('inf')
+            
+        if not self.last_scan.header.frame_id:
+            self.get_logger().warn("Invalid scan message: empty frame_id")
+            return float('inf')
+            
+        try:
+            # IMPORTANT: Use the actual frame_id from the scan message, not hardcoded names
+            scan_frame_id = self.last_scan.header.frame_id
+            
+            # Get transform from base_link to laser frame (to know which laser ray to use)
+            # Use latest available transform instead of exact timestamp to avoid timing issues
+            transform = self.tf_buffer.lookup_transform(
+                scan_frame_id,  # target frame (laser frame from scan message)
+                self.robot_base_frame,  # source frame (base_link)
+                rclpy.time.Time(),  # Use latest available transform
+                timeout=Duration(seconds=0.5)  # Shorter timeout to fail faster
+            )
+            
+            # Create a point in the target direction in base_link frame
+            target_point_stamped = PointStamped()
+            target_point_stamped.header.frame_id = self.robot_base_frame
+            target_point_stamped.header.stamp = rclpy.time.Time().to_msg()  # Use current time
+            target_point_stamped.point.x = direction_x
+            target_point_stamped.point.y = direction_y
+            target_point_stamped.point.z = 0.0
+            
+            # Transform to laser frame to find which laser ray to use
+            target_point_laser_stamped = tf2_geometry_msgs.do_transform_point(target_point_stamped, transform)
+            
+            # Calculate angle in laser frame
+            target_angle_laser = math.atan2(target_point_laser_stamped.point.y, target_point_laser_stamped.point.x)
+            
+            # Find corresponding LIDAR ray
+            ranges = np.array(self.last_scan.ranges)
+            angle_min = self.last_scan.angle_min
+            angle_increment = self.last_scan.angle_increment
+            
+            index = int((target_angle_laser - angle_min) / angle_increment)
+            
+            # Ensure index is within bounds
+            if index < 0 or index >= len(ranges):
+                return float('inf')
+            
+            # Average over a small window for robustness
+            window = 5
+            start_idx = max(0, index - window // 2)
+            end_idx = min(len(ranges), index + window // 2 + 1)
+            
+            valid_ranges = ranges[start_idx:end_idx]
+            valid_ranges = valid_ranges[np.isfinite(valid_ranges)]
+            valid_ranges = valid_ranges[valid_ranges <= max_range]
+            
+            if len(valid_ranges) == 0:
+                return float('inf')
+            
+            return np.median(valid_ranges)
+            
+        except (LookupException, ConnectivityException, ExtrapolationException) as e:
+            # More informative error logging
+            scan_frame_name = self.last_scan.header.frame_id if self.last_scan else "unknown"
+            self.get_logger().warn(f"TF2 transform failed ({self.robot_base_frame} -> {scan_frame_name}): {e}")
+            return float('inf')
+        except Exception as e:
+            self.get_logger().error(f"Unexpected error in get_distance_in_direction: {e}")
+            return float('inf')
     
     def get_side_distance(self, side='right'):
         """
-        Get distance to obstacle on specified side using LIDAR.
-        More robust than costmap for narrow spaces.
+        Get distance to obstacle on specified side using tf2 transformations to base_link frame.
+        
+        Args:
+            side: 'right' or 'left' relative to base_link frame
         """
-        if self.last_scan is None:
-            return float('inf')
-        
-        ranges = np.array(self.last_scan.ranges)
-        angle_min = self.last_scan.angle_min
-        angle_increment = self.last_scan.angle_increment
-        
         if side == 'right':
-            # -90 degrees (-pi/2)
-            target_angle = -math.pi / 2
+            # Right side in base_link frame is +Y direction
+            return self.get_distance_in_direction(0.0, 1.0)
         else:  # left
-            # +90 degrees (+pi/2)
-            target_angle = math.pi / 2
-        
-        # Find the index corresponding to the target angle
-        index = int((target_angle - angle_min) / angle_increment)
-        
-        # Average over a small range for robustness
-        window = 5
-        start_idx = max(0, index - window // 2)
-        end_idx = min(len(ranges), index + window // 2 + 1)
-        
-        valid_ranges = ranges[start_idx:end_idx]
-        valid_ranges = valid_ranges[np.isfinite(valid_ranges)]
-        
-        if len(valid_ranges) == 0:
-            return float('inf')
-        
-        return np.median(valid_ranges)
+            # Left side in base_link frame is -Y direction
+            return self.get_distance_in_direction(0.0, -1.0)
     
     def get_front_distance(self, angle_offset=0.0):
         """
-        Get distance to obstacle in front, with optional angle offset.
+        Get distance to obstacle in front using tf2 transformations to base_link frame.
+        
+        Args:
+            angle_offset: Angle offset from forward direction (radians)
         """
-        if self.last_scan is None:
-            return float('inf')
-        
-        ranges = np.array(self.last_scan.ranges)
-        angle_min = self.last_scan.angle_min
-        angle_increment = self.last_scan.angle_increment
-        
-        target_angle = angle_offset  # 0 is straight ahead
-        index = int((target_angle - angle_min) / angle_increment)
-        
-        # Average over a small window
-        window = 8
-        start_idx = max(0, index - window // 2)
-        end_idx = min(len(ranges), index + window // 2 + 1)
-        
-        valid_ranges = ranges[start_idx:end_idx]
-        valid_ranges = valid_ranges[np.isfinite(valid_ranges)]
-        
-        if len(valid_ranges) == 0:
-            return float('inf')
-        
-        return np.min(valid_ranges)  # Use minimum for safety
+        # Forward in base_link frame is +X direction
+        direction_x = math.cos(angle_offset)
+        direction_y = math.sin(angle_offset)
+        return self.get_distance_in_direction(direction_x, direction_y)
     
     def check_immediate_collision_risk(self):
         """
@@ -556,39 +712,52 @@ class PerimeterRoamerV2(Node):
         if self.state == State.FIND_WALL:
             # First classify the space to understand our environment
             space_type = self.classify_space()
-            self.get_logger().info(f"Space classification: {space_type}", throttle_duration_sec=2)
+            self.get_logger().info(self.format_position_debug(f"Space classification: {space_type}"), throttle_duration_sec=2)
             
             if self.is_wall_on_right():
-                self.get_logger().info("Wall found on right, switching to wall following")
+                self.get_logger().info(self.format_position_debug("Wall found on right, switching to wall following"))
                 self.change_state(State.FOLLOW_WALL)
             else:
                 # Turn right in place to find a wall - don't move forward
-                self.get_logger().info("No wall on right, turning to find wall", throttle_duration_sec=2)
+                self.get_logger().info(self.format_position_debug("No wall on right, turning to find wall"), throttle_duration_sec=2)
                 twist.linear.x = 0.0  # Don't move forward
                 twist.angular.z = -self.turn_speed * 0.5  # Turn right at moderate speed
         
         elif self.state == State.FOLLOW_WALL:
             if not self.is_path_clear_ahead(0.5):  # Increased clearance check
-                self.get_logger().info("Obstacle ahead, turning left") 
+                self.get_logger().info(self.format_position_debug("Obstacle ahead, turning left")) 
                 twist.angular.z = self.turn_speed
             else:
                 # More conservative approach to narrow space detection
                 front_dist = self.get_front_distance()
                 
-                # When we detect a doorway, approach it carefully
-                if self.current_space_type == SpaceType.DOORWAY and front_dist > 0.8:  # Increased clearance for doorway
-                    self.get_logger().info(f"*** DOORWAY DETECTED! Transitioning to APPROACH_DOORWAY. Front clearance: {front_dist:.2f}m ***")
-                    self.change_state(State.APPROACH_DOORWAY)
-                    linear_vel, angular_vel = self.approach_doorway()
+                # FIXED: Only transition to doorway approach when we have sufficient forward clearance
+                # AND we're not too close to the doorway opening itself
+                if self.current_space_type == SpaceType.DOORWAY and front_dist > 1.2:  # Increased minimum clearance
+                    # Additional safety check: ensure we're not already at the doorway entrance
+                    right_dist = self.get_side_distance('right')
+                    left_dist = self.get_side_distance('left')
+                    
+                    # Only approach doorway if we have sufficient maneuvering room
+                    min_maneuvering_distance = self.robot_diameter * 2.0  # Need space to position properly
+                    
+                    if front_dist > min_maneuvering_distance:
+                        self.get_logger().info(self.format_position_debug(f"*** DOORWAY DETECTED! Transitioning to APPROACH_DOORWAY. Front clearance: {front_dist:.2f}m, Min required: {min_maneuvering_distance:.2f}m ***"))
+                        self.change_state(State.APPROACH_DOORWAY)
+                        linear_vel, angular_vel = self.approach_doorway()
+                    else:
+                        # Too close to doorway - continue wall following until we have proper clearance
+                        self.get_logger().info(self.format_position_debug(f"DOORWAY detected but too close ({front_dist:.2f}m < {min_maneuvering_distance:.2f}m) - continuing wall following"))
+                        linear_vel, angular_vel = self.get_wall_following_command()
                 elif self.current_space_type == SpaceType.VERY_NARROW and front_dist > 0.6:
-                    self.get_logger().info(f"*** VERY_NARROW space detected, entering carefully. Front clearance: {front_dist:.2f}m ***")
+                    self.get_logger().info(self.format_position_debug(f"*** VERY_NARROW space detected, entering carefully. Front clearance: {front_dist:.2f}m ***"))
                     self.change_state(State.NAVIGATE_NARROW_SPACE)
                     linear_vel, angular_vel = self.navigate_narrow_space()
                 else:
                     # Stay in wall following mode if not clearly safe
                     linear_vel, angular_vel = self.get_wall_following_command()
                     if self.current_space_type != SpaceType.OPEN:
-                        self.get_logger().info(f"Wall following in {self.current_space_type.name} space: front_dist={front_dist:.2f}m", throttle_duration_sec=5)
+                        self.get_logger().info(self.format_position_debug(f"Wall following in {self.current_space_type.name} space: front_dist={front_dist:.2f}m"), throttle_duration_sec=5)
                 
                 twist.linear.x = linear_vel
                 twist.angular.z = angular_vel
@@ -652,86 +821,102 @@ class PerimeterRoamerV2(Node):
         
         # Debug logging - make it INFO level so we can see it
         space_name = self.current_space_type.name
-        self.get_logger().info(f"State: {self.state.name}, Space: {space_name}, Cmd: ({twist.linear.x:.2f}, {twist.angular.z:.2f})", throttle_duration_sec=2)
+        self.get_logger().info(self.format_position_debug(f"State: {self.state.name}, Space: {space_name}, Cmd: ({twist.linear.x:.2f}, {twist.angular.z:.2f})"), throttle_duration_sec=2)
     
     def approach_doorway(self):
         """
         Approach a detected doorway with comprehensive validation and positioning.
+        
+        Coordinate frame: base_link (robot-centric)
+        - port = +Y direction (left side from rider perspective)
+        - starboard = -Y direction (right side from rider perspective)
+        - forward = +X direction
+        
         Robot must:
         1. Clearly identify which side has the doorway opening
         2. Verify the opening is wide enough for the robot to fit through
-        3. Center itself perfectly in the hallway
-        4. Position itself optimally for a 90-degree turn
-        5. Check ahead for obstacles (doors, furniture) before committing
-        6. Plan ahead at least one robot diameter
+        3. Move forward until properly positioned for doorway entry
+        4. Center itself perfectly in the hallway
+        5. Position itself optimally for a 90-degree turn
+        6. Check ahead for obstacles (doors, furniture) before committing
+        7. Plan ahead at least one robot diameter
         Returns (linear_vel, angular_vel) tuple.
         """
         # Get comprehensive distance measurements
-        left_dist = self.get_side_distance('left')
-        right_dist = self.get_side_distance('right')
-        front_dist = self.get_front_distance()
+        port_dist = self.get_side_distance('left')    # +Y direction
+        starboard_dist = self.get_side_distance('right')  # -Y direction
+        forward_dist = self.get_front_distance()      # +X direction
         
         # Get parameters
         approach_distance = self.get_parameter('doorway_approach_distance').value
         centering_tolerance = self.get_parameter('doorway_centering_tolerance').value
         
-        # Comprehensive debug logging
-        self.get_logger().info(f"APPROACH_DOORWAY: L={left_dist:.2f}m, R={right_dist:.2f}m, F={front_dist:.2f}m")
+        # Comprehensive debug logging with clear coordinate frame references
+        self.get_logger().info(self.format_position_debug(f"APPROACH_DOORWAY: Port(+Y)={port_dist:.2f}m, Starboard(-Y)={starboard_dist:.2f}m, Forward(+X)={forward_dist:.2f}m"))
         
         # STEP 1: Clearly identify which side has the doorway opening
-        doorway_on_right = False
-        doorway_on_left = False
+        doorway_on_starboard = False  # -Y direction (right from rider perspective)
+        doorway_on_port = False       # +Y direction (left from rider perspective)
         
-        # CORRECTED: Proper doorway side detection
+        # CORRECTED: Proper doorway side detection using coordinate frame references
         # Look for actual doorway structure, not just large distances
         
-        # Check right side for doorway - look for opening with far wall
-        if right_dist > 5.0 or right_dist == float('inf'):
-            # Look into the right opening for doorway structure
-            right_30 = self.get_front_distance(-math.pi/6)   # 30° right
-            right_45 = self.get_front_distance(-math.pi/4)   # 45° right
-            right_60 = self.get_front_distance(-math.pi/3)   # 60° right
+        # Check starboard (-Y) side for doorway - look for opening with far wall
+        if starboard_dist > 5.0 or starboard_dist == float('inf'):
+            # Look into the starboard (-Y) opening for doorway structure
+            starboard_30 = self.get_front_distance(-math.pi/6)   # 30° toward -Y (starboard)
+            starboard_45 = self.get_front_distance(-math.pi/4)   # 45° toward -Y (starboard)
+            starboard_60 = self.get_front_distance(-math.pi/3)   # 60° toward -Y (starboard)
             
             # Check if we can see doorway structure (far wall at reasonable distance)
-            if 0.8 <= right_30 <= 2.0 or 0.8 <= right_45 <= 2.0 or 0.8 <= right_60 <= 2.0:
-                doorway_on_right = True
-                self.get_logger().info(f"*** DOORWAY CONFIRMED ON RIGHT: Structure detected (30°={right_30:.2f}m, 45°={right_45:.2f}m, 60°={right_60:.2f}m) ***")
+            if 0.8 <= starboard_30 <= 2.0 or 0.8 <= starboard_45 <= 2.0 or 0.8 <= starboard_60 <= 2.0:
+                doorway_on_starboard = True
+                self.get_logger().info(self.format_position_debug(f"*** DOORWAY CONFIRMED ON STARBOARD(-Y): Structure detected (30°={starboard_30:.2f}m, 45°={starboard_45:.2f}m, 60°={starboard_60:.2f}m) ***"))
             else:
-                self.get_logger().info(f"Right side open but no doorway structure - just open space (30°={right_30:.2f}m, 45°={right_45:.2f}m, 60°={right_60:.2f}m)")
+                self.get_logger().info(self.format_position_debug(f"Starboard(-Y) side open but no doorway structure - just open space (30°={starboard_30:.2f}m, 45°={starboard_45:.2f}m, 60°={starboard_60:.2f}m)"))
         
-        # Check left side for doorway
-        if not doorway_on_right and (left_dist > 5.0 or left_dist == float('inf')):
-            # Look into the left opening for doorway structure
-            left_30 = self.get_front_distance(math.pi/6)    # 30° left
-            left_45 = self.get_front_distance(math.pi/4)    # 45° left
-            left_60 = self.get_front_distance(math.pi/3)    # 60° left
+        # Check port (+Y) side for doorway
+        if not doorway_on_starboard and (port_dist > 5.0 or port_dist == float('inf')):
+            # Look into the port (+Y) opening for doorway structure
+            port_30 = self.get_front_distance(math.pi/6)    # 30° toward +Y (port)
+            port_45 = self.get_front_distance(math.pi/4)    # 45° toward +Y (port)
+            port_60 = self.get_front_distance(math.pi/3)    # 60° toward +Y (port)
             
             # Check if we can see doorway structure
-            if 0.8 <= left_30 <= 2.0 or 0.8 <= left_45 <= 2.0 or 0.8 <= left_60 <= 2.0:
-                doorway_on_left = True
-                self.get_logger().info(f"*** DOORWAY CONFIRMED ON LEFT: Structure detected (30°={left_30:.2f}m, 45°={left_45:.2f}m, 60°={left_60:.2f}m) ***")
+            if 0.8 <= port_30 <= 2.0 or 0.8 <= port_45 <= 2.0 or 0.8 <= port_60 <= 2.0:
+                doorway_on_port = True
+                self.get_logger().info(self.format_position_debug(f"*** DOORWAY CONFIRMED ON PORT(+Y): Structure detected (30°={port_30:.2f}m, 45°={port_45:.2f}m, 60°={port_60:.2f}m) ***"))
             else:
-                self.get_logger().info(f"Left side open but no doorway structure - just open space (30°={left_30:.2f}m, 45°={left_45:.2f}m, 60°={left_60:.2f}m)")
+                self.get_logger().info(self.format_position_debug(f"Port(+Y) side open but no doorway structure - just open space (30°={port_30:.2f}m, 45°={port_45:.2f}m, 60°={port_60:.2f}m)"))
         
         # If no clear doorway structure detected, don't try to enter
-        if not doorway_on_right and not doorway_on_left:
-            self.get_logger().warn(f"NO DOORWAY STRUCTURE DETECTED - returning to wall following (L={left_dist:.2f}m, R={right_dist:.2f}m)")
+        if not doorway_on_starboard and not doorway_on_port:
+            self.get_logger().warn(self.format_position_debug(f"NO DOORWAY STRUCTURE DETECTED - returning to wall following (Port(+Y)={port_dist:.2f}m, Starboard(-Y)={starboard_dist:.2f}m)"))
             self.change_state(State.FOLLOW_WALL)
             return self.get_wall_following_command()
         
-        if doorway_on_right:
-            # STEP 2: Analyze the right doorway opening in detail
-            self.get_logger().info("=== ANALYZING RIGHT DOORWAY ===")
+        # STEP 2: CRITICAL FIX - Ensure we're far enough from the doorway to safely approach
+        # Don't immediately turn into the doorway - approach it properly first
+        min_approach_distance = self.robot_diameter * 2.5  # Need room to maneuver
+        
+        if forward_dist < min_approach_distance:
+            self.get_logger().info(self.format_position_debug(f"TOO CLOSE to doorway opening ({forward_dist:.2f}m < {min_approach_distance:.2f}m) - moving forward first"))
+            # Move forward slowly to get proper positioning
+            return 0.05, 0.0  # Slow forward motion only
+        
+        if doorway_on_starboard:
+            # STEP 3: Analyze the starboard (-Y) doorway opening in detail
+            self.get_logger().info("=== ANALYZING STARBOARD(-Y) DOORWAY ===")
             
             # Check multiple angles into the doorway to understand the opening
-            doorway_30 = self.get_front_distance(-math.pi/6)   # 30° right
-            doorway_45 = self.get_front_distance(-math.pi/4)   # 45° right
-            doorway_60 = self.get_front_distance(-math.pi/3)   # 60° right
-            doorway_90 = self.get_side_distance('right')       # 90° right (into doorway)
+            doorway_30 = self.get_front_distance(-math.pi/6)   # 30° toward -Y (starboard)
+            doorway_45 = self.get_front_distance(-math.pi/4)   # 45° toward -Y (starboard)
+            doorway_60 = self.get_front_distance(-math.pi/3)   # 60° toward -Y (starboard)
+            doorway_90 = self.get_side_distance('right')       # 90° toward -Y (into doorway)
             
-            self.get_logger().info(f"Right doorway analysis: 30°={doorway_30:.2f}m, 45°={doorway_45:.2f}m, 60°={doorway_60:.2f}m, 90°={doorway_90:.2f}m")
+            self.get_logger().info(f"Starboard(-Y) doorway analysis: 30°={doorway_30:.2f}m, 45°={doorway_45:.2f}m, 60°={doorway_60:.2f}m, 90°={doorway_90:.2f}m")
             
-            # STEP 3: Verify opening is wide enough for robot
+            # STEP 4: Verify opening is wide enough for robot
             # We need to look ahead into the doorway to see the far wall
             # This tells us the actual doorway width
             min_doorway_depth = min(doorway_30, doorway_45, doorway_60, doorway_90)
@@ -739,7 +924,7 @@ class PerimeterRoamerV2(Node):
             # Check if there's a door or obstacle blocking the way
             planning_distance = self.robot_diameter * 1.5  # Plan ahead 1.5 robot diameters
             if min_doorway_depth < planning_distance:
-                self.get_logger().warn(f"DOORWAY BLOCKED OR TOO NARROW: min_depth={min_doorway_depth:.2f}m < planning_distance={planning_distance:.2f}m")
+                self.get_logger().warn(f"STARBOARD(-Y) DOORWAY BLOCKED OR TOO NARROW: min_depth={min_doorway_depth:.2f}m < planning_distance={planning_distance:.2f}m")
                 self.get_logger().warn("This could be a closed door or furniture - returning to wall following")
                 self.change_state(State.FOLLOW_WALL)
                 return self.get_wall_following_command()
@@ -751,50 +936,50 @@ class PerimeterRoamerV2(Node):
                 self.get_logger().info(f"Estimated doorway width: {estimated_doorway_width:.2f}m")
                 
                 if estimated_doorway_width < self.robot_diameter + 0.1:  # Need 10cm clearance
-                    self.get_logger().warn(f"DOORWAY TOO NARROW: estimated_width={estimated_doorway_width:.2f}m < required={self.robot_diameter + 0.1:.2f}m")
+                    self.get_logger().warn(f"STARBOARD(-Y) DOORWAY TOO NARROW: estimated_width={estimated_doorway_width:.2f}m < required={self.robot_diameter + 0.1:.2f}m")
                     self.change_state(State.FOLLOW_WALL)
                     return self.get_wall_following_command()
             else:
                 self.get_logger().warn(f"Cannot estimate doorway width reliably: 45°={doorway_45:.2f}m, 60°={doorway_60:.2f}m")
                 # Continue with caution but reduce confidence
             
-            # STEP 4: Check if we're close enough to start positioning
-            if front_dist < approach_distance:
-                self.get_logger().info(f"Close enough to doorway ({front_dist:.2f}m < {approach_distance:.2f}m) - starting positioning sequence")
+            # STEP 5: Check if we're close enough to start positioning
+            if forward_dist < approach_distance:
+                self.get_logger().info(f"Close enough to doorway ({forward_dist:.2f}m < {approach_distance:.2f}m) - starting positioning sequence")
                 
-                # STEP 5: Ensure we're centered in the hallway first
-                if left_dist != float('inf'):  # We have a left wall to reference
+                # STEP 6: Ensure we're centered in the hallway first
+                if port_dist != float('inf'):  # We have a port (+Y) wall to reference
                     # Calculate how far we are from the center of the hallway
                     # Ideal position: equal distance from both walls, accounting for robot radius
-                    ideal_distance_from_left_wall = self.robot_radius + 0.1  # 10cm safety margin
-                    hallway_center_error = left_dist - ideal_distance_from_left_wall
+                    ideal_distance_from_port_wall = self.robot_radius + 0.1  # 10cm safety margin
+                    hallway_center_error = port_dist - ideal_distance_from_port_wall
                     
-                    self.get_logger().info(f"Hallway centering check: left_dist={left_dist:.2f}m, ideal={ideal_distance_from_left_wall:.2f}m, error={hallway_center_error:.2f}m")
+                    self.get_logger().info(f"Hallway centering check: port_dist(+Y)={port_dist:.2f}m, ideal={ideal_distance_from_port_wall:.2f}m, error={hallway_center_error:.2f}m")
                     
                     if abs(hallway_center_error) > centering_tolerance:
                         # Need to center in hallway first
                         self.get_logger().info(f"CENTERING IN HALLWAY: error={hallway_center_error:.3f}m (tolerance={centering_tolerance:.3f}m)")
                         linear_vel = 0.015  # Very slow forward motion while centering
                         if hallway_center_error > 0:
-                            angular_vel = -0.08  # Move right (away from left wall)
-                            self.get_logger().info("Adjusting RIGHT (away from left wall)")
+                            angular_vel = -0.08  # Turn toward -Y (starboard, away from port wall)
+                            self.get_logger().info("Adjusting toward STARBOARD(-Y) (away from port wall)")
                         else:
-                            angular_vel = 0.08   # Move left (toward left wall)
-                            self.get_logger().info("Adjusting LEFT (toward left wall)")
+                            angular_vel = 0.08   # Turn toward +Y (port, toward port wall)
+                            self.get_logger().info("Adjusting toward PORT(+Y) (toward port wall)")
                         return linear_vel, angular_vel
                 
-                # STEP 6: Position optimally for the 90-degree turn
+                # STEP 7: Position optimally for the 90-degree turn toward -Y (starboard)
                 # We want to be positioned so we can make a clean turn without hitting the doorway frame
                 optimal_turn_distance = self.robot_radius + 0.2  # 20cm clearance from doorway edge
                 
                 self.get_logger().info(f"Turn positioning check: doorway_30={doorway_30:.2f}m, optimal={optimal_turn_distance:.2f}m")
                 
                 if doorway_30 > optimal_turn_distance and doorway_45 > optimal_turn_distance * 0.8:
-                    self.get_logger().info("*** PERFECTLY POSITIONED FOR 90° RIGHT TURN! ***")
+                    self.get_logger().info("*** PERFECTLY POSITIONED FOR 90° STARBOARD(-Y) TURN! ***")
                     self.get_logger().info("All safety checks passed - starting doorway entry sequence")
-                    # We're positioned correctly - start the 90-degree turn
+                    # We're positioned correctly - start the 90-degree turn toward -Y (starboard)
                     self.change_state(State.ENTER_DOORWAY)
-                    return 0.0, -0.2  # Start pure rotation to the right
+                    return 0.0, -0.2  # Start pure rotation toward -Y (starboard)
                 else:
                     # Need to adjust position slightly
                     if doorway_30 < optimal_turn_distance:
@@ -807,27 +992,27 @@ class PerimeterRoamerV2(Node):
                         return 0.02, 0.0
             else:
                 # Still approaching the doorway
-                self.get_logger().info(f"APPROACHING DOORWAY: {front_dist:.2f}m > {approach_distance:.2f}m")
+                self.get_logger().info(f"APPROACHING STARBOARD(-Y) DOORWAY: {forward_dist:.2f}m > {approach_distance:.2f}m")
                 return 0.04, 0.0  # Slow, steady approach
                 
-        elif doorway_on_left:
-            # STEP 2: Analyze the left doorway opening in detail
-            self.get_logger().info("=== ANALYZING LEFT DOORWAY ===")
+        elif doorway_on_port:
+            # STEP 3: Analyze the port (+Y) doorway opening in detail
+            self.get_logger().info("=== ANALYZING PORT(+Y) DOORWAY ===")
             
             # Check multiple angles into the doorway
-            doorway_30 = self.get_front_distance(math.pi/6)    # 30° left
-            doorway_45 = self.get_front_distance(math.pi/4)    # 45° left
-            doorway_60 = self.get_front_distance(math.pi/3)    # 60° left  
-            doorway_90 = self.get_side_distance('left')        # 90° left
+            doorway_30 = self.get_front_distance(math.pi/6)    # 30° toward +Y (port)
+            doorway_45 = self.get_front_distance(math.pi/4)    # 45° toward +Y (port)
+            doorway_60 = self.get_front_distance(math.pi/3)    # 60° toward +Y (port)
+            doorway_90 = self.get_side_distance('left')        # 90° toward +Y (port)
             
-            self.get_logger().info(f"Left doorway analysis: 30°={doorway_30:.2f}m, 45°={doorway_45:.2f}m, 60°={doorway_60:.2f}m, 90°={doorway_90:.2f}m")
+            self.get_logger().info(f"Port(+Y) doorway analysis: 30°={doorway_30:.2f}m, 45°={doorway_45:.2f}m, 60°={doorway_60:.2f}m, 90°={doorway_90:.2f}m")
             
-            # STEP 3: Verify opening is wide enough and not blocked
+            # STEP 4: Verify opening is wide enough and not blocked
             min_doorway_depth = min(doorway_30, doorway_45, doorway_60, doorway_90)
             planning_distance = self.robot_diameter * 1.5
             
             if min_doorway_depth < planning_distance:
-                self.get_logger().warn(f"LEFT DOORWAY BLOCKED OR TOO NARROW: min_depth={min_doorway_depth:.2f}m < planning_distance={planning_distance:.2f}m")
+                self.get_logger().warn(f"PORT(+Y) DOORWAY BLOCKED OR TOO NARROW: min_depth={min_doorway_depth:.2f}m < planning_distance={planning_distance:.2f}m")
                 self.change_state(State.FOLLOW_WALL)
                 return self.get_wall_following_command()
             
@@ -841,44 +1026,44 @@ class PerimeterRoamerV2(Node):
                     self.change_state(State.FOLLOW_WALL)
                     return self.get_wall_following_command()
             
-            # STEP 4: Position for left doorway
-            if front_dist < approach_distance:
-                self.get_logger().info(f"Close enough to left doorway - starting positioning")
+            # STEP 5: Position for port (+Y) doorway
+            if forward_dist < approach_distance:
+                self.get_logger().info(f"Close enough to port(+Y) doorway - starting positioning")
                 
-                # STEP 5: Center in hallway using right wall as reference
-                if right_dist != float('inf'):
-                    ideal_distance_from_right_wall = self.robot_radius + 0.1
-                    hallway_center_error = right_dist - ideal_distance_from_right_wall
+                # STEP 6: Center in hallway using starboard (-Y) wall as reference
+                if starboard_dist != float('inf'):
+                    ideal_distance_from_starboard_wall = self.robot_radius + 0.1
+                    hallway_center_error = starboard_dist - ideal_distance_from_starboard_wall
                     
-                    self.get_logger().info(f"Hallway centering (left doorway): right_dist={right_dist:.2f}m, ideal={ideal_distance_from_right_wall:.2f}m, error={hallway_center_error:.2f}m")
+                    self.get_logger().info(f"Hallway centering (port doorway): starboard_dist(-Y)={starboard_dist:.2f}m, ideal={ideal_distance_from_starboard_wall:.2f}m, error={hallway_center_error:.2f}m")
                     
                     if abs(hallway_center_error) > centering_tolerance:
-                        self.get_logger().info(f"CENTERING IN HALLWAY for LEFT turn: error={hallway_center_error:.3f}m")
+                        self.get_logger().info(f"CENTERING IN HALLWAY for PORT(+Y) turn: error={hallway_center_error:.3f}m")
                         linear_vel = 0.015
                         if hallway_center_error > 0:
-                            angular_vel = 0.08   # Move left (away from right wall)
-                            self.get_logger().info("Adjusting LEFT (away from right wall)")
+                            angular_vel = 0.08   # Turn toward +Y (port, away from starboard wall)
+                            self.get_logger().info("Adjusting toward PORT(+Y) (away from starboard wall)")
                         else:
-                            angular_vel = -0.08  # Move right (toward right wall)
-                            self.get_logger().info("Adjusting RIGHT (toward right wall)")
+                            angular_vel = -0.08  # Turn toward -Y (starboard, toward starboard wall)
+                            self.get_logger().info("Adjusting toward STARBOARD(-Y) (toward starboard wall)")
                         return linear_vel, angular_vel
                 
-                # STEP 6: Position for left turn
+                # STEP 7: Position for port (+Y) turn
                 optimal_turn_distance = self.robot_radius + 0.2
                 
                 if doorway_30 > optimal_turn_distance and doorway_45 > optimal_turn_distance * 0.8:
-                    self.get_logger().info("*** PERFECTLY POSITIONED FOR 90° LEFT TURN! ***")
+                    self.get_logger().info("*** PERFECTLY POSITIONED FOR 90° PORT(+Y) TURN! ***")
                     self.change_state(State.ENTER_DOORWAY)
-                    return 0.0, 0.2  # Pure rotation to the left
+                    return 0.0, 0.2  # Pure rotation toward +Y (port)
                 else:
                     if doorway_30 < optimal_turn_distance:
-                        self.get_logger().info(f"Too close to left doorway edge - backing up slightly")
+                        self.get_logger().info(f"Too close to port(+Y) doorway edge - backing up slightly")
                         return -0.01, 0.0
                     else:
-                        self.get_logger().info(f"Adjusting forward position for left turn")
+                        self.get_logger().info(f"Adjusting forward position for port(+Y) turn")
                         return 0.02, 0.0
             else:
-                self.get_logger().info(f"APPROACHING LEFT DOORWAY: {front_dist:.2f}m > {approach_distance:.2f}m")
+                self.get_logger().info(f"APPROACHING PORT(+Y) DOORWAY: {forward_dist:.2f}m > {approach_distance:.2f}m")
                 return 0.04, 0.0
         else:
             # This should never happen given our improved detection logic
