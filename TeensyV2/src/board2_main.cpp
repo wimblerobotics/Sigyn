@@ -1,4 +1,5 @@
 #include <Arduino.h>
+
 #include <cstdint>
 
 /**
@@ -32,8 +33,8 @@ board (Board 2) for TeensyV2 system
 #include "common/core/module.h"
 #include "common/core/serial_manager.h"
 #include "modules/battery/battery_monitor.h"
-#include "modules/performance/performance_monitor.h"
 #include "modules/bno055/bno055_monitor.h"
+#include "modules/performance/performance_monitor.h"
 
 using namespace sigyn_teensy;
 
@@ -61,7 +62,7 @@ BNO055Monitor* bno055_monitor;
  * This function is called by the Teensy runtime when critical errors occur.
  */
 void fault_handler() {
-  //### Serial.println("CRITICAL FAULT: Board2 system fault detected");
+  // ### Serial.println("CRITICAL FAULT: Board2 system fault detected");
 
   // Send fault notification if possible
   if (serial_manager) {
@@ -117,20 +118,19 @@ void loop() {
     // Add any 10-second reporting tasks here
   }
 
-  //### // Performance warnings (less strict than Board 1)
-  // if (execution_time > 15000) {  // 15ms is concerning for Board 2
-  //   Serial.println("WARNING: Board2 execution time exceeded 15ms (" +
-  //                  String(execution_time) + " us)");
-  // }
+  // ### // Performance warnings (less strict than Board 1)
+  //  if (execution_time > 15000) {  // 15ms is concerning for Board 2
+  //    Serial.println("WARNING: Board2 execution time exceeded 15ms (" +
+  //                   String(execution_time) + " us)");
+  //  }
 
   // if (loop_frequency < 20.0f) {  // Below 20Hz is concerning for Board 2
   //   Serial.println("WARNING: Board2 frequency below 20Hz (" +
   //                  String(loop_frequency, 1) + " Hz)");
   // }
-
 }
 
- /**
+/**
  * @brief Handle serial events for configuration updates.
  *
  * This function is called automatically when serial data is available.

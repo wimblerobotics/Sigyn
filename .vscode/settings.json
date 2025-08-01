@@ -128,5 +128,13 @@
   "clangd.path": "",
   "cmake-tools.configureOnOpen": false,
   "ros.distro": "jazzy",
-  "python.defaultInterpreterPath": "${env:HOME}/sigyn-venv/bin/python"
+  "python.defaultInterpreterPath": "${env:HOME}/sigyn-venv/bin/python",
+  "C_Cpp.clang_format_style": "file",
+  "C_Cpp.clang_format_fallbackStyle": "Google",
+  "[cpp]": {
+    "editor.defaultFormatter": "ms-vscode.cpptools"
+  },
+  "[c]": {
+    "editor.defaultFormatter": "ms-vscode.cpptools"
+  }
 }

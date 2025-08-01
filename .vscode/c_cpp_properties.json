@@ -8,7 +8,6 @@
         {
             "name": "PlatformIO",
             "includePath": [
-                "/home/ros/sigyn_ws/src/Sigyn/include",
                 "/home/ros/sigyn_ws/src/Sigyn/TeensyV2/src",
                 "/home/ros/sigyn_ws/src/Sigyn/.pio/libdeps/board1/SdFat/src",
                 "/home/ros/sigyn_ws/src/Sigyn/.pio/libdeps/board1/VL53L0X",
@@ -123,7 +122,6 @@
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "/home/ros/sigyn_ws/src/Sigyn/include",
                     "/home/ros/sigyn_ws/src/Sigyn/TeensyV2/src",
                     "/home/ros/sigyn_ws/src/Sigyn/.pio/libdeps/board1/SdFat/src",
                     "/home/ros/sigyn_ws/src/Sigyn/.pio/libdeps/board1/VL53L0X",
