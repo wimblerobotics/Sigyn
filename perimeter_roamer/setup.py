@@ -30,6 +30,7 @@ setup(
     entry_points={
         'console_scripts': [
             'roamer = perimeter_roamer.roaming_node:main',
+            'roaming_node_v2 = perimeter_roamer.roaming_node_v2:main',
         ],
     },
 )
