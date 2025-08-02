@@ -589,12 +589,14 @@ class PerimeterRoamer(Node):
         # Convert direction to angle
         angle = math.atan2(direction_y, direction_x)
         
-        # Convert to scan index
-        scan_angle = self.scan_data.angle_min + angle
-        scan_angle = self.normalize_angle(scan_angle)
+        # Convert target angle to scan index
+        angle_diff = angle - self.scan_data.angle_min
+        angle_diff = self.normalize_angle(angle_diff)
         
-        # Find closest scan index
-        angle_diff = abs(scan_angle - self.scan_data.angle_min)
+        # Handle negative angle differences properly
+        if angle_diff < 0:
+            angle_diff += 2 * math.pi
+        
         index = int(angle_diff / self.scan_data.angle_increment)
         
         if 0 <= index < len(self.scan_data.ranges):
@@ -614,15 +616,19 @@ class PerimeterRoamer(Node):
         
         # Find the scan index for 90 degrees (right) or -90 degrees (left)
         if side == 'right':
-            target_angle = math.pi / 2
+            target_angle = -math.pi / 2  # -90 degrees for right side
         else:
-            target_angle = -math.pi / 2
+            target_angle = math.pi / 2   # +90 degrees for left side
         
-        # Convert to scan index
-        scan_angle = self.scan_data.angle_min + target_angle
-        scan_angle = self.normalize_angle(scan_angle)
+        # Convert target angle to scan index
+        # target_angle is relative to the laser frame (0 = forward)
+        angle_diff = target_angle - self.scan_data.angle_min
+        angle_diff = self.normalize_angle(angle_diff)
         
-        angle_diff = abs(scan_angle - self.scan_data.angle_min)
+        # Handle negative angle differences properly
+        if angle_diff < 0:
+            angle_diff += 2 * math.pi
+        
         index = int(angle_diff / self.scan_data.angle_increment)
         
         if 0 <= index < len(self.scan_data.ranges):
@@ -633,8 +639,24 @@ class PerimeterRoamer(Node):
         return 10.0
     
     def get_front_distance(self, angle_offset=0.0):
-        """Get distance in front of the robot"""
-        return self.get_distance_in_direction(1.0, angle_offset)
+        """Get distance in front of the robot using multiple rays for better detection"""
+        if self.scan_data is None:
+            return 10.0
+        
+        # Use multiple rays in front for better obstacle detection
+        angles = [angle_offset - 0.2, angle_offset, angle_offset + 0.2]  # ±0.2 radians (±11.5°)
+        distances = []
+        
+        for angle in angles:
+            dist = self.get_distance_in_direction(1.0, angle)
+            if dist < 10.0:  # Valid reading
+                distances.append(dist)
+        
+        # Return the minimum distance for safety
+        if distances:
+            return min(distances)
+        else:
+            return 10.0
     
     def normalize_angle(self, angle):
         """Normalize angle to [-pi, pi]"""
@@ -692,12 +714,20 @@ class PerimeterRoamer(Node):
         
         left_dist = self.get_side_distance('left')
         right_dist = self.get_side_distance('right')
+        front_dist = self.get_front_distance()
         
-        # Calculate center error (positive = closer to right wall, need to turn left)
-        center_error = right_dist - left_dist
+        # Calculate center error (positive = need to turn right, negative = need to turn left)
+        # If left_dist < right_dist, robot is closer to left wall, need to turn right (+angular)
+        # If right_dist < left_dist, robot is closer to right wall, need to turn left (-angular)
+        center_error = left_dist - right_dist
         
         cmd = Twist()
         cmd.linear.x = self.hallway_speed
+        
+        # Safety check - slow down if front obstacle detected
+        if front_dist < self.comfortable_distance:
+            cmd.linear.x = self.hallway_speed * 0.5  # Slow down
+            self.get_logger().warn(f"Front obstacle detected at {front_dist:.2f}m, slowing down")
         
         # Angular control to center in hallway  
         angular_velocity = self.hallway_centering_gain * center_error
@@ -707,7 +737,7 @@ class PerimeterRoamer(Node):
         # Log hallway centering debug info occasionally
         if hasattr(self, 'last_hallway_debug_time'):
             if (self.get_clock().now() - self.last_hallway_debug_time).nanoseconds > 2e9:  # Every 2 seconds
-                self.get_logger().info(f"Hallway centering: left={left_dist:.2f}m, right={right_dist:.2f}m, error={center_error:.2f}, angular={angular_velocity:.2f}")
+                self.get_logger().info(f"Hallway centering: left={left_dist:.2f}m, right={right_dist:.2f}m, front={front_dist:.2f}m, error={center_error:.2f}, angular={angular_velocity:.2f} (+ = turn right, - = turn left)")
                 self.last_hallway_debug_time = self.get_clock().now()
         else:
             self.last_hallway_debug_time = self.get_clock().now()
@@ -742,21 +772,31 @@ class PerimeterRoamer(Node):
         
         left_dist = self.get_side_distance('left')
         right_dist = self.get_side_distance('right')
+        front_dist = self.get_front_distance()
         
-        # Calculate center error
+        # Calculate center error (positive = need to turn right, negative = need to turn left)
+        # If left_dist < right_dist, robot is closer to left wall, need to turn right (+angular)
         center_error = left_dist - right_dist
         
         cmd = Twist()
-        cmd.linear.x = self.narrow_space_speed
         
-        # Strong centering control for doorway
-        angular_velocity = 2.0 * center_error
+        # Slow down when approaching doorway for better control
+        cmd.linear.x = self.narrow_space_speed * 0.7  # Even slower approach
+        
+        # Strong centering control for doorway approach (reduced from 3.0 to prevent oscillation)
+        angular_velocity = 1.5 * center_error  # Reduced gain
         angular_velocity = max(-self.max_angular_speed, min(self.max_angular_speed, angular_velocity))
         cmd.angular.z = angular_velocity
         
         # Check if centered enough to proceed
         if abs(center_error) < self.doorway_centering_tolerance:
+            self.get_logger().info(f"Doorway centered! Error={center_error:.3f}, transitioning to DOORWAY_ENTRY")
             self.change_state(State.DOORWAY_ENTRY)
+        
+        # Safety check - if too close to front obstacle, stop and re-center
+        if front_dist < 0.4:
+            cmd.linear.x = 0.0  # Stop forward motion
+            self.get_logger().warn(f"Too close to front obstacle ({front_dist:.2f}m), stopping to center")
         
         return cmd
     
@@ -803,9 +843,16 @@ class PerimeterRoamer(Node):
         return cmd
     
     def recovery_backup(self):
-        """Recovery behavior - backup"""
+        """Recovery behavior - backup only if it's safe"""
         cmd = Twist()
-        cmd.linear.x = self.recovery_backup_speed
+        
+        # Check if it's safe to backup (no obstacles behind)
+        back_dist = self.get_distance_in_direction(-1.0, 0.0)  # Check behind
+        if back_dist > self.comfortable_distance:
+            cmd.linear.x = self.recovery_backup_speed
+        else:
+            cmd.linear.x = 0.0  # Don't move if obstacle behind
+            self.get_logger().warn("Cannot backup - obstacle behind!")
         
         # Start timer for this state
         if 'recovery_start' not in self.doorway_state:
@@ -820,9 +867,15 @@ class PerimeterRoamer(Node):
         return cmd
     
     def recovery_turn(self):
-        """Recovery behavior - turn"""
+        """Recovery behavior - turn only if safe"""
         cmd = Twist()
-        cmd.angular.z = self.turn_speed
+        
+        # Only turn if not at immediate collision risk
+        if not self.check_immediate_collision_risk():
+            cmd.angular.z = self.turn_speed
+        else:
+            cmd.angular.z = 0.0  # Don't turn if still at collision risk
+            self.get_logger().warn("Cannot turn - still at collision risk!")
         
         # Start timer for this state
         if 'recovery_start' not in self.doorway_state:
@@ -894,10 +947,16 @@ class PerimeterRoamer(Node):
             space_msg.data = new_space_type.name
             self.space_type_pub.publish(space_msg)
         
-        # Check for immediate collision risk
+        # Check for immediate collision risk - CRITICAL SAFETY CHECK
         if self.check_immediate_collision_risk():
-            self.get_logger().warn("Collision risk detected!")
+            self.get_logger().warn("EMERGENCY STOP - Collision risk detected!")
+            # EMERGENCY STOP - override all other commands
+            cmd = Twist()  # Zero velocity command
+            cmd.linear.x = 0.0
+            cmd.angular.z = 0.0
+            self.cmd_vel_pub.publish(cmd)
             self.change_state(State.RECOVERY_BACKUP)
+            return  # Exit immediately without other commands
         
         # Generate control command based on current state
         cmd = Twist()

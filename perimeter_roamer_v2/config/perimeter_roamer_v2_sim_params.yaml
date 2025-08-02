@@ -4,13 +4,13 @@ perimeter_roamer_v2:
     forward_speed: 0.15           # Normal forward speed
     turn_speed: 0.3               # Turning speed
     narrow_space_speed: 0.08      # Speed in narrow spaces
-    hallway_speed: 0.10           # Speed for hallway navigation
+    hallway_speed: 0.08           # Speed for hallway navigation (reduced for better control)
     
     # Wall following parameters
     wall_distance_setpoint: 1.0   # Desired distance from wall for room patrol (1 meter)
     hallway_distance_setpoint: 0.5 # Desired distance from wall for hallway (0.5 meter)
     wall_following_gain: 0.4      # Wall following gain
-    hallway_centering_gain: 0.5   # Hallway centering gain (lower = gentler centering)
+    hallway_centering_gain: 0.8   # Hallway centering gain (reduced from 1.2 to prevent wiggling)
     kp_angular: 1.5               # Proportional gain for angular control
     max_angular_speed: 0.6        # Maximum angular velocity
     
@@ -24,9 +24,9 @@ perimeter_roamer_v2:
     very_narrow_threshold: 0.6    # Extremely tight spaces
     room_detection_threshold: 2.0 # Minimum space to be considered a room
     
-    # LIDAR-based safety (no costmap dependency)
-    min_obstacle_distance: 0.20   # Absolute minimum safe distance
-    comfortable_distance: 0.35    # Preferred clearance distance
+    # LIDAR-based safety (no costmap dependency) - increased for better collision avoidance
+    min_obstacle_distance: 0.40   # Absolute minimum safe distance (increased from 0.35)
+    comfortable_distance: 0.60    # Preferred clearance distance (increased from 0.50)
     
     # Control parameters
     control_frequency: 10.0
@@ -53,9 +53,9 @@ perimeter_roamer_v2:
     stuck_distance_threshold: 0.03 # Minimum movement to not be stuck
 
     # Doorway navigation parameters
-    doorway_approach_distance: 0.6      # Distance to start centering approach
-    doorway_centering_tolerance: 0.05   # How centered we need to be (±5cm)
-    doorway_alignment_angle_tolerance: 0.1  # Angular tolerance in radians (~6°)
+    doorway_approach_distance: 0.8      # Distance to start centering approach (increased for earlier centering)
+    doorway_centering_tolerance: 0.02   # How centered we need to be (±2cm, tighter tolerance)
+    doorway_alignment_angle_tolerance: 0.05  # Angular tolerance in radians (~3°, tighter)
     doorway_detection_threshold: 1.5    # Distance threshold for doorway detection
     wall_disappearance_threshold: 2.0   # Distance threshold for wall disappearance
     post_doorway_forward_time: 3.0      # Time to move forward after doorway
