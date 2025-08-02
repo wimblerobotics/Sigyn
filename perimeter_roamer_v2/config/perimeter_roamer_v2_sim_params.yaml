@@ -4,11 +4,13 @@ perimeter_roamer_v2:
     forward_speed: 0.15           # Normal forward speed
     turn_speed: 0.3               # Turning speed
     narrow_space_speed: 0.08      # Speed in narrow spaces
+    hallway_speed: 0.10           # Speed for hallway navigation
     
     # Wall following parameters
     wall_distance_setpoint: 1.0   # Desired distance from wall for room patrol (1 meter)
     hallway_distance_setpoint: 0.5 # Desired distance from wall for hallway (0.5 meter)
     wall_following_gain: 0.4      # Wall following gain
+    hallway_centering_gain: 0.5   # Hallway centering gain (lower = gentler centering)
     kp_angular: 1.5               # Proportional gain for angular control
     max_angular_speed: 0.6        # Maximum angular velocity
     
@@ -30,6 +32,7 @@ perimeter_roamer_v2:
     control_frequency: 10.0
     base_frame: "base_link"
     odom_frame: "odom"
+    map_frame: "map"
     
     # Frame handling parameters - SIMULATION SPECIFIC
     use_sim_time: true            # Use simulation time
@@ -64,5 +67,4 @@ perimeter_roamer_v2:
     room_patrol_turn_angle: 0.3   # Turn angle when too close to wall (radians)
     
     # Hallway navigation parameters
-    hallway_speed: 0.10           # Speed for hallway navigation
-    hallway_centering_gain: 0.8   # Gain for hallway centering control 
+    # (Parameters moved to the top of the file to avoid duplicates) 

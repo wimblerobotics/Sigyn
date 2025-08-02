@@ -18,9 +18,9 @@ def generate_launch_description():
             output='screen',
             parameters=[param_file],
             remappings=[
-                ('~/cmd_vel', '/cmd_vel'),
-                ('~/scan', '/scan'),
-                ('~/odom', '/odom'),
+                ('cmd_vel', '/cmd_vel_nav'),
+                ('scan', '/scan'),
+                ('odom', '/odom'),
             ]
         )
     ]) 
