@@ -31,9 +31,9 @@ def generate_launch_description():
                 {'use_sim_time': LaunchConfiguration('use_sim_time')}
             ],
             remappings=[
-                ('~/cmd_vel', '/cmd_vel'),
-                ('~/scan', '/scan'),
-                ('~/odom', '/odom'),
+                ('cmd_vel', '/cmd_vel_nav'),
+                ('scan', '/scan'),
+                ('odom', '/odom'),
             ]
         )
     ]) 
