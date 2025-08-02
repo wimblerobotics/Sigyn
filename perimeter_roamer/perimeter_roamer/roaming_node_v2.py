@@ -14,15 +14,17 @@ from map_msgs.msg import OccupancyGridUpdate
 from visualization_msgs.msg import Marker, MarkerArray
 from enum import Enum
 import numpy as np
+from rcl_interfaces.msg import ParameterDescriptor
 
 class State(Enum):
     FIND_WALL = 0
     FOLLOW_WALL = 1
     NAVIGATE_NARROW_SPACE = 2
-    APPROACH_DOORWAY = 3      # New state for doorway approach
-    ENTER_DOORWAY = 4         # New state for doorway entry
-    RECOVERY_BACKUP = 5
-    RECOVERY_TURN = 6
+    APPROACH_DOORWAY = 3
+    ENTER_DOORWAY = 4
+    POST_DOORWAY_FORWARD = 5
+    RECOVERY_BACKUP = 6
+    RECOVERY_TURN = 7
 
 class SpaceType(Enum):
     OPEN = 0
@@ -79,7 +81,15 @@ class PerimeterRoamerV2(Node):
         self.declare_parameter('doorway_approach_distance', 0.6)  # Distance to start centering
         self.declare_parameter('doorway_centering_tolerance', 0.05)  # How centered we need to be
         self.declare_parameter('doorway_alignment_angle_tolerance', 0.1)  # Radians (~6°)
-        
+        self.declare_parameter('doorway_detection_threshold', 1.5,
+                                 ParameterDescriptor(description='Distance in meters a side reading must exceed to be considered a doorway.'))
+        self.declare_parameter('wall_disappearance_threshold', 2.0,
+                                 ParameterDescriptor(description='Distance in meters the opposite wall must exceed to confirm alignment with a doorway.'))
+        self.declare_parameter('post_doorway_forward_time', 3.0,
+                                 ParameterDescriptor(description='Time in seconds to move forward after entering a doorway to clear it.'))
+        self.declare_parameter('turn_duration', 2.5,
+                                 ParameterDescriptor(description='Time in seconds to execute a 90-degree turn into a doorway.'))
+
         # Get parameters
         self.forward_speed = self.get_parameter('forward_speed').value
         self.turn_speed = self.get_parameter('turn_speed').value
@@ -117,7 +127,16 @@ class PerimeterRoamerV2(Node):
         self.doorway_approach_distance = self.get_parameter('doorway_approach_distance').value
         self.doorway_centering_tolerance = self.get_parameter('doorway_centering_tolerance').value
         self.doorway_alignment_angle_tolerance = self.get_parameter('doorway_alignment_angle_tolerance').value
-        
+        self.doorway_detection_threshold = self.get_parameter('doorway_detection_threshold').value
+        self.wall_disappearance_threshold = self.get_parameter('wall_disappearance_threshold').value
+        self.post_doorway_forward_time = self.get_parameter('post_doorway_forward_time').value
+        self.turn_duration = self.get_parameter('turn_duration').value
+
+        # State variables for doorway navigation
+        self.turn_direction = 0  # 1 for port (+Y), -1 for starboard (-Y)
+        self.turn_start_time = None
+        self.post_doorway_start_time = None
+
         self.get_logger().info("--- Parameters Loaded ---")
         self.get_logger().info(f"Robot: diameter={self.robot_diameter}m, radius={self.robot_radius}m")
         self.get_logger().info(f"Speeds: normal={self.forward_speed}, narrow={self.narrow_space_speed}")
@@ -215,12 +234,17 @@ class PerimeterRoamerV2(Node):
             self.last_pose_check_time = self.get_clock().now()
     
     def change_state(self, new_state):
-        if self.state == new_state:
-            return
-        position_info = self.format_position_debug(f"STATE CHANGE: {self.state.name} -> {new_state.name}")
-        self.get_logger().info(position_info)
-        self.state = new_state
-        self.recovery_start_time = None
+        """Changes the robot's state and resets doorway variables if exiting doorway sequence."""
+        if self.state != new_state:
+            self.get_logger().info(self.format_position_debug(f"STATE CHANGE: {self.state.name} -> {new_state.name}"))
+            
+            # If we are exiting the doorway navigation sequence, reset all related variables
+            if self.state in [State.APPROACH_DOORWAY, State.ENTER_DOORWAY, State.POST_DOORWAY_FORWARD] and \
+               new_state not in [State.APPROACH_DOORWAY, State.ENTER_DOORWAY, State.POST_DOORWAY_FORWARD]:
+                self.reset_doorway_state()
+
+            self.state = new_state
+            self.state_start_time = self.get_clock().now()
     
     def normalize_angle(self, angle):
         while angle > math.pi:
@@ -453,11 +477,11 @@ class PerimeterRoamerV2(Node):
             side: 'right' or 'left' relative to base_link frame
         """
         if side == 'right':
-            # Right side in base_link frame is +Y direction
-            return self.get_distance_in_direction(0.0, 1.0)
-        else:  # left
-            # Left side in base_link frame is -Y direction
+            # Right side in base_link frame is -Y direction
             return self.get_distance_in_direction(0.0, -1.0)
+        else:  # left
+            # Left side in base_link frame is +Y direction
+            return self.get_distance_in_direction(0.0, 1.0)
     
     def get_front_distance(self, angle_offset=0.0):
         """
@@ -575,7 +599,7 @@ class PerimeterRoamerV2(Node):
     
     def navigate_narrow_space(self):
         """
-        Navigate through narrow spaces with extreme caution.
+        Navigate through narrow spaces by centering the robot.
         Priority: Safety first, then progress.
         """
         left_dist = self.get_side_distance('left')
@@ -583,72 +607,41 @@ class PerimeterRoamerV2(Node):
         front_dist = self.get_front_distance()
         
         # SAFETY FIRST: Stop if anything is too close
-        min_safe_distance = self.comfortable_distance * 1.5  # Extra safety margin
+        min_safe_distance = self.comfortable_distance
         
         if front_dist < min_safe_distance:
             self.get_logger().warn(f"STOPPING: Front obstacle at {front_dist:.2f}m < {min_safe_distance:.2f}m")
+            self.change_state(State.RECOVERY_BACKUP)
             return 0.0, 0.0
         
-        # Check for doorway scenario (one side open)
-        if left_dist == float('inf') or right_dist == float('inf'):
-            self.get_logger().info("Doorway detected - using conservative approach")
-            
-            if right_dist == float('inf'):
-                # Doorway on right - check if it's safe to approach
-                # Check multiple angles into the doorway
-                right_30 = self.get_front_distance(-math.pi/6)   # 30° right
-                right_45 = self.get_front_distance(-math.pi/4)   # 45° right
-                right_60 = self.get_front_distance(-math.pi/3)   # 60° right
-                
-                min_doorway_dist = min(right_30, right_45, right_60)
-                
-                if min_doorway_dist < self.comfortable_distance * 2:
-                    # Too close to doorway frame - continue straight slowly
-                    self.get_logger().info(f"Doorway frame too close ({min_doorway_dist:.2f}m), continuing straight")
-                    return self.narrow_space_speed * 0.3, 0.0
-                else:
-                    # Safe to approach doorway - turn very gently
-                    self.get_logger().info(f"Approaching doorway safely, min_dist={min_doorway_dist:.2f}m")
-                    return self.narrow_space_speed * 0.4, -self.turn_speed * 0.15
-            
-            elif left_dist == float('inf'):
-                # Open space on left - just continue cautiously
-                return self.narrow_space_speed * 0.5, 0.0
-        
+        # If one side is open, it might be a doorway.
+        if self.current_space_type == SpaceType.DOORWAY:
+             self.get_logger().info(self.format_position_debug("Doorway detected while in narrow space, transitioning to approach."))
+             self.change_state(State.APPROACH_DOORWAY)
+             return 0.0, 0.0
+
         # Both sides detected - corridor navigation
         if left_dist != float('inf') and right_dist != float('inf'):
-            total_width = left_dist + right_dist
-            
-            # Check if corridor is wide enough
-            min_required_width = self.robot_diameter + 0.15  # 15cm clearance
-            if total_width < min_required_width:
-                self.get_logger().warn(f"Corridor too narrow: {total_width:.2f}m < {min_required_width:.2f}m")
-                return 0.0, 0.0
-            
-            # Check if either side is dangerously close
-            min_side_clearance = self.robot_radius + 0.05  # 5cm clearance per side
-            if left_dist < min_side_clearance or right_dist < min_side_clearance:
-                self.get_logger().warn(f"Side clearance insufficient: L={left_dist:.2f}, R={right_dist:.2f}")
-                return 0.0, 0.0
-            
             # Safe corridor navigation - center following
-            center_error = (left_dist - right_dist) / 2.0
+            # Positive error means we are too close to the right wall, so we should turn left (positive angular.z)
+            center_error = left_dist - right_dist
             
-            # Very conservative angular response
-            angular_vel = self.kp_angular * center_error * 0.2  # Much gentler
-            angular_vel = max(-self.max_angular_speed * 0.3, min(self.max_angular_speed * 0.3, angular_vel))
+            # Proportional controller for centering
+            angular_vel = self.kp_angular * center_error
+            angular_vel = max(-self.max_angular_speed, min(self.max_angular_speed, angular_vel))
             
-            # Speed based on corridor width and centering
-            if abs(center_error) > 0.1:  # Not well centered
-                speed = self.narrow_space_speed * 0.4
-            else:
-                speed = self.narrow_space_speed * 0.7
+            # Slow down if turning sharply or not centered
+            speed = self.narrow_space_speed
+            if abs(center_error) > 0.1 or abs(angular_vel) > 0.2:
+                speed *= 0.7
             
-            self.get_logger().debug(f"Corridor nav: L={left_dist:.2f}, R={right_dist:.2f}, W={total_width:.2f}, err={center_error:.2f}")
+            total_width = left_dist + right_dist
+            self.get_logger().debug(f"Corridor nav: L={left_dist:.2f}, R={right_dist:.2f}, W={total_width:.2f}, err={center_error:.2f}, cmd_vel=({speed:.2f}, {angular_vel:.2f})")
             return speed, angular_vel
         
-        # Fallback - something unexpected
-        self.get_logger().warn("Unexpected navigation scenario, stopping")
+        # Fallback - something unexpected, maybe one wall disappeared
+        self.get_logger().warn("Lost one wall in narrow space, switching to FIND_WALL")
+        self.change_state(State.FIND_WALL)
         return 0.0, 0.0
     
     def is_stuck(self):
@@ -683,6 +676,13 @@ class PerimeterRoamerV2(Node):
         
         return False
     
+    def reset_doorway_state(self):
+        """Resets all state variables related to doorway navigation."""
+        self.get_logger().info("Resetting doorway navigation state.")
+        self.turn_direction = 0
+        self.turn_start_time = None
+        self.post_doorway_start_time = None
+
     def control_loop(self):
         """
         Main control loop with simplified state machine.
@@ -724,6 +724,12 @@ class PerimeterRoamerV2(Node):
                 twist.angular.z = -self.turn_speed * 0.5  # Turn right at moderate speed
         
         elif self.state == State.FOLLOW_WALL:
+            # In narrow spaces, we should center ourselves, not follow one wall.
+            if self.current_space_type in [SpaceType.NARROW_HALLWAY, SpaceType.VERY_NARROW]:
+                self.get_logger().info(self.format_position_debug(f"In {self.current_space_type.name}, switching to centering behavior."), throttle_duration_sec=5)
+                self.change_state(State.NAVIGATE_NARROW_SPACE)
+                return # State changed, next loop will execute NAVIGATE_NARROW_SPACE logic
+
             if not self.is_path_clear_ahead(0.5):  # Increased clearance check
                 self.get_logger().info(self.format_position_debug("Obstacle ahead, turning left")) 
                 twist.angular.z = self.turn_speed
@@ -744,15 +750,12 @@ class PerimeterRoamerV2(Node):
                     if front_dist > min_maneuvering_distance:
                         self.get_logger().info(self.format_position_debug(f"*** DOORWAY DETECTED! Transitioning to APPROACH_DOORWAY. Front clearance: {front_dist:.2f}m, Min required: {min_maneuvering_distance:.2f}m ***"))
                         self.change_state(State.APPROACH_DOORWAY)
-                        linear_vel, angular_vel = self.approach_doorway()
+                        # Let the next loop handle the approach logic
+                        return
                     else:
                         # Too close to doorway - continue wall following until we have proper clearance
                         self.get_logger().info(self.format_position_debug(f"DOORWAY detected but too close ({front_dist:.2f}m < {min_maneuvering_distance:.2f}m) - continuing wall following"))
                         linear_vel, angular_vel = self.get_wall_following_command()
-                elif self.current_space_type == SpaceType.VERY_NARROW and front_dist > 0.6:
-                    self.get_logger().info(self.format_position_debug(f"*** VERY_NARROW space detected, entering carefully. Front clearance: {front_dist:.2f}m ***"))
-                    self.change_state(State.NAVIGATE_NARROW_SPACE)
-                    linear_vel, angular_vel = self.navigate_narrow_space()
                 else:
                     # Stay in wall following mode if not clearly safe
                     linear_vel, angular_vel = self.get_wall_following_command()
@@ -789,6 +792,20 @@ class PerimeterRoamerV2(Node):
             linear_vel, angular_vel = self.enter_doorway()
             twist.linear.x = linear_vel
             twist.angular.z = angular_vel
+        
+        elif self.state == State.POST_DOORWAY_FORWARD:
+            now = self.get_clock().now()
+            if self.post_doorway_start_time is None:
+                self.post_doorway_start_time = now
+                self.get_logger().info(f"Post-doorway forward: moving forward for {self.post_doorway_forward_time}s")
+            
+            if (now - self.post_doorway_start_time).nanoseconds / 1e9 > self.post_doorway_forward_time:
+                self.get_logger().info("Post-doorway forward complete, returning to wall following")
+                self.change_state(State.FOLLOW_WALL)
+                linear_vel, angular_vel = self.get_wall_following_command()
+            else:
+                twist.linear.x = self.forward_speed
+                twist.angular.z = 0.0  # Move straight ahead
         
         elif self.state == State.RECOVERY_BACKUP:
             now = self.get_clock().now()
@@ -999,11 +1016,11 @@ class PerimeterRoamerV2(Node):
             # STEP 3: Analyze the port (+Y) doorway opening in detail
             self.get_logger().info("=== ANALYZING PORT(+Y) DOORWAY ===")
             
-            # Check multiple angles into the doorway
+            # Check multiple angles into the doorway to understand the opening
             doorway_30 = self.get_front_distance(math.pi/6)    # 30° toward +Y (port)
             doorway_45 = self.get_front_distance(math.pi/4)    # 45° toward +Y (port)
             doorway_60 = self.get_front_distance(math.pi/3)    # 60° toward +Y (port)
-            doorway_90 = self.get_side_distance('left')        # 90° toward +Y (port)
+            doorway_90 = self.get_side_distance('left')        # 90° toward +Y (into doorway)
             
             self.get_logger().info(f"Port(+Y) doorway analysis: 30°={doorway_30:.2f}m, 45°={doorway_45:.2f}m, 60°={doorway_60:.2f}m, 90°={doorway_90:.2f}m")
             
