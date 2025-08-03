@@ -4,13 +4,13 @@ perimeter_roamer_v2:
     forward_speed: 0.15           # Normal forward speed
     turn_speed: 0.3               # Turning speed
     narrow_space_speed: 0.08      # Speed in narrow spaces
-    hallway_speed: 0.08           # Speed for hallway navigation (reduced for better control)
+    hallway_speed: 0.12           # Speed for hallway navigation (increased from 0.08)
     
     # Wall following parameters
     wall_distance_setpoint: 1.0   # Desired distance from wall for room patrol (1 meter)
     hallway_distance_setpoint: 0.5 # Desired distance from wall for hallway (0.5 meter)
     wall_following_gain: 0.4      # Wall following gain
-    hallway_centering_gain: 0.8   # Hallway centering gain (reduced from 1.2 to prevent wiggling)
+    hallway_centering_gain: 0.4   # Hallway centering gain (reduced from 0.8 to prevent wiggling)
     kp_angular: 1.5               # Proportional gain for angular control
     max_angular_speed: 0.6        # Maximum angular velocity
     
@@ -25,8 +25,8 @@ perimeter_roamer_v2:
     room_detection_threshold: 2.0 # Minimum space to be considered a room
     
     # LIDAR-based safety (no costmap dependency) - increased for better collision avoidance
-    min_obstacle_distance: 0.40   # Absolute minimum safe distance (increased from 0.35)
-    comfortable_distance: 0.60    # Preferred clearance distance (increased from 0.50)
+    min_obstacle_distance: 0.25   # Absolute minimum safe distance (reduced from 0.40 - was too aggressive)
+    comfortable_distance: 0.40    # Preferred clearance distance (reduced from 0.60)
     
     # Control parameters
     control_frequency: 10.0
