@@ -15,7 +15,7 @@ perimeter_roamer_v2:
     max_angular_speed: 0.6        # Maximum angular velocity
     
     # Robot physical dimensions (from your specifications)
-    robot_radius: 0.44            # 0.44m radius as specified
+    robot_radius: 0.2286          # 0.2286m radius as specified
     robot_diameter: 0.88          # Full diameter
     
     # Space classification thresholds

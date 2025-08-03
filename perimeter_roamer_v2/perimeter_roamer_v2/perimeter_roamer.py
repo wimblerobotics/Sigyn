@@ -60,7 +60,6 @@ class PerimeterRoamer(Node):
         self.declare_parameter('max_angular_speed', 0.8)
         
         # Robot dimensions (from your config)
-        self.declare_parameter('robot_radius', 0.44)  # 0.44m radius as specified
         self.declare_parameter('robot_diameter', 0.88)
         
         # Space classification thresholds
@@ -70,8 +69,12 @@ class PerimeterRoamer(Node):
         self.declare_parameter('room_detection_threshold', 2.0)  # Minimum space to be considered a room
         
         # Safety parameters
-        self.declare_parameter('min_obstacle_distance', 0.15)
-        self.declare_parameter('comfortable_distance', 0.25)
+        # Robot physical parameters - CRITICAL for collision avoidance
+        self.declare_parameter('robot_radius', 0.2286)          # Robot's physical radius from config
+        
+        # Safety distances - measured from robot CENTER, must account for robot radius
+        self.declare_parameter('min_obstacle_distance', 0.8)    # CENTER distance = 0.8m means EDGE distance = 0.57m
+        self.declare_parameter('comfortable_distance', 1.5)     # CENTER distance = 1.5m means EDGE distance = 1.27m
         
         # Control parameters
         self.declare_parameter('control_frequency', 10.0)
@@ -262,6 +265,8 @@ class PerimeterRoamer(Node):
         self.very_narrow_threshold = self.get_parameter('very_narrow_threshold').value
         self.room_detection_threshold = self.get_parameter('room_detection_threshold').value
         
+        # Safety distances
+        self.robot_radius = self.get_parameter('robot_radius').value
         self.min_obstacle_distance = self.get_parameter('min_obstacle_distance').value
         self.comfortable_distance = self.get_parameter('comfortable_distance').value
         
@@ -547,15 +552,42 @@ class PerimeterRoamer(Node):
                 # self.get_logger().info(f"LIDAR range: {math.degrees(self.scan_data.angle_min):.1f}° to {math.degrees(self.scan_data.angle_max):.1f}°, increment={math.degrees(self.scan_data.angle_increment):.2f}°")
             
             if 0 <= index < len(self.scan_data.ranges):
-                # Average over a small window for robustness
+                # Get the raw range at the exact index first
+                raw_distance = self.scan_data.ranges[index]
+                
+                # Average over a small window for robustness, but be more careful about filtering
                 start = max(0, index - 2)
                 end = min(len(self.scan_data.ranges), index + 3)
-                valid_ranges = [r for r in self.scan_data.ranges[start:end] if np.isfinite(r)]
-                distance = np.mean(valid_ranges) if valid_ranges else float('inf')
+                window_ranges = self.scan_data.ranges[start:end]
                 
-                # DEBUG: Log range details for main directions
-                # if angle_deg in [-90, 0, 90]:
-                #     self.get_logger().info(f"DEBUG angle={angle_deg}°: scan_range[{index}]={self.scan_data.ranges[index]:.2f}, window_avg={distance:.2f}")
+                # Filter ranges: keep finite values within sensor limits
+                valid_ranges = []
+                for r in window_ranges:
+                    if (np.isfinite(r) and 
+                        r >= self.scan_data.range_min and 
+                        r <= self.scan_data.range_max):
+                        valid_ranges.append(r)
+                
+                # Use raw distance if it's valid, otherwise try window average
+                if (np.isfinite(raw_distance) and 
+                    raw_distance >= self.scan_data.range_min and 
+                    raw_distance <= self.scan_data.range_max):
+                    distance = raw_distance
+                elif valid_ranges:
+                    distance = np.mean(valid_ranges)
+                    # DEBUG: Log when we had to use window average due to bad raw distance
+                    if angle_deg in [0, 90, 270]:  # Only for key angles
+                        self.get_logger().warn(f"Used window average for {angle_deg}°: raw={raw_distance}, avg={distance:.2f}")
+                else:
+                    distance = float('inf')
+                    # DEBUG: Analyze infinite distance detection
+                    self._debug_infinite_distance_detection(angle_deg, index, raw_distance)
+                
+                # Enhanced DEBUG: Log range details for main directions
+                if angle_deg in [270, 90, 0]:  # Right, Left, Front
+                    self.get_logger().info(f"LIDAR DEBUG angle={angle_deg}°: raw={raw_distance:.2f}, "
+                                         f"window={window_ranges}, valid_count={len(valid_ranges)}, "
+                                         f"final_distance={distance:.2f}, range_limits=[{self.scan_data.range_min:.2f}, {self.scan_data.range_max:.2f}]")
                 
                 return distance
 
@@ -581,6 +613,81 @@ class PerimeterRoamer(Node):
         # Show LIDAR frame info
         # self.get_logger().info(f"LIDAR frame: '{self.scan_data.header.frame_id}'")
         # self.get_logger().info(f"LIDAR angle range: {math.degrees(self.scan_data.angle_min):.1f}° to {math.degrees(self.scan_data.angle_max):.1f}°")
+
+    def _debug_infinite_distance_detection(self, angle_deg, ray_index, distance):
+        """
+        Debug function to analyze infinite distance detections and check raw laser scan data.
+        This helps determine if infinite values are from Gazebo simulation issues or our processing.
+        """
+        # Only debug key angles (left, right, front) to avoid spam
+        if angle_deg not in [0, 90, 270]:
+            return
+            
+        # Throttle debug output to prevent spam
+        current_time = self.get_clock().now()
+        debug_key = f"inf_debug_{angle_deg}"
+        
+        if hasattr(self, 'last_inf_debug_times'):
+            if debug_key in self.last_inf_debug_times:
+                time_since_last = (current_time - self.last_inf_debug_times[debug_key]).nanoseconds / 1e9
+                if time_since_last < 3.0:  # Only debug every 3 seconds
+                    return
+        else:
+            self.last_inf_debug_times = {}
+        
+        self.last_inf_debug_times[debug_key] = current_time
+        
+        self.get_logger().warn(f"=== INFINITE DISTANCE DEBUG for {angle_deg}° ===")
+        self.get_logger().warn(f"Ray index: {ray_index}, Distance: {distance}")
+        self.get_logger().warn(f"Scan range limits: min={self.scan_data.range_min:.2f}m, max={self.scan_data.range_max:.2f}m")
+        
+        # Analyze the raw scan data around this ray
+        scan_ranges = self.scan_data.ranges
+        total_rays = len(scan_ranges)
+        
+        # Count infinite values in the entire scan
+        inf_count = sum(1 for r in scan_ranges if not math.isfinite(r))
+        nan_count = sum(1 for r in scan_ranges if math.isnan(r))
+        zero_count = sum(1 for r in scan_ranges if r == 0.0)
+        out_of_range_count = sum(1 for r in scan_ranges if math.isfinite(r) and (r < self.scan_data.range_min or r > self.scan_data.range_max))
+        
+        self.get_logger().warn(f"Raw scan analysis: total_rays={total_rays}, inf={inf_count}, nan={nan_count}, zero={zero_count}, out_of_range={out_of_range_count}")
+        
+        # Look at rays around the problematic ray
+        window_start = max(0, ray_index - 5)
+        window_end = min(total_rays, ray_index + 6)
+        
+        ray_details = []
+        for i in range(window_start, window_end):
+            r = scan_ranges[i]
+            status = ""
+            if math.isinf(r):
+                status = "INF"
+            elif math.isnan(r):
+                status = "NAN"
+            elif r == 0.0:
+                status = "ZERO"
+            elif r < self.scan_data.range_min:
+                status = "TOO_CLOSE"
+            elif r > self.scan_data.range_max:
+                status = "TOO_FAR"
+            else:
+                status = "VALID"
+            
+            marker = "*" if i == ray_index else " "
+            ray_details.append(f"{marker}[{i:3d}]:{r:6.2f}({status})")
+        
+        self.get_logger().warn(f"Ray window around index {ray_index}: {' '.join(ray_details)}")
+        
+        # Check if this might be a Gazebo simulation issue
+        if inf_count > total_rays * 0.1:  # More than 10% infinite values
+            self.get_logger().error(f"HIGH INFINITE VALUE COUNT: {inf_count}/{total_rays} ({100*inf_count/total_rays:.1f}%) - Possible Gazebo simulation issue!")
+        
+        # Calculate the angle for this ray index to verify our math
+        calculated_angle = self.scan_data.angle_min + ray_index * self.scan_data.angle_increment
+        self.get_logger().warn(f"Ray {ray_index} calculated angle: {math.degrees(calculated_angle):.1f}° (requested {angle_deg}°)")
+        
+        self.get_logger().warn("=== END INFINITE DISTANCE DEBUG ===")
         # self.get_logger().info(f"LIDAR increment: {math.degrees(self.scan_data.angle_increment):.2f}°")
         # self.get_logger().info(f"LIDAR range count: {len(self.scan_data.ranges)}")
         
@@ -605,12 +712,46 @@ class PerimeterRoamer(Node):
         # self.get_logger().info("=== END DEBUG ===")
 
     def scan_callback(self, msg):
-        """Process incoming laser scan data and transform to base_link frame"""
+        """Process incoming laser scan data with quality validation and backup"""
         # Store the raw scan data
         self.scan_data_raw = msg
         
         # Transform scan data to base_link frame
-        self.scan_data = self.transform_scan_to_base_link(msg)
+        transformed_scan = self.transform_scan_to_base_link(msg)
+        
+        # Validate the scan data quality before using it
+        if transformed_scan and len(transformed_scan.ranges) > 0:
+            total_rays = len(transformed_scan.ranges)
+            inf_count = sum(1 for r in transformed_scan.ranges if not math.isfinite(r))
+            inf_percentage = (inf_count / total_rays) * 100
+            
+            # If scan quality is good, use it and store as backup
+            if inf_percentage <= 10.0:
+                self.scan_data = transformed_scan
+                # Store a backup of good scan data
+                self.last_good_scan = transformed_scan
+                self.last_good_scan_time = self.get_clock().now()
+            else:
+                # Bad scan data - use last good scan if available and recent
+                self.get_logger().error(f"REJECTING BAD SCAN: {inf_count}/{total_rays} ({inf_percentage:.1f}%) infinite rays")
+                
+                if (hasattr(self, 'last_good_scan') and 
+                    hasattr(self, 'last_good_scan_time') and 
+                    self.last_good_scan is not None):
+                    
+                    # Use last good scan if it's less than 1 second old
+                    time_since_good_scan = (self.get_clock().now() - self.last_good_scan_time).nanoseconds / 1e9
+                    if time_since_good_scan < 1.0:
+                        self.get_logger().warn(f"Using last good scan from {time_since_good_scan:.2f}s ago")
+                        self.scan_data = self.last_good_scan
+                    else:
+                        self.get_logger().error("Last good scan too old, stopping robot for safety")
+                        self.scan_data = None
+                else:
+                    self.get_logger().error("No good scan backup available, stopping robot for safety")
+                    self.scan_data = None
+        else:
+            self.scan_data = transformed_scan
         
         # self.debug_coordinate_systems()
 
@@ -624,6 +765,13 @@ class PerimeterRoamer(Node):
         if not hasattr(self, 'scan_received'):
             self.get_logger().info(f"First LIDAR scan received: {len(msg.ranges)} points, frame: {msg.header.frame_id}")
             self.get_logger().info(f"LIDAR angle_min={msg.angle_min:.3f}, angle_max={msg.angle_max:.3f}, increment={msg.angle_increment:.4f}")
+            self.get_logger().info(f"LIDAR range_min={msg.range_min:.3f}, range_max={msg.range_max:.3f}")
+            # Sample some actual ranges to see what we're getting
+            sample_ranges = []
+            for i in range(0, len(msg.ranges), len(msg.ranges)//8):  # Sample 8 points across the scan
+                r = msg.ranges[i]
+                sample_ranges.append(f"[{i}]={r:.2f}")
+            self.get_logger().info(f"Sample ranges: {', '.join(sample_ranges)}")
             self.get_logger().info(f"Transforming from {msg.header.frame_id} to {self.base_frame} for navigation")
             self.scan_received = True
     
@@ -706,7 +854,7 @@ class PerimeterRoamer(Node):
         self.last_time = current_time
     
     def transform_scan_to_base_link(self, scan_msg):
-        """Transform laser scan from its frame to base_link frame"""
+        """Transform laser scan from its frame to base_link frame with proper distance correction"""
         if scan_msg.header.frame_id == self.base_frame:
             # Already in base_link frame, just return a copy with correct frame
             transformed_scan = LaserScan()
@@ -722,34 +870,35 @@ class PerimeterRoamer(Node):
             transformed_scan.ranges = list(scan_msg.ranges)
             transformed_scan.intensities = list(scan_msg.intensities) if scan_msg.intensities else []
             return transformed_scan
-        
+
         try:
             # Get transform from laser frame to base_link
             transform = self.get_transform_to_base_link(scan_msg.header.frame_id, self.base_frame)
             if transform is None:
                 self.get_logger().warn(f"Could not get transform from {scan_msg.header.frame_id} to {self.base_frame}, using raw scan")
                 return scan_msg
+
+            # Extract translation and rotation from transform
+            tx = transform.transform.translation.x
+            ty = transform.transform.translation.y
+            tz = transform.transform.translation.z
             
+            qx = transform.transform.rotation.x
+            qy = transform.transform.rotation.y
+            qz = transform.transform.rotation.z
+            qw = transform.transform.rotation.w
+
+            # Convert quaternion to yaw angle (rotation around z-axis)
+            siny_cosp = 2 * (qw * qz + qx * qy)
+            cosy_cosp = 1 - 2 * (qy * qy + qz * qz)
+            yaw_offset = math.atan2(siny_cosp, cosy_cosp)
+
             # Create a new LaserScan message in base_link frame
             transformed_scan = LaserScan()
             transformed_scan.header.frame_id = self.base_frame
             transformed_scan.header.stamp = scan_msg.header.stamp
             
-            # Get the rotation from laser frame to base_link
-            # Extract rotation from transform quaternion
-            qx = transform.transform.rotation.x
-            qy = transform.transform.rotation.y
-            qz = transform.transform.rotation.z
-            qw = transform.transform.rotation.w
-            
-            # Convert quaternion to yaw angle (rotation around z-axis)
-            siny_cosp = 2 * (qw * qz + qx * qy)
-            cosy_cosp = 1 - 2 * (qy * qy + qz * qz)
-            yaw_offset = math.atan2(siny_cosp, cosy_cosp)
-            
-            
-            # Apply rotation to transform angles to base_link frame
-            # After transformation, 0° will be forward in base_link frame
+            # Transform the scan parameters
             transformed_scan.angle_min = self.normalize_angle(scan_msg.angle_min + yaw_offset)
             transformed_scan.angle_max = self.normalize_angle(scan_msg.angle_max + yaw_offset)
             transformed_scan.angle_increment = scan_msg.angle_increment
@@ -757,32 +906,65 @@ class PerimeterRoamer(Node):
             transformed_scan.scan_time = scan_msg.scan_time
             transformed_scan.range_min = scan_msg.range_min
             transformed_scan.range_max = scan_msg.range_max
+
+            # Transform each range measurement from LIDAR frame to base_link frame
+            transformed_ranges = []
+            transformed_intensities = []
             
-            # Copy range data (distances don't change, only the angle interpretation)
-            transformed_scan.ranges = list(scan_msg.ranges)
-            transformed_scan.intensities = list(scan_msg.intensities) if scan_msg.intensities else []
-            
-            # DEBUG: Check the transformed ranges
-            if not hasattr(self, 'transform_debug_logged'):
-                valid_ranges = [r for r in transformed_scan.ranges if math.isfinite(r) and r > 0.1]
-                if valid_ranges:
-                    min_valid = min(valid_ranges)
-                    max_valid = max(valid_ranges)
-                    # self.get_logger().info(f"Transformed scan ranges: {len(valid_ranges)}/{len(transformed_scan.ranges)} valid, min={min_valid:.2f}, max={max_valid:.2f}")
+            for i, range_val in enumerate(scan_msg.ranges):
+                if math.isfinite(range_val) and range_val > scan_msg.range_min:
+                    # Calculate angle of this ray in LIDAR frame
+                    ray_angle_lidar = scan_msg.angle_min + i * scan_msg.angle_increment
+                    
+                    # Convert polar coordinates (range, angle) to cartesian in LIDAR frame
+                    lidar_x = range_val * math.cos(ray_angle_lidar)
+                    lidar_y = range_val * math.sin(ray_angle_lidar)
+                    
+                    # Transform point from LIDAR frame to base_link frame
+                    # Apply rotation first, then translation
+                    cos_yaw = math.cos(yaw_offset)
+                    sin_yaw = math.sin(yaw_offset)
+                    
+                    base_x = cos_yaw * lidar_x - sin_yaw * lidar_y + tx
+                    base_y = sin_yaw * lidar_x + cos_yaw * lidar_y + ty
+                    
+                    # Convert back to polar coordinates in base_link frame
+                    transformed_range = math.sqrt(base_x * base_x + base_y * base_y)
+                    
+                    # Validate the transformed range
+                    if transformed_range >= scan_msg.range_min and transformed_range <= scan_msg.range_max:
+                        transformed_ranges.append(transformed_range)
+                    else:
+                        transformed_ranges.append(float('inf'))  # Invalid range
                 else:
-                    self.get_logger().warn(f"NO VALID RANGES in transformed scan! All {len(transformed_scan.ranges)} ranges are invalid")
-                # Show first 10 ranges as example
-                sample_ranges = [f"{i}:{transformed_scan.ranges[i]:.2f}" for i in range(min(10, len(transformed_scan.ranges)))]
-                # self.get_logger().info(f"First 10 transformed ranges: {sample_ranges}")
+                    # Keep invalid/infinite ranges as-is
+                    transformed_ranges.append(range_val)
+                
+                # Copy intensity if available
+                if scan_msg.intensities and i < len(scan_msg.intensities):
+                    transformed_intensities.append(scan_msg.intensities[i])
+
+            transformed_scan.ranges = transformed_ranges
+            transformed_scan.intensities = transformed_intensities
+
+            # DEBUG: Log the transformation details once
+            if not hasattr(self, 'transform_debug_logged'):
+                self.get_logger().info(f"LIDAR transformation: translation=({tx:.3f}, {ty:.3f}, {tz:.3f}), yaw_offset={yaw_offset:.3f} rad ({math.degrees(yaw_offset):.1f}°)")
+                
+                # Compare a few sample points
+                valid_orig = [r for r in scan_msg.ranges[:10] if math.isfinite(r) and r > 0.1]
+                valid_trans = [r for r in transformed_ranges[:10] if math.isfinite(r) and r > 0.1]
+                if valid_orig and valid_trans:
+                    self.get_logger().info(f"Sample original ranges: {[f'{r:.2f}' for r in valid_orig[:3]]}")
+                    self.get_logger().info(f"Sample transformed ranges: {[f'{r:.2f}' for r in valid_trans[:3]]}")
+                
                 self.transform_debug_logged = True
-            
-            # Store the yaw offset for debugging
-            self.lidar_to_base_yaw_offset = yaw_offset
-            
+
             return transformed_scan
-            
+
         except Exception as e:
-            self.get_logger().warn(f"Failed to transform scan to base_link: {e}, using raw scan")
+            self.get_logger().error(f"Error transforming scan: {e}")
+            return scan_msg
             return scan_msg
     
     def transform_odom_to_base_link(self, odom_msg):
@@ -858,8 +1040,8 @@ class PerimeterRoamer(Node):
         left_dist = self.get_distance_at_angle(90.0)
         right_dist = self.get_distance_at_angle(270.0)
         
-        # DEBUG: Log the distance readings
-        self.get_logger().info(f"Distance readings: front={front_dist:.2f}m, left={left_dist:.2f}m, right={right_dist:.2f}m")
+        # DEBUG: Log the distance readings with edge information
+        self.log_distances_with_edge_info(front_dist, left_dist, right_dist, "SPACE CLASSIFICATION")
         
         # Calculate space width (minimum of left and right distances)
         space_width = min(left_dist, right_dist) * 2  # Multiply by 2 for full width
@@ -906,39 +1088,149 @@ class PerimeterRoamer(Node):
         """
         Detect doorway openings by looking for gaps in walls.
         A doorway is a break in a wall where there was a wall before and after the gap.
+        Enhanced to scan more comprehensively around the robot.
         """
         if self.scan_data is None:
             return False
         
         # Parameters for doorway detection
-        min_doorway_width = 0.6  # Minimum width for a doorway (meters)
-        max_doorway_width = 1.2  # Maximum width for a doorway (meters)  
-        wall_distance_threshold = 1.5  # Maximum distance to be considered a wall (meters)
-        min_wall_length = 0.3  # Minimum wall length on each side of doorway (meters)
+        min_doorway_width = 0.5  # Minimum width for a doorway (meters) - relaxed from 0.6
+        max_doorway_width = 2.0  # Maximum width for a doorway (meters) - increased from 1.5
+        wall_distance_threshold = 2.5  # Maximum distance to be considered a wall (meters) - increased from 2.0
+        min_wall_length = 0.15  # Minimum wall length on each side of doorway (meters) - relaxed from 0.2
         
-        # Scan angles to check (left side: 45° to 135°, right side: 225° to 315°)
-        left_angles = range(45, 136, 10)   # 45° to 135° in 10° increments
-        right_angles = range(225, 316, 10)  # 225° to 315° in 10° increments
+        # Enhanced scanning: scan more comprehensively around the robot
+        # Left side: scan from 30° to 150° (wider coverage)
+        left_angles = range(30, 151, 8)   # 30° to 150° in 8° increments (more resolution)
+        # Right side: scan from 210° to 330° (wider coverage) 
+        right_angles = range(210, 331, 8)  # 210° to 330° in 8° increments (more resolution)
+        # Front-left and front-right areas for openings ahead
+        front_left_angles = range(10, 81, 8)   # 10° to 80° 
+        front_right_angles = range(280, 351, 8)  # 280° to 350°
         
-        # Check for doorway on the left side
+        # Check for doorway on all sides using both algorithms
         left_doorway = self._check_doorway_in_direction(left_angles, "LEFT", 
                                                        min_doorway_width, max_doorway_width, 
                                                        wall_distance_threshold, min_wall_length)
         
-        # Check for doorway on the right side  
         right_doorway = self._check_doorway_in_direction(right_angles, "RIGHT",
                                                         min_doorway_width, max_doorway_width,
                                                         wall_distance_threshold, min_wall_length)
         
-        # Log debug info occasionally
+        front_left_doorway = self._check_doorway_in_direction(front_left_angles, "FRONT_LEFT",
+                                                             min_doorway_width, max_doorway_width,
+                                                             wall_distance_threshold, min_wall_length)
+        
+        front_right_doorway = self._check_doorway_in_direction(front_right_angles, "FRONT_RIGHT",
+                                                              min_doorway_width, max_doorway_width,
+                                                              wall_distance_threshold, min_wall_length)
+        
+        # ALTERNATIVE: Simple opening detection - look for distances much greater than nearby
+        simple_opening_detected = self._detect_simple_opening()
+        
+        # Log debug info occasionally with enhanced details
         if hasattr(self, 'last_doorway_debug_time'):
             if (self.get_clock().now() - self.last_doorway_debug_time).nanoseconds > 3e9:  # Every 3 seconds
-                self.get_logger().info(f"Doorway detection debug: left_doorway={left_doorway}, right_doorway={right_doorway}")
+                self.get_logger().info(f"Enhanced doorway detection: LEFT={left_doorway}, RIGHT={right_doorway}, FRONT_LEFT={front_left_doorway}, FRONT_RIGHT={front_right_doorway}, SIMPLE_OPENING={simple_opening_detected}")
                 self.last_doorway_debug_time = self.get_clock().now()
         else:
             self.last_doorway_debug_time = self.get_clock().now()
         
-        return left_doorway or right_doorway
+        # Return true if any doorway detected
+        any_doorway = left_doorway or right_doorway or front_left_doorway or front_right_doorway or simple_opening_detected
+        
+        # Add comprehensive LIDAR scan analysis for debugging
+        if hasattr(self, 'last_comprehensive_scan_time'):
+            if (self.get_clock().now() - self.last_comprehensive_scan_time).nanoseconds > 5e9:  # Every 5 seconds
+                self._log_comprehensive_scan_analysis()
+                self.last_comprehensive_scan_time = self.get_clock().now()
+        else:
+            self.last_comprehensive_scan_time = self.get_clock().now()
+        
+        return any_doorway
+    
+    def _detect_simple_opening(self):
+        """
+        Simple opening detection: look for angles where distance is significantly 
+        greater than baseline (indicating open space)
+        """
+        if self.scan_data is None:
+            return False
+        
+        # Get baseline distances (current left, right readings)
+        baseline_left = self.get_distance_at_angle(90.0)
+        baseline_right = self.get_distance_at_angle(270.0)
+        
+        # Calculate baseline average, handling infinite values
+        finite_baselines = [d for d in [baseline_left, baseline_right] if math.isfinite(d)]
+        if finite_baselines:
+            baseline_avg = sum(finite_baselines) / len(finite_baselines)
+        else:
+            # Both baseline readings are infinite - we're in very open space
+            return False
+        
+        # If baseline is already very open, we're probably in open space
+        if baseline_avg > 3.0:
+            return False
+        
+        # Look for angles with significantly greater distance
+        opening_threshold = max(3.0, baseline_avg * 2.0)  # At least 3m or 2x baseline
+        
+        # Scan key angles around the robot
+        scan_angles = range(0, 360, 15)  # Every 15 degrees
+        openings_found = []
+        
+        for angle in scan_angles:
+            dist = self.get_distance_at_angle(float(angle))
+            if math.isfinite(dist) and dist > opening_threshold:
+                openings_found.append((angle, dist))
+        
+        # If we found significant openings, that might indicate a doorway
+        if len(openings_found) >= 2:  # At least 2 angles showing opening
+            angle_summary = [f"{angle}°:{dist:.1f}m" for angle, dist in openings_found[:3]]  # Show first 3
+            self.get_logger().info(f"Simple opening detected: baseline_avg={baseline_avg:.2f}m, threshold={opening_threshold:.2f}m, openings: {', '.join(angle_summary)}")
+            return True
+        
+        return False
+    
+    def _log_comprehensive_scan_analysis(self):
+        """Log comprehensive LIDAR scan analysis to understand the environment"""
+        if self.scan_data is None:
+            return
+        
+        self.get_logger().info("=== COMPREHENSIVE LIDAR SCAN ANALYSIS ===")
+        
+        # Sample key angles around the robot
+        key_angles = [0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330]
+        scan_summary = []
+        
+        for angle in key_angles:
+            dist = self.get_distance_at_angle(float(angle))
+            if math.isfinite(dist):
+                scan_summary.append(f"{angle:3d}°:{dist:5.2f}m")
+            else:
+                scan_summary.append(f"{angle:3d}°: inf")
+        
+        # Log in groups for readability
+        self.get_logger().info(f"Front sector:  {' '.join(scan_summary[0:4])}")   # 0°-60°
+        self.get_logger().info(f"Left sector:   {' '.join(scan_summary[4:8])}")   # 90°-150°
+        self.get_logger().info(f"Back sector:   {' '.join(scan_summary[8:12])}")  # 180°-240°
+        self.get_logger().info(f"Right sector:  {' '.join(scan_summary[12:16])}") # 270°-330°
+        
+        # Look for potential openings (distances > wall_threshold)
+        wall_threshold = 2.5
+        openings = []
+        for angle in key_angles:
+            dist = self.get_distance_at_angle(float(angle))
+            if dist > wall_threshold:
+                openings.append(f"{angle}°")
+        
+        if openings:
+            self.get_logger().info(f"Potential openings (>{wall_threshold}m): {', '.join(openings)}")
+        else:
+            self.get_logger().info(f"No obvious openings detected (all distances <= {wall_threshold}m)")
+        
+        self.get_logger().info("=== END SCAN ANALYSIS ===")
     
     def _check_doorway_in_direction(self, angles, direction, min_width, max_width, wall_threshold, min_wall_length):
         """
@@ -951,7 +1243,8 @@ class PerimeterRoamer(Node):
         # Get distance measurements for the specified angles
         for angle in angles:
             dist = self.get_distance_at_angle(float(angle))
-            if dist < 10.0:  # Valid measurement
+            # Filter out infinite values and unreasonably large distances
+            if math.isfinite(dist) and dist < 10.0:  # Valid measurement
                 distances.append(dist)
                 angle_positions.append(angle)
         
@@ -966,7 +1259,8 @@ class PerimeterRoamer(Node):
         current_type = None  # 'wall' or 'gap'
         
         for i, dist in enumerate(distances):
-            is_wall = dist <= wall_threshold
+            # Consider infinite distances as gaps (open space), not walls
+            is_wall = math.isfinite(dist) and dist <= wall_threshold
             
             if current_type is None:
                 current_type = 'wall' if is_wall else 'gap'
@@ -991,6 +1285,15 @@ class PerimeterRoamer(Node):
             else:
                 gap_segments.append(current_segment)
         
+        # Debug logging for segmentation
+        if hasattr(self, 'last_segment_debug_time'):
+            if (self.get_clock().now() - self.last_segment_debug_time).nanoseconds > 6e9:  # Every 6 seconds
+                self.get_logger().info(f"Segmentation {direction}: {len(wall_segments)} wall segments, {len(gap_segments)} gap segments, "
+                                     f"wall_threshold={wall_threshold:.1f}m, angles={angles[0]}°-{angles[-1]}°")
+                self.last_segment_debug_time = self.get_clock().now()
+        else:
+            self.last_segment_debug_time = self.get_clock().now()
+        
         # Check for doorway pattern: at least one gap flanked by walls
         for gap_segment in gap_segments:
             if len(gap_segment) < 2:  # Gap too narrow
@@ -1005,28 +1308,47 @@ class PerimeterRoamer(Node):
             
             # Estimate gap width using the angle difference and distance
             # This is approximate - real width would need more complex geometry
-            avg_distance = sum(distances[i] for i in gap_segment) / len(gap_segment)
+            # Filter out any infinite values from the gap segment before averaging
+            finite_gap_distances = [distances[i] for i in gap_segment if math.isfinite(distances[i])]
+            if finite_gap_distances:
+                avg_distance = sum(finite_gap_distances) / len(finite_gap_distances)
+            else:
+                # If no finite distances in gap, skip this gap
+                continue
             angle_diff_rad = math.radians(abs(gap_end_angle - gap_start_angle))
             estimated_gap_width = avg_distance * angle_diff_rad
             
+            # Check for walls on both sides
+            has_wall_before = False
+            has_wall_after = False
+            
+            # Check for wall before gap
+            if gap_start_idx > 0:
+                before_distances = distances[max(0, gap_start_idx-3):gap_start_idx]
+                # Filter out infinite values and only check finite distances
+                finite_before = [d for d in before_distances if math.isfinite(d)]
+                if finite_before and all(d <= wall_threshold for d in finite_before):
+                    has_wall_before = True
+            
+            # Check for wall after gap
+            if gap_end_idx < len(distances) - 1:
+                after_distances = distances[gap_end_idx+1:min(len(distances), gap_end_idx+4)]
+                # Filter out infinite values and only check finite distances
+                finite_after = [d for d in after_distances if math.isfinite(d)]
+                if finite_after and all(d <= wall_threshold for d in finite_after):
+                    has_wall_after = True
+            
+            # Debug logging for gap analysis
+            if hasattr(self, 'last_gap_debug_time'):
+                if (self.get_clock().now() - self.last_gap_debug_time).nanoseconds > 4e9:  # Every 4 seconds
+                    self.get_logger().info(f"Gap analysis {direction}: gap_width={estimated_gap_width:.2f}m (min={min_width}, max={max_width}), "
+                                         f"wall_before={has_wall_before}, wall_after={has_wall_after}, angles={gap_start_angle}°-{gap_end_angle}°")
+                    self.last_gap_debug_time = self.get_clock().now()
+            else:
+                self.last_gap_debug_time = self.get_clock().now()
+            
             # Check if gap width is reasonable for a doorway
             if min_width <= estimated_gap_width <= max_width:
-                # Check for walls on both sides
-                has_wall_before = False
-                has_wall_after = False
-                
-                # Check for wall before gap
-                if gap_start_idx > 0:
-                    before_distances = distances[max(0, gap_start_idx-3):gap_start_idx]
-                    if before_distances and all(d <= wall_threshold for d in before_distances):
-                        has_wall_before = True
-                
-                # Check for wall after gap
-                if gap_end_idx < len(distances) - 1:
-                    after_distances = distances[gap_end_idx+1:min(len(distances), gap_end_idx+4)]
-                    if after_distances and all(d <= wall_threshold for d in after_distances):
-                        has_wall_after = True
-                
                 if has_wall_before and has_wall_after:
                     self.get_logger().info(f"DOORWAY DETECTED on {direction}: gap_width≈{estimated_gap_width:.2f}m at angles {gap_start_angle}°-{gap_end_angle}°")
                     return True
@@ -1077,8 +1399,38 @@ class PerimeterRoamer(Node):
             angle += 2 * math.pi
         return angle
     
+    def get_edge_distance(self, center_distance):
+        """
+        Calculate distance from robot edge to obstacle.
+        
+        Input center_distance is already transformed by tf2 to account for LIDAR mounting position,
+        so it represents the distance from robot center (base_link) to the obstacle.
+        We just need to subtract the robot radius to get edge distance.
+        """
+        if not math.isfinite(center_distance):
+            return center_distance
+            
+        # Calculate actual edge distance from robot center
+        edge_distance = center_distance - self.robot_radius
+        
+        return max(0.0, edge_distance)
+    
+    def log_distances_with_edge_info(self, front_dist, left_dist, right_dist, context=""):
+        """Log distances with both center and edge measurements for better understanding"""
+        front_edge = self.get_edge_distance(front_dist)
+        left_edge = self.get_edge_distance(left_dist)
+        right_edge = self.get_edge_distance(right_dist)
+        
+        min_edge_dist = min(front_edge, left_edge, right_edge)
+        
+        self.get_logger().info(f"{context} DISTANCES: "
+                              f"front={front_dist:.2f}m(edge:{front_edge:.2f}m), "
+                              f"left={left_dist:.2f}m(edge:{left_edge:.2f}m), "
+                              f"right={right_dist:.2f}m(edge:{right_edge:.2f}m), "
+                              f"min_edge={min_edge_dist:.2f}m, robot_radius={self.robot_radius:.3f}m")
+    
     def check_immediate_collision_risk(self):
-        """Check if robot is at immediate risk of collision"""
+        """Check if robot is at immediate risk of collision using EDGE distances with dynamic safety margins"""
         if self.scan_data is None:
             return False
         
@@ -1087,9 +1439,39 @@ class PerimeterRoamer(Node):
         left_dist = self.get_distance_at_angle(90.0)
         right_dist = self.get_distance_at_angle(270.0)
         
-        return (front_dist < self.min_obstacle_distance or
-                left_dist < self.min_obstacle_distance or
-                right_dist < self.min_obstacle_distance)
+        # Calculate edge distances for proper collision avoidance
+        front_edge = self.get_edge_distance(front_dist)
+        left_edge = self.get_edge_distance(left_dist)
+        right_edge = self.get_edge_distance(right_dist)
+        
+        # Use dynamic safety margins based on movement context
+        # For moving robot, we need larger safety margins than static obstacles
+        base_edge_min_distance = self.min_obstacle_distance - self.robot_radius  # 0.571m
+        
+        # For front direction, use larger safety margin due to forward movement
+        # Account for stopping distance: speed * reaction_time + deceleration_distance + safety_margin
+        front_safety_margin = max(base_edge_min_distance, 0.8)  # At least 0.8m edge distance for front (reduced from 1.0m)
+        side_safety_margin = base_edge_min_distance  # Use calculated edge distance for sides
+        
+        front_collision_risk = front_edge < front_safety_margin
+        side_collision_risk = (left_edge < side_safety_margin or right_edge < side_safety_margin)
+        
+        collision_risk = front_collision_risk or side_collision_risk
+        
+        # Log collision risk details for debugging
+        if collision_risk:
+            self.get_logger().error(f"COLLISION RISK DETECTED! Front_edge={front_edge:.2f}m < {front_safety_margin:.2f}m: {front_collision_risk}, "
+                                   f"Side edges: left={left_edge:.2f}m, right={right_edge:.2f}m < {side_safety_margin:.2f}m: {side_collision_risk}")
+            self.get_logger().error(f"Transformed distances (robot center): front={front_dist:.2f}m, left={left_dist:.2f}m, right={right_dist:.2f}m")
+        elif hasattr(self, 'last_edge_debug_log_time'):
+            # Log edge distances occasionally for monitoring
+            if (self.get_clock().now() - self.last_edge_debug_log_time).nanoseconds > 5e9:  # Every 5 seconds
+                self.get_logger().info(f"Edge distances: front={front_edge:.2f}m, left={left_edge:.2f}m, right={right_edge:.2f}m, safety_margins: front={front_safety_margin:.2f}m, sides={side_safety_margin:.2f}m")
+                self.last_edge_debug_log_time = self.get_clock().now()
+        else:
+            self.last_edge_debug_log_time = self.get_clock().now()
+        
+        return collision_risk
     
     def is_path_clear_ahead(self, check_distance=0.3):
         """Check if path ahead is clear"""
@@ -1106,6 +1488,14 @@ class PerimeterRoamer(Node):
         left_distance = self.get_distance_at_angle(90.0)
         front_distance = self.get_distance_at_angle(0.0)
         
+        # CRITICAL SAFETY CHECK - Stop if front obstacle too close
+        if front_distance < self.min_obstacle_distance:
+            self.get_logger().warn(f"COLLISION AVOIDANCE: Front obstacle at {front_distance:.2f}m < {self.min_obstacle_distance:.2f}m, STOPPING!")
+            cmd = Twist()  # Zero velocity
+            cmd.linear.x = 0.0
+            cmd.angular.z = 0.0
+            return cmd
+        
         # Calculate error (positive = too close to wall, negative = too far from wall)
         error = target_distance - wall_distance
         
@@ -1114,9 +1504,18 @@ class PerimeterRoamer(Node):
         cmd.linear.x = self.forward_speed
         
         # Safety check - if either side is very close, be very careful
-        if wall_distance < 0.3 or left_distance < 0.3:
+        if wall_distance < self.min_obstacle_distance or left_distance < self.min_obstacle_distance:
+            self.get_logger().warn(f"Side obstacle too close: left={left_distance:.2f}m, right={wall_distance:.2f}m, stopping")
+            cmd.linear.x = 0.0  # Stop completely
+        elif wall_distance < 0.3 or left_distance < 0.3:
             cmd.linear.x = self.narrow_space_speed  # Slow down
             self.get_logger().warn(f"Close to walls: left={left_distance:.2f}m, right={wall_distance:.2f}m, slowing down")
+        
+        # Slow down as we approach front obstacles
+        if front_distance < self.comfortable_distance:
+            speed_factor = min(0.3, front_distance / self.comfortable_distance)  # Scale down to 30% max
+            cmd.linear.x = cmd.linear.x * speed_factor
+            self.get_logger().warn(f"Front obstacle at {front_distance:.2f}m, reducing speed to {cmd.linear.x:.3f}m/s")
         
         # Angular control based on wall distance error
         # If error > 0: too close to right wall, turn LEFT (+angular in ROS2)
@@ -1126,7 +1525,7 @@ class PerimeterRoamer(Node):
         cmd.angular.z = angular_velocity
         
         # Debug logging for wall following
-        self.get_logger().info(f"Wall following: right={wall_distance:.2f}m, target={target_distance:.2f}m, error={error:.2f}, angular={angular_velocity:.2f}")
+        self.get_logger().info(f"Wall following: right={wall_distance:.2f}m, target={target_distance:.2f}m, front={front_distance:.2f}m, error={error:.2f}, linear={cmd.linear.x:.3f}, angular={angular_velocity:.2f}")
         
         return cmd
     
@@ -1139,29 +1538,53 @@ class PerimeterRoamer(Node):
         right_dist = self.get_distance_at_angle(270.0)
         front_dist = self.get_distance_at_angle(0.0)
         
+        # Calculate edge distances for collision avoidance
+        front_edge = self.get_edge_distance(front_dist)
+        left_edge = self.get_edge_distance(left_dist)
+        right_edge = self.get_edge_distance(right_dist)
+        
+        # CRITICAL SAFETY CHECK - Stop if robot edge too close to front obstacle
+        if front_edge < (self.min_obstacle_distance - self.robot_radius):
+            self.get_logger().warn(f"COLLISION AVOIDANCE: Robot edge {front_edge:.2f}m from front obstacle, STOPPING!")
+            self.log_distances_with_edge_info(front_dist, left_dist, right_dist, "EMERGENCY STOP")
+            cmd = Twist()  # Zero velocity
+            cmd.linear.x = 0.0
+            cmd.angular.z = 0.0
+            return cmd
+        
         # Calculate center error for ROS2 coordinate system
         # In ROS2: +angular.z = turn LEFT (counter-clockwise), -angular.z = turn RIGHT (clockwise)
         # If left_dist < right_dist, robot is closer to left wall, need to turn RIGHT (-angular)
         # If right_dist < left_dist, robot is closer to right wall, need to turn LEFT (+angular)
-        center_error = left_dist - right_dist  # CORRECTED: This gives the correct sign for ROS2
+        # FIXED: The sign was wrong - we want to turn AWAY from the closer wall
+        center_error = right_dist - left_dist  # CORRECTED: This gives the correct sign for ROS2
         
         cmd = Twist()
         cmd.linear.x = self.hallway_speed
         
-        # Safety check - slow down if front obstacle detected
-        if front_dist < self.comfortable_distance:
-            cmd.linear.x = self.hallway_speed * 0.5  # Slow down
-            self.get_logger().warn(f"Front obstacle detected at {front_dist:.2f}m, slowing down")
+        # Safety check - slow down significantly as we approach obstacles
+        edge_comfortable_distance = self.comfortable_distance - self.robot_radius
+        if front_edge < edge_comfortable_distance:
+            speed_factor = min(0.3, front_edge / edge_comfortable_distance)  # Scale down to 30% max
+            cmd.linear.x = self.hallway_speed * speed_factor
+            self.get_logger().warn(f"Front obstacle: robot edge {front_edge:.2f}m away, reducing speed to {cmd.linear.x:.3f}m/s")
+        
+        # Additional safety - stop forward motion if very close to sides
+        edge_min_distance = self.min_obstacle_distance - self.robot_radius
+        if left_edge < edge_min_distance or right_edge < edge_min_distance:
+            self.get_logger().warn(f"Side obstacle too close: left_edge={left_edge:.2f}m, right_edge={right_edge:.2f}m, stopping forward motion")
+            cmd.linear.x = 0.0
         
         # Angular control to center in hallway  
         angular_velocity = self.hallway_centering_gain * center_error
         angular_velocity = max(-self.max_angular_speed, min(self.max_angular_speed, angular_velocity))
         cmd.angular.z = angular_velocity
         
-        # Log hallway centering debug info occasionally
+        # Log hallway centering debug info occasionally with edge distances
         if hasattr(self, 'last_hallway_debug_time'):
             if (self.get_clock().now() - self.last_hallway_debug_time).nanoseconds > 2e9:  # Every 2 seconds
-                self.get_logger().info(f"Hallway centering: left={left_dist:.2f}m, right={right_dist:.2f}m, front={front_dist:.2f}m, error={center_error:.2f}, angular={angular_velocity:.2f} (+ = turn LEFT, - = turn RIGHT)")
+                self.log_distances_with_edge_info(front_dist, left_dist, right_dist, "HALLWAY")
+                self.get_logger().info(f"Hallway centering: center_error={center_error:.2f}, linear={cmd.linear.x:.3f}, angular={angular_velocity:.2f}")
                 self.last_hallway_debug_time = self.get_clock().now()
         else:
             self.last_hallway_debug_time = self.get_clock().now()
@@ -1173,17 +1596,28 @@ class PerimeterRoamer(Node):
         if self.scan_data is None:
             return Twist()
         
-        # Get distance to nearest wall
-        min_distance = min(
-            self.get_distance_at_angle(0.0),
-            self.get_distance_at_angle(90.0),
-            self.get_distance_at_angle(270.0)
-        )
+        # Get distance to obstacles in key directions
+        front_dist = self.get_distance_at_angle(0.0)
+        left_dist = self.get_distance_at_angle(90.0)
+        right_dist = self.get_distance_at_angle(270.0)
         
-        # If too close to wall, turn away
+        # CRITICAL SAFETY CHECK - Stop if front obstacle too close
+        if front_dist < self.min_obstacle_distance:
+            self.get_logger().warn(f"COLLISION AVOIDANCE: Front obstacle at {front_dist:.2f}m < {self.min_obstacle_distance:.2f}m, STOPPING!")
+            cmd = Twist()  # Zero velocity
+            cmd.linear.x = 0.0
+            cmd.angular.z = 0.0
+            return cmd
+        
+        # Get distance to nearest wall
+        min_distance = min(front_dist, left_dist, right_dist)
+        
+        # If too close to any wall, turn away
         if min_distance < self.room_patrol_distance:
             cmd = Twist()
+            cmd.linear.x = 0.0  # Stop forward motion
             cmd.angular.z = self.room_patrol_turn_angle
+            self.get_logger().info(f"Room patrol: too close to wall (min_dist={min_distance:.2f}m), turning")
             return cmd
         
         # Otherwise, move forward while maintaining distance from walls
@@ -1198,34 +1632,125 @@ class PerimeterRoamer(Node):
         right_dist = self.get_distance_at_angle(270.0)
         front_dist = self.get_distance_at_angle(0.0)
         
-        # Calculate center error for ROS2 coordinate system
-        # In ROS2: +angular.z = turn LEFT (counter-clockwise), -angular.z = turn RIGHT (clockwise)
-        # If left_dist < right_dist, robot is closer to left wall, need to turn RIGHT (-angular)
-        # If right_dist < left_dist, robot is closer to right wall, need to turn LEFT (+angular)
-        center_error = left_dist - right_dist  # CORRECTED: This gives the correct sign for ROS2
+        # DEBUG: Log when we detect infinite distances for doorway navigation
+        if not math.isfinite(left_dist) or not math.isfinite(right_dist):
+            self.get_logger().warn(f"DOORWAY APPROACH - Infinite distance detected: left={left_dist}, right={right_dist}, front={front_dist}")
+            # Trigger detailed analysis of the scan data
+            if not math.isfinite(left_dist):
+                self._debug_infinite_distance_detection(90.0, -1, left_dist)  # -1 indicates this call is from doorway logic
+            if not math.isfinite(right_dist):
+                self._debug_infinite_distance_detection(270.0, -1, right_dist)
+        
+        # Handle doorway detection and centering properly
+        max_distance_for_centering = 5.0  # Maximum distance to consider for centering
+        doorway_detection_threshold = 2.0  # Threshold to detect significant opening (doorway)
+        
+        # Detect if either side has a significant opening (doorway)
+        left_has_doorway = not math.isfinite(left_dist) or left_dist > doorway_detection_threshold
+        right_has_doorway = not math.isfinite(right_dist) or right_dist > doorway_detection_threshold
+        
+        # CRITICAL FIX: Even if both sides have "openings", we need to steer toward the smaller gap
+        # The smaller gap is likely the actual doorway we want to navigate through
+        if left_has_doorway and right_has_doorway:
+            # Both sides have openings, but steer toward the side that's closer (actual doorway)
+            if math.isfinite(left_dist) and math.isfinite(right_dist):
+                # Both finite - steer toward the smaller distance (actual doorway)
+                if left_dist < right_dist:
+                    # Left side is closer, it's the actual doorway - turn LEFT toward it
+                    center_error = 0.5  # Moderate turn toward left doorway
+                    self.get_logger().info(f"Multiple openings detected, steering LEFT toward closer doorway: left={left_dist:.2f}m < right={right_dist:.2f}m")
+                else:
+                    # Right side is closer, it's the actual doorway - turn RIGHT toward it  
+                    center_error = -0.5  # Moderate turn toward right doorway
+                    self.get_logger().info(f"Multiple openings detected, steering RIGHT toward closer doorway: right={right_dist:.2f}m < left={left_dist:.2f}m")
+            elif math.isfinite(left_dist):
+                # Only left is finite, right is infinite - center on left opening
+                center_error = (left_dist - 1.5) * 0.5  # Aim for 1.5m from left side
+                self.get_logger().info(f"Right side infinite, centering on left opening at {left_dist:.2f}m")
+            elif math.isfinite(right_dist):
+                # Only right is finite, left is infinite - center on right opening  
+                center_error = -(right_dist - 1.5) * 0.5  # Aim for 1.5m from right side
+                self.get_logger().info(f"Left side infinite, centering on right opening at {right_dist:.2f}m")
+            else:
+                # Both infinite - go straight but slowly
+                center_error = 0.0
+                self.get_logger().info(f"Both sides infinite, proceeding straight carefully")
+        elif right_has_doorway and not left_has_doorway:
+            # Right side has doorway/opening, left side has wall
+            # Turn RIGHT (negative angular) to align with the doorway opening
+            if math.isfinite(right_dist):
+                # If right distance is finite but large, center toward the opening
+                center_error = -(right_dist - left_dist) * 0.3  # Turn toward the larger opening
+            else:
+                # Right side is infinite (fully open), move away from left wall
+                center_error = -(left_dist - 1.0)  # Turn away from left wall toward right opening
+            self.get_logger().info(f"DOORWAY RIGHT detected: left={left_dist:.2f}m, right={right_dist:.2f}m, turning RIGHT toward opening")
+        elif left_has_doorway and not right_has_doorway:
+            # Left side has doorway/opening, right side has wall
+            # Turn LEFT (positive angular) to align with the doorway opening
+            if math.isfinite(left_dist):
+                # If left distance is finite but large, center toward the opening
+                center_error = (left_dist - right_dist) * 0.3  # Turn toward the larger opening
+            else:
+                # Left side is infinite (fully open), move away from right wall
+                center_error = right_dist - 1.0  # Turn away from right wall toward left opening
+            self.get_logger().info(f"DOORWAY LEFT detected: left={left_dist:.2f}m, right={right_dist:.2f}m, turning LEFT toward opening")
+        else:
+            # Both sides finite and close - normal centering between walls
+            left_dist_for_centering = min(left_dist, max_distance_for_centering)
+            right_dist_for_centering = min(right_dist, max_distance_for_centering)
+            center_error = left_dist_for_centering - right_dist_for_centering
+            self.get_logger().info(f"Normal corridor navigation: left={left_dist:.2f}m, right={right_dist:.2f}m")
         
         cmd = Twist()
         
         # Slow down when approaching doorway for better control
         cmd.linear.x = self.narrow_space_speed * 0.7  # Even slower approach
         
-        # Strong centering control for doorway approach (reduced gain to prevent oscillation)
-        angular_velocity = 0.8 * center_error  # Further reduced gain
+        # Reduced centering gain when one or both sides are infinite (open space)
+        centering_gain = 0.8
+        if not math.isfinite(left_dist) or not math.isfinite(right_dist):
+            centering_gain = 0.3  # Much more gentle correction when near open space
+            self.get_logger().info(f"Open space detected, using gentle centering (gain={centering_gain})")
+        
+        # Strong centering control for doorway approach
+        angular_velocity = centering_gain * center_error
         angular_velocity = max(-self.max_angular_speed, min(self.max_angular_speed, angular_velocity))
         cmd.angular.z = angular_velocity
         
         # Debug logging for doorway approach
-        self.get_logger().info(f"Doorway approach: left={left_dist:.2f}m, right={right_dist:.2f}m, center_error={center_error:.2f}, angular={angular_velocity:.2f} (+ = turn LEFT, - = turn RIGHT)")
+        self.get_logger().info(f"Doorway approach: left={left_dist:.2f}m, right={right_dist:.2f}m, "
+                              f"center_error={center_error:.2f}, angular={angular_velocity:.2f} (+ = turn LEFT, - = turn RIGHT)")
         
-        # Check if centered enough to proceed
-        if abs(center_error) < self.doorway_centering_tolerance:
+        # Check if centered enough to proceed - use appropriate tolerance based on situation
+        if not math.isfinite(left_dist) or not math.isfinite(right_dist):
+            tolerance = 0.3  # Tighter tolerance even for doorway situations to ensure proper centering
+        else:
+            tolerance = self.doorway_centering_tolerance  # Use parameter value (0.05m)
+            
+        if abs(center_error) < tolerance:
             self.get_logger().info(f"Doorway centered! Error={center_error:.3f}, transitioning to DOORWAY_ENTRY")
             self.change_state(State.DOORWAY_ENTRY)
+        else:
+            self.get_logger().info(f"Still centering: error={center_error:.3f}, tolerance={tolerance:.3f}")
         
         # Safety check - if too close to front obstacle, stop and re-center
-        if front_dist < 0.4:
+        front_edge = self.get_edge_distance(front_dist)
+        # Use enhanced safety margin for moving robot (larger than base calculation)
+        enhanced_front_safety = max(1.0, self.min_obstacle_distance - self.robot_radius)  # At least 1.0m edge distance
+        
+        if front_edge < enhanced_front_safety:
             cmd.linear.x = 0.0  # Stop forward motion
-            self.get_logger().warn(f"Too close to front obstacle ({front_dist:.2f}m), stopping to center")
+            cmd.angular.z = 0.0  # Stop angular motion too
+            self.get_logger().warn(f"COLLISION AVOIDANCE in doorway approach: Front edge {front_edge:.2f}m < {enhanced_front_safety:.2f}m (center={front_dist:.2f}m), STOPPING!")
+            # If very close, transition to recovery immediately
+            if front_edge < 0.5:  # Very close to obstacle
+                self.get_logger().warn(f"Very close to obstacle in doorway approach, transitioning to RECOVERY")
+                self.change_state(State.RECOVERY_BACKUP)
+        elif front_dist < 1.2:  # Slow down when approaching any obstacle
+            speed_factor = min(0.3, front_dist / 1.2)  # More aggressive speed reduction
+            cmd.linear.x = cmd.linear.x * speed_factor
+            self.get_logger().warn(f"Approaching obstacle in doorway: front={front_dist:.2f}m, edge={front_edge:.2f}m, reducing speed to {cmd.linear.x:.3f}m/s")
         
         return cmd
     
@@ -1238,26 +1763,78 @@ class PerimeterRoamer(Node):
         cmd = Twist()
         cmd.linear.x = self.narrow_space_speed
         
-        # Minimal angular correction to stay centered
+        # Minimal angular correction to stay centered - handle infinite distances properly
         left_dist = self.get_distance_at_angle(90.0)
         right_dist = self.get_distance_at_angle(270.0)
-        center_error = left_dist - right_dist  # CORRECTED: This gives the correct sign for ROS2
         
-        angular_velocity = 0.5 * center_error
+        # DEBUG: Log infinite distances during doorway entry
+        if not math.isfinite(left_dist) or not math.isfinite(right_dist):
+            self.get_logger().warn(f"DOORWAY ENTRY - Infinite distance detected: left={left_dist}, right={right_dist}")
+        
+        # Handle infinite distances for centering calculations
+        if not math.isfinite(right_dist) and math.isfinite(left_dist):
+            # Right side is open (doorway), move away from left wall toward right opening
+            center_error = -(left_dist - 1.0)  # Turn away from left wall toward right opening
+        elif not math.isfinite(left_dist) and math.isfinite(right_dist):
+            # Left side is open (doorway), move away from right wall toward left opening
+            center_error = right_dist - 1.0  # Turn away from right wall toward left opening
+        elif not math.isfinite(left_dist) and not math.isfinite(right_dist):
+            # Both sides open - go straight
+            center_error = 0.0
+        else:
+            # Both sides finite - normal centering
+            max_distance_for_centering = 5.0
+            left_dist_for_centering = min(left_dist, max_distance_for_centering)
+            right_dist_for_centering = min(right_dist, max_distance_for_centering)
+            center_error = left_dist_for_centering - right_dist_for_centering
+        
+        # Very gentle correction during doorway entry
+        centering_gain = 0.3 if (math.isfinite(left_dist) and math.isfinite(right_dist)) else 0.1
+        angular_velocity = centering_gain * center_error
         angular_velocity = max(-self.max_angular_speed, min(self.max_angular_speed, angular_velocity))
         cmd.angular.z = angular_velocity
         
         # Check if we've cleared the doorway
         front_dist = self.get_distance_at_angle(0.0)
-        if front_dist > self.doorway_approach_distance:
+        
+        # CRITICAL SAFETY CHECK during doorway entry
+        if front_dist < self.min_obstacle_distance:
+            cmd.linear.x = 0.0  # Stop forward motion
+            cmd.angular.z = 0.0  # Stop angular motion
+            self.get_logger().warn(f"COLLISION AVOIDANCE in doorway entry: Front obstacle at {front_dist:.2f}m < {self.min_obstacle_distance:.2f}m, STOPPING!")
+        elif front_dist > self.doorway_approach_distance:
             self.change_state(State.POST_DOORWAY_FORWARD)
         
         return cmd
     
     def post_doorway_forward(self):
-        """Move forward after clearing doorway"""
+        """Move forward after clearing doorway - WITH COLLISION AVOIDANCE"""
         cmd = Twist()
-        cmd.linear.x = self.forward_speed
+        
+        # CRITICAL SAFETY CHECK - Check for obstacles before moving forward
+        front_dist = self.get_distance_at_angle(0.0)
+        front_edge = self.get_edge_distance(front_dist)
+        edge_min_distance = self.min_obstacle_distance - self.robot_radius
+        
+        # Stop if front obstacle too close
+        if front_edge < edge_min_distance:
+            self.get_logger().warn(f"COLLISION AVOIDANCE in POST_DOORWAY_FORWARD: Front edge {front_edge:.2f}m < {edge_min_distance:.2f}m, STOPPING!")
+            cmd.linear.x = 0.0
+            cmd.angular.z = 0.0
+            # Transition to recovery instead of continuing forward
+            self.doorway_state.clear()
+            self.change_state(State.RECOVERY_BACKUP)
+            return cmd
+        else:
+            # Safe to move forward
+            cmd.linear.x = self.forward_speed
+            
+            # Slow down as we approach obstacles
+            edge_comfortable_distance = self.comfortable_distance - self.robot_radius
+            if front_edge < edge_comfortable_distance:
+                speed_factor = min(0.5, front_edge / edge_comfortable_distance)
+                cmd.linear.x = cmd.linear.x * speed_factor
+                self.get_logger().info(f"POST_DOORWAY_FORWARD: Slowing down, front_edge={front_edge:.2f}m, speed_factor={speed_factor:.2f}")
         
         # Start timer for this state
         if 'post_doorway_start' not in self.doorway_state:
@@ -1339,6 +1916,19 @@ class PerimeterRoamer(Node):
             self.get_logger().warn(f"LIDAR data frame mismatch: expected {self.base_frame}, got {self.scan_data.header.frame_id}")
             return False
         
+        # CRITICAL: Validate LIDAR data quality - reject scans with too many infinite values
+        if len(self.scan_data.ranges) > 0:
+            total_rays = len(self.scan_data.ranges)
+            inf_count = sum(1 for r in self.scan_data.ranges if not math.isfinite(r))
+            inf_percentage = (inf_count / total_rays) * 100
+            
+            # If more than 10% of rays are infinite, this is likely a Gazebo simulation issue
+            if inf_percentage > 10.0:
+                self.get_logger().error(f"REJECTING BAD LIDAR SCAN: {inf_count}/{total_rays} ({inf_percentage:.1f}%) infinite rays - likely Gazebo simulation issue!")
+                return False
+            elif inf_percentage > 5.0:
+                self.get_logger().warn(f"Poor LIDAR data quality: {inf_count}/{total_rays} ({inf_percentage:.1f}%) infinite rays")
+        
         # For odometry, be more flexible - if transform wasn't available, we can still use it
         # but log what frame we're actually using
         # if self.odom_data.header.frame_id != self.base_frame:
@@ -1381,6 +1971,12 @@ class PerimeterRoamer(Node):
         # Check for immediate collision risk - CRITICAL SAFETY CHECK
         if self.check_immediate_collision_risk():
             self.get_logger().warn("EMERGENCY STOP - Collision risk detected!")
+            # Log detailed distance information for debugging
+            front_dist = self.get_distance_at_angle(0.0)
+            left_dist = self.get_distance_at_angle(90.0)
+            right_dist = self.get_distance_at_angle(270.0)
+            self.log_distances_with_edge_info(front_dist, left_dist, right_dist, "EMERGENCY COLLISION RISK")
+            
             # EMERGENCY STOP - override all other commands
             cmd = Twist()  # Zero velocity command
             cmd.linear.x = 0.0
@@ -1413,8 +2009,13 @@ class PerimeterRoamer(Node):
                 
                 cmd = Twist()
                 
+                # CRITICAL SAFETY CHECK - Stop if front obstacle too close
+                if front_dist < self.min_obstacle_distance:
+                    self.get_logger().warn(f"COLLISION AVOIDANCE in FIND_WALL: Front obstacle at {front_dist:.2f}m < {self.min_obstacle_distance:.2f}m, STOPPING!")
+                    cmd.linear.x = 0.0
+                    cmd.angular.z = 0.0
                 # If we're in a very tight space (both sides close), just move forward slowly
-                if left_dist < 0.6 and right_dist < 0.6:
+                elif left_dist < 0.6 and right_dist < 0.6:
                     self.get_logger().info(f"Tight space detected (L={left_dist:.2f}, R={right_dist:.2f}), moving forward slowly")
                     cmd.linear.x = 0.05  # Very slow forward motion
                     cmd.angular.z = 0.0  # No turning in tight spaces
@@ -1432,15 +2033,33 @@ class PerimeterRoamer(Node):
                     self.get_logger().info(f"Balanced space (L={left_dist:.2f}, R={right_dist:.2f}), moving forward")
                     cmd.linear.x = 0.08
                     cmd.angular.z = 0.0
+                
+                # Additional safety for FIND_WALL - slow down as we approach any obstacle
+                if front_dist < self.comfortable_distance:
+                    speed_factor = min(0.5, front_dist / self.comfortable_distance)
+                    cmd.linear.x = cmd.linear.x * speed_factor
+                    self.get_logger().info(f"Slowing down in FIND_WALL: front={front_dist:.2f}m, speed_factor={speed_factor:.2f}")
+                    
+                # Stop side motion if sides are too close
+                if left_dist < self.min_obstacle_distance or right_dist < self.min_obstacle_distance:
+                    cmd.linear.x = 0.0
+                    cmd.angular.z = 0.0
+                    self.get_logger().warn(f"Side obstacles too close in FIND_WALL: left={left_dist:.2f}m, right={right_dist:.2f}m, stopping")
         
         elif self.current_state == State.ROOM_PATROL:
-            if self.current_space_type == SpaceType.DOORWAY:
+            # Check for doorway detection independent of space classification
+            doorway_detected = self.detect_doorway_opening()
+            if self.current_space_type == SpaceType.DOORWAY or doorway_detected:
+                self.get_logger().info(f"Doorway detected from room! space_type={self.current_space_type.name}, doorway_detected={doorway_detected}")
                 self.change_state(State.DOORWAY_APPROACH)
             else:
                 cmd = self.get_room_patrol_command()
         
         elif self.current_state == State.HALLWAY_NAVIGATION:
-            if self.current_space_type == SpaceType.DOORWAY:
+            # Check for doorway detection independent of space classification
+            doorway_detected = self.detect_doorway_opening()
+            if self.current_space_type == SpaceType.DOORWAY or doorway_detected:
+                self.get_logger().info(f"Doorway detected! space_type={self.current_space_type.name}, doorway_detected={doorway_detected}")
                 self.change_state(State.DOORWAY_APPROACH)
             else:
                 cmd = self.get_hallway_centering_command()
@@ -1452,7 +2071,15 @@ class PerimeterRoamer(Node):
             cmd = self.enter_doorway()
         
         elif self.current_state == State.POST_DOORWAY_FORWARD:
-            cmd = self.post_doorway_forward()
+            # Check for new doorways even while in post-doorway forward state
+            doorway_detected = self.detect_doorway_opening()
+            if doorway_detected:
+                self.get_logger().info(f"New doorway detected during POST_DOORWAY_FORWARD! Transitioning to DOORWAY_APPROACH")
+                self.doorway_state.clear()  # Clear any existing doorway state
+                self.change_state(State.DOORWAY_APPROACH)
+                cmd = self.approach_doorway()
+            else:
+                cmd = self.post_doorway_forward()
         
         elif self.current_state == State.RECOVERY_BACKUP:
             cmd = self.recovery_backup()
