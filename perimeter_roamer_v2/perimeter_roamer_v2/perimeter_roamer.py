@@ -171,7 +171,7 @@ class PerimeterRoamer(Node):
             try:
                 # Always use zero time for transform lookups - this gets the latest available transform
                 lookup_time = rclpy.time.Time()
-                self.get_logger().info(f"LIDAR transform lookup - Using zero time (latest available): {lookup_time.nanoseconds}")
+                # self.get_logger().info(f"LIDAR transform lookup - Using zero time (latest available): {lookup_time.nanoseconds}")
                 
                 self.tf_buffer.lookup_transform(
                     self.base_frame,  # target frame
@@ -179,7 +179,7 @@ class PerimeterRoamer(Node):
                     lookup_time,
                     timeout=rclpy.duration.Duration(seconds=0.1)
                 )
-                self.get_logger().info(f"Transform available: {self.scan_data_raw.header.frame_id} -> {self.base_frame}")
+                # self.get_logger().info(f"Transform available: {self.scan_data_raw.header.frame_id} -> {self.base_frame}")
             except Exception as e:
                 sensors_ready = False
                 self.get_logger().info(f"LIDAR transform not ready: {e}")
@@ -189,7 +189,7 @@ class PerimeterRoamer(Node):
             try:
                 # Always use zero time for transform lookups - this gets the latest available transform
                 lookup_time = rclpy.time.Time()
-                self.get_logger().info(f"Odom transform lookup - Using zero time (latest available): {lookup_time.nanoseconds}")
+                # self.get_logger().info(f"Odom transform lookup - Using zero time (latest available): {lookup_time.nanoseconds}")
                 
                 self.tf_buffer.lookup_transform(
                     self.base_frame,  # target frame
@@ -197,7 +197,7 @@ class PerimeterRoamer(Node):
                     lookup_time,
                     timeout=rclpy.duration.Duration(seconds=0.1)
                 )
-                self.get_logger().info(f"Transform available: {self.odom_data_raw.header.frame_id} -> {self.base_frame}")
+                # self.get_logger().info(f"Transform available: {self.odom_data_raw.header.frame_id} -> {self.base_frame}")
             except Exception as e:
                 sensors_ready = False
                 self.get_logger().info(f"Odom transform not ready: {e}")
@@ -224,7 +224,7 @@ class PerimeterRoamer(Node):
                     timeout=rclpy.duration.Duration(seconds=0.1)
                 )
             
-            self.get_logger().info(f"All required transforms are available")
+            # self.get_logger().info(f"All required transforms are available")
         except Exception as e:
             transforms_ready = False
             self.get_logger().info(f"Transform check failed: {e}")
@@ -348,7 +348,7 @@ class PerimeterRoamer(Node):
         
         # Get the clock type to determine if we're in simulation or real time
         self.clock_type = self.get_clock().clock_type
-        self.get_logger().info(f"Clock type: {self.clock_type}")
+        # self.get_logger().info(f"Clock type: {self.clock_type}")
         
         # Initialize transform cache
         self.transform_cache = {}
@@ -365,7 +365,7 @@ class PerimeterRoamer(Node):
             # Always use zero time for transform lookups - this gets the latest available transform
             lookup_time_odom = rclpy.time.Time()
             lookup_time_map = rclpy.time.Time()
-            self.get_logger().info(f"Using zero time (latest available) for transforms: {lookup_time_odom.nanoseconds}")
+            # self.get_logger().info(f"Using zero time (latest available) for transforms: {lookup_time_odom.nanoseconds}")
             
             # Check for actual odom frame -> base_link transform (use actual frame from message)
             actual_odom_frame = self.odom_data_raw.header.frame_id
@@ -389,7 +389,7 @@ class PerimeterRoamer(Node):
             self.transform_cache['map_to_base'] = map_transform
             self.last_transform_time = self.get_clock().now()
             
-            self.get_logger().info(f"Successfully cached transforms: {actual_odom_frame}->base_link and map->base_link")
+            # self.get_logger().info(f"Successfully cached transforms: {actual_odom_frame}->base_link and map->base_link")
             return True
         except (LookupException, ConnectivityException, ExtrapolationException) as e:
             # Be more specific about which transform failed
@@ -543,7 +543,7 @@ class PerimeterRoamer(Node):
             if angle_deg in [-90, 0, 90]:  # Only log for the main directions
                 wraparound = self.scan_data.angle_max < self.scan_data.angle_min
                 total_rays = len(self.scan_data.ranges)
-                self.get_logger().info(f"DEBUG angle={angle_deg}°: base_point=({point_base.point.x:.2f},{point_base.point.y:.2f}) -> lidar_point=({point_lidar.point.x:.2f},{point_lidar.point.y:.2f}) -> lidar_angle={math.degrees(angle_rad_lidar):.1f}° -> index={index}/{total_rays}, wraparound={wraparound}")
+                # self.get_logger().info(f"DEBUG angle={angle_deg}°: base_point=({point_base.point.x:.2f},{point_base.point.y:.2f}) -> lidar_point=({point_lidar.point.x:.2f},{point_lidar.point.y:.2f}) -> lidar_angle={math.degrees(angle_rad_lidar):.1f}° -> index={index}/{total_rays}, wraparound={wraparound}")
                 # self.get_logger().info(f"LIDAR range: {math.degrees(self.scan_data.angle_min):.1f}° to {math.degrees(self.scan_data.angle_max):.1f}°, increment={math.degrees(self.scan_data.angle_increment):.2f}°")
             
             if 0 <= index < len(self.scan_data.ranges):
@@ -615,8 +615,8 @@ class PerimeterRoamer(Node):
         # self.debug_coordinate_systems()
 
         # Log frame information for debugging
-        if hasattr(self, 'last_scan_frame') and self.last_scan_frame != msg.header.frame_id:
-            self.get_logger().info(f"LaserScan frame changed from {self.last_scan_frame} to {msg.header.frame_id}")
+        # if hasattr(self, 'last_scan_frame') and self.last_scan_frame != msg.header.frame_id:
+            # self.get_logger().info(f"LaserScan frame changed from {self.last_scan_frame} to {msg.header.frame_id}")
         
         self.last_scan_frame = msg.header.frame_id
         
@@ -636,8 +636,8 @@ class PerimeterRoamer(Node):
         self.odom_data = self.transform_odom_to_base_link(msg)
         
         # Log frame information for debugging
-        if hasattr(self, 'last_odom_frame') and self.last_odom_frame != msg.header.frame_id:
-            self.get_logger().info(f"Odometry frame changed from {self.last_odom_frame} to {msg.header.frame_id}")
+        # if hasattr(self, 'last_odom_frame') and self.last_odom_frame != msg.header.frame_id:
+            # self.get_logger().info(f"Odometry frame changed from {self.last_odom_frame} to {msg.header.frame_id}")
         
         self.last_odom_frame = msg.header.frame_id
         
@@ -768,12 +768,12 @@ class PerimeterRoamer(Node):
                 if valid_ranges:
                     min_valid = min(valid_ranges)
                     max_valid = max(valid_ranges)
-                    self.get_logger().info(f"Transformed scan ranges: {len(valid_ranges)}/{len(transformed_scan.ranges)} valid, min={min_valid:.2f}, max={max_valid:.2f}")
+                    # self.get_logger().info(f"Transformed scan ranges: {len(valid_ranges)}/{len(transformed_scan.ranges)} valid, min={min_valid:.2f}, max={max_valid:.2f}")
                 else:
                     self.get_logger().warn(f"NO VALID RANGES in transformed scan! All {len(transformed_scan.ranges)} ranges are invalid")
                 # Show first 10 ranges as example
                 sample_ranges = [f"{i}:{transformed_scan.ranges[i]:.2f}" for i in range(min(10, len(transformed_scan.ranges)))]
-                self.get_logger().info(f"First 10 transformed ranges: {sample_ranges}")
+                # self.get_logger().info(f"First 10 transformed ranges: {sample_ranges}")
                 self.transform_debug_logged = True
             
             # Store the yaw offset for debugging
@@ -864,21 +864,8 @@ class PerimeterRoamer(Node):
         # Calculate space width (minimum of left and right distances)
         space_width = min(left_dist, right_dist) * 2  # Multiply by 2 for full width
         
-        # Doorway detection parameters
-        doorway_min_opening = 0.6   # Minimum opening width for a doorway (0.65m doors exist)
-        doorway_max_opening = 1.2   # Maximum opening width for a doorway (increased)
-        doorway_depth_threshold = 1.2  # How deep the opening should be (reduced from 1.5)
-        
-        # Check for doorway opening on each side
-        # A doorway is detected when one side shows a significant wall disappearance
-        # AND the space is narrow enough to be a doorway
-        
-        is_doorway_left = (left_dist >= doorway_min_opening and 
-                          left_dist <= doorway_depth_threshold and
-                          right_dist < doorway_max_opening)  # Other side should be close (wall)
-        is_doorway_right = (right_dist >= doorway_min_opening and 
-                           right_dist <= doorway_depth_threshold and
-                           left_dist < doorway_max_opening)  # Other side should be close (wall)
+        # Improved doorway detection - look for gaps in walls
+        doorway_detected = self.detect_doorway_opening()
         
         # Log doorway detection details for debugging
         position_str = self.get_position_debug_string()
@@ -892,7 +879,7 @@ class PerimeterRoamer(Node):
         
         self.get_logger().info(f"Space classification at {position_str}: "
                               f"left={left_dist:.2f}m, right={right_dist:.2f}m, front={front_dist:.2f}m, "
-                              f"space_width={space_width:.2f}m, doorway_left={is_doorway_left}, doorway_right={is_doorway_right}")
+                              f"space_width={space_width:.2f}m, doorway_detected={doorway_detected}")
         
         # Log LIDAR info occasionally for debugging
         if hasattr(self, 'last_lidar_debug_time'):
@@ -903,19 +890,148 @@ class PerimeterRoamer(Node):
             self.last_lidar_debug_time = self.get_clock().now()
         
         # Classify space type
-        if is_doorway_left or is_doorway_right:
-            self.get_logger().info(f"DOORWAY detected! Opening on {'left' if is_doorway_left else 'right'} side")
+        if doorway_detected:
+            self.get_logger().info(f"DOORWAY detected using gap detection algorithm!")
             return SpaceType.DOORWAY
         elif space_width < self.very_narrow_threshold:
             return SpaceType.VERY_NARROW
-        elif space_width < self.doorway_width_threshold:
-            return SpaceType.DOORWAY
         elif space_width < self.narrow_hallway_threshold:
             return SpaceType.HALLWAY
         elif front_dist > self.room_detection_threshold:
             return SpaceType.ROOM
         else:
             return SpaceType.HALLWAY  # Default to hallway if unclear
+    
+    def detect_doorway_opening(self):
+        """
+        Detect doorway openings by looking for gaps in walls.
+        A doorway is a break in a wall where there was a wall before and after the gap.
+        """
+        if self.scan_data is None:
+            return False
+        
+        # Parameters for doorway detection
+        min_doorway_width = 0.6  # Minimum width for a doorway (meters)
+        max_doorway_width = 1.2  # Maximum width for a doorway (meters)  
+        wall_distance_threshold = 1.5  # Maximum distance to be considered a wall (meters)
+        min_wall_length = 0.3  # Minimum wall length on each side of doorway (meters)
+        
+        # Scan angles to check (left side: 45° to 135°, right side: 225° to 315°)
+        left_angles = range(45, 136, 10)   # 45° to 135° in 10° increments
+        right_angles = range(225, 316, 10)  # 225° to 315° in 10° increments
+        
+        # Check for doorway on the left side
+        left_doorway = self._check_doorway_in_direction(left_angles, "LEFT", 
+                                                       min_doorway_width, max_doorway_width, 
+                                                       wall_distance_threshold, min_wall_length)
+        
+        # Check for doorway on the right side  
+        right_doorway = self._check_doorway_in_direction(right_angles, "RIGHT",
+                                                        min_doorway_width, max_doorway_width,
+                                                        wall_distance_threshold, min_wall_length)
+        
+        # Log debug info occasionally
+        if hasattr(self, 'last_doorway_debug_time'):
+            if (self.get_clock().now() - self.last_doorway_debug_time).nanoseconds > 3e9:  # Every 3 seconds
+                self.get_logger().info(f"Doorway detection debug: left_doorway={left_doorway}, right_doorway={right_doorway}")
+                self.last_doorway_debug_time = self.get_clock().now()
+        else:
+            self.last_doorway_debug_time = self.get_clock().now()
+        
+        return left_doorway or right_doorway
+    
+    def _check_doorway_in_direction(self, angles, direction, min_width, max_width, wall_threshold, min_wall_length):
+        """
+        Check for doorway pattern in a specific direction.
+        Pattern: WALL -> GAP -> WALL
+        """
+        distances = []
+        angle_positions = []
+        
+        # Get distance measurements for the specified angles
+        for angle in angles:
+            dist = self.get_distance_at_angle(float(angle))
+            if dist < 10.0:  # Valid measurement
+                distances.append(dist)
+                angle_positions.append(angle)
+        
+        if len(distances) < 5:  # Need enough points to detect pattern
+            return False
+        
+        # Look for wall-gap-wall pattern
+        wall_segments = []
+        gap_segments = []
+        
+        current_segment = []
+        current_type = None  # 'wall' or 'gap'
+        
+        for i, dist in enumerate(distances):
+            is_wall = dist <= wall_threshold
+            
+            if current_type is None:
+                current_type = 'wall' if is_wall else 'gap'
+                current_segment = [i]
+            elif (current_type == 'wall' and is_wall) or (current_type == 'gap' and not is_wall):
+                # Continue current segment
+                current_segment.append(i)
+            else:
+                # Segment type changed, save current and start new
+                if current_type == 'wall':
+                    wall_segments.append(current_segment)
+                else:
+                    gap_segments.append(current_segment)
+                
+                current_type = 'wall' if is_wall else 'gap'
+                current_segment = [i]
+        
+        # Don't forget the last segment
+        if current_segment:
+            if current_type == 'wall':
+                wall_segments.append(current_segment)
+            else:
+                gap_segments.append(current_segment)
+        
+        # Check for doorway pattern: at least one gap flanked by walls
+        for gap_segment in gap_segments:
+            if len(gap_segment) < 2:  # Gap too narrow
+                continue
+                
+            gap_start_idx = gap_segment[0]
+            gap_end_idx = gap_segment[-1]
+            
+            # Calculate gap width (approximate)
+            gap_start_angle = angle_positions[gap_start_idx]
+            gap_end_angle = angle_positions[gap_end_idx]
+            
+            # Estimate gap width using the angle difference and distance
+            # This is approximate - real width would need more complex geometry
+            avg_distance = sum(distances[i] for i in gap_segment) / len(gap_segment)
+            angle_diff_rad = math.radians(abs(gap_end_angle - gap_start_angle))
+            estimated_gap_width = avg_distance * angle_diff_rad
+            
+            # Check if gap width is reasonable for a doorway
+            if min_width <= estimated_gap_width <= max_width:
+                # Check for walls on both sides
+                has_wall_before = False
+                has_wall_after = False
+                
+                # Check for wall before gap
+                if gap_start_idx > 0:
+                    before_distances = distances[max(0, gap_start_idx-3):gap_start_idx]
+                    if before_distances and all(d <= wall_threshold for d in before_distances):
+                        has_wall_before = True
+                
+                # Check for wall after gap
+                if gap_end_idx < len(distances) - 1:
+                    after_distances = distances[gap_end_idx+1:min(len(distances), gap_end_idx+4)]
+                    if after_distances and all(d <= wall_threshold for d in after_distances):
+                        has_wall_after = True
+                
+                if has_wall_before and has_wall_after:
+                    self.get_logger().info(f"DOORWAY DETECTED on {direction}: gap_width≈{estimated_gap_width:.2f}m at angles {gap_start_angle}°-{gap_end_angle}°")
+                    return True
+        
+        return False
     
     # def get_side_distance(self, side='right'):
     #     """Get distance to the side (left or right) using transformed scan data in base_link frame"""
@@ -1225,8 +1341,8 @@ class PerimeterRoamer(Node):
         
         # For odometry, be more flexible - if transform wasn't available, we can still use it
         # but log what frame we're actually using
-        if self.odom_data.header.frame_id != self.base_frame:
-            self.get_logger().info(f"Using odometry data in {self.odom_data.header.frame_id} frame (transform to {self.base_frame} not available)")
+        # if self.odom_data.header.frame_id != self.base_frame:
+            # self.get_logger().info(f"Using odometry data in {self.odom_data.header.frame_id} frame (transform to {self.base_frame} not available)")
         
         return True
     
