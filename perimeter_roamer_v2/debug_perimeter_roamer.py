@@ -35,7 +35,7 @@ def main():
         node_main()
     except ImportError:
         # Fallback: try to import from current directory
-        from perimeter_roamer import main as node_main
+        from perimeter_roamer_v3.perimeter_roamer import main as node_main
         print("Starting perimeter_roamer_v2 node with debugging enabled...")
         print(f"ROS arguments being passed: {sys.argv[1:]}")
         node_main()
