@@ -162,16 +162,11 @@ private:
 /**
  * @brief Navigate to a specific pose using Nav2
  */
-class NavigateToPose : public BT::AsyncActionNode, public RosNodeBT
+class NavigateToPose : public BT::StatefulActionNode, public RosNodeBT
 {
 public:
-  using NavigateAction = nav2_msgs::action::NavigateToPose;
-  using ActionClient = rclcpp_action::Client<NavigateAction>;
-
-  NavigateToPose(const std::string & name, const BT::NodeConfiguration & config)
-  : BT::AsyncActionNode(name, config)
-  {
-  }
+  NavigateToPose(const std::string& xml_tag_name, const BT::NodeConfiguration& conf)
+    : BT::StatefulActionNode(xml_tag_name, conf) {}
 
   static BT::PortsList providedPorts()
   {
@@ -182,17 +177,22 @@ public:
     };
   }
 
-  BT::NodeStatus tick() override;
-  void halt() override;
+  BT::NodeStatus onStart() override;
+  BT::NodeStatus onRunning() override;
+  void onHalted() override;
 
 private:
-  ActionClient::SharedPtr action_client_;
-  std::shared_future<ActionClient::GoalHandle::SharedPtr> goal_handle_future_;
-  ActionClient::GoalHandle::SharedPtr goal_handle_;
-  std::atomic<bool> goal_sent_;
+  using NavigateAction = nav2_msgs::action::NavigateToPose;
   
-  void goalResponseCallback(const ActionClient::GoalHandle::SharedPtr& goal_handle);
-  void resultCallback(const ActionClient::WrappedResult& result);
+  rclcpp_action::Client<NavigateAction>::SharedPtr action_client_;
+  rclcpp_action::ClientGoalHandle<NavigateAction>::SharedPtr goal_handle_;
+  std::shared_future<rclcpp_action::ClientGoalHandle<NavigateAction>::SharedPtr> goal_handle_future_;
+  
+  bool result_received_ = false;
+  BT::NodeStatus navigation_result_ = BT::NodeStatus::FAILURE;
+
+  void goalResponseCallback(const rclcpp_action::ClientGoalHandle<NavigateAction>::SharedPtr& goal_handle);
+  void resultCallback(const rclcpp_action::ClientGoalHandle<NavigateAction>::WrappedResult& result);
 };
 
 /**
