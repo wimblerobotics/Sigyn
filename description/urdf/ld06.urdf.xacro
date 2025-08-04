@@ -29,6 +29,7 @@
 
     <link name="lidar_frame_${lidar_prefix}">
       <collision>
+        <origin xyz="0 0 ${ld06_base_box_height / 2}" rpy="0 0 0" />
         <geometry>
           <box size="${ld06_base_box_width} ${ld06_base_box_width / 2} ${ld06_base_box_height}" />
         </geometry>
@@ -86,8 +87,8 @@
             <horizontal>
               <samples>450</samples>
               <resolution>1</resolution>
-              <min_angle>-3.14</min_angle>
-              <max_angle>3.14</max_angle>
+              <min_angle>-3.14159</min_angle>
+              <max_angle>3.14159</max_angle>
             </horizontal>
             <vertical>
               <samples>1</samples>
@@ -100,17 +101,39 @@
             <min>0.3</min>
             <max>12.0</max>
           </range>
+          <noise>
+            <type>gaussian</type>
+            <mean>0.0</mean>
+            <stddev>0.01</stddev>
+          </noise>
+          <!-- Add ray filtering to handle self-collisions -->
+          <ray>
+            <scan>
+              <horizontal>
+                <samples>450</samples>
+                <resolution>1</resolution>
+                <min_angle>-3.14159</min_angle>
+                <max_angle>3.14159</max_angle>
+              </horizontal>
+            </scan>
+            <range>
+              <min>0.3</min>
+              <max>12.0</max>
+            </range>
+          </ray>
         </lidar>
         <topic>scan</topic>
         <gz_frame_id>lidar_beam_${lidar_prefix}</gz_frame_id>
       </sensor>
 
-      <!-- Add the gazebo_ros plugin -->
+      <!-- Use correct Gazebo Garden/Harmonic plugin -->
       <plugin name="gazebo_ros_laser_controller" filename="libgazebo_ros_gpu_laser.so">
-        <alwaysOn>true</alwaysOn>
-        <updateRate>10</updateRate>
-        <topicName>/scan</topicName>
-        <frameName>lidar_beam_${lidar_prefix}</frameName>
+        <ros>
+          <namespace></namespace>
+          <remapping>~/out:=scan</remapping>
+        </ros>
+        <output_type>sensor_msgs/LaserScan</output_type>
+        <frame_name>lidar_beam_${lidar_prefix}</frame_name>
       </plugin>
     </gazebo>
   </xacro:macro>

@@ -129,6 +129,18 @@
   "cmake-tools.configureOnOpen": false,
   "ros.distro": "jazzy",
   "python.defaultInterpreterPath": "${env:HOME}/sigyn-venv/bin/python",
+  "python.analysis.autoImportCompletions": true,
+  "python.testing.autoTestDiscoverOnSaveEnabled": false,
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": false,
+  "python.linting.flake8Enabled": false,
+  "python.formatting.provider": "none",
+  "python.debugging.debugpy": {
+    "autoReload": true,
+    "watchFiles": ["**/*.py"]
+  },
+  "debug.allowBreakpointsEverywhere": true,
+  "debug.saveBeforeStart": "nonUntitledEditorsInActiveGroup",
   "C_Cpp.clang_format_style": "file",
   "C_Cpp.clang_format_fallbackStyle": "Google",
   "[cpp]": {
@@ -136,5 +148,8 @@
   },
   "[c]": {
     "editor.defaultFormatter": "ms-vscode.cpptools"
+  },
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.python"
   }
 }
