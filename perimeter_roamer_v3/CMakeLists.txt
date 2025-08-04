@@ -51,6 +51,7 @@ install(DIRECTORY launch bt_xml config scripts DESTINATION share/${PROJECT_NAME}
 # Install Python scripts
 install(PROGRAMS
   scripts/battery_simulator.py
+  scripts/capture_waypoints.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
