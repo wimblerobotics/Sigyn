@@ -210,7 +210,9 @@ BT::NodeStatus ClassifySpace::tick()
   geometry_msgs::msg::Pose next_pose = generateNextPose(space_type);
   setOutput("suggested_pose", next_pose);
 
-  RCLCPP_INFO(rclcpp::get_logger("ClassifySpace"), "Classified space as: %s", space_str.c_str());
+  RCLCPP_INFO(rclcpp::get_logger("ClassifySpace"), 
+              "Classified space as: %s, generated pose: x=%.2f, y=%.2f, z=%.2f", 
+              space_str.c_str(), next_pose.position.x, next_pose.position.y, next_pose.position.z);
   
   return BT::NodeStatus::SUCCESS;
 }
@@ -373,7 +375,7 @@ void ClassifySpace::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr ms
 }
 
 // NavigateToPose Implementation
-BT::NodeStatus NavigateToPose::tick()
+BT::NodeStatus NavigateToPose::onStart()
 {
   if (!node_) {
     RCLCPP_ERROR(rclcpp::get_logger("NavigateToPose"), "ROS node not set!");
@@ -390,64 +392,61 @@ BT::NodeStatus NavigateToPose::tick()
     }
   }
 
-  // If we haven't sent a goal yet, send it
-  if (!goal_sent_) {
-    geometry_msgs::msg::Pose target_pose;
-    if (!getInput("target_pose", target_pose)) {
-      RCLCPP_ERROR(rclcpp::get_logger("NavigateToPose"), "No target_pose provided!");
-      return BT::NodeStatus::FAILURE;
-    }
-
-    auto goal_msg = NavigateAction::Goal();
-    goal_msg.pose.header.frame_id = "map";
-    goal_msg.pose.header.stamp = node_->get_clock()->now();
-    goal_msg.pose.pose = target_pose;
-
-    // Optional: Set behavior tree
-    std::string bt_xml;
-    if (getInput("behavior_tree", bt_xml)) {
-      goal_msg.behavior_tree = bt_xml;
-    }
-
-    auto send_goal_options = rclcpp_action::Client<NavigateAction>::SendGoalOptions();
-    send_goal_options.goal_response_callback = 
-      std::bind(&NavigateToPose::goalResponseCallback, this, std::placeholders::_1);
-    send_goal_options.result_callback = 
-      std::bind(&NavigateToPose::resultCallback, this, std::placeholders::_1);
-
-    goal_handle_future_ = action_client_->async_send_goal(goal_msg, send_goal_options);
-    goal_sent_ = true;
-    
-    RCLCPP_INFO(rclcpp::get_logger("NavigateToPose"), "Sent navigation goal");
-    return BT::NodeStatus::RUNNING;
+  // Get target pose
+  geometry_msgs::msg::Pose target_pose;
+  if (!getInput("target_pose", target_pose)) {
+    RCLCPP_ERROR(rclcpp::get_logger("NavigateToPose"), "No target_pose provided!");
+    return BT::NodeStatus::FAILURE;
   }
 
-  // Check if goal is still running
-  if (goal_handle_future_.valid()) {
-    auto status = goal_handle_future_.wait_for(std::chrono::seconds(0));
-    if (status != std::future_status::ready) {
-      return BT::NodeStatus::RUNNING;
-    }
-    
+  RCLCPP_INFO(rclcpp::get_logger("NavigateToPose"), 
+              "Received target pose: x=%.2f, y=%.2f, z=%.2f", 
+              target_pose.position.x, target_pose.position.y, target_pose.position.z);
+
+  auto goal_msg = NavigateAction::Goal();
+  goal_msg.pose.header.frame_id = "map";
+  goal_msg.pose.header.stamp = node_->get_clock()->now();
+  goal_msg.pose.pose = target_pose;
+
+  // Optional: Set behavior tree
+  std::string bt_xml;
+  if (getInput("behavior_tree", bt_xml)) {
+    goal_msg.behavior_tree = bt_xml;
+  }
+
+  auto send_goal_options = rclcpp_action::Client<NavigateAction>::SendGoalOptions();
+  send_goal_options.goal_response_callback = 
+    std::bind(&NavigateToPose::goalResponseCallback, this, std::placeholders::_1);
+  send_goal_options.result_callback = 
+    std::bind(&NavigateToPose::resultCallback, this, std::placeholders::_1);
+
+  goal_handle_future_ = action_client_->async_send_goal(goal_msg, send_goal_options);
+  
+  RCLCPP_INFO(rclcpp::get_logger("NavigateToPose"), "Sent navigation goal");
+  
+  return BT::NodeStatus::RUNNING;
+}
+
+BT::NodeStatus NavigateToPose::onRunning()
+{
+  // Check if goal was accepted/rejected
+  if (goal_handle_future_.valid() && 
+      goal_handle_future_.wait_for(std::chrono::milliseconds(1)) == std::future_status::ready) {
     goal_handle_ = goal_handle_future_.get();
     if (!goal_handle_) {
       RCLCPP_ERROR(rclcpp::get_logger("NavigateToPose"), "Goal was rejected!");
-      goal_sent_ = false;
       return BT::NodeStatus::FAILURE;
     }
+    goal_handle_future_ = std::shared_future<rclcpp_action::ClientGoalHandle<NavigateAction>::SharedPtr>{};
   }
 
-  // Goal is accepted, wait for completion
-  if (goal_handle_) {
-    auto status = goal_handle_->get_status();
-    if (status == rclcpp_action::GoalStatus::STATUS_SUCCEEDED) {
+  // Check result
+  if (result_received_) {
+    if (navigation_result_ == BT::NodeStatus::SUCCESS) {
       RCLCPP_INFO(rclcpp::get_logger("NavigateToPose"), "Navigation succeeded!");
-      goal_sent_ = false;
       return BT::NodeStatus::SUCCESS;
-    } else if (status == rclcpp_action::GoalStatus::STATUS_ABORTED ||
-               status == rclcpp_action::GoalStatus::STATUS_CANCELED) {
+    } else {
       RCLCPP_WARN(rclcpp::get_logger("NavigateToPose"), "Navigation failed or was canceled!");
-      goal_sent_ = false;
       return BT::NodeStatus::FAILURE;
     }
   }
@@ -455,16 +454,16 @@ BT::NodeStatus NavigateToPose::tick()
   return BT::NodeStatus::RUNNING;
 }
 
-void NavigateToPose::halt()
+void NavigateToPose::onHalted()
 {
   if (goal_handle_) {
     RCLCPP_INFO(rclcpp::get_logger("NavigateToPose"), "Canceling navigation goal");
-    action_client_->async_cancel_goal(goal_handle_);
+    auto future_cancel = action_client_->async_cancel_goal(goal_handle_);
+    goal_handle_.reset();
   }
-  goal_sent_ = false;
 }
 
-void NavigateToPose::goalResponseCallback(const ActionClient::GoalHandle::SharedPtr& goal_handle)
+void NavigateToPose::goalResponseCallback(const rclcpp_action::ClientGoalHandle<NavigateAction>::SharedPtr& goal_handle)
 {
   if (!goal_handle) {
     RCLCPP_ERROR(rclcpp::get_logger("NavigateToPose"), "Goal was rejected by server");
@@ -473,20 +472,25 @@ void NavigateToPose::goalResponseCallback(const ActionClient::GoalHandle::Shared
   }
 }
 
-void NavigateToPose::resultCallback(const ActionClient::WrappedResult& result)
+void NavigateToPose::resultCallback(const rclcpp_action::ClientGoalHandle<NavigateAction>::WrappedResult& result)
 {
+  result_received_ = true;
   switch (result.code) {
     case rclcpp_action::ResultCode::SUCCEEDED:
       RCLCPP_INFO(rclcpp::get_logger("NavigateToPose"), "Navigation completed successfully");
+      navigation_result_ = BT::NodeStatus::SUCCESS;
       break;
     case rclcpp_action::ResultCode::ABORTED:
       RCLCPP_ERROR(rclcpp::get_logger("NavigateToPose"), "Navigation was aborted");
+      navigation_result_ = BT::NodeStatus::FAILURE;
       break;
     case rclcpp_action::ResultCode::CANCELED:
       RCLCPP_WARN(rclcpp::get_logger("NavigateToPose"), "Navigation was canceled");
+      navigation_result_ = BT::NodeStatus::FAILURE;
       break;
     default:
       RCLCPP_ERROR(rclcpp::get_logger("NavigateToPose"), "Unknown result code");
+      navigation_result_ = BT::NodeStatus::FAILURE;
       break;
   }
 }
