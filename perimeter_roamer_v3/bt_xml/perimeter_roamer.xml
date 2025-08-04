@@ -1,0 +1,63 @@
+<root main_tree_to_execute="MainTree">
+    <BehaviorTree ID="MainTree">
+        <RetryUntilSuccessful num_attempts="-1" name="KeepTrying">
+            <Fallback name="MainFallback">
+                <!-- Battery Check and Charging Sequence -->
+                <Sequence name="BatteryCheckSequence">
+                    <CheckBatteryState name="CheckBattery" low_battery_threshold="25.0"/>
+                    <NavigateToPose name="GoToCharging" 
+                                   target_pose="{charging_pose}" 
+                                   timeout="60.0"/>
+                </Sequence>
+                
+                <!-- Main Patrol Sequence -->
+                <Sequence name="PatrolSequence">
+                    <CheckLidarHealth name="CheckLidar" 
+                                     max_invalid_ratio="0.6" 
+                                     scan_timeout="3.0"/>
+                    <ClassifySpace name="ClassifyCurrentSpace" 
+                                  space_type="{current_space_type}"
+                                  suggested_pose="{next_pose}"/>
+                    
+                    <!-- Navigation based on space type -->
+                    <Fallback name="NavigationFallback">
+                        <Sequence name="RoomNavigation">
+                            <IsRoom name="IsRoom" space_type="{current_space_type}"/>
+                            <NavigateToPose name="PatrolRoom" 
+                                           target_pose="{next_pose}" 
+                                           timeout="45.0"/>
+                        </Sequence>
+                        
+                        <Sequence name="HallwayNavigation">
+                            <IsHallway name="IsHallway" space_type="{current_space_type}"/>
+                            <NavigateToPose name="PatrolHallway" 
+                                           target_pose="{next_pose}" 
+                                           timeout="30.0"/>
+                        </Sequence>
+                        
+                        <Sequence name="DoorwayNavigation">
+                            <IsDoorway name="IsDoorway" space_type="{current_space_type}"/>
+                            <NavigateToPose name="EnterDoorway" 
+                                           target_pose="{next_pose}" 
+                                           timeout="60.0"
+                                           behavior_tree="navigate_through_poses_w_replanning_and_recovery.xml"/>
+                        </Sequence>
+                        
+                        <Sequence name="VeryNarrowNavigation">
+                            <IsVeryNarrow name="IsVeryNarrow" space_type="{current_space_type}"/>
+                            <NavigateToPose name="NavigateVeryNarrow" 
+                                           target_pose="{next_pose}" 
+                                           timeout="90.0"
+                                           behavior_tree="navigate_through_poses_w_replanning_and_recovery.xml"/>
+                        </Sequence>
+                        
+                        <!-- Default Navigation (if no space is classified) -->
+                        <NavigateToPose name="Wander" 
+                                       target_pose="{next_pose}" 
+                                       timeout="30.0"/>
+                    </Fallback>
+                </Sequence>
+            </Fallback>
+        </RetryUntilSuccessful>
+    </BehaviorTree>
+</root>

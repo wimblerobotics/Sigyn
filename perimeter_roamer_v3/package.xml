@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>perimeter_roamer_v3</name>
+  <version>0.0.0</version>
+  <description>Advanced perimeter roaming robot controller using Behavior Trees</description>
+  <maintainer email="mike@wimblerobotics.com">Mike Wimble</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
+  <depend>nav2_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>behaviortree_cpp_v3</depend>
+  <depend>tf2</depend>
+  <depend>tf2_geometry_msgs</depend>
+  
+  <exec_depend>sqlite3</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
