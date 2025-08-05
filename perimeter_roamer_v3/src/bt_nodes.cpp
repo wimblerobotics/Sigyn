@@ -560,8 +560,23 @@ namespace perimeter_roamer_v3
       // Store waypoints in blackboard for other nodes to access
       config().blackboard->set("waypoints", waypoints_);
       config().blackboard->set("total_waypoints", static_cast<int>(waypoints_.size()));
-      config().blackboard->set("current_waypoint_index", 0);
-
+      // Initialize current_waypoint_index only on first load
+      bool first_load = false;
+      try {
+        // If key exists, get will succeed
+        (void)config().blackboard->get<int>("current_waypoint_index");
+      } catch (const std::exception&) {
+        first_load = true;
+      }
+      if (first_load) {
+        config().blackboard->set("current_waypoint_index", 0);
+        RCLCPP_INFO(rclcpp::get_logger("LoadWaypoints"),
+          "LoadWaypoints: initialized current_waypoint_index to 0");
+      } else {
+        RCLCPP_INFO(rclcpp::get_logger("LoadWaypoints"),
+          "LoadWaypoints: retained existing current_waypoint_index = %d",
+          config().blackboard->get<int>("current_waypoint_index"));
+      }
       setOutput("waypoints_loaded", true);
 
       RCLCPP_INFO(rclcpp::get_logger("LoadWaypoints"),
@@ -687,10 +702,15 @@ namespace perimeter_roamer_v3
     try {
       current_index = config().blackboard->get<int>("current_waypoint_index");
     }
-    catch (const std::exception&) {
-      RCLCPP_WARN(rclcpp::get_logger("GetNextWaypoint"), "current_waypoint_index not found, using 0");
-      config().blackboard->set("current_waypoint_index", 0);
-    }
+  catch (const std::exception&) {
+    RCLCPP_WARN(rclcpp::get_logger("GetNextWaypoint"), "current_waypoint_index not found, using 0");
+    config().blackboard->set("current_waypoint_index", 0);
+  }
+  // Debug: log the retrieved current index and total waypoints
+  RCLCPP_INFO(rclcpp::get_logger("GetNextWaypoint"),
+    "GetNextWaypoint: current_waypoint_index from blackboard = %d", current_index);
+  RCLCPP_INFO(rclcpp::get_logger("GetNextWaypoint"),
+    "GetNextWaypoint: total waypoints available = %zu", waypoints.size());
 
     // Check bounds
     if (current_index >= static_cast<int>(waypoints.size())) {
@@ -701,7 +721,11 @@ namespace perimeter_roamer_v3
     }
 
     // Get the waypoint (waypoints are already sorted by ID from LoadWaypoints)
-    const Waypoint& wp = waypoints[current_index];
+  const Waypoint& wp = waypoints[current_index];
+  // Debug: log the selected waypoint details
+  RCLCPP_INFO(rclcpp::get_logger("GetNextWaypoint"),
+    "GetNextWaypoint: selected waypoint id=%d, name='%s', pos=(%.2f, %.2f, %.2f)",
+    wp.id, wp.text.c_str(), wp.x, wp.y, wp.z);
 
     // Create pose message
     geometry_msgs::msg::Pose target_pose;
@@ -979,19 +1003,30 @@ namespace perimeter_roamer_v3
   {
     try {
       int current_index;
-      if (!getInput("current_index", current_index)) {
-        RCLCPP_ERROR(rclcpp::get_logger("IncrementWaypointIndex"),
-          "Failed to get current_index input");
-        return BT::NodeStatus::FAILURE;
-      }
 
-      current_index++;
 
-      // For bidirectional ports, we can write back to the same port
-      setOutput("current_index", current_index);
 
-      RCLCPP_INFO(rclcpp::get_logger("IncrementWaypointIndex"),
-        "Incremented waypoint index to %d", current_index);
+    if (!getInput("current_waypoint_index", current_index)) {
+      RCLCPP_ERROR(rclcpp::get_logger("IncrementWaypointIndex"),
+        "Failed to get current_waypoint_index input");
+      return BT::NodeStatus::FAILURE;
+    }
+    // Debug: log before increment and blackboard value
+    int bb_value = 0;
+    try { bb_value = config().blackboard->get<int>("current_waypoint_index"); } catch(...) {}
+    RCLCPP_INFO(rclcpp::get_logger("IncrementWaypointIndex"),
+      "IncrementWaypointIndex: before increment, input current_index = %d, blackboard current_waypoint_index = %d",
+      current_index, bb_value);
+    // increment
+    current_index++;
+    // write back to blackboard and output port
+    config().blackboard->set("current_waypoint_index", current_index);
+    setOutput("current_waypoint_index", current_index);
+    // Debug: log after increment and blackboard value
+    try { bb_value = config().blackboard->get<int>("current_waypoint_index"); } catch(...) {}
+    RCLCPP_INFO(rclcpp::get_logger("IncrementWaypointIndex"),
+      "IncrementWaypointIndex: after increment, new current_index = %d, blackboard current_waypoint_index = %d",
+      current_index, bb_value);
 
     }
     catch (const std::exception& e) {

@@ -452,7 +452,7 @@ public:
   static BT::PortsList providedPorts()
   {
     return {
-      BT::BidirectionalPort<int>("current_index", "Current waypoint index")
+      BT::BidirectionalPort<int>("current_waypoint_index", "Current waypoint index")
     };
   }
 
