@@ -83,7 +83,7 @@ controller_server:
     min_x_velocity_threshold: 0.001
     min_y_velocity_threshold: 0.5
     min_theta_velocity_threshold: 0.001
-    failure_tolerance: 0.3
+    failure_tolerance: 0.2    # was 0.3, triggers recovery sooner on goal error
     progress_checker_plugins: ["progress_checker"]
     goal_checker_plugins: ["precise_goal_checker"]
     controller_plugins: ["FollowPath"]
@@ -92,14 +92,14 @@ controller_server:
     # Progress checker parameters (adjusted for faster recovery)
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
-      required_movement_radius: 0.1    # meters robot must move to avoid recovery
-      movement_time_allowance: 3.0     # seconds to wait before triggering recovery
+      required_movement_radius: 0.05    # was 0.1, smaller movement needed to avoid recovery
+      movement_time_allowance: 1.0     # was 3.0, shorter wait before recovery
     # Goal checker parameters
     precise_goal_checker:
-     plugin: "nav2_controller::SimpleGoalChecker"
-     xy_goal_tolerance: 0.1
-     yaw_goal_tolerance: 0.05
-     stateful: True
+      plugin: "nav2_controller::SimpleGoalChecker"
+      xy_goal_tolerance: 0.05         # was 0.1, require closer to goal
+      yaw_goal_tolerance: 0.02        # was 0.05, tighter orientation tolerance
+      stateful: True
     # general_goal_checker:
     #   stateful: True
     #   plugin: "nav2_controller::SimpleGoalChecker"
