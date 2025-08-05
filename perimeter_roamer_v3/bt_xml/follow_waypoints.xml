@@ -51,7 +51,7 @@
                         <MarkWaypointVisited name="MarkVisited" 
                                            waypoint_id="{current_waypoint_id}"/>
                         <IncrementWaypointIndex name="IncrementIndex" 
-                                              current_index="{current_waypoint_index}"/>
+                                              current_waypoint_index="{current_waypoint_index}"/>
                     </Sequence>
                 </Sequence>
             </Fallback>
