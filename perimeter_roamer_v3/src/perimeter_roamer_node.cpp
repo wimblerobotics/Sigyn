@@ -21,6 +21,8 @@
 #include <memory>
 #include <string>
 #include <chrono>
+#include <signal.h>
+#include <atomic>
 
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp/executors/multi_threaded_executor.hpp"
@@ -34,6 +36,15 @@
 
 using namespace std::chrono_literals;
 
+// Global flag for signal handling
+std::atomic<bool> g_shutdown_requested{false};
+
+void signal_handler(int signal) {
+  (void)signal;
+  g_shutdown_requested = true;
+  RCLCPP_INFO(rclcpp::get_logger("perimeter_roamer"), "Shutdown requested");
+}
+
 namespace perimeter_roamer_v3
 {
 
@@ -44,7 +55,19 @@ public:
   : Node("perimeter_roamer_node")
   {
     this->declare_parameter<std::string>("bt_xml_filename", "");
+    this->declare_parameter<std::string>("waypoint_database_path", "data/patrol_waypoints.db");
+    this->declare_parameter<bool>("loop_waypoints", false);
+    
     std::string bt_xml_filename = this->get_parameter("bt_xml_filename").as_string();
+    std::string waypoint_db_path = this->get_parameter("waypoint_database_path").as_string();
+    bool loop_waypoints = this->get_parameter("loop_waypoints").as_bool();
+
+    // Convert relative path to absolute path relative to package directory
+    if (waypoint_db_path.find("/") != 0) {  // Not an absolute path
+      // Get package directory from ROS parameter server or construct it
+      std::string pkg_path = "/home/ros/sigyn_ws/src/Sigyn/perimeter_roamer_v3/";
+      waypoint_db_path = pkg_path + waypoint_db_path;
+    }
 
     if (bt_xml_filename.empty()) {
       RCLCPP_ERROR(this->get_logger(), "Parameter 'bt_xml_filename' is not set.");
@@ -53,6 +76,8 @@ public:
     }
 
     RCLCPP_INFO(this->get_logger(), "Loading Behavior Tree from: %s", bt_xml_filename.c_str());
+    RCLCPP_INFO(this->get_logger(), "Waypoint database path: %s", waypoint_db_path.c_str());
+    RCLCPP_INFO(this->get_logger(), "Loop waypoints: %s", loop_waypoints ? "true" : "false");
 
     // Create main node subscriptions to ensure callbacks are processed
     scan_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
@@ -77,6 +102,14 @@ public:
     factory.registerNodeType<IsHallway>("IsHallway");
     factory.registerNodeType<IsDoorway>("IsDoorway");
     factory.registerNodeType<IsVeryNarrow>("IsVeryNarrow");
+    
+    // Waypoint following nodes
+    factory.registerNodeType<LoadWaypoints>("LoadWaypoints");
+    factory.registerNodeType<CheckWaypointsComplete>("CheckWaypointsComplete");
+    factory.registerNodeType<GetNextWaypoint>("GetNextWaypoint");
+    factory.registerNodeType<NavigateToWaypoint>("NavigateToWaypoint");
+    factory.registerNodeType<MarkWaypointVisited>("MarkWaypointVisited");
+    factory.registerNodeType<IncrementWaypointIndex>("IncrementWaypointIndex");
 
     // Create the tree
     tree_ = factory.createTreeFromFile(bt_xml_filename);
@@ -95,6 +128,13 @@ public:
     blackboard->set("scan_time", last_scan_time_);
     blackboard->set("battery_level", battery_level_);
     blackboard->set("battery_time", last_battery_time_);
+    blackboard->set("waypoint_database_path", waypoint_db_path);
+    blackboard->set("loop_waypoints", loop_waypoints);
+    
+    // Initialize waypoint following state
+    blackboard->set("current_waypoint_index", 0);  // Start from first waypoint
+    blackboard->set("total_waypoints", 0);  // Will be set by LoadWaypoints
+    blackboard->set("waypoints_complete", false);
     
     // Set a default charging pose (for demo - in real robot this would be loaded from config)
     geometry_msgs::msg::Pose charging_pose;
@@ -174,11 +214,28 @@ int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
   
+  // Set up signal handlers
+  signal(SIGINT, signal_handler);
+  signal(SIGTERM, signal_handler);
+  
   auto node = std::make_shared<perimeter_roamer_v3::PerimeterRoamerNode>();
   
   // Use regular single-threaded executor - this is often more reliable for BT integration
-  rclcpp::spin(node);
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(node);
   
+  // Handle Ctrl+C gracefully with polling executor
+  try {
+    while (rclcpp::ok() && !g_shutdown_requested) {
+      executor.spin_some(std::chrono::milliseconds(100));
+    }
+  } catch (const rclcpp::exceptions::RCLError & e) {
+    RCLCPP_ERROR(node->get_logger(), "RCL error: %s", e.what());
+  } catch (const std::exception & e) {
+    RCLCPP_ERROR(node->get_logger(), "Exception: %s", e.what());
+  }
+  
+  RCLCPP_INFO(node->get_logger(), "Shutting down perimeter roamer node");
   rclcpp::shutdown();
   return 0;
 }

@@ -1,0 +1,27 @@
+<root main_tree_to_execute="MainTree">
+    <BehaviorTree ID="MainTree">
+        <RetryUntilSuccessful num_attempts="-1" name="KeepPatrolling">
+            <Fallback name="MainFallback">
+                <!-- Battery Check and Charging -->
+                <Sequence name="BatteryCheckSequence">
+                    <CheckBatteryState name="CheckBattery"/>
+                    <NavigateToPose name="GoToCharging" 
+                                   target_pose="{charging_pose}" 
+                                   timeout="60.0"/>
+                </Sequence>
+                
+                <!-- Use Nav2's FollowWaypoints Action -->
+                <Sequence name="FollowWaypointsSequence">
+                    <!-- Load waypoints from database and convert to Nav2 format -->
+                    <LoadWaypointsAsNav2Array name="LoadWaypoints" 
+                                             database_path="{waypoint_database_path}"
+                                             waypoints_array="{nav2_waypoints}"/>
+                    
+                    <!-- Use Nav2's FollowWaypoints action - handles iteration automatically -->
+                    <FollowWaypoints name="FollowWaypointsAction" 
+                                    goals="{nav2_waypoints}"/>
+                </Sequence>
+            </Fallback>
+        </RetryUntilSuccessful>
+    </BehaviorTree>
+</root>

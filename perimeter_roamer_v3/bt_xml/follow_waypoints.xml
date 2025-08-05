@@ -1,0 +1,60 @@
+<root main_tree_to_execute="MainTree">
+    <BehaviorTree ID="MainTree">
+        <RetryUntilSuccessful num_attempts="-1" name="KeepTrying">
+            <Fallback name="MainFallback">
+                <!-- Battery Check and Charging Sequence -->
+                <Sequence name="BatteryCheckSequence">
+                    <CheckBatteryState name="CheckBattery" low_battery_threshold="25.0"/>
+                    <NavigateToPose name="GoToCharging" 
+                                   target_pose="{charging_pose}" 
+                                   timeout="60.0"/>
+                </Sequence>
+                
+                <!-- Main Waypoint Following Sequence -->
+                <Sequence name="WaypointFollowingSequence">
+                    <!-- Check sensors are working -->
+                    <CheckLidarHealth name="CheckLidar" 
+                                     max_invalid_ratio="0.6" 
+                                     scan_timeout="3.0"/>
+                    
+                    <!-- Load waypoints from database (only needs to happen once) -->
+                    <LoadWaypoints name="LoadWaypointsFromDB" 
+                                  database_path="{waypoint_database_path}"
+                                  waypoints_loaded="{waypoints_available}"/>
+                    
+                    <!-- Check if we have completed all waypoints -->
+                    <CheckWaypointsComplete name="CheckComplete" 
+                                          current_waypoint_index="{current_waypoint_index}"
+                                          total_waypoints="{total_waypoints}"
+                                          loop_waypoints="{loop_waypoints}"
+                                          all_complete="{waypoints_complete}"/>
+                    
+                    <!-- Get next waypoint to visit -->
+                    <GetNextWaypoint name="GetNextWaypoint" 
+                                    current_waypoint_index="{current_waypoint_index}"
+                                    target_pose="{target_waypoint_pose}"
+                                    waypoint_id="{current_waypoint_id}"
+                                    waypoint_name="{current_waypoint_name}"/>
+                    
+                    <!-- Navigate to the selected waypoint -->
+                    <NavigateToPose name="NavigateToPose" 
+                                       target_pose="{target_waypoint_pose}"
+                                       timeout="30.0"/>
+                    <!-- <NavigateToWaypoint name="NavigateToWaypoint" 
+                                       target_pose="{target_waypoint_pose}"
+                                       waypoint_id="{current_waypoint_id}"
+                                       waypoint_name="{current_waypoint_name}"
+                                       timeout="30.0"/> -->
+                    
+                    <!-- Mark waypoint as visited and move to next -->
+                    <Sequence name="WaypointCompletedSequence">
+                        <MarkWaypointVisited name="MarkVisited" 
+                                           waypoint_id="{current_waypoint_id}"/>
+                        <IncrementWaypointIndex name="IncrementIndex" 
+                                              current_index="{current_waypoint_index}"/>
+                    </Sequence>
+                </Sequence>
+            </Fallback>
+        </RetryUntilSuccessful>
+    </BehaviorTree>
+</root>

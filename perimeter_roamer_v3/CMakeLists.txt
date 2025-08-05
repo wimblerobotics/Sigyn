@@ -46,7 +46,7 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY launch bt_xml config scripts DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY launch bt_xml config scripts data DESTINATION share/${PROJECT_NAME})
 
 # Install Python scripts
 install(PROGRAMS
