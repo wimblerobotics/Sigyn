@@ -51,7 +51,7 @@ bt_navigator:
     robot_base_frame: base_link
     odom_topic: /odom
     bt_loop_duration: 10
-    default_server_timeout: 20
+    default_server_timeout: 5 # 20
     wait_for_service_timeout: 1000
     action_server_result_timeout: 900.0
     navigators: ["navigate_to_pose", "navigate_through_poses"]
@@ -89,11 +89,11 @@ controller_server:
     controller_plugins: ["FollowPath"]
     use_realtime_priority: false  # Changed from 'yes' to 'false'
     
-    # Progress checker parameters
+    # Progress checker parameters (adjusted for faster recovery)
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
-      required_movement_radius: 0.5
-      movement_time_allowance: 10.0
+      required_movement_radius: 0.1    # meters robot must move to avoid recovery
+      movement_time_allowance: 3.0     # seconds to wait before triggering recovery
     # Goal checker parameters
     precise_goal_checker:
      plugin: "nav2_controller::SimpleGoalChecker"

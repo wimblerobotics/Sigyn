@@ -393,12 +393,10 @@ namespace perimeter_roamer_v3
       return BT::NodeStatus::FAILURE;
     }
 
-    // Initialize action client if not already done
     if (!action_client_) {
       action_client_ = rclcpp_action::create_client<NavigateAction>(
         node_->get_node_base_interface(), node_->get_node_graph_interface(),
-        node_->get_node_logging_interface(),
-        node_->get_node_waitables_interface(),
+        node_->get_node_logging_interface(), node_->get_node_waitables_interface(),
         "/navigate_to_pose");
 
       if (!action_client_->wait_for_action_server(std::chrono::seconds(5))) {
@@ -407,53 +405,40 @@ namespace perimeter_roamer_v3
       }
     }
 
-    // Get target pose
+    // If a goal is already active, don't send a new one
+    if (goal_handle_future_.valid() && goal_handle_future_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+      return BT::NodeStatus::RUNNING;
+    }
+
     geometry_msgs::msg::Pose target_pose;
     if (!getInput("target_pose", target_pose)) {
       RCLCPP_ERROR(rclcpp::get_logger("NavigateToPose"), "No target_pose provided!");
       return BT::NodeStatus::FAILURE;
     }
 
-    RCLCPP_INFO(rclcpp::get_logger("NavigateToPose"),
-      "Received target pose: x=%.2f, y=%.2f, z=%.2f",
-      target_pose.position.x, target_pose.position.y, target_pose.position.z);
-
     auto goal_msg = nav2_msgs::action::NavigateToPose::Goal();
-    // goal_msg.pose.header.frame_id = "map";
-    // goal_msg.pose.header.stamp = node_->get_clock()->now();
-    // goal_msg.pose.pose = target_pose;
-
     goal_msg.pose.header.frame_id = "map";
     goal_msg.pose.header.stamp = node_->get_clock()->now();
     goal_msg.pose.pose = target_pose;
+
+    // Optional: Override orientation if not set
     goal_msg.pose.pose.position.z = 0.0;
     goal_msg.pose.pose.orientation.w = 1.0;
     goal_msg.pose.pose.orientation.x = 0.0;
     goal_msg.pose.pose.orientation.y = 0.0;
     goal_msg.pose.pose.orientation.z = 0.0;
-    goal_msg.behavior_tree = "";
 
-
-    // Optional: Set behavior tree
-    std::string bt_xml;
-    if (getInput("behavior_tree", bt_xml)) {
-      goal_msg.behavior_tree = bt_xml;
-    }
+    getInput("behavior_tree", goal_msg.behavior_tree);
 
     auto send_goal_options = rclcpp_action::Client<NavigateAction>::SendGoalOptions();
-
-
-
-
-
-
-
-
-
     send_goal_options.goal_response_callback =
       std::bind(&NavigateToPose::goalResponseCallback, this, std::placeholders::_1);
     send_goal_options.result_callback =
       std::bind(&NavigateToPose::resultCallback, this, std::placeholders::_1);
+
+    // Reset flags before sending a new goal
+    result_received_ = false;
+    navigation_result_ = BT::NodeStatus::FAILURE;
 
     goal_handle_future_ = action_client_->async_send_goal(goal_msg, send_goal_options);
 
@@ -565,14 +550,16 @@ namespace perimeter_roamer_v3
       try {
         // If key exists, get will succeed
         (void)config().blackboard->get<int>("current_waypoint_index");
-      } catch (const std::exception&) {
+      }
+      catch (const std::exception&) {
         first_load = true;
       }
       if (first_load) {
         config().blackboard->set("current_waypoint_index", 0);
         RCLCPP_INFO(rclcpp::get_logger("LoadWaypoints"),
           "LoadWaypoints: initialized current_waypoint_index to 0");
-      } else {
+      }
+      else {
         RCLCPP_INFO(rclcpp::get_logger("LoadWaypoints"),
           "LoadWaypoints: retained existing current_waypoint_index = %d",
           config().blackboard->get<int>("current_waypoint_index"));
@@ -702,15 +689,15 @@ namespace perimeter_roamer_v3
     try {
       current_index = config().blackboard->get<int>("current_waypoint_index");
     }
-  catch (const std::exception&) {
-    RCLCPP_WARN(rclcpp::get_logger("GetNextWaypoint"), "current_waypoint_index not found, using 0");
-    config().blackboard->set("current_waypoint_index", 0);
-  }
-  // Debug: log the retrieved current index and total waypoints
-  RCLCPP_INFO(rclcpp::get_logger("GetNextWaypoint"),
-    "GetNextWaypoint: current_waypoint_index from blackboard = %d", current_index);
-  RCLCPP_INFO(rclcpp::get_logger("GetNextWaypoint"),
-    "GetNextWaypoint: total waypoints available = %zu", waypoints.size());
+    catch (const std::exception&) {
+      RCLCPP_WARN(rclcpp::get_logger("GetNextWaypoint"), "current_waypoint_index not found, using 0");
+      config().blackboard->set("current_waypoint_index", 0);
+    }
+    // Debug: log the retrieved current index and total waypoints
+    RCLCPP_INFO(rclcpp::get_logger("GetNextWaypoint"),
+      "GetNextWaypoint: current_waypoint_index from blackboard = %d", current_index);
+    RCLCPP_INFO(rclcpp::get_logger("GetNextWaypoint"),
+      "GetNextWaypoint: total waypoints available = %zu", waypoints.size());
 
     // Check bounds
     if (current_index >= static_cast<int>(waypoints.size())) {
@@ -721,11 +708,11 @@ namespace perimeter_roamer_v3
     }
 
     // Get the waypoint (waypoints are already sorted by ID from LoadWaypoints)
-  const Waypoint& wp = waypoints[current_index];
-  // Debug: log the selected waypoint details
-  RCLCPP_INFO(rclcpp::get_logger("GetNextWaypoint"),
-    "GetNextWaypoint: selected waypoint id=%d, name='%s', pos=(%.2f, %.2f, %.2f)",
-    wp.id, wp.text.c_str(), wp.x, wp.y, wp.z);
+    const Waypoint& wp = waypoints[current_index];
+    // Debug: log the selected waypoint details
+    RCLCPP_INFO(rclcpp::get_logger("GetNextWaypoint"),
+      "GetNextWaypoint: selected waypoint id=%d, name='%s', pos=(%.2f, %.2f, %.2f)",
+      wp.id, wp.text.c_str(), wp.x, wp.y, wp.z);
 
     // Create pose message
     geometry_msgs::msg::Pose target_pose;
@@ -1006,27 +993,29 @@ namespace perimeter_roamer_v3
 
 
 
-    if (!getInput("current_waypoint_index", current_index)) {
-      RCLCPP_ERROR(rclcpp::get_logger("IncrementWaypointIndex"),
-        "Failed to get current_waypoint_index input");
-      return BT::NodeStatus::FAILURE;
-    }
-    // Debug: log before increment and blackboard value
-    int bb_value = 0;
-    try { bb_value = config().blackboard->get<int>("current_waypoint_index"); } catch(...) {}
-    RCLCPP_INFO(rclcpp::get_logger("IncrementWaypointIndex"),
-      "IncrementWaypointIndex: before increment, input current_index = %d, blackboard current_waypoint_index = %d",
-      current_index, bb_value);
-    // increment
-    current_index++;
-    // write back to blackboard and output port
-    config().blackboard->set("current_waypoint_index", current_index);
-    setOutput("current_waypoint_index", current_index);
-    // Debug: log after increment and blackboard value
-    try { bb_value = config().blackboard->get<int>("current_waypoint_index"); } catch(...) {}
-    RCLCPP_INFO(rclcpp::get_logger("IncrementWaypointIndex"),
-      "IncrementWaypointIndex: after increment, new current_index = %d, blackboard current_waypoint_index = %d",
-      current_index, bb_value);
+      if (!getInput("current_waypoint_index", current_index)) {
+        RCLCPP_ERROR(rclcpp::get_logger("IncrementWaypointIndex"),
+          "Failed to get current_waypoint_index input");
+        return BT::NodeStatus::FAILURE;
+      }
+      // Debug: log before increment and blackboard value
+      int bb_value = 0;
+      try { bb_value = config().blackboard->get<int>("current_waypoint_index"); }
+      catch (...) {}
+      RCLCPP_INFO(rclcpp::get_logger("IncrementWaypointIndex"),
+        "IncrementWaypointIndex: before increment, input current_index = %d, blackboard current_waypoint_index = %d",
+        current_index, bb_value);
+      // increment
+      current_index++;
+      // write back to blackboard and output port
+      config().blackboard->set("current_waypoint_index", current_index);
+      setOutput("current_waypoint_index", current_index);
+      // Debug: log after increment and blackboard value
+      try { bb_value = config().blackboard->get<int>("current_waypoint_index"); }
+      catch (...) {}
+      RCLCPP_INFO(rclcpp::get_logger("IncrementWaypointIndex"),
+        "IncrementWaypointIndex: after increment, new current_index = %d, blackboard current_waypoint_index = %d",
+        current_index, bb_value);
 
     }
     catch (const std::exception& e) {
