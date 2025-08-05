@@ -1,5 +1,7 @@
 {
     "python.autoComplete.extraPaths": [
+        "/home/ros/sigyn_ws/build/perimeter_roamer_v3",
+        "/home/ros/sigyn_ws/install/perimeter_roamer_v3/lib/python3.12/site-packages",
         "/home/ros/sigyn_ws/build/this_to_that",
         "/home/ros/sigyn_ws/install/this_to_that/lib/python3.12/site-packages",
         "/home/ros/sigyn_ws/build/teleop_twist_keyboard",
@@ -17,6 +19,8 @@
         "/opt/ros/jazzy/lib/python3.12/site-packages"
     ],
     "python.analysis.extraPaths": [
+        "/home/ros/sigyn_ws/build/perimeter_roamer_v3",
+        "/home/ros/sigyn_ws/install/perimeter_roamer_v3/lib/python3.12/site-packages",
         "/home/ros/sigyn_ws/build/this_to_that",
         "/home/ros/sigyn_ws/install/this_to_that/lib/python3.12/site-packages",
         "/home/ros/sigyn_ws/build/teleop_twist_keyboard",
@@ -126,6 +130,8 @@
         "stacktrace": "cpp",
         "format": "cpp",
         "stdfloat": "cpp",
-        "__nullptr": "cpp"
+        "__nullptr": "cpp",
+        "strstream": "cpp",
+        "netfwd": "cpp"
     }
 }

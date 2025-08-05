@@ -290,6 +290,175 @@ public:
   }
 };
 
+/**
+ * @brief Waypoint management structures
+ */
+struct Waypoint {
+  int id;
+  double x, y, z;
+  double qx, qy, qz, qw;  // quaternion orientation
+  std::string text;
+  bool visited;
+};
+
+/**
+ * @brief Load waypoints from SQLite database
+ */
+class LoadWaypoints : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  LoadWaypoints(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+
+  static BT::PortsList providedPorts()
+  {
+    return {
+      BT::InputPort<std::string>("database_path", "Path to waypoints database"),
+      BT::OutputPort<bool>("waypoints_loaded", "Whether waypoints were successfully loaded")
+    };
+  }
+
+  BT::NodeStatus tick() override;
+
+private:
+  std::vector<Waypoint> waypoints_;
+  bool loadWaypointsFromDatabase(const std::string& db_path);
+};
+
+/**
+ * @brief Check if all waypoints have been completed
+ */
+class CheckWaypointsComplete : public BT::ConditionNode, public RosNodeBT
+{
+public:
+  CheckWaypointsComplete(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::ConditionNode(name, config) {}
+
+  static BT::PortsList providedPorts()
+  {
+    return {
+      BT::InputPort<int>("current_waypoint_index", "Current waypoint index"),
+      BT::InputPort<int>("total_waypoints", "Total number of waypoints"),
+      BT::InputPort<bool>("loop_waypoints", "Whether to loop through waypoints"),
+      BT::OutputPort<bool>("all_complete", "Whether all waypoints are complete")
+    };
+  }
+
+  BT::NodeStatus tick() override;
+};
+
+/**
+ * @brief Get the next waypoint to visit
+ */
+class GetNextWaypoint : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  GetNextWaypoint(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+
+  static BT::PortsList providedPorts()
+  {
+    return {
+      BT::BidirectionalPort<int>("current_waypoint_index", "Current waypoint index"),
+      BT::OutputPort<geometry_msgs::msg::Pose>("target_pose", "Target pose for next waypoint"),
+      BT::OutputPort<int>("waypoint_id", "ID of next waypoint"),
+      BT::OutputPort<std::string>("waypoint_name", "Name/text of next waypoint")
+    };
+  }
+
+  BT::NodeStatus tick() override;
+
+private:
+  std::vector<Waypoint> getWaypointsFromBlackboard();
+};
+
+/**
+ * @brief Navigate to a specific waypoint with proper action client handling
+ */
+class NavigateToWaypoint : public BT::StatefulActionNode, public RosNodeBT
+{
+public:
+  using NavigateAction = nav2_msgs::action::NavigateToPose;
+  
+  NavigateToWaypoint(const std::string& xml_tag_name, const BT::NodeConfiguration& conf)
+    : BT::StatefulActionNode(xml_tag_name, conf) {}
+
+  static BT::PortsList providedPorts()
+  {
+    return {
+      BT::InputPort<geometry_msgs::msg::Pose>("target_pose", "Target pose to navigate to"),
+      BT::InputPort<int>("waypoint_id", "ID of waypoint being navigated to"),
+      BT::InputPort<std::string>("waypoint_name", "Name of waypoint being navigated to"),
+      BT::InputPort<float>("timeout", 60.0f, "Timeout for navigation in seconds")
+    };
+  }
+
+  BT::NodeStatus onStart() override;
+  BT::NodeStatus onRunning() override;
+  void onHalted() override;
+
+private:
+  rclcpp_action::Client<NavigateAction>::SharedPtr action_client_;
+  rclcpp_action::ClientGoalHandle<NavigateAction>::SharedPtr goal_handle_;
+  
+  std::atomic<bool> result_received_{false};
+  std::atomic<BT::NodeStatus> navigation_result_{BT::NodeStatus::FAILURE};
+  
+  // Waypoint info for logging
+  int current_waypoint_id_ = -1;
+  std::string current_waypoint_name_;
+  
+  // Timeout tracking
+  std::chrono::steady_clock::time_point start_time_;
+  float timeout_seconds_ = 60.0f;
+  
+  // Progress tracking
+  std::chrono::steady_clock::time_point last_feedback_time_;
+  double last_distance_remaining_ = -1.0;
+
+  void resultCallback(const rclcpp_action::ClientGoalHandle<NavigateAction>::WrappedResult& result);
+  void feedbackCallback(rclcpp_action::ClientGoalHandle<NavigateAction>::SharedPtr,
+                       const std::shared_ptr<const NavigateAction::Feedback> feedback);
+};
+
+/**
+ * @brief Mark a waypoint as visited
+ */
+class MarkWaypointVisited : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  MarkWaypointVisited(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+
+  static BT::PortsList providedPorts()
+  {
+    return {
+      BT::InputPort<int>("waypoint_id", "ID of waypoint to mark as visited")
+    };
+  }
+
+  BT::NodeStatus tick() override;
+};
+
+/**
+ * @brief Increment waypoint index for sequential following
+ */
+class IncrementWaypointIndex : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  IncrementWaypointIndex(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+
+  static BT::PortsList providedPorts()
+  {
+    return {
+      BT::BidirectionalPort<int>("current_index", "Current waypoint index")
+    };
+  }
+
+  BT::NodeStatus tick() override;
+};
+
 } // namespace perimeter_roamer_v3
 
 #endif // PERIMETER_ROAMER_V3__BT_NODES_HPP_
