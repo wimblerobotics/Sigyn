@@ -38,6 +38,8 @@
 #include <memory>
 #include <cmath>
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 
 namespace perimeter_roamer_v3
 {
@@ -173,7 +175,8 @@ public:
     return {
       BT::InputPort<geometry_msgs::msg::Pose>("target_pose", "Target pose to navigate to"),
       BT::InputPort<std::string>("behavior_tree", "Behavior tree for navigation"),
-      BT::InputPort<float>("timeout", 30.0f, "Timeout for navigation in seconds")
+      BT::InputPort<float>("timeout", 30.0f, "Timeout for navigation in seconds"),
+      BT::OutputPort<bool>("goal_interrupted", "Whether the goal was interrupted and needs to be resumed")
     };
   }
 
@@ -184,20 +187,61 @@ public:
 private:
   using NavigateAction = nav2_msgs::action::NavigateToPose;
   
+  enum class ActionState {
+    IDLE,
+    SENDING_GOAL,
+    GOAL_ACTIVE,
+    GOAL_COMPLETED,
+    GOAL_FAILED,
+    GOAL_INTERRUPTED
+  };
+  
   rclcpp_action::Client<NavigateAction>::SharedPtr action_client_;
   rclcpp_action::ClientGoalHandle<NavigateAction>::SharedPtr goal_handle_;
   std::shared_future<rclcpp_action::ClientGoalHandle<NavigateAction>::SharedPtr> goal_handle_future_;
   
-  bool result_received_ = false;
-  BT::NodeStatus navigation_result_ = BT::NodeStatus::FAILURE;
+  ActionState action_state_ = ActionState::IDLE;
+  std::atomic<bool> result_received_{false};
+  std::atomic<BT::NodeStatus> navigation_result_{BT::NodeStatus::FAILURE};
+  
+  // Store goal for potential resume
+  geometry_msgs::msg::Pose current_target_pose_;
+  std::string current_behavior_tree_;
+  float current_timeout_;
+  std::chrono::steady_clock::time_point goal_start_time_;
+  bool was_interrupted_ = false;
 
+  bool sendGoal();
   void goalResponseCallback(const rclcpp_action::ClientGoalHandle<NavigateAction>::SharedPtr& goal_handle);
   void resultCallback(const rclcpp_action::ClientGoalHandle<NavigateAction>::WrappedResult& result);
 };
 
 /**
- * @brief Condition nodes for different space types
+ * @brief Condition nodes for different space types and states
  */
+class CheckGoalInterrupted : public BT::ConditionNode
+{
+public:
+  CheckGoalInterrupted(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::ConditionNode(name, config) {}
+
+  static BT::PortsList providedPorts()
+  {
+    return {
+      BT::InputPort<bool>("was_interrupted", "Whether a navigation goal was interrupted")
+    };
+  }
+
+  BT::NodeStatus tick() override
+  {
+    bool was_interrupted = false;
+    if (getInput("was_interrupted", was_interrupted) && was_interrupted) {
+      return BT::NodeStatus::SUCCESS;
+    }
+    return BT::NodeStatus::FAILURE;
+  }
+};
+
 class IsRoom : public BT::ConditionNode
 {
 public:
