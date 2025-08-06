@@ -249,7 +249,7 @@
                 "__IMXRT1062__",
                 "ARDUINO_TEENSY41",
                 "TEENSY_V2_VERSION=2.0",
-                "TEENSY_V2_BUILD_DATE=\"1754288856\"",
+                "TEENSY_V2_BUILD_DATE=\"1754410615\"",
                 "BOARD_ID=1",
                 "BOARD_NAME=Navigation_Safety",
                 "ENABLE_PERFORMANCE_MONITOR",

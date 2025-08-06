@@ -10,7 +10,7 @@ class BatterySimulator(Node):
         super().__init__('battery_simulator')
         self.publisher = self.create_publisher(BatteryState, '/battery_state', 10)
         self.timer = self.create_timer(1.0, self.publish_battery_state)
-        self.battery_level = 100.0  # Start at 100%
+        self.battery_level = 30.0  # Start at 100%
         self.get_logger().info('Battery simulator started')
 
     def publish_battery_state(self):
@@ -20,7 +20,7 @@ class BatterySimulator(Node):
         
         # Simulate slow battery drain
         self.battery_level -= 0.1  # Drain 0.1% per second
-        if self.battery_level < 0:
+        if self.battery_level < 18.5:
             self.battery_level = 100.0  # Reset when empty
             self.get_logger().info('Battery recharged to 100%')
         
