@@ -1,17 +1,19 @@
 <root main_tree_to_execute="MainTree">
     <BehaviorTree ID="MainTree">
         <RetryUntilSuccessful num_attempts="-1" name="KeepTrying">
-            <Fallback name="MainFallback">
-                <!-- Battery Check and Charging Sequence -->
-                <Sequence name="BatteryCheckSequence">
-                    <CheckBatteryState name="CheckBattery" low_battery_threshold="25.0"/>
-                    <NavigateToPose name="GoToCharging" 
+            <ReactiveFallback name="ReactiveMainFallback">
+                <!-- Priority 1: Handle low battery emergencies immediately -->
+                <Sequence name="EmergencyBatterySequence">
+                    <CheckBatteryState name="CheckEmergencyBattery" low_battery_threshold="20.0"/>
+                    <NavigateToPose name="EmergencyGoToCharging" 
                                    target_pose="{charging_pose}" 
-                                   timeout="60.0"/>
+                                   timeout="60.0"
+                                   goal_interrupted="{emergency_charging_interrupted}"/>
+                    <AlwaysSuccess name="EmergencyChargingComplete"/> <!-- In practice, wait for sufficient charge -->
                 </Sequence>
                 
-                <!-- Main Waypoint Following Sequence -->
-                <Sequence name="WaypointFollowingSequence">
+                <!-- Priority 2: Main waypoint following with reactive battery handling -->
+                <Sequence name="ReactiveWaypointFollowing">
                     <!-- Check sensors are working -->
                     <CheckLidarHealth name="CheckLidar" 
                                      max_invalid_ratio="0.6" 
@@ -36,15 +38,36 @@
                                     waypoint_id="{current_waypoint_id}"
                                     waypoint_name="{current_waypoint_name}"/>
                     
-                    <!-- Navigate to the selected waypoint -->
-                    <NavigateToPose name="NavigateToPose" 
-                                       target_pose="{target_waypoint_pose}"
-                                       timeout="30.0"/>
-                    <!-- <NavigateToWaypoint name="NavigateToWaypoint" 
-                                       target_pose="{target_waypoint_pose}"
-                                       waypoint_id="{current_waypoint_id}"
-                                       waypoint_name="{current_waypoint_name}"
-                                       timeout="30.0"/> -->
+                    <!-- Reactive navigation that can be interrupted for charging -->
+                    <ReactiveFallback name="ReactiveNavigation">
+                        <!-- Priority 1: Check if battery is getting low during navigation -->
+                        <Sequence name="LowBatteryDuringNav">
+                            <CheckBatteryState name="CheckBatteryDuringNav" low_battery_threshold="15.0"/>
+                            <NavigateToPose name="GoToChargingDuringNav" 
+                                           target_pose="{charging_pose}" 
+                                           timeout="60.0"
+                                           goal_interrupted="{charging_interrupted}"/>
+                            <AlwaysSuccess name="ChargingComplete"/> <!-- In practice, wait for sufficient charge -->
+                        </Sequence>
+                        
+                        <!-- Priority 2: Continue or resume waypoint navigation -->
+                        <Fallback name="NavigationFallback">
+                            <!-- Resume interrupted navigation if it was interrupted for charging -->
+                            <Sequence name="ResumeInterruptedNavigation">
+                                <CheckGoalInterrupted name="CheckIfInterrupted" was_interrupted="{waypoint_nav_interrupted}"/>
+                                <NavigateToPose name="ResumeNavigateToPose" 
+                                               target_pose="{target_waypoint_pose}"
+                                               timeout="120.0"
+                                               goal_interrupted="{waypoint_nav_interrupted}"/>
+                            </Sequence>
+                            
+                            <!-- Start fresh navigation to waypoint -->
+                            <NavigateToPose name="NavigateToWaypoint" 
+                                           target_pose="{target_waypoint_pose}"
+                                           timeout="120.0"
+                                           goal_interrupted="{waypoint_nav_interrupted}"/>
+                        </Fallback>
+                    </ReactiveFallback>
                     
                     <!-- Mark waypoint as visited and move to next -->
                     <Sequence name="WaypointCompletedSequence">
@@ -54,7 +77,7 @@
                                               current_waypoint_index="{current_waypoint_index}"/>
                     </Sequence>
                 </Sequence>
-            </Fallback>
+            </ReactiveFallback>
         </RetryUntilSuccessful>
     </BehaviorTree>
 </root>

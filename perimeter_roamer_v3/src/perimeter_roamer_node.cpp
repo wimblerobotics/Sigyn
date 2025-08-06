@@ -98,6 +98,7 @@ public:
     factory.registerNodeType<CheckLidarHealth>("CheckLidarHealth");
     factory.registerNodeType<ClassifySpace>("ClassifySpace");
     factory.registerNodeType<NavigateToPose>("NavigateToPose");
+    factory.registerNodeType<CheckGoalInterrupted>("CheckGoalInterrupted");
     factory.registerNodeType<IsRoom>("IsRoom");
     factory.registerNodeType<IsHallway>("IsHallway");
     factory.registerNodeType<IsDoorway>("IsDoorway");
