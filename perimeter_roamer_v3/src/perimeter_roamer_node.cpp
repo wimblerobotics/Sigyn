@@ -1,4 +1,4 @@
-// Copyright 2024 Wimble Robotics
+// Copyright 2025 Wimble Robotics
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -138,8 +138,8 @@ public:
     
     // Set a default charging pose (for demo - in real robot this would be loaded from config)
     geometry_msgs::msg::Pose charging_pose;
-    charging_pose.position.x = 0.0;  // Return to origin for charging
-    charging_pose.position.y = 0.0;
+    charging_pose.position.x = 11.0;  // Return to origin for charging
+    charging_pose.position.y = 9.0;
     charging_pose.position.z = 0.0;
     charging_pose.orientation.w = 1.0;
     blackboard->set("charging_pose", charging_pose);
