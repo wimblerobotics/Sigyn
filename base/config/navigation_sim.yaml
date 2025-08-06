@@ -50,7 +50,7 @@ bt_navigator:
     global_frame: map
     robot_base_frame: base_link
     odom_topic: /odom
-    bt_loop_duration: 10
+    bt_loop_duration: 1      # was 10, tick BT every 1 s instead of 10 s
     default_server_timeout: 5 # 20
     wait_for_service_timeout: 1000
     action_server_result_timeout: 900.0
@@ -83,57 +83,49 @@ controller_server:
     min_x_velocity_threshold: 0.001
     min_y_velocity_threshold: 0.5
     min_theta_velocity_threshold: 0.001
-    failure_tolerance: 0.2    # was 0.3, triggers recovery sooner on goal error
+    failure_tolerance: 0.5    # increased tolerance to reduce recovery triggers
     progress_checker_plugins: ["progress_checker"]
     goal_checker_plugins: ["precise_goal_checker"]
     controller_plugins: ["FollowPath"]
     use_realtime_priority: false  # Changed from 'yes' to 'false'
+    # current_progress_checker: "progress_checker"  # explicit progress checker selection
+    # current_goal_checker: "precise_goal_checker"    # explicit goal checker selection
     
-    # Progress checker parameters (adjusted for faster recovery)
+    # Progress checker parameters (adjusted for MPPI controller behavior)
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
-      required_movement_radius: 0.05    # was 0.1, smaller movement needed to avoid recovery
-      movement_time_allowance: 1.0     # was 3.0, shorter wait before recovery
+      required_movement_radius: 0.15    # reduced radius requirement
+      movement_time_allowance: 10.0    # increased time allowance
     # Goal checker parameters
     precise_goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.05         # was 0.1, require closer to goal
-      yaw_goal_tolerance: 0.02        # was 0.05, tighter orientation tolerance
+      xy_goal_tolerance: 0.15         # slightly more reasonable tolerance
+      yaw_goal_tolerance: 0.15        # more relaxed orientation tolerance
       stateful: True
-    # general_goal_checker:
-    #   stateful: True
-    #   plugin: "nav2_controller::SimpleGoalChecker"
-    #   xy_goal_tolerance: 0.2
-    #   yaw_goal_tolerance: 0.1
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
-      time_steps: 56
+      time_steps: 56           # reduced for simpler predictions
       model_dt: 0.05
-      batch_size: 2000
-      ax_max: 0.5    # reduced max linear acceleration (was 3.0)
-      ax_min: -0.5   # match deceleration limit
-      ay_max: 3.0
-      az_max: 3.5
-      vx_std: 0.2
-      vy_std: 0.2
-      wz_std: 0.4
-      vx_max: 0.3
-      vx_min: 0.0    # disallow backward motion (was -0.35)
+      batch_size: 2000         # reduced batch size for stability
+      ax_max: 1.0              # reduced acceleration
+      ax_min: -1.0             
+      ay_max: 2.0              # reduced lateral acceleration
+      az_max: 2.0              # reduced angular acceleration
+      vx_std: 0.3   
+      vy_std: 0.3   
+      wz_std: 0.5    
+      vx_max: 0.5    
+      vx_min: -0.2             # minimal reverse motion
       vy_max: 0.5
-      wz_max: 1.9
+      wz_max: 1.5              # reduced max angular velocity
       iteration_count: 1
-      prune_distance: 1.7
+      prune_distance: 1.5      # slightly reduced pruning distance
       transform_tolerance: 0.1
       temperature: 0.3
-      gamma: 0.015
+      gamma: 0.015   
       motion_model: "DiffDrive"
-      visualize: true
+      visualize: false         # disable visualization to reduce load
       regenerate_noises: true
-      TrajectoryVisualizer:
-        trajectory_step: 5
-        time_step: 3
-      AckermannConstraints:
-        min_turning_r: 0.2
       critics: [
         "ConstraintCritic", "CostCritic", "GoalCritic",
         "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic",
@@ -161,28 +153,27 @@ controller_server:
         enabled: true
         cost_power: 1
         cost_weight: 3.81
-        critical_cost: 200.0
-        consider_footprint: false ###true
-        collision_cost: 2000000.0
+        near_collision_cost: 253
+        critical_cost: 300.0
+        consider_footprint: false
+        collision_cost: 1000000.0
         near_goal_distance: 1.0
         trajectory_point_step: 2
       PathAlignCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 10.0    # moderate penalty to avoid over-tighter alignment
-        max_path_occupancy_ratio: 0.02  # stricter occupancy limit along path
-        trajectory_point_step: 2          # sample more densely along path edges
-        threshold_to_consider: 0.8        # only penalize deviations >0.8m
+        cost_weight: 14.0
+        max_path_occupancy_ratio: 0.05
+        trajectory_point_step: 4
+        threshold_to_consider: 0.5
         offset_from_furthest: 20
         use_path_orientations: false
-
       PathFollowCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 8.0    # increase penalty for stray from path center
-        offset_from_furthest: 3  # focus on nearer segments for better path centering
-        threshold_to_consider: 0.8    # narrow tolerance to keep central
-        trajectory_point_step: 2       # denser sampling of path during follow
+        cost_weight: 5.0
+        offset_from_furthest: 5
+        threshold_to_consider: 1.4
       PathAngleCritic:
         enabled: true
         cost_power: 1
@@ -211,7 +202,7 @@ local_costmap:
       publish_frequency: 5.0 # Frequency to publish costmap to topic.
       resolution: 0.0508 # Resolution of 1 pixel of the costmap, in meters.
       robot_base_frame: base_link
-      robot_radius: 0.2286 # Radius of robot base (m).
+      robot_radius: 0.3 # Radius of robot base (m). # was 0.2286, enlarge footprint buffer
       rolling_window: True # Whether costmap should roll with robot base frame.
       # track_unknown_space: True # If false, treats unknown space as free space, else as unknown space.
       transform_tolerance: 0.5 # TF transform tolerance.
@@ -234,8 +225,8 @@ local_costmap:
 
       inflation_layer:
         enabled: True
-        cost_scaling_factor: 5.0   # steepen cost curve so robot centers itself in wider passages
-        inflation_radius: 0.242743   # matches inscribed radius to prevent collisions
+        cost_scaling_factor: 8.0   # increased to push farther from obstacles
+        inflation_radius: 0.35   # larger buffer radius around obstacles
         plugin: "nav2_costmap_2d::InflationLayer"
 
       lidar_layer:
@@ -289,7 +280,7 @@ global_costmap:
       publish_frequency: 1.0 # Frequency to publish costmap to topic.
       resolution: 0.0508 # Resolution of 1 pixel of the costmap, in meters.
       robot_base_frame: base_link
-      robot_radius: 0.2286 # Radius of robot base (m).
+      robot_radius: 0.3      # was 0.2286, enlarge footprint buffer
       track_unknown_space: True # If false, treats unknown space as free space, else as unknown space.
       transform_tolerance: 0.5
       update_frequency: 5.0 # Costmap update frequency.
@@ -302,10 +293,8 @@ global_costmap:
 
       inflation_layer:
         enabled: True
-        cost_scaling_factor: 3.0 # Exponential decay factor across inflation radius.
-        # inflate_around_unknown: False # Whether to inflate unknown cells.
-        # inflate_unknown: False # Whether to inflate unknown space.
-        inflation_radius: 0.25 # Radius to inflate costmap around lethal obstacles.
+        cost_scaling_factor: 8.0   # match local inflation
+        inflation_radius: 0.35     # larger global inflation radius
         plugin: "nav2_costmap_2d::InflationLayer"
 
       obstacle_layer:

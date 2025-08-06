@@ -1,8 +1,5 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro" name="Sigyn">
-  <self_collide>false</self_collide>
-  <pose>0 0 0.2 0 0 0</pose>
-  <static>false</static>
   <xacro:arg name="use_ros2_control" default="true" />
   <xacro:arg name="sim_mode" default="false" />
 
@@ -50,8 +47,7 @@
   </xacro:oakd_joint>
 
   <gazebo>
-    <plugin filename="gz-sim-joint-position-controller-system"
-      name="gz::sim::systems::JointPositionController">
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
       <joint_name>elevator_pole_to_elevator_connector_plate</joint_name>
       <p_gain>1.0</p_gain>
       <i_gain>0.0</i_gain>
@@ -64,8 +60,7 @@
       <topic>/elevator_connector_plate/position</topic>
     </plugin>
 
-    <plugin filename="gz-sim-joint-position-controller-system"
-      name="gz::sim::systems::JointPositionController">
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
       <joint_name>gripper_elevator_plate_to_gripper_extender</joint_name>
       <p_gain>1.0</p_gain>
       <i_gain>0.0</i_gain>
@@ -78,8 +73,7 @@
       <topic>/gripper_elevator_plate_to_gripper_extender/position</topic>
     </plugin>
 
-    <plugin filename="gz-sim-joint-position-controller-system"
-      name="gz::sim::systems::JointPositionController">
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
       <joint_name>gripper_wrist_to_parallel_gripper_base_plate</joint_name>
       <p_gain>1.0</p_gain>
       <i_gain>0.0</i_gain>
@@ -92,8 +86,7 @@
       <topic>/gripper_wrist_to_parallel_gripper_base_plate/position</topic>
     </plugin>
 
-    <plugin filename="gz-sim-joint-position-controller-system"
-      name="gz::sim::systems::JointPositionController">
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
       <joint_name>parallel_gripper_base_plate_to_left_finger</joint_name>
       <p_gain>1.0</p_gain>
       <i_gain>0.0</i_gain>
@@ -106,8 +99,7 @@
       <topic>/parallel_gripper_base_plate_to_left_finger/position</topic>
     </plugin>
 
-    <plugin filename="gz-sim-joint-position-controller-system"
-      name="gz::sim::systems::JointPositionController">
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
       <joint_name>parallel_gripper_base_plate_to_right_finger</joint_name>
       <p_gain>1.0</p_gain>
       <i_gain>0.0</i_gain>
@@ -122,14 +114,14 @@
 
   </gazebo>
 
-  <xacro:diff_drive_controller config="${props}" instances1="${props.wheels.instances}"
-    instances2="${props.wheels.instances}" />
+  <xacro:diff_drive_controller config="${props}" instances1="${props.wheels.instances}" instances2="${props.wheels.instances}" />
 
   <!-- IMU0 - Upside down (components facing down) -->
   <joint name="imu0_joint" type="fixed">
     <parent link="base_link" />
     <child link="imu_0" />
-    <origin xyz="-0.100 0.180 0.022" rpy="0 3.14159 0" />  <!-- 180° around Y-axis -->
+    <origin xyz="-0.100 0.180 0.022" rpy="0 3.14159 0" />
+    <!-- 180° around Y-axis -->
   </joint>
 
   <link name="imu_0" />
@@ -138,7 +130,8 @@
   <joint name="imu1_joint" type="fixed">
     <parent link="base_link" />
     <child link="imu_1" />
-    <origin xyz="0.085 -0.185 0.022" rpy="0 0 0" />  <!-- No rotation needed -->
+    <origin xyz="0.085 -0.185 0.022" rpy="0 0 0" />
+    <!-- No rotation needed -->
   </joint>
 
   <link name="imu_1" />
