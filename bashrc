@@ -122,6 +122,7 @@ alias dla="ros2 run --prefix 'gdbserver localhost:3000' line_finder laser_accumu
 alias fr='ros2 run tf2_tools view_frames'
 alias gripper='ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/teensy_gripper'
 alias map='clear;ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=true make_map:=true'
+alias mr='micro-ros-agent serial --dev /dev/ttyACM0 -b 115200'	
 alias nav='clear;ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=true'
 alias pm='ros2 topic pub --rate 10 /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.2}}"'
 alias rd='rosdep install --from-paths src --ignore-src -r -y'
@@ -132,35 +133,42 @@ alias rvs='rviz2 -d ~/sigyn_ws/src/Sigyn/rviz/config/config.rviz'
 alias savem='ros2 run nav2_map_server map_saver_cli -f my_map'
 alias sim='clear;ros2 launch base sigyn.launch.py use_sim_time:=true do_rviz:=true'
 alias sp='ssh -YC signpi'
-alias sr='ssh -YC sigyn7900'
+alias sr='ssh -YC sigyn7900a'
+alias sv='ssh -YC sigynVision'
 alias stele='ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=/cmd_vel_teleop'
 alias teensy='ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/teensy_sensor'
 alias tele='ros2 run teleop_twist_keyboard teleop_twist_keyboard'
+alias teles='ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=/diff_cont/cmd_vel_unstamped'
 alias toggle='ros2 service call /rosbag2_player/toggle_paused rosbag2_interfaces/srv/TogglePaused'
 
 alias compileBoard1='platformio run -e board1 -d ~/sigyn_ws/src/Sigyn/TeensyV2'
 alias compileBoard2='platformio run -e board2 -d ~/sigyn_ws/src/Sigyn/TeensyV2'
 alias buildBoard1='platformio run -e board1 -d ~/sigyn_ws/src/Sigyn/TeensyV2 --target upload'
 alias buildBoard2='platformio run -e board2 -d ~/sigyn_ws/src/Sigyn/TeensyV2 --target upload'
+export CYCLONEDDS_URI="
 
+<CycloneDDS>
+   <Domain>
+     <General>
+        <Interfaces>
+	        <!NetworkInterface name='wlp9s0' /-> <!-- amdc -->
+	        <NetworkInterface name='eno1' /> <!-- sigyn7900a -->
+        </Interfaces>
+    </General>
+   </Domain>
+</CycloneDDS>"
 
-#export CYCLONEDDS_URI="
-#<CycloneDDS>
-#   <Domain>
-#     <General>
-#        <Interfaces>
-#          <NetworkInterface name='wlp38s0' />
-#        </Interfaces>
-#    </General>
-#   </Domain>
-#</CycloneDDS>"
-
-#export ROS_DOMAIN_ID=0
-#export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+export ROS_DOMAIN_ID=0
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 #export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 
 export PATH=$PATH:~/.local/bin
 
+# Activate sigyn-venv if not already active
+if [ -z "$VIRTUAL_ENV" ] && [ -f "$HOME/sigyn-venv/bin/activate" ]; then
+    source "$HOME/sigyn-venv/bin/activate"
+fi
+
 source /opt/ros/jazzy/setup.bash
 source ~/sigyn_ws/install/setup.bash
-source ~/sigyn_microros_ws/install/setup.bash
+#source ~/sigyn_microros_ws/install/setup.bash
