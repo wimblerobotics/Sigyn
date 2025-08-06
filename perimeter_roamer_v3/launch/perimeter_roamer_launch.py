@@ -21,7 +21,7 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -84,10 +84,15 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('use_sim_time'))
     )
 
+    # Delay perimeter_roamer start to ensure Nav2 action server is available
+    delayed_roamer = TimerAction(
+        period=5.0,
+        actions=[perimeter_roamer_node]
+    )
     return LaunchDescription([
         bt_xml_filename_arg,
         config_file_arg,
         use_sim_time_arg,
-        perimeter_roamer_node,
-        battery_simulator_node
+        battery_simulator_node,
+        delayed_roamer
     ])
