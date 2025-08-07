@@ -49,13 +49,11 @@ struct SDLoggerConfig {
   // Buffer management
   uint32_t buffer_size = 4096;              ///< Write buffer size (bytes)
   uint32_t chunk_size = 1024;               ///< Write chunk size (bytes)
-  uint32_t flush_interval_ms = 1000;        ///< Auto-flush interval
-  uint32_t max_buffer_age_ms = 5000;        ///< Max time before forced flush
+  uint32_t flush_interval_ms = 10000;       ///< Interval for forcing physical writes to SD card (data safety)
   
   // Performance settings
   uint32_t card_detect_interval_ms = 5000;  ///< Card detection retry interval
   uint32_t directory_cache_interval_ms = 30000; ///< Directory cache refresh interval
-  bool enable_periodic_sync = true;         ///< Enable periodic file sync
   
   // Safety settings
   uint32_t max_file_size_mb = 100;          ///< Maximum log file size (MB)
@@ -81,7 +79,6 @@ struct SDLoggerStatus {
   // Buffer status
   uint32_t buffer_usage_bytes = 0;          ///< Current buffer usage
   float buffer_usage_percent = 0.0f;        ///< Buffer usage percentage
-  uint32_t pending_writes = 0;              ///< Number of pending write operations
   
   // Performance statistics
   uint32_t total_writes = 0;                ///< Total write operations
@@ -94,11 +91,6 @@ struct SDLoggerStatus {
   uint32_t last_write_time_ms = 0;          ///< Time of last write
   uint32_t last_flush_time_ms = 0;          ///< Time of last flush
   uint32_t session_start_time_ms = 0;       ///< Session start time
-  
-  // Card capacity
-  uint64_t card_size_mb = 0;                ///< Total card size (MB)
-  uint64_t free_space_mb = 0;               ///< Available free space (MB)
-  bool low_space_warning = false;           ///< Low space condition
 };
 
 /**
@@ -113,7 +105,7 @@ class SDLogger : public Module {
 public:
   static SDLogger& getInstance();
   
-  // Logging interface
+    // Logging operations
   void log(const String& message);
   void logFormatted(const char* format, ...);
   void flush();
@@ -133,6 +125,7 @@ public:
   // Status and configuration
   bool isSDAvailable() const;
   uint32_t getBufferUsagePercent() const;
+  bool hasPendingWrites() const { return write_buffer_.length() > 0; }  ///< Check if buffer has data
   const SDLoggerStatus& getStatus() const { return status_; }
   void updateConfig(const SDLoggerConfig& config) { config_ = config; }
   const SDLoggerConfig& getConfig() const { return config_; }
@@ -166,20 +159,13 @@ private:
     ERROR_RECOVERY
   };
   
-  // File dump state machine
-  enum class FileDumpState {
-    IDLE,
-    DUMPING_FILE,
-    DUMP_COMPLETE
-  };
+  // File dump state machine - removed unused FileDumpState enum
   
   // Core functionality
   void initializeSDCard();
   void updateCardStatus();
-  void processWriteBuffer();
   void performPeriodicMaintenance();
   void updatePerformanceStatistics();
-  void checkSpaceAndRotate();
   
   // File management helpers
   uint32_t findNextLogFileNumber();
@@ -192,14 +178,8 @@ private:
   void writeBufferToFile();
   void clearBuffer();
   
-  // Error handling and recovery
-  void handleCardError();
-  void attemptRecovery();
-  bool testCardPresence();
-  
   // Directory operations
   void updateDirectoryCache();
-  void parseDirectoryListing();
   
   // Configuration and state
   SDLoggerConfig config_;
@@ -209,11 +189,9 @@ private:
   // SD card interface
   SdFs sd_card_;
   FsFile log_file_;
-  bool card_detection_enabled_;
   
   // Write buffer
   String write_buffer_;
-  uint32_t buffer_write_count_;
   uint32_t last_buffer_add_time_ms_;
   
   // File dumping state
@@ -227,7 +205,6 @@ private:
   DumpState dump_state_;
   FsFile dump_file_;
   String dump_filename_;
-  uint32_t dump_position_;
   uint32_t dump_bytes_sent_;
   
   // State machine processing
@@ -240,12 +217,9 @@ private:
   // Timing for periodic operations
   uint32_t last_flush_time_ms_;
   uint32_t last_maintenance_time_ms_;
-  uint32_t last_card_check_time_ms_;
-  uint32_t last_performance_update_ms_;
   
   // Performance tracking
   uint32_t session_start_time_ms_;
-  uint32_t last_write_size_;
   uint32_t bytes_written_this_second_;
   uint32_t last_rate_calculation_time_ms_;
   
