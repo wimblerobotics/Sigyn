@@ -106,7 +106,7 @@ namespace sigyn_teensy {
  * - Minimal memory footprint (16 bytes total)
  */
 struct PerformanceConfig {
-  float min_loop_frequency_hz = 40.0f;//###    ///< Minimum acceptable main loop frequency (Hz) - relaxed for better stability
+  float min_loop_frequency_hz = 30.0f;//###    ///< Minimum acceptable main loop frequency (Hz) - relaxed for better stability
   float max_module_time_ms = 4.0f;        ///< Maximum allowed module execution time (ms) - increased for RoboClawMonitor
   uint8_t max_violation_count = 8;        ///< Consecutive violations before declaring unsafe - increased tolerance  
   uint8_t max_frequency_violations = 5;   ///< Consecutive frequency violations before unsafe - increased tolerance

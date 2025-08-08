@@ -1,0 +1,100 @@
+board1.TXTINIT:starting_module_setup
+INFO:SDLogger: Initializing SD card
+DEBUG:SDLogger: Attempting SD card initialization...
+DEBUG:SDLogger: SD card begin() succeeded
+DEBUG:updateDirectoryCache: Scanning directory...
+DEBUG:Found file: LOG00001.TXT size: 325
+DEBUG:Found file: LOG00002.TXT size: 2687
+DEBUG:Found file: LOG00003.TXT size: 9710
+DEBUG:Found file: LOG00004.TXT size: 5584
+DEBUG:Found file: LOG00005.TXT size: 155152
+DEBUG:Found file: LOG00006.TXT size: 288401
+DEBUG:Found file: LOG00007.TXT size: 890400
+DEBUG:Found file: LOG00008.TXT size: 1066020
+DEBUG:Found file: LOG00009.TXT size: 800553
+DEBUG:Found file: LOG00010.TXT size: 342614
+DEBUG:Found file: LOG00011.TXT size: 15905477
+DEBUG:Found file: LOG00012.TXT size: 1066
+DEBUG:Found file: LOG00013.TXT size: 6042419
+DEBUG:Found file: LOG00014.TXT size: 210116
+DEBUG:Found file: .Trash-1000 size: 0
+DEBUG:Directory listing: 'LOG00001.TXT,325	LOG00002.TXT,2687	LOG00003.TXT,9710	LOG00004.TXT,5584	LOG00005.TXT,155152	LOG00006.TXT,288401	LOG00007.TXT,890400	LOG00008.TXT,1066020	LOG00009.TXT,800553	LOG00010.TXT,342614	LOG00011.TXT,15905477	LOG00012.TXT,1066	LOG00013.TXT,6042419	LOG00014.TXT,210116	.Trash-1000,0'
+DEBUG:Creating log file: LOG00015.TXT
+INFO:Created log file: LOG00015.TXT
+INFO:SDLogger: Ready for logging
+INFO:SDLogger: Setup complete
+INIT:module_initialized:SDLogger
+INIT:module_initialized:PerformanceMonitor
+INIT:module_initialized:SafetyCoordinator
+INFO:RoboClawMonitor: Starting initialization
+INFO:RoboClawMonitor: Version check passed: USB Roboclaw 2x15a v4.2.8
+
+INFO:RoboClawMonitor: Max current limits set - M1: 15.00A, M2: 15.00A
+INFO:RoboClawMonitor: Initialization successful
+INIT:module_initialized:RoboClawMonitor
+INFO:VL53L0XMonitor: Starting initialization
+INFO:VL53L0XMonitor: I2C multiplexer found at address 0x70
+INFO:VL53L0XMonitor: Initializing sensors...
+INFO:VL53L0XMonitor: Initializing sensor 0...
+INFO:VL53L0XMonitor: Sensor 0 initialized successfully, test reading: 312mm
+INFO:VL53L0XMonitor: Initializing sensor 1...
+INFO:VL53L0XMonitor: Sensor 1 initialized successfully, test reading: 128mm
+INFO:VL53L0XMonitor: Initializing sensor 2...
+INFO:VL53L0XMonitor: Sensor 2 initialized successfully, test reading: 72mm
+INFO:VL53L0XMonitor: Initializing sensor 3...
+INFO:VL53L0XMonitor: Sensor 3 initialized successfully, test reading: 0mm
+INFO:VL53L0XMonitor: Initializing sensor 4...
+INFO:VL53L0XMonitor: Sensor 4 initialized successfully, test reading: 8190mm
+INFO:VL53L0XMonitor: Initializing sensor 5...
+INFO:VL53L0XMonitor: Sensor 5 initialized successfully, test reading: 1113mm
+INFO:VL53L0XMonitor: Initializing sensor 6...
+INFO:VL53L0XMonitor: Sensor 6 initialized successfully, test reading: 265mm
+INFO:VL53L0XMonitor: Initializing sensor 7...
+INFO:VL53L0XMonitor: Sensor 7 initialized successfully, test reading: 290mm
+INFO:VL53L0XMonitor: 8/8 sensors initialized successfully
+INFO:VL53L0XMonitor: Initialization complete, 8/8 sensors ready
+INIT:module_initialized:VL53L0XMonitor
+INFO:TemperatureMonitor: Starting initialization
+DEBUG:TemperatureMonitor: Module registered and setup() called
+INFO:TemperatureMonitor: Configured pin 25 for sensor LeftMotor
+INFO:TemperatureMonitor: Configured pin 26 for sensor RightMotor
+INFO:TemperatureMonitor: Setup complete - 2 analog sensors ready
+INIT:module_initialized:TemperatureMonitor
+INIT:module_setup_complete
+===== Board 1 Initialization Complete =====
+Enabled features:
+  - SD Logging
+  - Motor Control
+  - VL53L0X Distance Sensors
+  - Temperature Monitoring
+  - Performance Monitoring
+  - Safety Coordinator
+  - RoboClaw Motor Driver
+Ready for operation
+DEBUG:Periodic maintenance took 0 ms
+DEBUG:SDLogger: Performance stats: Buffer usage: 45 bytes (0%), Write rate: 2635.00 B/s, Total writes: 3
+PERF:{"freq":0.0, "tfreq":30.0, "mviol":0, "fviol":0, "mods":[{"n":"SDLogger","min":0.04,"max":0.04,"avg":0.04,"last":0.04,"cnt":1,"viol":F},{"n":"PerformanceMonitor","min":340282343469402359241130679742758912.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":0,"viol":F},{"n":"SafetyCoordinator","min":340282343469402359241130679742758912.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":0,"viol":F},{"n":"RoboClawMonitor","min":340282343469402359241130679742758912.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":0,"viol":F},{"n":"VL53L0XMonitor","min":340282343469402359241130679742758912.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":0,"viol":F},{"n":"TemperatureMonitor","min":340282343469402359241130679742758912.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":0,"viol":F}]}
+WARN:RoboClawMonitor unsafe - reasons: motor1_comm_fail motor2_comm_fail 
+WARN:RoboClawMonitor unsafe - reasons: motor1_comm_fail motor2_comm_fail 
+SAFETY:{"state":3,"estop_active":1,"source":"Module unsafe: RoboClawMonitor"}
+DEBUG:ODOM: Initialized
+ROBOCLAW:{"LogicVoltage":0.0,"MainVoltage":27.0,"Encoder_Left":0,"Encoder_Right":0,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":0,"Error":0,"ErrorDecoded":"No errors"}
+DIAG:level:INFO,module:RoboClawMonitor,msg:Diagnostic report,details:commands:1,errors:0,safety_violations:0,connection_state:2,emergency_stop:false
+TEMP:id=0,temp=23.5,status=OK
+TEMP:id=1,temp=24.4,status=OK
+ODOM:px=0.000,py=0.000,ox=0.000,oy=0.000,oz=0.000,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:0,sensor:3,manual_reset:false,time:9493
+ODOM:px=0.000,py=0.000,ox=0.000,oy=0.000,oz=0.000,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.000,py=0.000,ox=0.000,oy=0.000,oz=0.000,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.000,py=0.000,ox=0.000,oy=0.000,oz=0.000,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":0,"max_distance":1113,"obstacles":true,"distances":[307,130,83,0,null,1113,265,290]}
+ODOM:px=0.000,py=0.000,ox=0.000,oy=0.000,oz=0.000,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:60,sensor:2,manual_reset:false,time:9702
+ODOM:px=0.000,py=0.000,ox=0.000,oy=0.000,oz=0.000,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.000,py=0.000,ox=0.000,oy=0.000,oz=0.000,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ROBOCLAW:{"LogicVoltage":0.0,"MainVoltage":27.0,"Encoder_Left":0,"Encoder_Right":0,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":0,"Error":0,"ErrorDecoded":"No errors"}
+ODOM:px=0.000,py=0.000,ox=0.000,oy=0.000,oz=0.000,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":0,"max_distance":1113,"obstacles":true,"distances":[311,129,80,0,null,1113,265,290]}
+ODOM:px=0.000,py=0.000,ox=0.000,oy=0.000,oz=0.000,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:89,sensor:2,manual_reset:false,time:9912
+ODOM:px=0.000,py=0.000,ox=0.000,oy=0.000,oz=0.000,ow=1.000,vx=0.000,vy=0.000,wz=0.000

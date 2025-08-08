@@ -1,10 +1,6 @@
-#include <Arduino.h>
-
-#include <cstdint>
-
 /**
- * @file board2_main.ino
-board (Board 2) for TeensyV2 system
+ * @file board2_main.cpp
+ * @brief Sensor monitoring board (Board 2) for TeensyV2 system
  *
  * This is the sensor monitoring board responsible for:
  * - Battery monitoring (INA226 and analog sensors)
@@ -29,12 +25,45 @@ board (Board 2) for TeensyV2 system
  */
 
 #include <Arduino.h>
+#include <cstdint>
 
+// Core TeensyV2 system
+#include "common/core/config.h"
 #include "common/core/module.h"
 #include "common/core/serial_manager.h"
-#include "modules/battery/battery_monitor.h"
-#include "modules/bno055/bno055_monitor.h"
+
+// Conditional module includes based on board configuration
+#if ENABLE_PERFORMANCE
 #include "modules/performance/performance_monitor.h"
+#endif
+
+#if ENABLE_SAFETY
+#include "modules/safety/safety_coordinator.h"
+#endif
+
+#if ENABLE_ROBOCLAW
+#include "modules/roboclaw/roboclaw_monitor.h"
+#endif
+
+#if ENABLE_VL53L0X
+#include "modules/sensors/vl53l0x_monitor.h"
+#endif
+
+#if ENABLE_TEMPERATURE
+#include "modules/sensors/temperature_monitor.h"
+#endif
+
+#if ENABLE_BATTERY
+#include "modules/battery/battery_monitor.h"
+#endif
+
+#if ENABLE_IMU
+#include "modules/bno055/bno055_monitor.h"
+#endif
+
+#if ENABLE_SD_LOGGING
+#include "modules/storage/sd_logger.h"
+#endif
 
 using namespace sigyn_teensy;
 
@@ -45,16 +74,39 @@ void loop();
 void serialEvent();
 void setup();
 
-// System timing
-uint32_t loop_start_time;
-uint32_t last_loop_time;
-float loop_frequency;
+// TODO: Uncomment when inter-board communication is implemented
+// void interBoardSignalReceived();
 
-// Module instances (created via singleton pattern)
+// Module instances (created via singleton pattern, conditionally based on board config)
 SerialManager* serial_manager;
+
+#if ENABLE_PERFORMANCE
 PerformanceMonitor* performance_monitor;
+#endif
+
+#if ENABLE_SAFETY
+SafetyCoordinator* safety_coordinator;
+#endif
+
+#if ENABLE_ROBOCLAW
+RoboClawMonitor* roboclaw_monitor;
+#endif
+
+#if ENABLE_TEMPERATURE
+TemperatureMonitor* temperature_monitor;
+#endif
+
+#if ENABLE_BATTERY
 BatteryMonitor* battery_monitor;
+#endif
+
+#if ENABLE_IMU
 BNO055Monitor* bno055_monitor;
+#endif
+
+#if ENABLE_SD_LOGGING
+SDLogger* sd_logger;
+#endif
 
 /**
  * @brief Handle critical errors and system faults.
@@ -62,22 +114,32 @@ BNO055Monitor* bno055_monitor;
  * This function is called by the Teensy runtime when critical errors occur.
  */
 void fault_handler() {
-  // ### Serial.println("CRITICAL FAULT: Board2 system fault detected");
+  // Immediate safety response - signal other boards about the fault
+  // TODO: Uncomment when inter-board communication is implemented
+  // digitalWrite(INTER_BOARD_SIGNAL_OUTPUT_PIN, HIGH);  // Signal other boards
+  
+  // Board 2 specific emergency actions
+#if BOARD_ID == 1
+  // Board 1 has direct E-stop control
+  // digitalWrite(ESTOP_OUTPUT_PIN, HIGH);  // Assert E-stop output
+  Serial.println("CRITICAL FAULT: Board 1 system fault detected, emergency stop activated");
+#elif BOARD_ID == 2
+  // Board 2 signals Board 1 to handle E-stop
+  Serial.println("CRITICAL FAULT: Board 2 system fault detected, signaling Board 1");
+#else
+  // Other boards signal Board 1 to handle E-stop
+  Serial.println("CRITICAL FAULT: Board " + String(BOARD_ID) + " system fault detected, signaling Board 1");
+#endif
 
-  // Send fault notification if possible
+  // Try to send fault notification if possible
   if (serial_manager) {
-    String fault_msg = "type=system,board=2,time=" + String(millis());
+    String fault_msg = "type=system,board=" + String(BOARD_ID) + ",time=" + String(millis());
     serial_manager->sendMessage("FAULT", fault_msg.c_str());
   }
 
-  // For Board 2, we don't have direct E-stop control, but we should signal
-  // the problem This would be done via inter-board communication in a
-  // complete implementation
-
-  // Halt system with status indication
+  // Halt system
   while (true) {
-    digitalWrite(LED_BUILTIN,
-                 !digitalRead(LED_BUILTIN));  // Blink LED rapidly
+    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));  // Blink LED rapidly
     delay(50);
   }
 }
@@ -98,36 +160,27 @@ uint32_t freeMemory() {
 }
 
 void loop() {
-  uint32_t current_time = micros();
-  loop_start_time = current_time;
-
-  // Calculate loop frequency
-  uint32_t loop_time_us = current_time - last_loop_time;
-  if (loop_time_us > 0) {
-    loop_frequency = 1000000.0f / loop_time_us;
-  }
-  last_loop_time = current_time;
-
   // Execute all modules through the module system
   Module::loopAll();
 
-  // Board 2 status reporting (less frequent than Board 1)
-  static uint32_t last_status_report_ms = 0;
-  if (current_time - last_status_report_ms > 10000000) {  // Every 10 seconds
-    last_status_report_ms = current_time;
-    // Add any 10-second reporting tasks here
+  // Board-specific safety monitoring
+  static uint32_t last_safety_check = 0;
+  uint32_t current_time = micros();
+  if (current_time - last_safety_check >= SAFETY_CHECK_INTERVAL_US) {
+    last_safety_check = current_time;
+
+    // Board-specific safety checks
+#if ENABLE_VL53L0X
+    // Check VL53L0X sensors for emergency obstacles
+    // VL53L0X monitoring is handled by the VL53L0XMonitor module
+    // Additional board-specific obstacle detection logic can be added here
+#endif
+
+    // TODO: Add other board-specific safety checks here
+    // - Inter-board communication health check
+    // - Battery critical status monitoring (Board 2 specific)
+    // - IMU fault detection (Board 2 specific)
   }
-
-  // ### // Performance warnings (less strict than Board 1)
-  //  if (execution_time > 15000) {  // 15ms is concerning for Board 2
-  //    Serial.println("WARNING: Board2 execution time exceeded 15ms (" +
-  //                   String(execution_time) + " us)");
-  //  }
-
-  // if (loop_frequency < 20.0f) {  // Below 20Hz is concerning for Board 2
-  //   Serial.println("WARNING: Board2 frequency below 20Hz (" +
-  //                  String(loop_frequency, 1) + " Hz)");
-  // }
 }
 
 /**
@@ -142,23 +195,121 @@ void serialEvent() {
 }
 
 void setup() {
-  // Initialize serial communication for debugging and ROS2 interface
-  Serial.begin(115200);
-  while (!Serial && millis() < 5000) {
-    // Wait for serial port to connect. Needed for native USB only.
+  // Initialize serial communication first
+  Serial.begin(BOARD_SERIAL_BAUD_RATE);
+  while (!Serial && millis() < BOARD_SERIAL_WAIT_MS) {
+    // Wait for serial connection
   }
 
-  // Initialize modules
+  // TODO: Setup inter-board communication pins (commented out for now)
+  // pinMode(INTER_BOARD_SIGNAL_OUTPUT_PIN, OUTPUT);
+  // pinMode(INTER_BOARD_SIGNAL_INPUT_PIN, INPUT_PULLUP);
+  // digitalWrite(INTER_BOARD_SIGNAL_OUTPUT_PIN, LOW);  // Default to no signal
+  // 
+  // Setup interrupt for inter-board signal reception
+  // attachInterrupt(digitalPinToInterrupt(INTER_BOARD_SIGNAL_INPUT_PIN), 
+  //                 interBoardSignalReceived, RISING);
+
+  // Initialize SD logger first if enabled (required for other modules)
+#if ENABLE_SD_LOGGING
+  sd_logger = &SDLogger::getInstance();
+#endif
+
+  // Get singleton instances (this registers them with the module system)
+  // Core modules are always initialized
   serial_manager = &SerialManager::getInstance();
+
+  // Initialize modules based on board configuration
+#if ENABLE_PERFORMANCE
   performance_monitor = &PerformanceMonitor::getInstance();
+#endif
+
+#if ENABLE_SAFETY
+  safety_coordinator = &SafetyCoordinator::getInstance();
+#endif
+
+#if ENABLE_ROBOCLAW
+  roboclaw_monitor = &RoboClawMonitor::getInstance();
+#endif
+
+#if ENABLE_VL53L0X
+  VL53L0XMonitor::getInstance();  // Initialize VL53L0X monitor
+#endif
+
+#if ENABLE_TEMPERATURE
+  temperature_monitor = &TemperatureMonitor::getInstance();
+#endif
+
+#if ENABLE_BATTERY
   battery_monitor = &BatteryMonitor::getInstance();
+#endif
+
+#if ENABLE_IMU
   bno055_monitor = &BNO055Monitor::getInstance();
+#endif
+
+  // Initialize serial communication
+  serial_manager->initialize(BOARD_SERIAL_TIMEOUT_MS);
 
   // Initialize all registered modules
   Module::setupAll();
 
-  // Initialize system timing
-  last_loop_time = micros();
+  Serial.println("===== Board " + String(BOARD_ID) + " Initialization Complete =====");
 
-  serial_manager->sendMessage("INFO", "Board 2 setup complete");
+  // Print enabled features for this board
+  Serial.println("Enabled features:");
+#if ENABLE_SD_LOGGING
+  Serial.println("  - SD Logging");
+#endif
+#if ENABLE_MOTOR_CONTROL
+  Serial.println("  - Motor Control");
+#endif
+#if ENABLE_VL53L0X
+  Serial.println("  - VL53L0X Distance Sensors");
+#endif
+#if ENABLE_TEMPERATURE
+  Serial.println("  - Temperature Monitoring");
+#endif
+#if ENABLE_PERFORMANCE
+  Serial.println("  - Performance Monitoring");
+#endif
+#if ENABLE_SAFETY
+  Serial.println("  - Safety Coordinator");
+#endif
+#if ENABLE_ROBOCLAW
+  Serial.println("  - RoboClaw Motor Driver");
+#endif
+#if ENABLE_BATTERY
+  Serial.println("  - Battery Monitoring");
+#endif
+#if ENABLE_IMU
+  Serial.println("  - IMU (BNO055)");
+#endif
+
+  Serial.println("Ready for operation");
 }
+
+// TODO: Uncomment when inter-board communication is implemented
+// /**
+//  * @brief Interrupt handler for inter-board signal reception.
+//  * 
+//  * This function is called when another board signals an E-stop condition.
+//  * Different boards will have different responses to inter-board signals.
+//  */
+// void interBoardSignalReceived() {
+//   // Board-specific response to inter-board E-stop signal
+// #if BOARD_ID == 1
+//   // Board 1: Activate hardware E-stop
+//   digitalWrite(ESTOP_OUTPUT_PIN, HIGH);
+// #elif BOARD_ID == 2
+//   // Board 2: Enter safe mode, stop all sensors/monitoring
+//   // Implementation will be board-specific
+// #elif BOARD_ID == 3
+//   // Board 3: Future expansion board response
+//   // Implementation will be board-specific
+// #endif
+//   
+//   // Common response: Log the event
+//   // Note: Cannot use Serial or complex functions in interrupt handler
+//   // Set a flag for main loop to handle the logging
+// }

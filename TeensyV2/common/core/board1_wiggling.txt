@@ -1,0 +1,375 @@
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.009,vy=0.000,wz=0.045
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":812,"Encoder_Right":951,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":109,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":36,"max_distance":1109,"obstacles":true,"distances":[591,108,99,36,null,1109,929,535]}
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:97,sensor:1,manual_reset:false,time:183756
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":36,"max_distance":1109,"obstacles":true,"distances":[589,81,100,36,null,1109,929,535]}
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+TEMP:id=0,temp=58.0,status=OK
+TEMP:id=1,temp=23.5,status=OK
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:71,sensor:2,manual_reset:false,time:183964
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":812,"Encoder_Right":951,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":3,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":36,"max_distance":1109,"obstacles":true,"distances":[588,96,95,36,null,1109,929,535]}
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+DEBUG:SDLogger: Performance stats: Buffer usage: 827 bytes (0%), Write rate: 6632.00 B/s, Total writes: 1059
+PERF:{"freq":45.9, "tfreq":30.0, "mviol":10079, "fviol":27, "violdet":{"cmod":255,"cfreq":0,"lastms":184106}, "mods":[{"n":"SDLogger","min":0.00,"max":41.50,"avg":0.00,"last":0.02,"cnt":485843,"viol":F},{"n":"PerformanceMonitor","min":0.00,"max":8.53,"avg":0.00,"last":0.00,"cnt":485842,"viol":F},{"n":"SafetyCoordinator","min":0.00,"max":0.05,"avg":0.00,"last":0.00,"cnt":485842,"viol":F},{"n":"RoboClawMonitor","min":0.00,"max":199.80,"avg":0.34,"last":21.30,"cnt":485842,"viol":T},{"n":"VL53L0XMonitor","min":0.00,"max":193.90,"avg":0.01,"last":0.47,"cnt":485842,"viol":F},{"n":"TemperatureMonitor","min":0.00,"max":8.68,"avg":0.00,"last":0.00,"cnt":485842,"viol":F}]}
+DIAG:level:INFO,module:RoboClawMonitor,msg:Diagnostic report,details:commands:9531,errors:0,safety_violations:158,connection_state:2,emergency_stop:false
+TEMPERATURE:{"total_sensors":2,"active_sensors":2,"avg_temp":40.7,"max_temp":58.0,"min_temp":23.5,"hottest_sensor":0,"system_warning":false,"system_critical":false,"temperatures":[58.0,23.5,null,null,null,null,null,null]}
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:91,sensor:1,manual_reset:false,time:184173
+DIAG:level:INFO,module:VL53L0XMonitor,msg:Diagnostic report,details:initialized:8,active:8,measurements:10768,errors:0,rate_hz:61.1,multiplexer_ok:true,sensor_timing:[1,38,16,1069,3946,3931,11133,11111]
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+DEBUG:Periodic maintenance took 0 ms
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":36,"max_distance":1109,"obstacles":true,"distances":[589,118,90,36,null,1109,929,535]}
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":812,"Encoder_Right":951,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":0,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:36,sensor:3,manual_reset:false,time:184385
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":106,"max_distance":1109,"obstacles":true,"distances":[580,112,106,115,null,1109,929,535]}
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:88,sensor:1,manual_reset:false,time:184609
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":812,"Encoder_Right":951,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":0,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":74,"max_distance":1109,"obstacles":true,"distances":[578,74,108,115,null,1109,929,535]}
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:87,sensor:1,manual_reset:false,time:184820
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":83,"max_distance":1109,"obstacles":true,"distances":[582,83,96,115,null,1109,929,535]}
+TEMP:id=0,temp=25.1,status=OK
+TEMP:id=1,temp=22.2,status=OK
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":812,"Encoder_Right":950,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":-1,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:58,sensor:3,manual_reset:false,time:185037
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":58,"max_distance":1049,"obstacles":true,"distances":[596,92,88,58,null,1049,929,535]}
+DEBUG:SDLogger: Performance stats: Buffer usage: 829 bytes (0%), Write rate: 5614.00 B/s, Total writes: 1064
+PERF:{"freq":45.5, "tfreq":30.0, "mviol":10139, "fviol":27, "violdet":{"cmod":255,"cfreq":0,"lastms":185126}, "mods":[{"n":"SDLogger","min":0.00,"max":41.50,"avg":0.00,"last":0.02,"cnt":485903,"viol":F},{"n":"PerformanceMonitor","min":0.00,"max":8.53,"avg":0.00,"last":0.00,"cnt":485902,"viol":F},{"n":"SafetyCoordinator","min":0.00,"max":0.05,"avg":0.00,"last":0.00,"cnt":485902,"viol":F},{"n":"RoboClawMonitor","min":0.00,"max":199.80,"avg":0.35,"last":21.47,"cnt":485902,"viol":T},{"n":"VL53L0XMonitor","min":0.00,"max":193.90,"avg":0.01,"last":0.50,"cnt":485902,"viol":F},{"n":"TemperatureMonitor","min":0.00,"max":8.68,"avg":0.00,"last":0.00,"cnt":485902,"viol":F}]}
+DIAG:level:INFO,module:RoboClawMonitor,msg:Diagnostic report,details:commands:9591,errors:0,safety_violations:158,connection_state:2,emergency_stop:false
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.284,py=0.016,ox=0.000,oy=0.000,oz=0.048,ow=0.999,vx=-0.016,vy=0.000,wz=-0.080
+DEBUG:Periodic maintenance took 0 ms
+ODOM:px=0.284,py=0.016,ox=0.000,oy=0.000,oz=0.047,ow=0.999,vx=-0.013,vy=0.000,wz=-0.067
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:84,sensor:1,manual_reset:false,time:185246
+ODOM:px=0.283,py=0.015,ox=0.000,oy=0.000,oz=0.046,ow=0.999,vx=-0.031,vy=0.000,wz=-0.161
+ODOM:px=0.283,py=0.015,ox=0.000,oy=0.000,oz=0.045,ow=0.999,vx=-0.015,vy=0.000,wz=-0.076
+ODOM:px=0.282,py=0.015,ox=0.000,oy=0.000,oz=0.042,ow=0.999,vx=-0.063,vy=0.000,wz=-0.323
+ODOM:px=0.280,py=0.015,ox=0.000,oy=0.000,oz=0.039,ow=0.999,vx=-0.093,vy=0.000,wz=-0.478
+ODOM:px=0.279,py=0.015,ox=0.000,oy=0.000,oz=0.035,ow=0.999,vx=-0.074,vy=0.000,wz=-0.380
+ESTOP:active:true,source:MOTOR_RUNAWAY,reason:Motor 2 runaway detected,value:-252,manual_reset:false,time:185327
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":58,"max_distance":1049,"obstacles":true,"distances":[589,122,80,58,null,1049,929,535]}
+ODOM:px=0.277,py=0.015,ox=0.000,oy=0.000,oz=0.031,ow=1.000,vx=-0.095,vy=0.000,wz=-0.487
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":812,"Encoder_Right":904,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":-252,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ODOM:px=0.276,py=0.015,ox=0.000,oy=0.000,oz=0.028,ow=1.000,vx=-0.070,vy=0.000,wz=-0.270
+ODOM:px=0.275,py=0.015,ox=0.000,oy=0.000,oz=0.027,ow=1.000,vx=-0.030,vy=0.000,wz=-0.151
+ODOM:px=0.275,py=0.015,ox=0.000,oy=0.000,oz=0.025,ow=1.000,vx=-0.042,vy=0.000,wz=-0.215
+ODOM:px=0.274,py=0.015,ox=0.000,oy=0.000,oz=0.024,ow=1.000,vx=-0.032,vy=0.000,wz=-0.161
+ODOM:px=0.273,py=0.015,ox=0.000,oy=0.000,oz=0.023,ow=1.000,vx=-0.037,vy=0.000,wz=-0.113
+ODOM:px=0.273,py=0.015,ox=0.000,oy=0.000,oz=0.021,ow=1.000,vx=-0.032,vy=0.000,wz=-0.162
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:83,sensor:1,manual_reset:false,time:185458
+ODOM:px=0.273,py=0.015,ox=0.000,oy=0.000,oz=0.020,ow=1.000,vx=-0.031,vy=0.000,wz=-0.160
+ODOM:px=0.272,py=0.015,ox=0.000,oy=0.000,oz=0.019,ow=1.000,vx=-0.022,vy=0.000,wz=-0.114
+ODOM:px=0.271,py=0.015,ox=0.000,oy=0.000,oz=0.018,ow=1.000,vx=-0.042,vy=0.000,wz=-0.108
+ODOM:px=0.271,py=0.015,ox=0.000,oy=0.000,oz=0.017,ow=1.000,vx=-0.032,vy=0.000,wz=-0.161
+ODOM:px=0.270,py=0.015,ox=0.000,oy=0.000,oz=0.016,ow=1.000,vx=-0.022,vy=0.000,wz=-0.038
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":58,"max_distance":1049,"obstacles":true,"distances":[571,77,149,58,null,1049,929,535]}
+ODOM:px=0.270,py=0.015,ox=0.000,oy=0.000,oz=0.015,ow=1.000,vx=-0.031,vy=0.000,wz=-0.160
+ODOM:px=0.269,py=0.015,ox=0.000,oy=0.000,oz=0.015,ow=1.000,vx=-0.032,vy=0.000,wz=-0.054
+ODOM:px=0.269,py=0.015,ox=0.000,oy=0.000,oz=0.014,ow=1.000,vx=-0.015,vy=0.000,wz=-0.076
+ODOM:px=0.269,py=0.015,ox=0.000,oy=0.000,oz=0.014,ow=1.000,vx=-0.032,vy=0.000,wz=-0.054
+ODOM:px=0.268,py=0.015,ox=0.000,oy=0.000,oz=0.013,ow=1.000,vx=-0.021,vy=0.000,wz=-0.108
+ODOM:px=0.268,py=0.015,ox=0.000,oy=0.000,oz=0.012,ow=1.000,vx=-0.022,vy=0.000,wz=-0.038
+ODOM:px=0.268,py=0.015,ox=0.000,oy=0.000,oz=0.012,ow=1.000,vx=-0.021,vy=0.000,wz=-0.108
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:63,sensor:1,manual_reset:false,time:185667
+ODOM:px=0.267,py=0.015,ox=0.000,oy=0.000,oz=0.011,ow=1.000,vx=-0.021,vy=0.000,wz=-0.108
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":804,"Encoder_Right":847,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":-23,"RightMotorSpeed":-117,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ODOM:px=0.267,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=-0.013,vy=0.000,wz=-0.022
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.009,ow=1.000,vx=-0.009,vy=0.000,wz=-0.045
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":57,"max_distance":1049,"obstacles":true,"distances":[575,57,145,58,null,1049,929,535]}
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.009,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=-0.008,vy=0.000,wz=0.014
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:61,sensor:1,manual_reset:false,time:185884
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+TEMP:id=0,temp=38.0,status=OK
+TEMP:id=1,temp=40.2,status=OK
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":91,"max_distance":1049,"obstacles":true,"distances":[575,99,139,91,null,1049,929,535]}
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":797,"Encoder_Right":842,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":-17,"RightMotorSpeed":-9,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:80,sensor:1,manual_reset:false,time:186095
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+TEMPERATURE:{"total_sensors":2,"active_sensors":2,"avg_temp":39.1,"max_temp":40.2,"min_temp":38.0,"hottest_sensor":1,"system_warning":false,"system_critical":false,"temperatures":[38.0,40.2,null,null,null,null,null,null]}
+DEBUG:SDLogger: Performance stats: Buffer usage: 652 bytes (0%), Write rate: 7063.00 B/s, Total writes: 1071
+PERF:{"freq":45.3, "tfreq":30.0, "mviol":10197, "fviol":27, "violdet":{"cmod":255,"cfreq":0,"lastms":186132}, "mods":[{"n":"SDLogger","min":0.00,"max":41.50,"avg":0.00,"last":0.02,"cnt":485961,"viol":F},{"n":"PerformanceMonitor","min":0.00,"max":8.53,"avg":0.00,"last":0.00,"cnt":485960,"viol":F},{"n":"SafetyCoordinator","min":0.00,"max":0.05,"avg":0.00,"last":0.00,"cnt":485960,"viol":F},{"n":"RoboClawMonitor","min":0.00,"max":199.80,"avg":0.35,"last":21.57,"cnt":485960,"viol":T},{"n":"VL53L0XMonitor","min":0.00,"max":193.90,"avg":0.01,"last":0.47,"cnt":485960,"viol":F},{"n":"TemperatureMonitor","min":0.00,"max":8.68,"avg":0.00,"last":0.04,"cnt":485960,"viol":F}]}
+DIAG:level:INFO,module:RoboClawMonitor,msg:Diagnostic report,details:commands:9649,errors:0,safety_violations:160,connection_state:2,emergency_stop:false
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":67,"max_distance":1049,"obstacles":true,"distances":[580,67,126,91,null,1049,929,535]}
+DIAG:level:INFO,module:VL53L0XMonitor,msg:Diagnostic report,details:initialized:8,active:8,measurements:10885,errors:0,rate_hz:61.0,multiplexer_ok:true,sensor_timing:[37,22,0,338,316,1163,13144,13122]
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+DEBUG:Periodic maintenance took 0 ms
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:64,sensor:1,manual_reset:false,time:186304
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":794,"Encoder_Right":842,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":-7,"RightMotorSpeed":0,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":88,"max_distance":1068,"obstacles":true,"distances":[576,88,115,105,null,1068,929,535]}
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:74,sensor:1,manual_reset:false,time:186528
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":57,"max_distance":1068,"obstacles":true,"distances":[582,57,109,85,null,1068,929,535]}
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.011,ow=1.000,vx=0.006,vy=0.000,wz=0.032
+ODOM:px=0.267,py=0.015,ox=0.000,oy=0.000,oz=0.012,ow=1.000,vx=0.021,vy=0.000,wz=0.108
+ODOM:px=0.267,py=0.015,ox=0.000,oy=0.000,oz=0.012,ow=1.000,vx=0.009,vy=0.000,wz=0.044
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":794,"Encoder_Right":848,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":46,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ODOM:px=0.268,py=0.015,ox=0.000,oy=0.000,oz=0.014,ow=1.000,vx=0.042,vy=0.000,wz=0.214
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:72,sensor:1,manual_reset:false,time:186737
+ODOM:px=0.268,py=0.015,ox=0.000,oy=0.000,oz=0.016,ow=1.000,vx=0.043,vy=0.000,wz=0.220
+ODOM:px=0.269,py=0.015,ox=0.000,oy=0.000,oz=0.018,ow=1.000,vx=0.044,vy=0.000,wz=0.225
+ODOM:px=0.272,py=0.015,ox=0.000,oy=0.000,oz=0.025,ow=1.000,vx=0.170,vy=0.000,wz=0.872
+ODOM:px=0.273,py=0.015,ox=0.000,oy=0.000,oz=0.029,ow=1.000,vx=0.106,vy=0.000,wz=0.545
+ODOM:px=0.274,py=0.015,ox=0.000,oy=0.000,oz=0.031,ow=1.000,vx=0.044,vy=0.000,wz=0.224
+ESTOP:active:true,source:MOTOR_RUNAWAY,reason:Motor 2 runaway detected,value:332,manual_reset:false,time:186818
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":79,"max_distance":1068,"obstacles":true,"distances":[578,79,100,85,null,1068,929,535]}
+ODOM:px=0.276,py=0.015,ox=0.000,oy=0.000,oz=0.036,ow=0.999,vx=0.119,vy=0.000,wz=0.610
+ODOM:px=0.277,py=0.015,ox=0.000,oy=0.000,oz=0.038,ow=0.999,vx=0.062,vy=0.000,wz=0.319
+ODOM:px=0.278,py=0.015,ox=0.000,oy=0.000,oz=0.040,ow=0.999,vx=0.037,vy=0.000,wz=0.188
+ODOM:px=0.279,py=0.015,ox=0.000,oy=0.000,oz=0.043,ow=0.999,vx=0.062,vy=0.000,wz=0.320
+ODOM:px=0.280,py=0.015,ox=0.000,oy=0.000,oz=0.045,ow=0.999,vx=0.053,vy=0.000,wz=0.273
+ODOM:px=0.280,py=0.015,ox=0.000,oy=0.000,oz=0.046,ow=0.999,vx=0.022,vy=0.000,wz=0.112
+ODOM:px=0.281,py=0.015,ox=0.000,oy=0.000,oz=0.049,ow=0.999,vx=0.075,vy=0.000,wz=0.382
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:92,sensor:1,manual_reset:false,time:186946
+ODOM:px=0.282,py=0.016,ox=0.000,oy=0.000,oz=0.051,ow=0.999,vx=0.043,vy=0.000,wz=0.218
+TEMP:id=0,temp=52.2,status=OK
+TEMP:id=1,temp=43.8,status=OK
+ODOM:px=0.282,py=0.016,ox=0.000,oy=0.000,oz=0.052,ow=0.999,vx=0.021,vy=0.000,wz=0.109
+ODOM:px=0.283,py=0.016,ox=0.000,oy=0.000,oz=0.054,ow=0.999,vx=0.062,vy=0.000,wz=0.319
+ODOM:px=0.284,py=0.016,ox=0.000,oy=0.000,oz=0.056,ow=0.998,vx=0.042,vy=0.000,wz=0.215
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.058,ow=0.998,vx=0.030,vy=0.000,wz=0.151
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":74,"max_distance":1068,"obstacles":true,"distances":[584,84,74,85,null,1068,929,535]}
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.059,ow=0.998,vx=0.042,vy=0.000,wz=0.214
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":794,"Encoder_Right":962,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":266,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ODOM:px=0.286,py=0.016,ox=0.000,oy=0.000,oz=0.061,ow=0.998,vx=0.036,vy=0.000,wz=0.187
+ODOM:px=0.286,py=0.016,ox=0.000,oy=0.000,oz=0.062,ow=0.998,vx=0.014,vy=0.000,wz=0.074
+ODOM:px=0.287,py=0.016,ox=0.000,oy=0.000,oz=0.063,ow=0.998,vx=0.042,vy=0.000,wz=0.213
+ODOM:px=0.287,py=0.016,ox=0.000,oy=0.000,oz=0.064,ow=0.998,vx=0.032,vy=0.000,wz=0.161
+DEBUG:SDLogger: Performance stats: Buffer usage: 0 bytes (0%), Write rate: 6802.00 B/s, Total writes: 1078
+PERF:{"freq":45.6, "tfreq":30.0, "mviol":10256, "fviol":27, "violdet":{"cmod":255,"cfreq":0,"lastms":187144}, "mods":[{"n":"SDLogger","min":0.00,"max":41.50,"avg":0.00,"last":0.02,"cnt":486020,"viol":F},{"n":"PerformanceMonitor","min":0.00,"max":8.53,"avg":0.00,"last":0.00,"cnt":486019,"viol":F},{"n":"SafetyCoordinator","min":0.00,"max":0.05,"avg":0.00,"last":0.00,"cnt":486019,"viol":F},{"n":"RoboClawMonitor","min":0.00,"max":199.80,"avg":0.35,"last":21.47,"cnt":486019,"viol":T},{"n":"VL53L0XMonitor","min":0.00,"max":193.90,"avg":0.01,"last":0.47,"cnt":486019,"viol":F},{"n":"TemperatureMonitor","min":0.00,"max":8.68,"avg":0.00,"last":0.00,"cnt":486019,"viol":F}]}
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.009,vy=0.000,wz=0.044
+DIAG:level:INFO,module:RoboClawMonitor,msg:Diagnostic report,details:commands:9708,errors:0,safety_violations:162,connection_state:2,emergency_stop:false
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:69,sensor:2,manual_reset:false,time:187159
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":34,"max_distance":1068,"obstacles":true,"distances":[595,122,95,34,null,1068,929,535]}
+DEBUG:Periodic maintenance took 0 ms
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:34,sensor:3,manual_reset:false,time:187377
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":794,"Encoder_Right":978,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":25,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":34,"max_distance":1068,"obstacles":true,"distances":[594,112,93,34,null,1068,929,535]}
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:55,sensor:2,manual_reset:false,time:187589
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":34,"max_distance":1068,"obstacles":true,"distances":[591,115,49,34,null,1068,929,535]}
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.000,vy=0.000,wz=0.000
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":794,"Encoder_Right":978,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":1,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:42,sensor:2,manual_reset:false,time:187805
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":64,"max_distance":1068,"obstacles":true,"distances":[608,118,75,64,null,1068,929,535]}
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.288,py=0.016,ox=0.000,oy=0.000,oz=0.065,ow=0.998,vx=0.000,vy=0.000,wz=0.000
+TEMP:id=0,temp=20.9,status=OK
+TEMP:id=1,temp=26.7,status=OK
+ODOM:px=0.287,py=0.016,ox=0.000,oy=0.000,oz=0.064,ow=0.998,vx=-0.011,vy=0.000,wz=-0.054
+ODOM:px=0.287,py=0.016,ox=0.000,oy=0.000,oz=0.064,ow=0.998,vx=-0.015,vy=0.000,wz=-0.075
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:90,sensor:2,manual_reset:false,time:188030
+ODOM:px=0.286,py=0.016,ox=0.000,oy=0.000,oz=0.062,ow=0.998,vx=-0.045,vy=0.000,wz=-0.228
+ODOM:px=0.285,py=0.016,ox=0.000,oy=0.000,oz=0.058,ow=0.998,vx=-0.062,vy=0.000,wz=-0.316
+ODOM:px=0.283,py=0.016,ox=0.000,oy=0.000,oz=0.054,ow=0.999,vx=-0.071,vy=0.000,wz=-0.364
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":794,"Encoder_Right":950,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":-248,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":90,"max_distance":1068,"obstacles":true,"distances":[581,114,90,101,null,1068,929,535]}
+ODOM:px=0.280,py=0.015,ox=0.000,oy=0.000,oz=0.046,ow=0.999,vx=-0.162,vy=0.000,wz=-0.831
+ODOM:px=0.279,py=0.015,ox=0.000,oy=0.000,oz=0.043,ow=0.999,vx=-0.074,vy=0.000,wz=-0.377
+ODOM:px=0.278,py=0.015,ox=0.000,oy=0.000,oz=0.040,ow=0.999,vx=-0.058,vy=0.000,wz=-0.298
+TEMPERATURE:{"total_sensors":2,"active_sensors":2,"avg_temp":23.8,"max_temp":26.7,"min_temp":20.9,"hottest_sensor":1,"system_warning":false,"system_critical":false,"temperatures":[20.9,26.7,null,null,null,null,null,null]}
+DEBUG:SDLogger: Performance stats: Buffer usage: 330 bytes (0%), Write rate: 5891.00 B/s, Total writes: 1084
+PERF:{"freq":45.9, "tfreq":30.0, "mviol":10315, "fviol":27, "violdet":{"cmod":255,"cfreq":0,"lastms":188148}, "mods":[{"n":"SDLogger","min":0.00,"max":41.50,"avg":0.00,"last":0.02,"cnt":486079,"viol":F},{"n":"PerformanceMonitor","min":0.00,"max":8.53,"avg":0.00,"last":0.00,"cnt":486078,"viol":F},{"n":"SafetyCoordinator","min":0.00,"max":0.05,"avg":0.00,"last":0.00,"cnt":486078,"viol":F},{"n":"RoboClawMonitor","min":0.00,"max":199.80,"avg":0.35,"last":21.26,"cnt":486078,"viol":T},{"n":"VL53L0XMonitor","min":0.00,"max":193.90,"avg":0.01,"last":0.46,"cnt":486078,"viol":F},{"n":"TemperatureMonitor","min":0.00,"max":8.68,"avg":0.00,"last":0.04,"cnt":486078,"viol":F}]}
+ODOM:px=0.277,py=0.015,ox=0.000,oy=0.000,oz=0.036,ow=0.999,vx=-0.074,vy=0.000,wz=-0.488
+DIAG:level:INFO,module:RoboClawMonitor,msg:Diagnostic report,details:commands:9767,errors:0,safety_violations:162,connection_state:2,emergency_stop:false
+ODOM:px=0.276,py=0.015,ox=0.000,oy=0.000,oz=0.035,ow=0.999,vx=-0.043,vy=0.000,wz=-0.218
+ODOM:px=0.275,py=0.015,ox=0.000,oy=0.000,oz=0.032,ow=0.999,vx=-0.037,vy=0.000,wz=-0.187
+DIAG:level:INFO,module:VL53L0XMonitor,msg:Diagnostic report,details:initialized:8,active:8,measurements:11003,errors:0,rate_hz:61.0,multiplexer_ok:true,sensor_timing:[1,38,22,148,132,1800,15160,15138]
+ODOM:px=0.274,py=0.015,ox=0.000,oy=0.000,oz=0.030,ow=1.000,vx=-0.075,vy=0.000,wz=-0.384
+ESTOP:active:true,source:MOTOR_RUNAWAY,reason:Motor 2 runaway detected,value:-341,manual_reset:false,time:188206
+ODOM:px=0.273,py=0.015,ox=0.000,oy=0.000,oz=0.028,ow=1.000,vx=-0.042,vy=0.000,wz=-0.215
+ODOM:px=0.273,py=0.015,ox=0.000,oy=0.000,oz=0.026,ow=1.000,vx=-0.037,vy=0.000,wz=-0.189
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:84,sensor:1,manual_reset:false,time:188252
+ODOM:px=0.272,py=0.015,ox=0.000,oy=0.000,oz=0.023,ow=1.000,vx=-0.064,vy=0.000,wz=-0.326
+DEBUG:Periodic maintenance took 0 ms
+ODOM:px=0.271,py=0.015,ox=0.000,oy=0.000,oz=0.023,ow=1.000,vx=-0.042,vy=0.000,wz=-0.107
+ODOM:px=0.270,py=0.015,ox=0.000,oy=0.000,oz=0.021,ow=1.000,vx=-0.029,vy=0.000,wz=-0.149
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":81,"max_distance":1068,"obstacles":true,"distances":[577,81,129,101,null,1068,929,535]}
+ODOM:px=0.269,py=0.015,ox=0.000,oy=0.000,oz=0.019,ow=1.000,vx=-0.054,vy=0.000,wz=-0.274
+ODOM:px=0.269,py=0.015,ox=0.000,oy=0.000,oz=0.018,ow=1.000,vx=-0.032,vy=0.000,wz=-0.161
+ODOM:px=0.268,py=0.015,ox=0.000,oy=0.000,oz=0.016,ow=1.000,vx=-0.029,vy=0.000,wz=-0.149
+ODOM:px=0.268,py=0.015,ox=0.000,oy=0.000,oz=0.014,ow=1.000,vx=-0.054,vy=0.000,wz=-0.274
+ODOM:px=0.267,py=0.015,ox=0.000,oy=0.000,oz=0.013,ow=1.000,vx=-0.021,vy=0.000,wz=-0.108
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.011,ow=1.000,vx=-0.027,vy=0.000,wz=-0.139
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=-0.032,vy=0.000,wz=-0.163
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":794,"Encoder_Right":842,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":-2,"RightMotorSpeed":-233,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ODOM:px=0.265,py=0.015,ox=0.000,oy=0.000,oz=0.009,ow=1.000,vx=-0.032,vy=0.000,wz=-0.162
+ODOM:px=0.265,py=0.015,ox=0.000,oy=0.000,oz=0.008,ow=1.000,vx=-0.015,vy=0.000,wz=-0.075
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:78,sensor:1,manual_reset:false,time:188469
+ODOM:px=0.265,py=0.015,ox=0.000,oy=0.000,oz=0.007,ow=1.000,vx=-0.021,vy=0.000,wz=-0.108
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.006,ow=1.000,vx=-0.009,vy=0.000,wz=-0.044
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":49,"max_distance":1068,"obstacles":true,"distances":[573,49,108,52,null,1068,929,535]}
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.005,ow=1.000,vx=-0.011,vy=0.000,wz=-0.054
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.005,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.005,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.005,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:50,sensor:1,manual_reset:false,time:188678
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.005,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":52,"max_distance":1068,"obstacles":true,"distances":[573,76,132,52,null,1068,929,535]}
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.005,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":794,"Encoder_Right":830,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":-14,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.005,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.005,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:62,sensor:1,manual_reset:false,time:188889
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.005,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":52,"max_distance":1068,"obstacles":true,"distances":[581,70,143,52,null,1068,929,535]}
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.005,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+TEMP:id=0,temp=20.3,status=OK
+TEMP:id=1,temp=23.5,status=OK
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.005,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.005,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:63,sensor:1,manual_reset:false,time:189098
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":794,"Encoder_Right":830,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":-1,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.005,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":52,"max_distance":1068,"obstacles":true,"distances":[571,68,147,52,null,1068,929,535]}
+DEBUG:SDLogger: Performance stats: Buffer usage: 507 bytes (0%), Write rate: 6702.00 B/s, Total writes: 1091
+PERF:{"freq":46.2, "tfreq":30.0, "mviol":10373, "fviol":27, "violdet":{"cmod":255,"cfreq":0,"lastms":189150}, "mods":[{"n":"SDLogger","min":0.00,"max":41.50,"avg":0.00,"last":0.02,"cnt":486137,"viol":F},{"n":"PerformanceMonitor","min":0.00,"max":8.53,"avg":0.00,"last":0.00,"cnt":486136,"viol":F},{"n":"SafetyCoordinator","min":0.00,"max":0.05,"avg":0.00,"last":0.00,"cnt":486136,"viol":F},{"n":"RoboClawMonitor","min":0.00,"max":199.80,"avg":0.35,"last":21.14,"cnt":486136,"viol":T},{"n":"VL53L0XMonitor","min":0.00,"max":193.90,"avg":0.01,"last":0.50,"cnt":486136,"viol":F},{"n":"TemperatureMonitor","min":0.00,"max":8.68,"avg":0.00,"last":0.00,"cnt":486136,"viol":F}]}
+DIAG:level:INFO,module:RoboClawMonitor,msg:Diagnostic report,details:commands:9825,errors:0,safety_violations:164,connection_state:2,emergency_stop:false
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.005,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.005,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+DEBUG:Periodic maintenance took 0 ms
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.006,ow=1.000,vx=0.006,vy=0.000,wz=0.032
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:78,sensor:1,manual_reset:false,time:189305
+ODOM:px=0.264,py=0.015,ox=0.000,oy=0.000,oz=0.006,ow=1.000,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":52,"max_distance":1068,"obstacles":true,"distances":[572,86,86,52,null,1068,929,535]}
+ODOM:px=0.265,py=0.015,ox=0.000,oy=0.000,oz=0.007,ow=1.000,vx=0.006,vy=0.000,wz=0.031
+ODOM:px=0.265,py=0.015,ox=0.000,oy=0.000,oz=0.008,ow=1.000,vx=0.011,vy=0.000,wz=0.054
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":794,"Encoder_Right":839,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":45,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.009,ow=1.000,vx=0.013,vy=0.000,wz=0.067
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.010,ow=1.000,vx=0.013,vy=0.000,wz=0.067
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:78,sensor:1,manual_reset:false,time:189514
+ODOM:px=0.266,py=0.015,ox=0.000,oy=0.000,oz=0.011,ow=1.000,vx=0.021,vy=0.000,wz=0.108
+ODOM:px=0.267,py=0.015,ox=0.000,oy=0.000,oz=0.012,ow=1.000,vx=0.021,vy=0.000,wz=0.106
+ODOM:px=0.267,py=0.015,ox=0.000,oy=0.000,oz=0.013,ow=1.000,vx=0.015,vy=0.000,wz=0.076
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":52,"max_distance":1068,"obstacles":true,"distances":[583,65,99,52,null,1068,929,535]}
+ODOM:px=0.268,py=0.015,ox=0.000,oy=0.000,oz=0.014,ow=1.000,vx=0.032,vy=0.000,wz=0.164
+ODOM:px=0.268,py=0.015,ox=0.000,oy=0.000,oz=0.015,ow=1.000,vx=0.021,vy=0.000,wz=0.106
+ODOM:px=0.269,py=0.015,ox=0.000,oy=0.000,oz=0.016,ow=1.000,vx=0.030,vy=0.000,wz=0.152
+DIAG:level:INFO,module:TemperatureMonitor,msg:Diagnostic report,details:active:2,readings:358,errors:0,rate_hz:2.0,warning_time:0,critical_time:0
+ODOM:px=0.269,py=0.015,ox=0.000,oy=0.000,oz=0.019,ow=1.000,vx=0.063,vy=0.000,wz=0.325
+ODOM:px=0.270,py=0.015,ox=0.000,oy=0.000,oz=0.021,ow=1.000,vx=0.053,vy=0.000,wz=0.273
+ODOM:px=0.271,py=0.015,ox=0.000,oy=0.000,oz=0.023,ow=1.000,vx=0.029,vy=0.000,wz=0.150
+ODOM:px=0.272,py=0.015,ox=0.000,oy=0.000,oz=0.023,ow=1.000,vx=0.042,vy=0.000,wz=0.108
+ESTOP:active:true,source:MOTOR_RUNAWAY,reason:Motor 2 runaway detected,value:181,manual_reset:false,time:189678
+ODOM:px=0.272,py=0.015,ox=0.000,oy=0.000,oz=0.025,ow=1.000,vx=0.031,vy=0.000,wz=0.161
+ODOM:px=0.273,py=0.015,ox=0.000,oy=0.000,oz=0.026,ow=1.000,vx=0.022,vy=0.000,wz=0.114
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:76,sensor:1,manual_reset:false,time:189723
+ODOM:px=0.273,py=0.015,ox=0.000,oy=0.000,oz=0.027,ow=1.000,vx=0.032,vy=0.000,wz=0.162
+ODOM:px=0.273,py=0.015,ox=0.000,oy=0.000,oz=0.028,ow=1.000,vx=0.021,vy=0.000,wz=0.108
+ODOM:px=0.274,py=0.015,ox=0.000,oy=0.000,oz=0.029,ow=1.000,vx=0.023,vy=0.000,wz=0.119
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":52,"max_distance":1068,"obstacles":true,"distances":[573,76,96,52,null,1068,929,535]}
+ODOM:px=0.274,py=0.015,ox=0.000,oy=0.000,oz=0.030,ow=1.000,vx=0.031,vy=0.000,wz=0.161
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":795,"Encoder_Right":894,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":4,"RightMotorSpeed":166,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ODOM:px=0.275,py=0.015,ox=0.000,oy=0.000,oz=0.031,ow=1.000,vx=0.018,vy=0.000,wz=0.091
+ODOM:px=0.275,py=0.015,ox=0.000,oy=0.000,oz=0.032,ow=0.999,vx=0.015,vy=0.000,wz=0.074
+ODOM:px=0.275,py=0.015,ox=0.000,oy=0.000,oz=0.033,ow=0.999,vx=0.032,vy=0.000,wz=0.164
+ODOM:px=0.276,py=0.015,ox=0.000,oy=0.000,oz=0.034,ow=0.999,vx=0.021,vy=0.000,wz=0.108
+ODOM:px=0.276,py=0.015,ox=0.000,oy=0.000,oz=0.035,ow=0.999,vx=0.013,vy=0.000,wz=0.066
+ODOM:px=0.277,py=0.015,ox=0.000,oy=0.000,oz=0.036,ow=0.999,vx=0.009,vy=0.000,wz=0.044
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:75,sensor:1,manual_reset:false,time:189935
+ODOM:px=0.277,py=0.015,ox=0.000,oy=0.000,oz=0.037,ow=0.999,vx=0.021,vy=0.000,wz=0.108
+ODOM:px=0.277,py=0.015,ox=0.000,oy=0.000,oz=0.038,ow=0.999,vx=0.009,vy=0.000,wz=0.044
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":52,"max_distance":1068,"obstacles":true,"distances":[585,81,78,52,null,1068,929,535]}
+TEMP:id=0,temp=23.8,status=OK
+TEMP:id=1,temp=19.6,status=OK
+ODOM:px=0.277,py=0.015,ox=0.000,oy=0.000,oz=0.039,ow=0.999,vx=0.006,vy=0.000,wz=0.031
+ODOM:px=0.277,py=0.015,ox=0.000,oy=0.000,oz=0.039,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.278,py=0.015,ox=0.000,oy=0.000,oz=0.037,ow=0.999,vx=0.016,vy=0.000,wz=-0.081
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":799,"Encoder_Right":914,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":9,"RightMotorSpeed":41,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:83,sensor:1,manual_reset:false,time:190148
+TEMPERATURE:{"total_sensors":2,"active_sensors":2,"avg_temp":21.7,"max_temp":23.8,"min_temp":19.6,"hottest_sensor":0,"system_warning":false,"system_critical":false,"temperatures":[23.8,19.6,null,null,null,null,null,null]}
+ODOM:px=0.278,py=0.015,ox=0.000,oy=0.000,oz=0.037,ow=0.999,vx=0.008,vy=0.000,wz=-0.041
+DEBUG:SDLogger: Performance stats: Buffer usage: 464 bytes (0%), Write rate: 6957.00 B/s, Total writes: 1098
+PERF:{"freq":65.6, "tfreq":30.0, "mviol":10431, "fviol":27, "violdet":{"cmod":255,"cfreq":0,"lastms":190163}, "mods":[{"n":"SDLogger","min":0.00,"max":41.50,"avg":0.00,"last":0.02,"cnt":486195,"viol":F},{"n":"PerformanceMonitor","min":0.00,"max":8.53,"avg":0.00,"last":0.00,"cnt":486194,"viol":F},{"n":"SafetyCoordinator","min":0.00,"max":0.05,"avg":0.00,"last":0.00,"cnt":486194,"viol":F},{"n":"RoboClawMonitor","min":0.00,"max":199.80,"avg":0.36,"last":14.77,"cnt":486194,"viol":T},{"n":"VL53L0XMonitor","min":0.00,"max":193.90,"avg":0.01,"last":0.46,"cnt":486194,"viol":F},{"n":"TemperatureMonitor","min":0.00,"max":8.68,"avg":0.00,"last":0.00,"cnt":486194,"viol":F}]}
+DIAG:level:INFO,module:RoboClawMonitor,msg:Diagnostic report,details:commands:9883,errors:0,safety_violations:166,connection_state:2,emergency_stop:false
+DEBUG:VL53L0XMonitor::loop() executing
+ODOM:px=0.278,py=0.015,ox=0.000,oy=0.000,oz=0.037,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":52,"max_distance":1068,"obstacles":true,"distances":[580,89,113,52,null,1068,929,535]}
+DIAG:level:INFO,module:VL53L0XMonitor,msg:Diagnostic report,details:initialized:8,active:8,measurements:11118,errors:0,rate_hz:61.0,multiplexer_ok:true,sensor_timing:[1,37,22,1806,2132,3800,17160,17138]
+ODOM:px=0.278,py=0.015,ox=0.000,oy=0.000,oz=0.037,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+DEBUG:updateDirectoryCache: Scanning directory...
+DEBUG:Found file: LOG00001.TXT size: 325
+DEBUG:Found file: LOG00002.TXT size: 2687
+DEBUG:Found file: LOG00003.TXT size: 9710
+DEBUG:Found file: LOG00004.TXT size: 5584
+DEBUG:Found file: LOG00005.TXT size: 155152
+DEBUG:Found file: LOG00006.TXT size: 288401
+DEBUG:Found file: LOG00007.TXT size: 890400
+DEBUG:Found file: LOG00008.TXT size: 1066020
+DEBUG:Found file: LOG00009.TXT size: 800553
+DEBUG:Found file: LOG00010.TXT size: 342614
+DEBUG:Found file: LOG00011.TXT size: 15905477
+DEBUG:Found file: LOG00012.TXT size: 1066
+DEBUG:Found file: LOG00013.TXT size: 6042419
+DEBUG:Found file: LOG00014.TXT size: 210116
+DEBUG:Found file: LOG00015.TXT size: 1057561
+DEBUG:Found file: .Trash-1000 size: 0
+DEBUG:Directory listing: 'LOG00001.TXT,325	LOG00002.TXT,2687	LOG00003.TXT,9710	LOG00004.TXT,5584	LOG00005.TXT,155152	LOG00006.TXT,288401	LOG00007.TXT,890400	LOG00008.TXT,1066020	LOG00009.TXT,800553	LOG00010.TXT,342614	LOG00011.TXT,15905477	LOG00012.TXT,1066	LOG00013.TXT,6042419	LOG00014.TXT,210116	LOG00015.TXT,1057561	.Trash-1000,0'
+DEBUG:Periodic maintenance took 15 ms
+DEBUG:Auto-flush took 0 ms
+ODOM:px=0.278,py=0.015,ox=0.000,oy=0.000,oz=0.037,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.278,py=0.015,ox=0.000,oy=0.000,oz=0.037,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:90,sensor:1,manual_reset:false,time:190357
+ODOM:px=0.278,py=0.015,ox=0.000,oy=0.000,oz=0.037,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":53,"max_distance":1068,"obstacles":true,"distances":[584,71,73,53,null,1068,929,535]}
+ODOM:px=0.278,py=0.015,ox=0.000,oy=0.000,oz=0.037,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.278,py=0.015,ox=0.000,oy=0.000,oz=0.037,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ROBOCLAW:{"LogicVoltage":5.0,"MainVoltage":27.0,"Encoder_Left":802,"Encoder_Right":914,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":3,"RightMotorSpeed":1,"Error":C0000000,"ErrorDecoded":"UNKNOWN_ERROR_BITS:0xC0000000"}
+ODOM:px=0.278,py=0.015,ox=0.000,oy=0.000,oz=0.037,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ODOM:px=0.278,py=0.015,ox=0.000,oy=0.000,oz=0.037,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+ESTOP:active:true,source:VL53L0X_OBSTACLE,reason:Critical obstacle detected,value:77,sensor:1,manual_reset:false,time:190576
+ODOM:px=0.278,py=0.015,ox=0.000,oy=0.000,oz=0.037,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":53,"max_distance":1068,"obstacles":true,"distances":[575,80,123,53,null,1068,929,535]}
+ODOM:px=0.278,py=0.015,ox=0.000,oy=0.000,oz=0.037,ow=0.999,vx=0.000,vy=0.000,wz=0.000
+^C
