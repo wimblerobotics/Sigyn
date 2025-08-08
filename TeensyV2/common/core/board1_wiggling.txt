@@ -373,3 +373,552 @@ ODOM:px=0.278,py=0.015,ox=0.000,oy=0.000,oz=0.037,ow=0.999,vx=0.000,vy=0.000,wz=
 VL53L0X:{"total_sensors":8,"active_sensors":8,"min_distance":53,"max_distance":1068,"obstacles":true,"distances":[575,80,123,53,null,1068,929,535]}
 ODOM:px=0.278,py=0.015,ox=0.000,oy=0.000,oz=0.037,ow=0.999,vx=0.000,vy=0.000,wz=0.000
 ^C
+
+
+
+
+[INFO] [launch]: All log files can be found below /home/ros/.ros/log/2025-08-07-18-01-26-592683-sigyn7900a-38105
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [launch.user]: on_a_mac: False
+[INFO] [launch.user]: do_joint_state_gui: [False], do_rviz: [true], make_map: [False], urdf_file_name: [sigyn.urdf.xacro], use_sim_time: [false], world: [/home/ros/sigyn_ws/install/description/share/description/worlds/home.world]
+[launch_robot_state_publisher] file_name: sigyn.urdf.xacro
+[launch_robot_state_publisher] xacro_file_path: /home/ros/sigyn_ws/install/description/share/description/urdf/sigyn.urdf.xacro
+[launch_robot_state_publisher] use_sim_time: false
+[INFO] [launch.user]: Starting TeensyV2 communication system...
+Namespace: sigyn
+Config file: /home/ros/sigyn_ws/install/sigyn_to_sensor_v2/share/sigyn_to_sensor_v2/config/teensy_v2_config.yaml
+Board 1 port: /dev/teensy_sensor
+Board 2 port: /dev/teensy_sensor2
+Composition mode: True
+Log level: info
+[INFO] [twist_multiplexer-4]: process started with pid [38125]
+[INFO] [robot_state_publisher-1]: process started with pid [38122]
+[INFO] [component_container_isolated-2]: process started with pid [38123]
+[INFO] [echo-3]: process started with pid [38124]
+[INFO] [echo-3]: process has finished cleanly [pid 38124]
+[INFO] [ldlidar-5]: process started with pid [38126]
+[INFO] [scan_to_scan_filter_chain-6]: process started with pid [38127]
+[INFO] [ekf_node-7]: process started with pid [38128]
+[INFO] [joint_state_publisher-8]: process started with pid [38129]
+[INFO] [SaySomethingActionServer-9]: process started with pid [38130]
+[INFO] [MoveAShortDistanceAheadActionServer-10]: process started with pid [38131]
+[INFO] [teensy_bridge_node-11]: process started with pid [38132]
+[INFO] [rviz2-12]: process started with pid [38133]
+[echo-3] [sim] Rviz config file path: /home/ros/sigyn_ws/install/rviz/share/rviz/config/config.rviz
+[teensy_bridge_node-11] [INFO] [1754614887.124580185] [teensy_bridge]: Starting TeensyV2 Bridge Node
+[ldlidar-5] [INFO] [1754614887.124982319] [rclcpp]: Using port /dev/lidar_front_center
+[robot_state_publisher-1] [INFO] [1754614887.126975245] [robot_state_publisher]: Robot initialized
+[teensy_bridge_node-11] [INFO] [1754614887.129561790] [sigyn.teensy_bridge]: Initializing TeensyV2 Bridge Node
+[teensy_bridge_node-11] [INFO] [1754614887.129704452] [sigyn.teensy_bridge]: Parameters initialized:
+[teensy_bridge_node-11] [INFO] [1754614887.129710503] [sigyn.teensy_bridge]:   Board 1 port: /dev/teensy_sensor
+[teensy_bridge_node-11] [INFO] [1754614887.129755519] [sigyn.teensy_bridge]:   Board 2 port: /dev/teensy_sensor2
+[teensy_bridge_node-11] [INFO] [1754614887.129765568] [sigyn.teensy_bridge]:   Board 3 port: /dev/teensy_gripper
+[teensy_bridge_node-11] [INFO] [1754614887.129770477] [sigyn.teensy_bridge]:   Baud rate: 921600
+[teensy_bridge_node-11] [INFO] [1754614887.134717086] [sigyn.teensy_bridge]: Serial communication started
+[teensy_bridge_node-11] [INFO] [1754614887.134746031] [sigyn.teensy_bridge]: TeensyV2 Bridge Node initialization complete
+[teensy_bridge_node-11] [INFO] [1754614887.134821284] [sigyn.teensy_bridge]: TeensyV2 Bridge Node initialized successfully
+[ekf_node-7] [ERROR] [1754614887.135130191] [ekf_filter_node]: Warning: /sigyn/teensy_bridge/imu/sensor_0 is listed as an input topic, but all its update variables are false
+[teensy_bridge_node-11] [INFO] [1754614887.135312838] [sigyn.teensy_bridge]: Connected to Board 1: /dev/teensy_sensor
+[teensy_bridge_node-11] [INFO] [1754614887.135930833] [sigyn.teensy_bridge]: Connected to Board 2: /dev/teensy_sensor2
+[teensy_bridge_node-11] [WARN] [1754614887.136086518] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[ldlidar-5] [INFO] [1754614887.143000185] [rclcpp]: LiDAR_LD06 started successfully
+[teensy_bridge_node-11] [WARN] [1754614887.146364348] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614887.166674560] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614887.211401929] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[component_container_isolated-2] [INFO] [1754614887.217277122] [nav2_container]: Load Library: /opt/ros/jazzy/lib/libmap_server_core.so
+[component_container_isolated-2] [INFO] [1754614887.227465381] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_map_server::CostmapFilterInfoServer>
+[component_container_isolated-2] [INFO] [1754614887.227479679] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_map_server::MapSaver>
+[component_container_isolated-2] [INFO] [1754614887.227482704] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_map_server::MapServer>
+[component_container_isolated-2] [INFO] [1754614887.227485249] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_map_server::MapServer>
+[component_container_isolated-2] [INFO] [1754614887.231353750] [map_server]: 
+[component_container_isolated-2] 	map_server lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1754614887.231423342] [map_server]: Creating
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/map_server' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1754614887.231781172] [nav2_container]: Load Library: /opt/ros/jazzy/lib/libamcl_core.so
+[component_container_isolated-2] [INFO] [1754614887.234058549] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_amcl::AmclNode>
+[component_container_isolated-2] [INFO] [1754614887.234070983] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_amcl::AmclNode>
+[component_container_isolated-2] [INFO] [1754614887.237017752] [amcl]: 
+[component_container_isolated-2] 	amcl lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1754614887.237408555] [amcl]: Creating
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/amcl' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1754614887.239977025] [nav2_container]: Load Library: /opt/ros/jazzy/lib/libnav2_lifecycle_manager_core.so
+[component_container_isolated-2] [INFO] [1754614887.240517983] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_lifecycle_manager::LifecycleManager>
+[component_container_isolated-2] [INFO] [1754614887.240525397] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_lifecycle_manager::LifecycleManager>
+[component_container_isolated-2] [INFO] [1754614887.243256767] [lifecycle_manager_localization]: Creating
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/lifecycle_manager_localization' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1754614887.245750415] [lifecycle_manager_localization]: Creating and initializing lifecycle service clients
+[component_container_isolated-2] [INFO] [1754614887.246664051] [lifecycle_manager_localization]: Starting managed nodes bringup...
+[component_container_isolated-2] [INFO] [1754614887.246682296] [lifecycle_manager_localization]: Configuring map_server
+[component_container_isolated-2] [INFO] [1754614887.246753151] [map_server]: Configuring
+[component_container_isolated-2] [INFO] [1754614887.246790432] [map_io]: Loading yaml file: /home/ros/sigyn_ws/install/base/share/base/maps/my_map.yaml
+[component_container_isolated-2] [INFO] [1754614887.246921350] [map_io]: resolution: 0.0261762
+[component_container_isolated-2] [INFO] [1754614887.246926951] [map_io]: origin[0]: 0
+[component_container_isolated-2] [INFO] [1754614887.246928985] [map_io]: origin[1]: 0
+[component_container_isolated-2] [INFO] [1754614887.246930909] [map_io]: origin[2]: 0
+[component_container_isolated-2] [INFO] [1754614887.246932902] [map_io]: free_thresh: 0.25
+[component_container_isolated-2] [INFO] [1754614887.246934956] [map_io]: occupied_thresh: 0.65
+[component_container_isolated-2] [INFO] [1754614887.246937992] [map_io]: mode: trinary
+[component_container_isolated-2] [INFO] [1754614887.246940176] [map_io]: negate: 0
+[component_container_isolated-2] [INFO] [1754614887.247037521] [map_io]: Loading image_file: /home/ros/sigyn_ws/install/base/share/base/maps/my_map2.pgm
+[component_container_isolated-2] [INFO] [1754614887.250503477] [map_io]: Read map /home/ros/sigyn_ws/install/base/share/base/maps/my_map2.pgm: 573 X 589 map @ 0.0261762 m/cell
+[component_container_isolated-2] [INFO] [1754614887.251644786] [lifecycle_manager_localization]: Configuring amcl
+[component_container_isolated-2] [INFO] [1754614887.251688930] [amcl]: Configuring
+[component_container_isolated-2] [INFO] [1754614887.251735688] [amcl]: initTransforms
+[component_container_isolated-2] [INFO] [1754614887.255094030] [amcl]: initPubSub
+[component_container_isolated-2] [INFO] [1754614887.255831962] [amcl]: Subscribed to map topic.
+[component_container_isolated-2] [INFO] [1754614887.256856589] [lifecycle_manager_localization]: Activating map_server
+[component_container_isolated-2] [INFO] [1754614887.256898729] [map_server]: Activating
+[component_container_isolated-2] [INFO] [1754614887.257147672] [map_server]: Creating bond (map_server) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1754614887.257284352] [amcl]: Received a 573 X 589 map @ 0.026 m/pix
+[joint_state_publisher-8] [INFO] [1754614887.345828598] [joint_state_publisher]: Waiting for robot_description to be published on the robot_description topic...
+[component_container_isolated-2] [INFO] [1754614887.348547725] [nav2_container]: Load Library: /opt/ros/jazzy/lib/libcontroller_server_core.so
+[component_container_isolated-2] [INFO] [1754614887.352339280] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_controller::ControllerServer>
+[component_container_isolated-2] [INFO] [1754614887.352378354] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_controller::ControllerServer>
+[component_container_isolated-2] [INFO] [1754614887.356078745] [controller_server]: 
+[component_container_isolated-2] 	controller_server lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1754614887.358273055] [lifecycle_manager_localization]: Server map_server connected with bond.
+[component_container_isolated-2] [INFO] [1754614887.358297090] [lifecycle_manager_localization]: Activating amcl
+[component_container_isolated-2] [INFO] [1754614887.358373977] [amcl]: Activating
+[component_container_isolated-2] [INFO] [1754614887.358389857] [amcl]: initialPoseReceived
+[component_container_isolated-2] [INFO] [1754614887.358408312] [amcl]: Setting pose (0.000000): 8.810 2.590 0.000
+[component_container_isolated-2] [INFO] [1754614887.358839842] [amcl]: Creating bond (amcl) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1754614887.360771242] [controller_server]: Creating controller server
+[component_container_isolated-2] [INFO] [1754614887.364257025] [local_costmap.local_costmap]: 
+[component_container_isolated-2] 	local_costmap lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1754614887.364652787] [local_costmap.local_costmap]: Creating Costmap
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/controller_server' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1754614887.366247217] [nav2_container]: Load Library: /opt/ros/jazzy/lib/libsmoother_server_core.so
+[component_container_isolated-2] [INFO] [1754614887.367227860] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_smoother::SmootherServer>
+[component_container_isolated-2] [INFO] [1754614887.367235425] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_smoother::SmootherServer>
+[component_container_isolated-2] [INFO] [1754614887.370302462] [smoother_server]: 
+[component_container_isolated-2] 	smoother_server lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1754614887.371714796] [smoother_server]: Creating smoother server
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/smoother_server' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1754614887.372707643] [nav2_container]: Load Library: /opt/ros/jazzy/lib/libplanner_server_core.so
+[component_container_isolated-2] [INFO] [1754614887.373231127] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_planner::PlannerServer>
+[component_container_isolated-2] [INFO] [1754614887.373239112] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_planner::PlannerServer>
+[component_container_isolated-2] [INFO] [1754614887.376264712] [planner_server]: 
+[component_container_isolated-2] 	planner_server lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1754614887.377684860] [planner_server]: Creating
+[component_container_isolated-2] [INFO] [1754614887.380834445] [global_costmap.global_costmap]: 
+[component_container_isolated-2] 	global_costmap lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1754614887.381161386] [global_costmap.global_costmap]: Creating Costmap
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/planner_server' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1754614887.382932241] [nav2_container]: Load Library: /opt/ros/jazzy/lib/libbehavior_server_core.so
+[component_container_isolated-2] [INFO] [1754614887.383348392] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<behavior_server::BehaviorServer>
+[component_container_isolated-2] [INFO] [1754614887.383354834] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<behavior_server::BehaviorServer>
+[component_container_isolated-2] [INFO] [1754614887.386094940] [amcl]: createLaserObject
+[component_container_isolated-2] [INFO] [1754614887.386455796] [behavior_server]: 
+[component_container_isolated-2] 	behavior_server lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/behavior_server' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1754614887.389292586] [nav2_container]: Load Library: /opt/ros/jazzy/lib/libbt_navigator_core.so
+[component_container_isolated-2] [INFO] [1754614887.389815450] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_bt_navigator::BtNavigator>
+[component_container_isolated-2] [INFO] [1754614887.389824086] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_bt_navigator::BtNavigator>
+[component_container_isolated-2] [INFO] [1754614887.393377298] [bt_navigator]: 
+[component_container_isolated-2] 	bt_navigator lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1754614887.394800612] [bt_navigator]: Creating
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/bt_navigator' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1754614887.395552972] [nav2_container]: Load Library: /opt/ros/jazzy/lib/libwaypoint_follower_core.so
+[component_container_isolated-2] [INFO] [1754614887.396248443] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_waypoint_follower::WaypointFollower>
+[component_container_isolated-2] [INFO] [1754614887.396255687] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_waypoint_follower::WaypointFollower>
+[component_container_isolated-2] [INFO] [1754614887.399409690] [waypoint_follower]: 
+[component_container_isolated-2] 	waypoint_follower lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1754614887.399780265] [waypoint_follower]: Creating
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/waypoint_follower' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1754614887.400766048] [nav2_container]: Load Library: /opt/ros/jazzy/lib/libvelocity_smoother_core.so
+[component_container_isolated-2] [INFO] [1754614887.401257371] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_velocity_smoother::VelocitySmoother>
+[component_container_isolated-2] [INFO] [1754614887.401263934] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_velocity_smoother::VelocitySmoother>
+[component_container_isolated-2] [INFO] [1754614887.404121634] [velocity_smoother]: 
+[component_container_isolated-2] 	velocity_smoother lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/velocity_smoother' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1754614887.405028978] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_lifecycle_manager::LifecycleManager>
+[component_container_isolated-2] [INFO] [1754614887.405039478] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_lifecycle_manager::LifecycleManager>
+[component_container_isolated-2] [INFO] [1754614887.407194673] [lifecycle_manager_navigation]: Creating
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/lifecycle_manager_navigation' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1754614887.408017937] [lifecycle_manager_navigation]: Creating and initializing lifecycle service clients
+[component_container_isolated-2] [INFO] [1754614887.411008690] [lifecycle_manager_navigation]: Starting managed nodes bringup...
+[component_container_isolated-2] [INFO] [1754614887.411025642] [lifecycle_manager_navigation]: Configuring controller_server
+[component_container_isolated-2] [INFO] [1754614887.411103821] [controller_server]: Configuring controller interface
+[component_container_isolated-2] [INFO] [1754614887.411115022] [controller_server]: getting progress checker plugins..
+[component_container_isolated-2] [INFO] [1754614887.411196196] [controller_server]: getting goal checker plugins..
+[component_container_isolated-2] [INFO] [1754614887.411252503] [controller_server]: Controller frequency set to 20.0000Hz
+[component_container_isolated-2] [INFO] [1754614887.411278373] [local_costmap.local_costmap]: Configuring
+[component_container_isolated-2] [INFO] [1754614887.412664877] [local_costmap.local_costmap]: Using plugin "static_layer"
+[component_container_isolated-2] [INFO] [1754614887.414721385] [local_costmap.local_costmap]: Subscribing to the map topic (/map) with transient local durability
+[component_container_isolated-2] [INFO] [1754614887.414914742] [local_costmap.local_costmap]: Initialized plugin "static_layer"
+[component_container_isolated-2] [INFO] [1754614887.414924701] [local_costmap.local_costmap]: Using plugin "lidar_layer"
+[component_container_isolated-2] [INFO] [1754614887.415362503] [local_costmap.local_costmap]: Subscribed to Topics: front_lidar
+[component_container_isolated-2] [INFO] [1754614887.416632005] [local_costmap.local_costmap]: Initialized plugin "lidar_layer"
+[component_container_isolated-2] [INFO] [1754614887.416643267] [local_costmap.local_costmap]: Using plugin "oakd_top_layer"
+[component_container_isolated-2] [INFO] [1754614887.417108491] [local_costmap.local_costmap]: Subscribed to Topics: oakd_top
+[component_container_isolated-2] [INFO] [1754614887.418012438] [local_costmap.local_costmap]: Initialized plugin "oakd_top_layer"
+[component_container_isolated-2] [INFO] [1754614887.418022477] [local_costmap.local_costmap]: Using plugin "inflation_layer"
+[component_container_isolated-2] [INFO] [1754614887.418421576] [local_costmap.local_costmap]: Initialized plugin "inflation_layer"
+[teensy_bridge_node-11] [WARN] [1754614887.420275598] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[component_container_isolated-2] [INFO] [1754614887.423112279] [local_costmap.local_costmap]: StaticLayer: Resizing static layer to 573 X 589 at 0.026176 m/pix
+[component_container_isolated-2] [INFO] [1754614887.423129772] [controller_server]: Created progress_checker : progress_checker of type nav2_controller::SimpleProgressChecker
+[component_container_isolated-2] [INFO] [1754614887.423268065] [controller_server]: Controller Server has progress_checker  progress checkers available.
+[component_container_isolated-2] [INFO] [1754614887.423557274] [controller_server]: Created goal checker : precise_goal_checker of type nav2_controller::SimpleGoalChecker
+[component_container_isolated-2] [INFO] [1754614887.423780418] [controller_server]: Controller Server has precise_goal_checker  goal checkers available.
+[component_container_isolated-2] [INFO] [1754614887.424691379] [controller_server]: Created controller : FollowPath of type nav2_mppi_controller::MPPIController
+[component_container_isolated-2] [INFO] [1754614887.425920204] [controller_server]: Controller period is equal to model dt. Control sequence shifting is ON
+[component_container_isolated-2] [INFO] [1754614887.427077002] [controller_server]: ConstraintCritic instantiated with 1 power and 4.000000 weight.
+[component_container_isolated-2] [INFO] [1754614887.427096289] [controller_server]: Critic loaded : mppi::critics::ConstraintCritic
+[component_container_isolated-2] [INFO] [1754614887.427746534] [controller_server]: InflationCostCritic instantiated with 1 power and 300.000000 / 0.015000 weights. Critic will collision check based on circular cost.
+[component_container_isolated-2] [INFO] [1754614887.427763637] [controller_server]: Critic loaded : mppi::critics::CostCritic
+[component_container_isolated-2] [INFO] [1754614887.428061192] [controller_server]: GoalCritic instantiated with 1 power and 5.000000 weight.
+[component_container_isolated-2] [INFO] [1754614887.428074568] [controller_server]: Critic loaded : mppi::critics::GoalCritic
+[component_container_isolated-2] [INFO] [1754614887.428335113] [controller_server]: GoalAngleCritic instantiated with 1 power, 3.000000 weight, and 0.500000 angular threshold.
+[component_container_isolated-2] [INFO] [1754614887.428345583] [controller_server]: Critic loaded : mppi::critics::GoalAngleCritic
+[component_container_isolated-2] [INFO] [1754614887.428860441] [controller_server]: ReferenceTrajectoryCritic instantiated with 1 power and 14.000000 weight
+[component_container_isolated-2] [INFO] [1754614887.428874598] [controller_server]: Critic loaded : mppi::critics::PathAlignCritic
+[component_container_isolated-2] [INFO] [1754614887.429150853] [controller_server]: Critic loaded : mppi::critics::PathFollowCritic
+[component_container_isolated-2] [INFO] [1754614887.429516989] [controller_server]: PathAngleCritic instantiated with 1 power and 2.000000 weight. Mode set to: Forward Preference
+[component_container_isolated-2] [INFO] [1754614887.429529442] [controller_server]: Critic loaded : mppi::critics::PathAngleCritic
+[component_container_isolated-2] [INFO] [1754614887.429840253] [controller_server]: PreferForwardCritic instantiated with 1 power and 5.000000 weight.
+[component_container_isolated-2] [INFO] [1754614887.429852787] [controller_server]: Critic loaded : mppi::critics::PreferForwardCritic
+[component_container_isolated-2] [INFO] [1754614887.431443409] [controller_server]: Optimizer reset
+[component_container_isolated-2] [INFO] [1754614887.432962586] [MPPIController]: Configured MPPI Controller: FollowPath
+[component_container_isolated-2] [INFO] [1754614887.432969429] [controller_server]: Controller Server has FollowPath  controllers available.
+[component_container_isolated-2] [INFO] [1754614887.435043870] [lifecycle_manager_navigation]: Configuring smoother_server
+[component_container_isolated-2] [INFO] [1754614887.435096110] [smoother_server]: Configuring smoother server
+[component_container_isolated-2] [INFO] [1754614887.437551315] [smoother_server]: Created smoother : simple_smoother of type nav2_smoother::SimpleSmoother
+[component_container_isolated-2] [INFO] [1754614887.438004446] [smoother_server]: Smoother Server has simple_smoother  smoothers available.
+[component_container_isolated-2] [INFO] [1754614887.439179228] [lifecycle_manager_navigation]: Configuring planner_server
+[component_container_isolated-2] [INFO] [1754614887.439230165] [planner_server]: Configuring
+[component_container_isolated-2] [INFO] [1754614887.439251035] [global_costmap.global_costmap]: Configuring
+[component_container_isolated-2] [INFO] [1754614887.440710658] [global_costmap.global_costmap]: Using plugin "static_layer"
+[component_container_isolated-2] [INFO] [1754614887.441184899] [global_costmap.global_costmap]: Subscribing to the map topic (/map) with transient local durability
+[component_container_isolated-2] [INFO] [1754614887.441361345] [global_costmap.global_costmap]: Initialized plugin "static_layer"
+[component_container_isolated-2] [INFO] [1754614887.441369941] [global_costmap.global_costmap]: Using plugin "obstacle_layer"
+[component_container_isolated-2] [INFO] [1754614887.441844282] [global_costmap.global_costmap]: Subscribed to Topics: scan
+[component_container_isolated-2] [INFO] [1754614887.442952789] [global_costmap.global_costmap]: Initialized plugin "obstacle_layer"
+[component_container_isolated-2] [INFO] [1754614887.442969350] [global_costmap.global_costmap]: Using plugin "inflation_layer"
+[component_container_isolated-2] [INFO] [1754614887.443314245] [global_costmap.global_costmap]: Initialized plugin "inflation_layer"
+[component_container_isolated-2] [INFO] [1754614887.446789329] [global_costmap.global_costmap]: StaticLayer: Resizing costmap to 573 X 589 at 0.026176 m/pix
+[component_container_isolated-2] [INFO] [1754614887.447005309] [planner_server]: Created global planner plugin GridBased of type nav2_navfn_planner::NavfnPlanner
+[component_container_isolated-2] [INFO] [1754614887.447032851] [planner_server]: Configuring plugin GridBased of type NavfnPlanner
+[component_container_isolated-2] [INFO] [1754614887.447545866] [planner_server]: Planner Server has GridBased  planners available.
+[component_container_isolated-2] [INFO] [1754614887.450124185] [lifecycle_manager_navigation]: Configuring behavior_server
+[component_container_isolated-2] [INFO] [1754614887.450180592] [behavior_server]: Configuring
+[component_container_isolated-2] [INFO] [1754614887.451604458] [behavior_server]: Creating behavior plugin spin of type nav2_behaviors::Spin
+[component_container_isolated-2] [INFO] [1754614887.452212463] [behavior_server]: Creating behavior plugin backup of type nav2_behaviors::BackUp
+[component_container_isolated-2] [INFO] [1754614887.452770504] [behavior_server]: Creating behavior plugin drive_on_heading of type nav2_behaviors::DriveOnHeading
+[component_container_isolated-2] [INFO] [1754614887.453313285] [behavior_server]: Creating behavior plugin assisted_teleop of type nav2_behaviors::AssistedTeleop
+[component_container_isolated-2] [INFO] [1754614887.454301733] [behavior_server]: Creating behavior plugin wait of type nav2_behaviors::Wait
+[component_container_isolated-2] [INFO] [1754614887.455192325] [behavior_server]: Configuring spin
+[component_container_isolated-2] [INFO] [1754614887.456750296] [behavior_server]: Configuring backup
+[component_container_isolated-2] [INFO] [1754614887.457794550] [behavior_server]: Configuring drive_on_heading
+[component_container_isolated-2] [INFO] [1754614887.458841379] [behavior_server]: Configuring assisted_teleop
+[component_container_isolated-2] [INFO] [1754614887.459726100] [lifecycle_manager_localization]: Server amcl connected with bond.
+[component_container_isolated-2] [INFO] [1754614887.459745567] [lifecycle_manager_localization]: Managed nodes are active
+[component_container_isolated-2] [INFO] [1754614887.459754805] [lifecycle_manager_localization]: Creating bond timer...
+[component_container_isolated-2] [INFO] [1754614887.460334446] [behavior_server]: Configuring wait
+[component_container_isolated-2] [INFO] [1754614887.461511092] [lifecycle_manager_navigation]: Configuring velocity_smoother
+[component_container_isolated-2] [INFO] [1754614887.461569042] [velocity_smoother]: Configuring velocity smoother
+[component_container_isolated-2] [INFO] [1754614887.462911693] [lifecycle_manager_navigation]: Configuring bt_navigator
+[component_container_isolated-2] [INFO] [1754614887.462957591] [bt_navigator]: Configuring
+[component_container_isolated-2] [INFO] [1754614887.464194892] [bt_navigator]: Creating navigator id navigate_to_pose of type nav2_bt_navigator::NavigateToPoseNavigator
+[component_container_isolated-2] [INFO] [1754614887.495181100] [bt_navigator]: Creating navigator id navigate_through_poses of type nav2_bt_navigator::NavigateThroughPosesNavigator
+[component_container_isolated-2] [INFO] [1754614887.502609224] [lifecycle_manager_navigation]: Configuring waypoint_follower
+[component_container_isolated-2] [INFO] [1754614887.502663047] [waypoint_follower]: Configuring
+[component_container_isolated-2] [INFO] [1754614887.506472555] [waypoint_follower]: Created waypoint_task_executor : wait_at_waypoint of type nav2_waypoint_follower::WaitAtWaypoint
+[component_container_isolated-2] [INFO] [1754614887.506805678] [lifecycle_manager_navigation]: Activating controller_server
+[component_container_isolated-2] [INFO] [1754614887.506855974] [controller_server]: Activating
+[component_container_isolated-2] [INFO] [1754614887.506875471] [local_costmap.local_costmap]: Activating
+[component_container_isolated-2] [INFO] [1754614887.506881342] [local_costmap.local_costmap]: Checking transform
+[component_container_isolated-2] [INFO] [1754614887.506947618] [local_costmap.local_costmap]: start
+[component_container_isolated-2] [WARN] [1754614887.607486917] [controller_server]: Parameter controller_server.verbose not found
+[component_container_isolated-2] [INFO] [1754614887.608652562] [controller_server]: Optimizer reset
+[component_container_isolated-2] [INFO] [1754614887.608765697] [MPPIController]: Activated MPPI Controller: FollowPath
+[component_container_isolated-2] [INFO] [1754614887.608776668] [controller_server]: Creating bond (controller_server) to lifecycle manager.
+[teensy_bridge_node-11] [WARN] [1754614887.629104504] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[component_container_isolated-2] [INFO] [1754614887.709812841] [lifecycle_manager_navigation]: Server controller_server connected with bond.
+[component_container_isolated-2] [INFO] [1754614887.709824814] [lifecycle_manager_navigation]: Activating smoother_server
+[component_container_isolated-2] [INFO] [1754614887.709911629] [smoother_server]: Activating
+[component_container_isolated-2] [INFO] [1754614887.709933490] [smoother_server]: Creating bond (smoother_server) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1754614887.810919749] [lifecycle_manager_navigation]: Server smoother_server connected with bond.
+[component_container_isolated-2] [INFO] [1754614887.810939978] [lifecycle_manager_navigation]: Activating planner_server
+[component_container_isolated-2] [INFO] [1754614887.811036211] [planner_server]: Activating
+[component_container_isolated-2] [INFO] [1754614887.811057291] [global_costmap.global_costmap]: Activating
+[component_container_isolated-2] [INFO] [1754614887.811064915] [global_costmap.global_costmap]: Checking transform
+[component_container_isolated-2] [INFO] [1754614887.811102867] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Lookup would require extrapolation into the past.  Requested time 1754614887.771382 but the earliest data is at time 1754614889.317503, when looking up transform from frame [base_link] to frame [map]
+[teensy_bridge_node-11] [WARN] [1754614887.837789545] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614888.046662300] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614888.258697091] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[component_container_isolated-2] [INFO] [1754614888.311164523] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Lookup would require extrapolation into the past.  Requested time 1754614888.268784 but the earliest data is at time 1754614889.317503, when looking up transform from frame [base_link] to frame [map]
+[teensy_bridge_node-11] [WARN] [1754614888.485927995] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614888.699182283] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[component_container_isolated-2] [INFO] [1754614888.811156442] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Lookup would require extrapolation into the past.  Requested time 1754614888.770851 but the earliest data is at time 1754614889.317503, when looking up transform from frame [base_link] to frame [map]
+[teensy_bridge_node-11] [WARN] [1754614888.907178771] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614889.116192493] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[component_container_isolated-2] [INFO] [1754614889.311157626] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Lookup would require extrapolation into the past.  Requested time 1754614889.275994 but the earliest data is at time 1754614889.317503, when looking up transform from frame [base_link] to frame [map]
+[teensy_bridge_node-11] [WARN] [1754614889.328243960] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614889.537076049] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614889.745886708] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[component_container_isolated-2] [INFO] [1754614889.811212487] [global_costmap.global_costmap]: start
+[teensy_bridge_node-11] [WARN] [1754614889.957909410] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614889.997090033] [rviz2]: Stereo is NOT SUPPORTED
+[rviz2-12] [INFO] [1754614889.997149646] [rviz2]: OpenGl version: 4.5 (GLSL 4.5)
+[component_container_isolated-2] [INFO] [1754614890.061755282] [planner_server]: Activating plugin GridBased of type NavfnPlanner
+[component_container_isolated-2] [INFO] [1754614890.062208473] [planner_server]: Creating bond (planner_server) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1754614890.163524906] [lifecycle_manager_navigation]: Server planner_server connected with bond.
+[component_container_isolated-2] [INFO] [1754614890.163550796] [lifecycle_manager_navigation]: Activating behavior_server
+[component_container_isolated-2] [INFO] [1754614890.163708094] [behavior_server]: Activating
+[component_container_isolated-2] [INFO] [1754614890.163727922] [behavior_server]: Activating spin
+[component_container_isolated-2] [INFO] [1754614890.163738893] [behavior_server]: Activating backup
+[component_container_isolated-2] [INFO] [1754614890.163746177] [behavior_server]: Activating drive_on_heading
+[component_container_isolated-2] [INFO] [1754614890.163752849] [behavior_server]: Activating assisted_teleop
+[component_container_isolated-2] [INFO] [1754614890.163758781] [behavior_server]: Activating wait
+[component_container_isolated-2] [INFO] [1754614890.163767928] [behavior_server]: Creating bond (behavior_server) to lifecycle manager.
+[teensy_bridge_node-11] [WARN] [1754614890.166632270] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[component_container_isolated-2] [INFO] [1754614890.264886515] [lifecycle_manager_navigation]: Server behavior_server connected with bond.
+[component_container_isolated-2] [INFO] [1754614890.264898308] [lifecycle_manager_navigation]: Activating velocity_smoother
+[component_container_isolated-2] [INFO] [1754614890.264978109] [velocity_smoother]: Activating
+[component_container_isolated-2] [INFO] [1754614890.265005421] [velocity_smoother]: Creating bond (velocity_smoother) to lifecycle manager.
+[rviz2-12] [INFO] [1754614890.315147056] [rviz2]: Stereo is NOT SUPPORTED
+[component_container_isolated-2] [INFO] [1754614890.365974765] [lifecycle_manager_navigation]: Server velocity_smoother connected with bond.
+[component_container_isolated-2] [INFO] [1754614890.365996135] [lifecycle_manager_navigation]: Activating bt_navigator
+[component_container_isolated-2] [INFO] [1754614890.366260498] [bt_navigator]: Activating
+[teensy_bridge_node-11] [WARN] [1754614890.375579072] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[component_container_isolated-2] [INFO] [1754614890.383240809] [bt_navigator]: Creating bond (bt_navigator) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1754614890.484233727] [lifecycle_manager_navigation]: Server bt_navigator connected with bond.
+[component_container_isolated-2] [INFO] [1754614890.484258204] [lifecycle_manager_navigation]: Activating waypoint_follower
+[component_container_isolated-2] [INFO] [1754614890.484437575] [waypoint_follower]: Activating
+[component_container_isolated-2] [INFO] [1754614890.484463855] [waypoint_follower]: Creating bond (waypoint_follower) to lifecycle manager.
+[teensy_bridge_node-11] [WARN] [1754614890.584385698] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[component_container_isolated-2] [INFO] [1754614890.585660991] [lifecycle_manager_navigation]: Server waypoint_follower connected with bond.
+[component_container_isolated-2] [INFO] [1754614890.585676130] [lifecycle_manager_navigation]: Managed nodes are active
+[component_container_isolated-2] [INFO] [1754614890.585680678] [lifecycle_manager_navigation]: Creating bond timer...
+[teensy_bridge_node-11] [WARN] [1754614890.793259241] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614891.015116972] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614891.167232748] [rviz2]: Trying to create a map of size 573 x 589 using 1 swatches
+[rviz2-12] [ERROR] [1754614891.215452919] [rviz2]: rviz/glsl120/indexed_8bit_image.vert
+[rviz2-12] rviz/glsl120/indexed_8bit_image.frag
+[rviz2-12]  GLSL link result : 
+[rviz2-12] active samplers with a different type refer to the same texture image unit
+[teensy_bridge_node-11] [WARN] [1754614891.222978927] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614891.267557981] [rviz2]: Trying to create a map of size 573 x 589 using 1 swatches
+[teensy_bridge_node-11] [WARN] [1754614891.435307799] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614891.595184210] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614890.793 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.595229446] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614890.733 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.643299070] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614890.906 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.643380936] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614890.594 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.643434468] [rviz2]: Message Filter dropping message: frame 'lidar_frame_top_lidar' at time 1754614890.598 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.643449827] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614890.844 for reason 'discarding message because the queue is full'
+[teensy_bridge_node-11] [WARN] [1754614891.651083099] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614891.684144140] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614890.952 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.684178695] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614890.906 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.758814081] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.005 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.758852604] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614890.689 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.758868745] [rviz2]: Message Filter dropping message: frame 'lidar_frame_top_lidar' at time 1754614890.696 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.758881579] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.005 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.796926529] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.109 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.796969921] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.056 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.836435320] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.161 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.836476117] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614890.793 for reason 'discarding message because the queue is full'
+[teensy_bridge_node-11] [WARN] [1754614891.862589949] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614891.878657685] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.213 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.878688774] [rviz2]: Message Filter dropping message: frame 'lidar_frame_top_lidar' at time 1754614890.809 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.878705877] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.109 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.924207974] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.284 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.924238382] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614890.896 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.924252659] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.213 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.963740439] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.321 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614891.963773412] [rviz2]: Message Filter dropping message: frame 'lidar_frame_top_lidar' at time 1754614890.907 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.001160301] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.373 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.001197742] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.284 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.045190388] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.425 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.045227308] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614890.995 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.045246094] [rviz2]: Message Filter dropping message: frame 'lidar_frame_top_lidar' at time 1754614891.005 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.045258377] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.321 for reason 'discarding message because the queue is full'
+[teensy_bridge_node-11] [WARN] [1754614892.074787235] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614892.093098122] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.477 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.131451785] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.530 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.131491831] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614891.096 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.131507681] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.425 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.200159965] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.582 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.200190663] [rviz2]: Message Filter dropping message: frame 'lidar_frame_top_lidar' at time 1754614891.103 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.200205281] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.477 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.243891344] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.628 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.243934887] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614891.197 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.243950847] [rviz2]: Message Filter dropping message: frame 'lidar_frame_top_lidar' at time 1754614891.201 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.243970505] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.530 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.301710738] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.661 for reason 'discarding message because the queue is full'
+[teensy_bridge_node-11] [WARN] [1754614892.305242838] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614892.333926340] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.706 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.333959393] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614891.297 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.333980172] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.628 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.372109099] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.748 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.372141530] [rviz2]: Message Filter dropping message: frame 'lidar_frame_top_lidar' at time 1754614891.299 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.431240425] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.809 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.431300048] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614891.397 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.431320507] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.661 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.431336998] [rviz2]: Message Filter dropping message: frame 'imu_0' at time 1754614890.995 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.493460348] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.852 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.493501146] [rviz2]: Message Filter dropping message: frame 'lidar_frame_top_lidar' at time 1754614891.397 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.493516956] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.706 for reason 'discarding message because the queue is full'
+[teensy_bridge_node-11] [WARN] [1754614892.509263280] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614892.575405425] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.910 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.575458256] [rviz2]: Message Filter dropping message: frame 'lidar_frame_top_lidar' at time 1754614891.495 for reason 'discarding message because the queue is full'
+[rviz2-12] [ERROR] [1754614892.596609829] [rviz2]: Lookup would require extrapolation into the future.  Requested time 1754614892.988528 but the latest data is at time 1754614892.557270, when looking up transform from frame [lidar_frame_top_lidar] to frame [map]
+[teensy_bridge_node-11] [WARN] [1754614892.729492065] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614892.745709454] [rviz2]: Message Filter dropping message: frame 'lidar_frame_top_lidar' at time 1754614891.594 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614892.867475020] [rviz2]: Message Filter dropping message: frame 'lidar_frame_top_lidar' at time 1754614891.692 for reason 'discarding message because the queue is full'
+[teensy_bridge_node-11] [WARN] [1754614892.934949205] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614892.981996354] [rviz2]: Message Filter dropping message: frame 'lidar_frame_top_lidar' at time 1754614891.804 for reason 'discarding message because the queue is full'
+[rviz2-12] [INFO] [1754614893.057232060] [rviz2]: Message Filter dropping message: frame 'lidar_frame_top_lidar' at time 1754614891.902 for reason 'discarding message because the queue is full'
+[teensy_bridge_node-11] [WARN] [1754614893.141814381] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614893.350636520] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614893.559472455] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614893.771568443] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614893.987754952] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614894.192346109] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614894.410215919] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614894.618957529] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614894.830852650] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614895.048775137] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614895.267964748] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614895.478093978] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614895.691703981] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614895.895749355] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614896.104448522] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614896.313350245] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614896.533286117] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614896.744007037] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614896.952908890] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [INFO] [1754614897.134786392] [sigyn.teensy_bridge]: Status: Board1=connected, Board2=connected, Board3=disconnected
+[teensy_bridge_node-11] [WARN] [1754614897.165146688] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614897.370518191] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614897.598005420] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614897.806869196] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614898.015599848] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614898.227695788] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614898.436556392] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614898.645312108] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614898.854155460] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614899.083291468] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614899.307595638] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614899.519805869] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614899.766541192] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614899.943483650] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.809 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614899.943534467] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.852 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[teensy_bridge_node-11] [WARN] [1754614899.990596950] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614900.043439489] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.910 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614900.043583733] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614891.975 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614900.143563763] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614892.065 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614900.143630460] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614892.065 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614900.143650498] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614892.015 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614900.143672129] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614892.015 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[teensy_bridge_node-11] [WARN] [1754614900.192633605] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614900.243523254] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614892.113 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614900.243555615] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614892.113 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614900.343535105] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614892.236 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614900.343667456] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614892.236 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614900.343705719] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614892.207 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614900.343724344] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614892.184 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614900.343740084] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614892.207 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[teensy_bridge_node-11] [WARN] [1754614900.408435272] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614900.443625725] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614892.315 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614900.443692932] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614892.341 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614900.443711027] [rviz2]: Message Filter dropping message: frame 'odom' at time 1754614892.315 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[teensy_bridge_node-11] [WARN] [1754614900.616958815] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614900.854195611] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614901.062619681] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614901.136151195] [rviz2]: Message Filter dropping message: frame 'imu_0' at time 1754614891.096 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614901.236268990] [rviz2]: Message Filter dropping message: frame 'imu_0' at time 1754614891.197 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[teensy_bridge_node-11] [WARN] [1754614901.308898852] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614901.336126430] [rviz2]: Message Filter dropping message: frame 'imu_0' at time 1754614891.297 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614901.436108577] [rviz2]: Message Filter dropping message: frame 'imu_0' at time 1754614891.397 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[teensy_bridge_node-11] [WARN] [1754614901.519354550] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614901.536167219] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614891.497 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614901.536197466] [rviz2]: Message Filter dropping message: frame 'imu_0' at time 1754614891.497 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614901.636096806] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614891.597 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614901.636159926] [rviz2]: Message Filter dropping message: frame 'imu_0' at time 1754614891.597 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614901.736095814] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614891.706 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[teensy_bridge_node-11] [WARN] [1754614901.736166819] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614901.836095695] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614891.799 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[teensy_bridge_node-11] [WARN] [1754614901.931591381] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614901.936091768] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614891.900 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614902.036054486] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614892.005 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[teensy_bridge_node-11] [WARN] [1754614902.140350086] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614902.186044582] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614892.113 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614902.186080390] [rviz2]: Message Filter dropping message: frame 'imu_0' at time 1754614892.113 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614902.236313164] [rviz2]: Message Filter dropping message: frame 'imu_0' at time 1754614892.207 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614902.236354773] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614892.207 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614902.336100343] [rviz2]: Message Filter dropping message: frame 'imu_0' at time 1754614892.315 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[rviz2-12] [INFO] [1754614902.336157762] [rviz2]: Message Filter dropping message: frame 'imu_1' at time 1754614892.315 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[teensy_bridge_node-11] [WARN] [1754614902.355173443] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614902.397190876] [sigyn.teensy_bridge]: E-STOP TRIGGERED: MOTOR_RUNAWAY - Motor 2 runaway detected
+[teensy_bridge_node-11] [WARN] [1754614902.563269304] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614902.777356433] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614902.989636169] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614903.198532205] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614903.409108852] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614903.635521410] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614903.860156063] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614904.056873347] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614904.266506637] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614904.521765215] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614904.740355163] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614904.967089105] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614905.175739135] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614905.377902446] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614905.601788775] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614905.810626499] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614906.021891922] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614906.082520319] [sigyn.teensy_bridge]: E-STOP TRIGGERED: MOTOR_RUNAWAY - Motor 2 runaway detected
+[teensy_bridge_node-11] [WARN] [1754614906.242377066] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614906.441594108] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614906.663519388] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614906.889749360] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614907.090511128] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [INFO] [1754614907.135067867] [sigyn.teensy_bridge]: Status: Board1=connected, Board2=connected, Board3=disconnected
+[teensy_bridge_node-11] [WARN] [1754614907.310839669] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614907.519849190] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614907.722744841] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614907.985389928] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614908.223648386] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614908.452326253] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614908.681822495] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614908.929655831] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614909.048309082] [rviz2]: Message Filter dropping message: frame 'lidar_frame_top_lidar' at time 1754614892.000 for reason 'discarding message because the queue is full'
+[teensy_bridge_node-11] [WARN] [1754614909.150644258] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614909.385761063] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614909.612929729] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614909.839886863] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614910.092752669] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614910.337851217] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[rviz2-12] [INFO] [1754614910.384339513] [rviz2]: Trying to create a map of size 59 x 59 using 1 swatches
+[teensy_bridge_node-11] [WARN] [1754614910.574552164] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614910.803276536] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614911.033783971] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614911.262650979] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614911.476995837] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614911.487127972] [sigyn.teensy_bridge]: E-STOP TRIGGERED: MOTOR_RUNAWAY - Motor 1 runaway detected
+[teensy_bridge_node-11] [WARN] [1754614911.691165483] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614911.919201933] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614912.138318741] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected
+[teensy_bridge_node-11] [WARN] [1754614912.347417485] [sigyn.teensy_bridge]: E-STOP TRIGGERED: VL53L0X_OBSTACLE - Critical obstacle detected

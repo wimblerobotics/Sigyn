@@ -79,7 +79,4 @@ Docker/Sigyn/run.sh
 Docker/Sigyn/DEVELOPMENT.md
 Docker/Sigyn/TROUBLESHOOTING.md
 
-browse.vc.db
-browse.vc.db-shm
-browse.vc.db-wal
-
+browse*.db
