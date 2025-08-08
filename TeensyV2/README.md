@@ -2,7 +2,21 @@
 
 ## Overview
 
-TeensyV2 is a professionally designed, real-time embedded control system for the Sigyn autonomous robot. Built on a modular ar### Directory Structure
+TeensyV2 is a modular, real-time embedded control system for the Sigyn robot, spanning multiple Teensy 4.1 boards with shared core libraries.
+
+- Modular architecture with automatic module registration
+- Real-time performance with microsecond timing and violation detection
+- Safety-first design with multi-layer E-stop coordination
+- PlatformIO-based builds for reproducible firmware across boards
+
+For detailed docs, see:
+- docs/Architecture.md
+- docs/Config.md
+- docs/ModuleSystem.md
+- docs/Performance.md
+- docs/SerialProtocol.md
+
+### Directory Structure
 
 ```
 TeensyV2/
@@ -15,7 +29,7 @@ TeensyV2/
 ├── common/                     # Shared code across all boards
 │   ├── core/                   # Core framework (Module, SerialManager, etc.)
 │   ├── safety/                 # Safety and E-stop coordinationt provides high-performance sensor monitoring, motor control, and comprehensive safety systems across multiple Teensy 4.1 microcontrollers.
-
+```
 The system follows modern embedded software engineering practices including:
 - **Modular Architecture**: Clean separation of concerns with automatic module registration
 - **Real-Time Performance**: Strict timing guarantees with microsecond-precision monitoring
