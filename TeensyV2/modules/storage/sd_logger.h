@@ -50,6 +50,7 @@ struct SDLoggerConfig {
   uint32_t buffer_size = 4096;              ///< Write buffer size (bytes)
   uint32_t chunk_size = 1024;               ///< Write chunk size (bytes)
   uint32_t flush_interval_ms = 10000;       ///< Interval for forcing physical writes to SD card (data safety)
+  uint32_t max_write_slice_ms = 2;          ///< Max milliseconds to spend writing per loop to reduce blocking
   
   // Performance settings
   uint32_t card_detect_interval_ms = 5000;  ///< Card detection retry interval
@@ -177,6 +178,7 @@ private:
   void addToBuffer(const String& data);
   void writeBufferToFile();
   void clearBuffer();
+  void drainWriteBufferWithBudget(uint32_t max_ms);
   
   // Directory operations
   void updateDirectoryCache();

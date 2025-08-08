@@ -81,14 +81,12 @@ namespace sigyn_teensy {
             SerialManager::getInstance().sendMessage("DEBUG", msg);
         }
 
-        // Auto-flush buffer if needed - ensures data safety with periodic physical writes
-        if (write_buffer_.length() > 0 &&
-            (current_time - last_buffer_add_time_ms_ > config_.flush_interval_ms ||
-                write_buffer_.length() >= config_.buffer_size)) {
+        // Cooperatively drain buffer within a small time budget to reduce blocking
+        if (write_buffer_.length() > 0) {
             uint32_t now = millis();
-            flush();  // This will write to cache and force physical write if needed
+            drainWriteBufferWithBudget(config_.max_write_slice_ms);
             char msg[256];
-            snprintf(msg, sizeof(msg), "Auto-flush took %u ms", millis() - now);
+            snprintf(msg, sizeof(msg), "Write slice took %u ms", millis() - now);
             SerialManager::getInstance().sendMessage("DEBUG", msg);
         }
 
@@ -172,13 +170,17 @@ namespace sigyn_teensy {
     }
 
     void SDLogger::flush() {
+        // Best-effort non-blocking flush: drain with budget this cycle
         if (write_buffer_.length() > 0) {
-            writeBufferToFile();
+            drainWriteBufferWithBudget(config_.max_write_slice_ms);
         }
     }
 
     void SDLogger::forceFlush() {
-        flush();
+        // Forcefully drain entire buffer and sync to the card; can block
+        while (write_buffer_.length() > 0) {
+            writeBufferToFile();
+        }
         if (status_.file_open && log_file_) {
             log_file_.flush();
             status_.last_flush_time_ms = millis();
@@ -505,7 +507,11 @@ namespace sigyn_teensy {
             return;
         }
 
+        // Write at most a chunk to bound latency
         size_t bytes_to_write = write_buffer_.length();
+        if (bytes_to_write > config_.chunk_size) {
+            bytes_to_write = config_.chunk_size;
+        }
         size_t bytes_written = log_file_.write(write_buffer_.c_str(), bytes_to_write);
 
         if (bytes_written > 0) {
@@ -518,10 +524,11 @@ namespace sigyn_teensy {
             // Clear the written portion from buffer
             write_buffer_.remove(0, bytes_written);
             
-            // Force physical write if enough time has passed since last flush
+            // Opportunistic physical write if enough time has passed since last flush
             uint32_t current_time = millis();
             if (current_time - last_flush_time_ms_ > config_.flush_interval_ms) {
-                log_file_.flush();  // Force physical write to ensure data safety
+                // This flush can block; keep it infrequent by interval
+                log_file_.flush();  // Ensure data safety periodically
                 last_flush_time_ms_ = current_time;
                 status_.last_flush_time_ms = current_time;
                 status_.flush_count++;
@@ -532,6 +539,18 @@ namespace sigyn_teensy {
             status_.write_errors++;
             status_.card_initialized = false;
             logger_state_ = LoggerState::ERROR_RECOVERY;
+        }
+    }
+
+    void SDLogger::drainWriteBufferWithBudget(uint32_t max_ms) {
+        uint32_t start = millis();
+        if (max_ms == 0) return;
+        // Write chunks until we hit time budget or buffer is empty
+        while (write_buffer_.length() > 0) {
+            writeBufferToFile();
+            if (millis() - start >= max_ms) {
+                break;
+            }
         }
     }
 
