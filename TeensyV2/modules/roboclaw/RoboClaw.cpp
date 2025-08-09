@@ -1002,7 +1002,7 @@ bool RoboClaw::ReadTemp2(uint8_t address, uint16_t &temp) {
 }
 
 uint32_t RoboClaw::ReadError(uint8_t address, bool *valid) {
-  return Read4(address, GETERROR, valid);
+  return Read4(address, GETERROR, valid) & 0x3FFFFFFF; // Mask to 30 bits
 }
 
 bool RoboClaw::ReadEncoderModes(uint8_t address, uint8_t &M1mode,

@@ -74,11 +74,11 @@ namespace sigyn_teensy {
         // Periodic maintenance
         if (current_time - last_maintenance_time_ms_ > 1000) {
             uint32_t now = millis();
-            performPeriodicMaintenance();
+            performPeriodicMaintenance(); // Usually takes 1 ms, but I've seen as hight as 9 ms.
             last_maintenance_time_ms_ = current_time;
-            char msg[256];
-            snprintf(msg, sizeof(msg), "Periodic maintenance took %u ms", millis() - now);
-            SerialManager::getInstance().sendMessage("DEBUG", msg);
+            // char msg[256];
+            // snprintf(msg, sizeof(msg), "Periodic maintenance took %u ms", millis() - now);
+            // SerialManager::getInstance().sendMessage("DEBUG", msg);
         }
 
         // Cooperatively drain buffer within a small time budget to reduce blocking
