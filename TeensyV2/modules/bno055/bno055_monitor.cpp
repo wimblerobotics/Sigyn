@@ -256,16 +256,17 @@ void BNO055Monitor::loop() {
     
     // Report violations but throttle messages to avoid spam
     if ((now - last_violation_report) >= 5000) { // Report every 5 seconds max
-      char diag_msg[256];
+      char diag_msg[128];
       snprintf(diag_msg, sizeof(diag_msg), 
-               "{\"level\":\"WARN\",\"module\":\"BNO055Monitor\",\"message\":\"PERF_VIOLATION: %luus (target <2000us), violations=%lu, active_sensors=%d, multiplexer=%s\"}",
+               "BNO055Monitor PERF_VIOLATION: %luus (target <2000us), violations=%lu, "
+               "active_sensors=%d, multiplexer=%s",
                (unsigned long)execution_time_us, (unsigned long)violation_count,
                active_sensor_count_, multiplexer_available_ ? "OK" : "FAIL");
       SerialManager::getInstance().sendMessage("DIAG", diag_msg);
       
       // Additional diagnostic info about sensor states
       for (uint8_t i = 0; i < kMaxSensors; i++) {
-        char state_msg[256]; // Increased buffer size for JSON format
+        char state_msg[128]; // Increased buffer size
         const char* state_str = "UNKNOWN";
         switch (sensor_states_[i]) {
           case IMUState::NORMAL: state_str = "NORMAL"; break;
@@ -288,7 +289,8 @@ void BNO055Monitor::loop() {
         }
 
         snprintf(state_msg, sizeof(state_msg),
-                 "{\"level\":\"INFO\",\"module\":\"BNO055Monitor\",\"message\":\"sensor_%d: state=%s, read_state=%s, next_start_in=%ldms, calib=0x%02X\"}",
+                 "BNO055Monitor sensor_%d: state=%s, read_state=%s, "
+                 "next_start_in=%ldms, calib=0x%02X",
                  i, state_str, read_state_str,
                  (long)(next_sensor_start_time_[i] - now),
                  sensor_data_[i].calibration_status);

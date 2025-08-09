@@ -81,7 +81,7 @@ struct TemperatureMonitorConfig {
   uint32_t scan_interval_ms = 5000;         ///< Sensor discovery scan interval
   
   // Reporting intervals
-  uint32_t status_report_interval_ms = 2000; ///< Status reporting interval
+  uint32_t status_report_interval_ms = 1000; ///< Status reporting interval (1 second)
   uint32_t diagnostic_report_interval_ms = 10000; ///< Diagnostic reporting interval
   
   // Safety settings

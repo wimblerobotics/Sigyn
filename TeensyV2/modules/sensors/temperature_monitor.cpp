@@ -326,17 +326,9 @@ void TemperatureMonitor::updateTemperatureReadings() {
             updateTemperatureHistory(i, sensor_status_[i].temperature_c);
             total_system_readings_++;
             sensor_status_[i].total_readings++;
-            
-            // Send individual sensor message in JSON format for ROS2 bridge
-            String temp_msg = "{\"id\":" + String(i) + ",\"temp\":" + String(sensor_status_[i].temperature_c, 1) + ",\"status\":\"OK\"}";
-            SerialManager::getInstance().sendMessage("TEMP", temp_msg.c_str());
         } else {
             total_system_errors_++;
             sensor_status_[i].error_count++;
-            
-            // Send error message for failed sensor reading
-            String temp_msg = "{\"id\":" + String(i) + ",\"temp\":null,\"status\":\"ERROR\"}";
-            SerialManager::getInstance().sendMessage("TEMP", temp_msg.c_str());
         }
         
         sensor_status_[i].last_reading_time_ms = now;
@@ -615,30 +607,36 @@ void TemperatureMonitor::updatePerformanceStatistics() {
 }
 
 void TemperatureMonitor::sendStatusReports() {
-    // Send TEMPERATURE status message (JSON format)
-    String status_msg = "{";
-    status_msg += "\"total_sensors\":" + String(system_status_.total_sensors);
-    status_msg += ",\"active_sensors\":" + String(system_status_.active_sensors);
-    status_msg += ",\"avg_temp\":" + String(system_status_.average_temperature, 1);
-    status_msg += ",\"max_temp\":" + String(system_status_.highest_temperature, 1);
-    status_msg += ",\"min_temp\":" + String(system_status_.lowest_temperature, 1);
-    status_msg += ",\"hottest_sensor\":" + String(system_status_.hottest_sensor);
-    status_msg += ",\"system_warning\":" + String(system_status_.system_thermal_warning ? "true" : "false");
-    status_msg += ",\"system_critical\":" + String(system_status_.system_thermal_critical ? "true" : "false");
-    status_msg += ",\"temperatures\":[";
+    // Send aggregate TEMPERATURE message in JSON format (like VL53L0X)
+    String json = "{";
+    json += "\"total_sensors\":" + String(kMaxTemperatureSensors);
+    json += ",\"active_sensors\":" + String(system_status_.active_sensors);
     
-    for (uint8_t i = 0; i < config_.max_sensors && i < kMaxTemperatureSensors; i++) {
-        if (i > 0) status_msg += ",";
+    // Add temperatures array
+    json += ",\"temperatures\":[";
+    for (int i = 0; i < kMaxTemperatureSensors; i++) {
+        if (i > 0) json += ",";
         if (sensor_configured_[i] && sensor_status_[i].reading_valid) {
-            status_msg += String(sensor_status_[i].temperature_c, 1);
+            json += String(sensor_status_[i].temperature_c, 1);
         } else {
-            status_msg += "null";
+            json += "null";
         }
     }
+    json += "]";
     
-    status_msg += "]}";
+    // Add system statistics
+    json += ",\"avg_temp\":" + String(system_status_.average_temperature, 1);
+    json += ",\"max_temp\":" + String(system_status_.highest_temperature, 1);
+    json += ",\"min_temp\":" + String(system_status_.lowest_temperature, 1);
+    json += ",\"hottest_sensor\":" + String(system_status_.hottest_sensor);
+    json += ",\"system_warning\":" + String(system_status_.system_thermal_warning ? "true" : "false");
+    json += ",\"system_critical\":" + String(system_status_.system_thermal_critical ? "true" : "false");
+    json += ",\"rate_hz\":" + String(system_status_.system_reading_rate_hz, 1);
+    json += ",\"readings\":" + String(system_status_.total_readings);
+    json += ",\"errors\":" + String(system_status_.total_errors);
+    json += "}";
     
-    SerialManager::getInstance().sendMessage("TEMPERATURE", status_msg.c_str());
+    SerialManager::getInstance().sendMessage("TEMPERATURE", json.c_str());
 }
 
 void TemperatureMonitor::sendDiagnosticReports() {
@@ -650,9 +648,8 @@ void TemperatureMonitor::sendDiagnosticReports() {
     diag_msg += ",warning_time:" + String(system_status_.time_in_warning_ms);
     diag_msg += ",critical_time:" + String(system_status_.time_in_critical_ms);
     
-    // Convert to JSON format for diagnostic message
-    String json_msg = "{\"level\":\"INFO\",\"module\":\"TemperatureMonitor\",\"message\":\"Diagnostic report\",\"details\":\"" + diag_msg + "\"}";
-    SerialManager::getInstance().sendMessage("DIAG", json_msg.c_str());
+    String full_msg = "level:INFO,module:TemperatureMonitor,msg:Diagnostic report,details:" + diag_msg;
+    SerialManager::getInstance().sendMessage("DIAG", full_msg.c_str());
 }
 
 } // namespace sigyn_teensy
