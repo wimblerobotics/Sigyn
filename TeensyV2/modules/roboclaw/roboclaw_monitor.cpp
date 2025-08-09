@@ -248,7 +248,6 @@ void RoboClawMonitor::setVelocityCommand(float linear_x, float angular_z) {
   // Convert velocity to motor speeds
   int32_t m1_qpps, m2_qpps;
   velocityToMotorSpeeds(linear_x, angular_z, m1_qpps, m2_qpps);
-  
   setMotorSpeeds(m1_qpps, m2_qpps);
 }
 
@@ -304,26 +303,6 @@ void RoboClawMonitor::resetErrors() {
     } else {
       SerialManager::getInstance().sendMessage("WARN", "RoboClawMonitor: Encoder reset failed");
     }
-    
-    // Method 3: Send a brief opposite direction pulse to clear motor driver state
-    // This can help clear latched overcurrent conditions
-    delay(100); // Allow previous commands to complete
-    
-    // Send very brief, low-speed pulse in both directions for M1
-    roboclaw_.SpeedM1(config_.address, 32);   // Very slow forward
-    delay(50);
-    roboclaw_.SpeedM1(config_.address, -32);  // Very slow reverse  
-    delay(50);
-    roboclaw_.SpeedM1(config_.address, 0);    // Stop
-    
-    // Same for M2 to be safe
-    roboclaw_.SpeedM2(config_.address, 32);   
-    delay(50);
-    roboclaw_.SpeedM2(config_.address, -32);  
-    delay(50);
-    roboclaw_.SpeedM2(config_.address, 0);    
-    
-    delay(100); // Allow error state to clear
     
     // Check if error cleared
     bool valid;
@@ -457,19 +436,17 @@ void RoboClawMonitor::executeMotorCommand(int32_t m1_qpps, int32_t m2_qpps) {
     return;
   }
   
-  // Calculate distances for move command
   uint32_t m1_max_distance = abs(m1_qpps * MAX_SECONDS_COMMANDED_TRAVEL);
   uint32_t m2_max_distance = abs(m2_qpps * MAX_SECONDS_COMMANDED_TRAVEL);
   
-  // Send command to RoboClaw
   bool success = roboclaw_.SpeedAccelDistanceM1M2(
     config_.address,
     config_.default_acceleration,
     m1_qpps, m1_max_distance,
     m2_qpps, m2_max_distance,
-    1  // Flag
+    1  // Flag: 1 = buffered mode
   );
-  
+    
   if (!success) {
     handleCommunicationError();
   }
