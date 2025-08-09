@@ -20,12 +20,6 @@ constexpr uint32_t MAX_ACCELERATION_QPPS2 = 3000;
 constexpr float MAX_SECONDS_COMMANDED_TRAVEL = 0.05f;
 constexpr uint32_t MAX_MS_TO_WAIT_FOR_CMD_VEL_BEFORE_STOP_MOTORS = 200;
 
-// Hardware configuration
-constexpr uint8_t ROBOCLAW_ADDRESS = 0x80;
-constexpr uint32_t ROBOCLAW_TIMEOUT_US = 10000;
-constexpr uint32_t ROBOCLAW_BAUD_RATE = 38400;
-constexpr const char* ROBOCLAW_SOFTWARE_VERSION = "USB Roboclaw 2x15a v4.2.8\n";
-
 // Serial port (define this based on your hardware setup)
 #define ROBOCLAW_SERIAL Serial7
 
@@ -61,11 +55,7 @@ RoboClawMonitor::RoboClawMonitor()
       total_communication_errors_(0),
       total_safety_violations_(0) {
   
-  // Initialize configuration with sensible defaults
-  config_.address = ROBOCLAW_ADDRESS;
-  config_.timeout_us = ROBOCLAW_TIMEOUT_US;
-  config_.baud_rate = ROBOCLAW_BAUD_RATE;
-  
+ 
   // Set hardware-specific defaults
   config_.max_speed_qpps = MAX_MOTOR_SPEED_QPPS;
   config_.default_acceleration = MAX_ACCELERATION_QPPS2;

@@ -44,7 +44,7 @@ struct RoboClawConfig {
   // Communication settings
   uint8_t address = 0x80;              ///< RoboClaw device address
   uint32_t timeout_us = 100000;        ///< Communication timeout (microseconds)
-  uint32_t baud_rate = 115200;         ///< Serial communication baud rate
+  uint32_t baud_rate = 230400;         ///< Serial communication baud rate
   
   // Safety thresholds
   float max_current_m1 = 15.0f;        ///< Maximum current for motor 1 (Amps)
