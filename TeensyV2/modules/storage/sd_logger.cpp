@@ -85,9 +85,6 @@ namespace sigyn_teensy {
         if (write_buffer_.length() > 0) {
             uint32_t now = millis();
             drainWriteBufferWithBudget(config_.max_write_slice_ms);
-            char msg[256];
-            snprintf(msg, sizeof(msg), "Write slice took %u ms", millis() - now);
-            SerialManager::getInstance().sendMessage("DEBUG", msg);
         }
 
         // Update performance statistics
