@@ -16,6 +16,7 @@ namespace sigyn_to_sensor_v2 {
 
 MessageParser::MessageParser(rclcpp::Logger logger)
     : logger_(logger),
+      current_board_id_(0),
       total_messages_received_(0),
       total_messages_parsed_(0),
       total_parsing_errors_(0),
@@ -56,20 +57,51 @@ bool MessageParser::ParseMessage(const std::string& message, rclcpp::Time timest
     // Get message content after the colon
     std::string content = message.substr(colon_pos + 1);
     
-    // Parse content based on message type
+    RCLCPP_DEBUG(logger_, "ParseMessage: type=%d, content='%s'", static_cast<int>(type), content.c_str());
+    
+    // Parse content based on message type - now most messages use JSON format
     if (type == MessageType::PERFORMANCE || type == MessageType::VL53L0X || 
         type == MessageType::ROBOCLAW ||
-        (type == MessageType::TEMPERATURE && content.find('{') == 0)) {
-      // PERF, VL53L0X, ROBOCLAW, and TEMPERATURE (array format) messages use JSON format
-      data = ParseJsonContent(content);
+        type == MessageType::BATTERY || type == MessageType::IMU || 
+        type == MessageType::ODOM || type == MessageType::TEMPERATURE ||
+        (content.find('{') == 0)) {
+      // JSON format messages (most messages now use this format)
+      RCLCPP_DEBUG(logger_, "ParseMessage: Using JSON parser for content");
+      data = ParseComprehensiveJsonContent(content);
     } else if (type == MessageType::DIAGNOSTIC || type == MessageType::INIT || type == MessageType::CRITICAL) {
-      // DIAG, INIT, and CRITICAL messages are free-form diagnostic text
-      data["message"] = content;
-      RCLCPP_DEBUG(logger_, "%s: %s", 
-                   message.substr(0, colon_pos).c_str(), content.c_str());
+      // Check if this is a structured diagnostic message (DIAG:) or free-form (DEBUG:, etc.)
+      std::string type_prefix = message.substr(0, colon_pos);
+      // Remove board ID from type prefix for comparison
+      if (!type_prefix.empty() && std::isdigit(type_prefix.back())) {
+        type_prefix = type_prefix.substr(0, type_prefix.length() - 1);
+      }
+      
+      RCLCPP_DEBUG(logger_, "ParseMessage: Diagnostic type_prefix='%s', full_message='%s'", type_prefix.c_str(), message.c_str());
+      
+      if (type_prefix == "DIAG") {
+        // Structured diagnostic messages can be JSON or key:value format
+        if (content.find('{') == 0) {
+          RCLCPP_DEBUG(logger_, "ParseMessage: Parsing DIAG as JSON");
+          data = ParseComprehensiveJsonContent(content);
+        } else {
+          RCLCPP_DEBUG(logger_, "ParseMessage: Parsing DIAG as key:value");
+          data = ParseKeyValuePairs(content);
+        }
+      } else {
+        // DEBUG, INFO, ERROR, etc. messages are free-form diagnostic text
+        RCLCPP_DEBUG(logger_, "ParseMessage: Free-form diagnostic message, content='%s'", content.c_str());
+        data["message"] = content;
+        RCLCPP_DEBUG(logger_, "%s: %s", type_prefix.c_str(), content.c_str());
+      }
     } else {
-      // All other messages (including TEMP individual format) use key:value format
+      // Fallback to key:value format for any remaining messages
+      RCLCPP_DEBUG(logger_, "ParseMessage: Using key:value parser for content");
       data = ParseKeyValuePairs(content);
+    }
+    
+    RCLCPP_DEBUG(logger_, "ParseMessage: Parsed data has %zu fields", data.size());
+    for (const auto& kv : data) {
+      RCLCPP_DEBUG(logger_, "  Data field: '%s' = '%s'", kv.first.c_str(), kv.second.c_str());
     }
     
     // Update statistics
@@ -400,30 +432,98 @@ EstopData MessageParser::ParseEstopData(const MessageData& data) const {
 DiagnosticData MessageParser::ParseDiagnosticData(const MessageData& data) const {
   DiagnosticData diag;
   
+  // Debug: Log the diagnostic data being parsed
+  RCLCPP_DEBUG(logger_, "ParseDiagnosticData: Parsing data with %zu fields", data.size());
+  std::string debug_fields = "Fields: ";
+  for (const auto& kv : data) {
+    debug_fields += "['" + kv.first + "'='" + kv.second + "'] ";
+  }
+  RCLCPP_DEBUG(logger_, "%s", debug_fields.c_str());
+  
   try {
-    auto it = data.find("level");
-    if (it != data.end()) {
-      diag.level = it->second;
-    }
+    // Check if this is structured diagnostic data (level/module/message format)
+    auto level_it = data.find("level");
+    auto module_it = data.find("module");
+    auto msg_it = data.find("msg");
+    auto message_it = data.find("message");
     
-    it = data.find("module");
-    if (it != data.end()) {
-      diag.module = it->second;
-    }
-    
-    it = data.find("msg");
-    if (it != data.end()) {
-      diag.message = it->second;
-    }
-    
-    it = data.find("details");
-    if (it != data.end()) {
-      diag.details = it->second;
-    }
-    
-    it = data.find("time");
-    if (it != data.end()) {
-      diag.timestamp = static_cast<uint64_t>(SafeStringToInt(it->second, 0));
+    if (level_it != data.end() || module_it != data.end() || msg_it != data.end() || message_it != data.end()) {
+      // Structured diagnostic data
+      if (level_it != data.end()) {
+        diag.level = level_it->second;
+      }
+      
+      if (module_it != data.end()) {
+        diag.module = module_it->second;
+      } else {
+        // Default module name for diagnostic messages without explicit module
+        diag.module = "teensy_sensor_board_" + std::to_string(current_board_id_);
+      }
+      
+      if (msg_it != data.end()) {
+        diag.message = msg_it->second;
+      } else if (message_it != data.end()) {
+        diag.message = message_it->second;
+      }
+      
+      auto details_it = data.find("details");
+      if (details_it != data.end()) {
+        diag.details = details_it->second;
+      }
+      
+      auto time_it = data.find("time");
+      if (time_it != data.end()) {
+        diag.timestamp = static_cast<uint64_t>(SafeStringToInt(time_it->second, 0));
+      }
+    } else {
+      // Simple diagnostic message (DIAG: free-form text)
+      auto message_it = data.find("message");
+      if (message_it != data.end()) {
+        // Use the free-form message as both module name and message content
+        std::string full_message = message_it->second;
+        
+        // Try to extract module name from message (e.g., "BNO055Monitor PERF_VIOLATION: ...")
+        size_t first_space = full_message.find(' ');
+        if (first_space != std::string::npos) {
+          diag.module = full_message.substr(0, first_space);
+          diag.message = full_message;
+        } else {
+          diag.module = "teensy_sensor";
+          diag.message = full_message;
+        }
+        
+        // Default level to INFO for simple messages
+        diag.level = "INFO";
+      } else {
+        // Check if this is a performance data message (has freq, mviol, etc.)
+        auto freq_it = data.find("freq");
+        auto mviol_it = data.find("mviol");
+        auto fviol_it = data.find("fviol");
+        
+        if (freq_it != data.end() || mviol_it != data.end() || fviol_it != data.end()) {
+          // This is performance data - construct a diagnostic message from it
+          diag.module = "PerformanceMonitor";
+          diag.level = "INFO";
+          
+          // Build message from performance data
+          std::string perf_msg = "Performance: ";
+          if (freq_it != data.end()) {
+            perf_msg += "freq=" + freq_it->second + "Hz ";
+          }
+          if (mviol_it != data.end()) {
+            perf_msg += "module_violations=" + mviol_it->second + " ";
+          }
+          if (fviol_it != data.end()) {
+            perf_msg += "freq_violations=" + fviol_it->second;
+          }
+          
+          diag.message = perf_msg;
+        } else {
+          RCLCPP_WARN(logger_, "Diagnostic data has no message content and no recognizable performance data");
+          diag.valid = false;
+          return diag;
+        }
+      }
     }
     
     diag.valid = true;
@@ -514,7 +614,13 @@ diagnostic_msgs::msg::DiagnosticArray MessageParser::ToDiagnosticArrayMsg(const 
   diagnostic_msgs::msg::DiagnosticStatus status;
   status.name = data.module;
   status.message = data.message;
-  status.hardware_id = "teensy_v2";
+  
+  // Include board ID in hardware_id
+  if (current_board_id_ > 0) {
+    status.hardware_id = "teensy_v2_board_" + std::to_string(current_board_id_);
+  } else {
+    status.hardware_id = "teensy_v2";
+  }
   
   // Map level string to enum
   if (data.level == "INFO") {
@@ -525,6 +631,14 @@ diagnostic_msgs::msg::DiagnosticArray MessageParser::ToDiagnosticArrayMsg(const 
     status.level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
   } else {
     status.level = diagnostic_msgs::msg::DiagnosticStatus::STALE;
+  }
+  
+  // Add board ID as a key-value pair
+  if (current_board_id_ > 0) {
+    diagnostic_msgs::msg::KeyValue board_kv;
+    board_kv.key = "board_id";
+    board_kv.value = std::to_string(current_board_id_);
+    status.values.push_back(board_kv);
   }
   
   // Add details as key-value pairs
@@ -606,7 +720,23 @@ MessageType MessageParser::ParseMessageType(const std::string& message) const {
     return MessageType::UNKNOWN;
   }
   
-  std::string type_str = message.substr(0, colon_pos);
+  std::string type_str_with_id = message.substr(0, colon_pos);
+  
+  // Extract board ID if present (messages now come as ODOM1:, BATT2:, etc.)
+  std::string type_str = type_str_with_id;
+  int board_id = 0;
+  
+  // Check if the type string ends with a digit (board ID)
+  if (!type_str_with_id.empty() && std::isdigit(type_str_with_id.back())) {
+    board_id = type_str_with_id.back() - '0';
+    type_str = type_str_with_id.substr(0, type_str_with_id.length() - 1);
+    
+    // Store the extracted board ID for use in message processing
+    current_board_id_ = board_id;
+  } else {
+    current_board_id_ = 0; // Unknown/unspecified board
+  }
+  
   return StringToMessageType(type_str);
 }
 
@@ -646,13 +776,18 @@ MessageData MessageParser::ParseKeyValuePairs(const std::string& content) const 
 }
 
 bool MessageParser::ValidateMessage(const std::string& message) const {
+  // Debug: Log all messages being validated
+  RCLCPP_DEBUG(logger_, "ValidateMessage: Checking message: '%s'", message.c_str());
+  
   if (message.empty() || message.length() > 2048) {
+    RCLCPP_DEBUG(logger_, "ValidateMessage: FAILED - empty or too long (length: %zu)", message.length());
     return false;
   }
   
   // Check for colon separator - all valid messages must have one
   size_t colon_pos = message.find(':');
   if (colon_pos == std::string::npos || colon_pos == 0) {
+    RCLCPP_DEBUG(logger_, "ValidateMessage: FAILED - no colon separator found");
     return false;  // Reject messages without colons or with colon as first character
   }
   
@@ -660,22 +795,36 @@ bool MessageParser::ValidateMessage(const std::string& message) const {
   std::string type_str = message.substr(0, colon_pos);
   std::string content = message.substr(colon_pos + 1);
   
+  RCLCPP_DEBUG(logger_, "ValidateMessage: type_str='%s', content='%s'", type_str.c_str(), content.c_str());
+  
+  // Extract base message type (remove board ID suffix if present)
+  std::string base_type = type_str;
+  if (!type_str.empty() && std::isdigit(type_str.back())) {
+    // Remove board ID digit from the end (e.g., "ODOM1" -> "ODOM")
+    base_type = type_str.substr(0, type_str.length() - 1);
+  }
+  
+  RCLCPP_DEBUG(logger_, "ValidateMessage: base_type='%s'", base_type.c_str());
+  
   // Check if message type is recognized
-  MessageType type = StringToMessageType(type_str);
+  MessageType type = StringToMessageType(base_type);
   if (type == MessageType::UNKNOWN) {
+    RCLCPP_DEBUG(logger_, "ValidateMessage: FAILED - unknown message type '%s'", base_type.c_str());
     return false;
   }
   
   // JSON messages should start with { 
-  if (type_str == "PERF" || type_str == "VL53L0X" || type_str == "ROBOCLAW" || 
-      (type_str == "TEMPERATURE" && !content.empty() && content[0] == '{')) {
+  if (base_type == "PERF" || base_type == "VL53L0X" || base_type == "ROBOCLAW" || 
+      base_type == "BATT" || base_type == "IMU" || base_type == "ODOM" || 
+      base_type == "TEMP" || base_type == "TEMPERATURE" ||
+      (content.find('{') == 0)) {
     return !content.empty() && content[0] == '{';
   } 
   
   // Diagnostic messages are free-form text (but must have recognized type)
-  if (type_str == "DIAG" || type_str == "WARNING" || type_str == "DEBUG" || 
-      type_str == "INFO" || type_str == "ERROR" || type_str == "CRITICAL" || 
-      type_str == "INIT") {
+  if (base_type == "DIAG" || base_type == "WARNING" || base_type == "DEBUG" || 
+      base_type == "INFO" || base_type == "ERROR" || base_type == "CRITICAL" || 
+      base_type == "INIT") {
     return !content.empty();
   }
   
@@ -781,6 +930,106 @@ std::vector<std::string> MessageParser::ParseCommaSeparatedList(const std::strin
   }
   
   return result;
+}
+
+MessageData MessageParser::ParseComprehensiveJsonContent(const std::string& content) const {
+  MessageData data;
+  
+  if (content.empty() || content.front() != '{' || content.back() != '}') {
+    return data;
+  }
+  
+  // Store raw JSON for debugging
+  data["json"] = content;
+  
+  try {
+    // Simple JSON parser - extract key-value pairs from {"key":value,"key2":"value2",...}
+    std::string json_body = content.substr(1, content.length() - 2); // Remove { and }
+    
+    size_t pos = 0;
+    while (pos < json_body.length()) {
+      // Find key start
+      size_t key_start = json_body.find('"', pos);
+      if (key_start == std::string::npos) break;
+      key_start++; // Skip opening quote
+      
+      // Find key end
+      size_t key_end = json_body.find('"', key_start);
+      if (key_end == std::string::npos) break;
+      
+      std::string key = json_body.substr(key_start, key_end - key_start);
+      
+      // Find colon
+      size_t colon_pos = json_body.find(':', key_end);
+      if (colon_pos == std::string::npos) break;
+      colon_pos++; // Skip colon
+      
+      // Skip whitespace after colon
+      while (colon_pos < json_body.length() && 
+             (json_body[colon_pos] == ' ' || json_body[colon_pos] == '\t')) {
+        colon_pos++;
+      }
+      
+      // Parse value
+      std::string value;
+      if (colon_pos < json_body.length()) {
+        if (json_body[colon_pos] == '"') {
+          // String value
+          colon_pos++; // Skip opening quote
+          size_t value_end = json_body.find('"', colon_pos);
+          if (value_end != std::string::npos) {
+            value = json_body.substr(colon_pos, value_end - colon_pos);
+            pos = value_end + 1;
+          } else {
+            break;
+          }
+        } else if (json_body[colon_pos] == '[') {
+          // Array value - find matching closing bracket
+          size_t bracket_count = 1;
+          size_t array_start = colon_pos;
+          colon_pos++; // Skip opening bracket
+          
+          while (colon_pos < json_body.length() && bracket_count > 0) {
+            if (json_body[colon_pos] == '[') bracket_count++;
+            else if (json_body[colon_pos] == ']') bracket_count--;
+            colon_pos++;
+          }
+          
+          if (bracket_count == 0) {
+            value = json_body.substr(array_start, colon_pos - array_start);
+            pos = colon_pos;
+          } else {
+            break;
+          }
+        } else {
+          // Numeric or boolean value - find next comma or end
+          size_t value_end = json_body.find(',', colon_pos);
+          if (value_end == std::string::npos) {
+            value_end = json_body.length();
+          }
+          value = json_body.substr(colon_pos, value_end - colon_pos);
+          pos = value_end;
+        }
+        
+        // Store the key-value pair
+        data[key] = value;
+      }
+      
+      // Find next key (skip comma and whitespace)
+      while (pos < json_body.length() && 
+             (json_body[pos] == ',' || json_body[pos] == ' ' || json_body[pos] == '\t')) {
+        pos++;
+      }
+    }
+    
+  } catch (const std::exception& e) {
+    RCLCPP_WARN(logger_, "Error parsing JSON content: %s", e.what());
+    // Clear extracted data but keep raw JSON for debugging
+    data.clear();
+    data["json"] = content;
+  }
+  
+  return data;
 }
 
 MessageData MessageParser::ParseJsonContent(const std::string& content) const {

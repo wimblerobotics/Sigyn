@@ -256,17 +256,16 @@ void BNO055Monitor::loop() {
     
     // Report violations but throttle messages to avoid spam
     if ((now - last_violation_report) >= 5000) { // Report every 5 seconds max
-      char diag_msg[128];
+      char diag_msg[256];
       snprintf(diag_msg, sizeof(diag_msg), 
-               "BNO055Monitor PERF_VIOLATION: %luus (target <2000us), violations=%lu, "
-               "active_sensors=%d, multiplexer=%s",
+               "{\"level\":\"WARN\",\"module\":\"BNO055Monitor\",\"message\":\"PERF_VIOLATION: %luus (target <2000us), violations=%lu, active_sensors=%d, multiplexer=%s\"}",
                (unsigned long)execution_time_us, (unsigned long)violation_count,
                active_sensor_count_, multiplexer_available_ ? "OK" : "FAIL");
       SerialManager::getInstance().sendMessage("DIAG", diag_msg);
       
       // Additional diagnostic info about sensor states
       for (uint8_t i = 0; i < kMaxSensors; i++) {
-        char state_msg[128]; // Increased buffer size
+        char state_msg[256]; // Increased buffer size for JSON format
         const char* state_str = "UNKNOWN";
         switch (sensor_states_[i]) {
           case IMUState::NORMAL: state_str = "NORMAL"; break;
@@ -289,8 +288,7 @@ void BNO055Monitor::loop() {
         }
 
         snprintf(state_msg, sizeof(state_msg),
-                 "BNO055Monitor sensor_%d: state=%s, read_state=%s, "
-                 "next_start_in=%ldms, calib=0x%02X",
+                 "{\"level\":\"INFO\",\"module\":\"BNO055Monitor\",\"message\":\"sensor_%d: state=%s, read_state=%s, next_start_in=%ldms, calib=0x%02X\"}",
                  i, state_str, read_state_str,
                  (long)(next_sensor_start_time_[i] - now),
                  sensor_data_[i].calibration_status);
@@ -599,10 +597,10 @@ void BNO055Monitor::sendStatusMessage(uint8_t sensor_id) {
 
   const IMUData& data = sensor_data_[sensor_id];
 
-  // Create simplified status message with quaternion only
+  // Create JSON status message with quaternion only
   char message[128];
   snprintf(message, sizeof(message),
-           "id:%d,qx:%.4f,qy:%.4f,qz:%.4f,qw:%.4f",
+           "{\"id\":%d,\"qx\":%.4f,\"qy\":%.4f,\"qz\":%.4f,\"qw\":%.4f}",
            sensor_id,
            data.qx, data.qy, data.qz, data.qw);
 

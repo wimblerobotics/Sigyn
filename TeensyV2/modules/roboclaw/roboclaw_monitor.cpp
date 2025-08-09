@@ -67,7 +67,7 @@ RoboClawMonitor& RoboClawMonitor::getInstance() {
 }
 
 void RoboClawMonitor::setup() {
-  SerialManager::getInstance().sendMessage("INFO", "RoboClawMonitor: Starting initialization");
+  SerialManager::getInstance().sendDiagnostic("INFO", "RoboClawMonitor", "Starting initialization");
   
   // Initialize serial communication
   roboclaw_.begin(config_.baud_rate);
@@ -80,10 +80,10 @@ void RoboClawMonitor::setup() {
   
   if (initializeRoboClaw()) {
     connection_state_ = ConnectionState::CONNECTED;
-    SerialManager::getInstance().sendMessage("INFO", "RoboClawMonitor: Initialization successful");
+    SerialManager::getInstance().sendDiagnostic("INFO", "RoboClawMonitor", "Initialization successful");
   } else {
     connection_state_ = ConnectionState::ERROR_RECOVERY;
-    SerialManager::getInstance().sendMessage("ERROR", "RoboClawMonitor: Initialization failed");
+    SerialManager::getInstance().sendDiagnostic("ERROR", "RoboClawMonitor", "Initialization failed");
   }
   
   // Initialize timing
@@ -735,11 +735,11 @@ void RoboClawMonitor::updateOdometry() {
     prev_encoder_m2_ = motor2_status_.encoder_count;
     last_odom_update_time_us_ = current_time_us;
     
-    // Send zero-velocity ODOM to maintain ROS connection
+    // Send zero-velocity ODOM to maintain ROS connection (JSON format)
     char msg[256];
     float half_theta = current_pose_.theta / 2.0f;
     snprintf(msg, sizeof(msg),
-             "px=%.3f,py=%.3f,ox=%.3f,oy=%.3f,oz=%.3f,ow=%.3f,vx=%.3f,vy=%.3f,wz=%.3f",
+             "{\"px\":%.3f,\"py\":%.3f,\"ox\":%.3f,\"oy\":%.3f,\"oz\":%.3f,\"ow\":%.3f,\"vx\":%.3f,\"vy\":%.3f,\"wz\":%.3f}",
              current_pose_.x, current_pose_.y, 0.0f, 0.0f, sin(half_theta), cos(half_theta),
              0.0f, 0.0f, 0.0f);
     SerialManager::getInstance().sendMessage("ODOM", msg);
@@ -821,7 +821,7 @@ void RoboClawMonitor::updateOdometry() {
   
   char msg[256];
   snprintf(msg, sizeof(msg),
-           "px=%.3f,py=%.3f,ox=%.3f,oy=%.3f,oz=%.3f,ow=%.3f,vx=%.3f,vy=%.3f,wz=%.3f",
+           "{\"px\":%.3f,\"py\":%.3f,\"ox\":%.3f,\"oy\":%.3f,\"oz\":%.3f,\"ow\":%.3f,\"vx\":%.3f,\"vy\":%.3f,\"wz\":%.3f}",
            current_pose_.x, current_pose_.y, q[1], q[2], q[3], q[0],
            current_velocity_.linear_x, 0.0f, current_velocity_.angular_z);
   SerialManager::getInstance().sendMessage("ODOM", msg);
@@ -1030,8 +1030,9 @@ void RoboClawMonitor::sendDiagnosticReports() {
   diag_msg += ",connection_state:" + String(static_cast<int>(connection_state_));
   diag_msg += ",emergency_stop:" + String(emergency_stop_active_ ? "true" : "false");
   
-  SerialManager::getInstance().sendMessage("DIAG", 
-    ("level:INFO,module:RoboClawMonitor,msg:Diagnostic report,details:" + diag_msg).c_str());
+  // Convert to JSON format for diagnostic message
+  String json_msg = "{\"level\":\"INFO\",\"module\":\"RoboClawMonitor\",\"message\":\"Diagnostic report\",\"details\":\"" + diag_msg + "\"}";
+  SerialManager::getInstance().sendMessage("DIAG", json_msg.c_str());
 }
 
 String RoboClawMonitor::decodeErrorStatus(uint32_t error_status) const {

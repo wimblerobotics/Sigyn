@@ -114,6 +114,28 @@ class SerialManager {
   void sendMessage(const char* type, const char* payload);
 
   /**
+   * @brief Send a diagnostic message in JSON format.
+   *
+   * Helper function to format diagnostic messages (INFO, DEBUG, ERROR, etc.)
+   * in standardized JSON format.
+   *
+   * @param[in] level Message level ("INFO", "DEBUG", "ERROR", etc.)
+   * @param[in] module Module name that generated the message
+   * @param[in] message The diagnostic message content
+   */
+  void sendDiagnostic(const char* level, const char* module, const char* message);
+
+  /**
+   * @brief Send a simple status message in JSON format.
+   *
+   * Helper function for simple status messages without additional data.
+   *
+   * @param[in] level Message level ("INFO", "DEBUG", "ERROR", etc.)
+   * @param[in] message The status message content
+   */
+  void sendStatus(const char* level, const char* message);
+
+  /**
    * @brief Process all incoming messages from the serial buffer.
    *
    * Reads available data, parses complete messages, and routes them

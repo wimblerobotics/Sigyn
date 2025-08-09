@@ -21,6 +21,9 @@ using namespace std::chrono_literals;
 
 namespace sigyn_to_sensor_v2 {
 
+// Thread-local variable to track current board context
+thread_local int current_board_id = 0;
+
 TeensyBridge::TeensyBridge() 
     : Node("teensy_bridge"),
       serial_running_(false),
@@ -404,7 +407,8 @@ void TeensyBridge::SerialReaderThread() {
             line_buffer1.erase(0, pos + 1);
             
             if (!line.empty()) {
-              // Parse message
+              // Set board context and parse message
+              current_board_id = 1;
               auto timestamp = this->now();
               if (!message_parser_->ParseMessage(line, timestamp)) {
                 RCLCPP_WARN(this->get_logger(), "Failed to parse message from board 1: %s", line.c_str());
@@ -430,7 +434,8 @@ void TeensyBridge::SerialReaderThread() {
             line_buffer2.erase(0, pos + 1);
             
             if (!line.empty()) {
-              // Parse message
+              // Set board context and parse message
+              current_board_id = 2;
               auto timestamp = this->now();
               if (!message_parser_->ParseMessage(line, timestamp)) {
                 RCLCPP_WARN(this->get_logger(), "Failed to parse message from board 2: %s", line.c_str());
@@ -456,7 +461,8 @@ void TeensyBridge::SerialReaderThread() {
             line_buffer3.erase(0, pos + 1);
             
             if (!line.empty()) {
-              // Parse message
+              // Set board context and parse message
+              current_board_id = 3;
               auto timestamp = this->now();
               if (!message_parser_->ParseMessage(line, timestamp)) {
                 RCLCPP_WARN(this->get_logger(), "Failed to parse message from board 3: %s", line.c_str());
@@ -518,86 +524,12 @@ void TeensyBridge::HandleIMUMessage(const MessageData& data, rclcpp::Time timest
 }
 
 void TeensyBridge::HandlePerformanceMessage(const MessageData& data, rclcpp::Time timestamp) {
-  // Parse and publish detailed performance data
-  auto freq_it = data.find("freq");
-  auto target_freq_it = data.find("target_freq");
-  auto mod_viol_it = data.find("mod_viol");
-  auto freq_viol_it = data.find("freq_viol");
-  auto json_it = data.find("json");
-  
-  if (freq_it != data.end() && !freq_it->second.empty()) {
-    try {
-      double frequency_hz = std::stod(freq_it->second);
-      
-      RCLCPP_DEBUG(this->get_logger(), "Performance: freq=%.1f Hz", frequency_hz);
-      
-      // Create and publish diagnostic message with performance data
-      auto diag_msg = diagnostic_msgs::msg::DiagnosticArray();
-      diag_msg.header.stamp = timestamp;
-      
-      // Overall system performance status
-      auto system_status = diagnostic_msgs::msg::DiagnosticStatus();
-      system_status.name = "teensy_system_performance";
-      system_status.hardware_id = "teensy_v2";
-      
-      // Determine status level based on frequency
-      if (frequency_hz >= 75.0) {
-        system_status.level = diagnostic_msgs::msg::DiagnosticStatus::OK;
-        system_status.message = "System performance nominal";
-      } else if (frequency_hz >= 50.0) {
-        system_status.level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
-        system_status.message = "System performance degraded";
-      } else {
-        system_status.level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
-        system_status.message = "System performance critical";
-      }
-      
-      // Add performance metrics as key-value pairs
-      auto freq_kv = diagnostic_msgs::msg::KeyValue();
-      freq_kv.key = "loop_frequency_hz";
-      freq_kv.value = std::to_string(frequency_hz);
-      system_status.values.push_back(freq_kv);
-      
-      // Add target frequency if available
-      if (target_freq_it != data.end() && !target_freq_it->second.empty()) {
-        auto target_kv = diagnostic_msgs::msg::KeyValue();
-        target_kv.key = "target_frequency_hz";
-        target_kv.value = target_freq_it->second;
-        system_status.values.push_back(target_kv);
-      }
-      
-      // Add violation counts if available
-      if (mod_viol_it != data.end() && !mod_viol_it->second.empty()) {
-        auto mviol_kv = diagnostic_msgs::msg::KeyValue();
-        mviol_kv.key = "module_violations";
-        mviol_kv.value = mod_viol_it->second;
-        system_status.values.push_back(mviol_kv);
-      }
-      
-      if (freq_viol_it != data.end() && !freq_viol_it->second.empty()) {
-        auto fviol_kv = diagnostic_msgs::msg::KeyValue();
-        fviol_kv.key = "frequency_violations";
-        fviol_kv.value = freq_viol_it->second;
-        system_status.values.push_back(fviol_kv);
-      }
-      
-      // Add raw JSON for detailed analysis if available
-      if (json_it != data.end() && !json_it->second.empty()) {
-        auto json_kv = diagnostic_msgs::msg::KeyValue();
-        json_kv.key = "module_details_json";
-        json_kv.value = json_it->second;
-        system_status.values.push_back(json_kv);
-      }
-      
-      diag_msg.status.push_back(system_status);
-      diagnostics_pub_->publish(diag_msg);
-      
-    } catch (const std::exception& e) {
-      RCLCPP_WARN(this->get_logger(), "Failed to parse performance frequency data: %s", e.what());
-    }
-  } else {
-    // Log missing data but don't publish empty diagnostics
-    RCLCPP_DEBUG(this->get_logger(), "Received PERF message with missing or empty frequency data");
+  // Simply forward performance data as diagnostic message 
+  // Board health monitoring is now handled on Teensy side by safety_coordinator
+  auto diagnostic_data = message_parser_->ParseDiagnosticData(data);
+  if (diagnostic_data.valid) {
+    auto msg = message_parser_->ToDiagnosticArrayMsg(diagnostic_data, timestamp);
+    diagnostics_pub_->publish(msg);
   }
 }
 
@@ -634,10 +566,31 @@ void TeensyBridge::HandleEstopMessage(const MessageData& data, rclcpp::Time time
 }
 
 void TeensyBridge::HandleDiagnosticMessage(const MessageData& data, rclcpp::Time timestamp) {
+  // Debug logging for empty diagnostic investigation
+  RCLCPP_DEBUG(this->get_logger(), "HandleDiagnosticMessage called from board %d", current_board_id);
+  RCLCPP_DEBUG(this->get_logger(), "  Data map size: %zu", data.size());
+  for (const auto& kv : data) {
+    RCLCPP_DEBUG(this->get_logger(), "  Key: '%s', Value: '%s'", kv.first.c_str(), kv.second.c_str());
+  }
+  
   auto diagnostic_data = message_parser_->ParseDiagnosticData(data);
   if (diagnostic_data.valid) {
     auto msg = message_parser_->ToDiagnosticArrayMsg(diagnostic_data, timestamp);
+    
+    // Debug the generated diagnostic message
+    RCLCPP_DEBUG(this->get_logger(), "Publishing diagnostic message with %zu status entries", msg.status.size());
+    for (size_t i = 0; i < msg.status.size(); ++i) {
+      const auto& status = msg.status[i];
+      RCLCPP_DEBUG(this->get_logger(), "  Status[%zu]: name='%s', message='%s', hardware_id='%s', level=%d", 
+                   i, status.name.c_str(), status.message.c_str(), status.hardware_id.c_str(), status.level);
+      if (status.name.empty() || status.message.empty()) {
+        RCLCPP_WARN(this->get_logger(), "EMPTY DIAGNOSTIC DETECTED! Board %d generated empty diagnostic entry", current_board_id);
+      }
+    }
+    
     diagnostics_pub_->publish(msg);
+  } else {
+    RCLCPP_DEBUG(this->get_logger(), "ParseDiagnosticData returned invalid data, not publishing");
   }
 }
 
@@ -869,6 +822,17 @@ void TeensyBridge::DiagnosticsTimerCallback() {
     // Check if there's any meaningful data to report
     auto stats_msg = message_parser_->GetParsingStatistics();
     
+    // Debug logging for empty diagnostic investigation
+    RCLCPP_DEBUG(this->get_logger(), "DiagnosticsTimerCallback: stats_msg has %zu status entries", stats_msg.status.size());
+    for (size_t i = 0; i < stats_msg.status.size(); ++i) {
+      const auto& status = stats_msg.status[i];
+      RCLCPP_DEBUG(this->get_logger(), "  Stats[%zu]: name='%s', message='%s', hardware_id='%s'", 
+                   i, status.name.c_str(), status.message.c_str(), status.hardware_id.c_str());
+      if (status.name.empty() || status.message.empty()) {
+        RCLCPP_WARN(this->get_logger(), "EMPTY DIAGNOSTIC IN STATS! Timer callback generated empty diagnostic entry");
+      }
+    }
+    
     // Only publish if we have received at least one message
     bool has_data = false;
     for (const auto& status : stats_msg.status) {
@@ -882,6 +846,7 @@ void TeensyBridge::DiagnosticsTimerCallback() {
     }
     
     if (has_data) {
+      RCLCPP_DEBUG(this->get_logger(), "Publishing parsing statistics diagnostic message");
       diagnostics_pub_->publish(stats_msg);
     } else {
       // Log that we're not receiving data, but don't spam with empty diagnostics

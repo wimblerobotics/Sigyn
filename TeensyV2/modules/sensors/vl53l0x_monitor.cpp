@@ -754,10 +754,9 @@ void VL53L0XMonitor::sendDiagnosticReports() {
   }
   diag_msg += "]";
 
-  String full_msg =
-      "level:INFO,module:VL53L0XMonitor,msg:Diagnostic report,details:" +
-      diag_msg;
-  SerialManager::getInstance().sendMessage("DIAG", full_msg.c_str());
+  // Convert to JSON format for diagnostic message
+  String json_msg = "{\"level\":\"INFO\",\"module\":\"VL53L0XMonitor\",\"message\":\"Diagnostic report\",\"details\":\"" + diag_msg + "\"}";
+  SerialManager::getInstance().sendMessage("DIAG", json_msg.c_str());
 }
 
 }  // namespace sigyn_teensy
