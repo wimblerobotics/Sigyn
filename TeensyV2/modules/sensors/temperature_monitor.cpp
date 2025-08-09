@@ -11,9 +11,9 @@
 namespace sigyn_teensy {
 
 // Hardware configuration constants
-constexpr uint8_t ANALOG_RESOLUTION = 10;     // 10-bit ADC resolution (Teensy 4.1 default)
+constexpr uint8_t ANALOG_RESOLUTION = 12;     // 12-bit ADC resolution for better precision
 constexpr float REFERENCE_VOLTAGE = 3.3f;     // 3.3V reference voltage (Teensy 4.1 default)
-constexpr uint32_t ADC_MAX_VALUE = 1024;      // 2^10 for 10-bit resolution
+constexpr uint32_t ADC_MAX_VALUE = 4096;      // 2^12 for 12-bit resolution
 
 // TMP36 sensor constants
 constexpr float TMP36_OFFSET_MV = 500.0f;     // TMP36 offset in millivolts (500mV at 0°C)
@@ -356,8 +356,16 @@ bool TemperatureMonitor::readSingleSensor(uint8_t sensor_index) {
         return false;
     }
     
-    // Read the analog voltage
-    int16_t raw_value = analogRead(pin);
+    // Take multiple readings and average them to reduce noise
+    uint32_t raw_sum = 0;
+    const uint8_t num_samples = 8;
+    
+    for (uint8_t sample = 0; sample < num_samples; sample++) {
+        raw_sum += analogRead(pin);
+        delayMicroseconds(100); // Small delay between samples
+    }
+    
+    int16_t raw_value = raw_sum / num_samples;
     
     // Convert to voltage (in millivolts)
     float voltage_mv = (raw_value * REFERENCE_VOLTAGE * 1000.0f) / ADC_MAX_VALUE;
@@ -379,18 +387,26 @@ bool TemperatureMonitor::readSingleSensor(uint8_t sensor_index) {
         return false;
     }
     
+    // Apply simple moving average filter to smooth readings
+    float filtered_temp = temperature_c;
+    if (sensor_status_[sensor_index].reading_valid) {
+        // Simple exponential moving average: new_value = alpha * new_reading + (1 - alpha) * old_value
+        float alpha = 0.3f; // Adjust this value: higher = more responsive, lower = more filtered
+        filtered_temp = alpha * temperature_c + (1.0f - alpha) * sensor_status_[sensor_index].temperature_c;
+    }
+    
     // Update sensor status
-    sensor_status_[sensor_index].temperature_c = temperature_c;
-    sensor_status_[sensor_index].temperature_f = (temperature_c * 9.0f / 5.0f) + 32.0f;
+    sensor_status_[sensor_index].temperature_c = filtered_temp;
+    sensor_status_[sensor_index].temperature_f = (filtered_temp * 9.0f / 5.0f) + 32.0f;
     sensor_status_[sensor_index].reading_valid = true;
     sensor_status_[sensor_index].communication_ok = true;
     
     // Update min/max temperatures
-    if (temperature_c > sensor_status_[sensor_index].max_temperature) {
-        sensor_status_[sensor_index].max_temperature = temperature_c;
+    if (filtered_temp > sensor_status_[sensor_index].max_temperature) {
+        sensor_status_[sensor_index].max_temperature = filtered_temp;
     }
-    if (temperature_c < sensor_status_[sensor_index].min_temperature) {
-        sensor_status_[sensor_index].min_temperature = temperature_c;
+    if (filtered_temp < sensor_status_[sensor_index].min_temperature) {
+        sensor_status_[sensor_index].min_temperature = filtered_temp;
     }
     
     return true;
