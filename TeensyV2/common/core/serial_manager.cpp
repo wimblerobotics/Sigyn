@@ -71,48 +71,39 @@ namespace sigyn_teensy {
 
     if (cmd_type == "TWIST") {
       // Store TWIST command for RoboClawMonitor to process
-      // Use a simple approach: send the command data as a special message type
-      sendMessage("DEBUG", ("TWIST command received: " + String(args)).c_str());
-
-      // We'll create a mechanism for modules to check for commands
-      // For now, set a static variable that RoboClawMonitor can check
+      sendMessage("DEBUG", "TWIST command received");
       setLatestTwistCommand(String(args));
 
     }
     else if (cmd_type == "SDDIR") {
-      sendMessage("DEBUG", ("SDDIR command received: " + String(args)).c_str());
-      // Store SDDIR command for SDLogger to process
+      sendMessage("DEBUG", "SDDIR command received");
       setLatestSDDirCommand(String(args));
 
     }
     else if (cmd_type == "SDFILE") {
-      sendMessage("DEBUG", ("SDFILE command received: " + String(args)).c_str());
-      // Store SDFILE command for SDLogger to process
+      sendMessage("DEBUG", "SDFILE command received");
       setLatestSDFileCommand(String(args));
 
     }
     else if (cmd_type == "CONFIG") {
-      sendMessage("DEBUG", ("CONFIG command received: " + String(args)).c_str());
-      // TODO: Implement configuration updates
+      sendMessage("DEBUG", "CONFIG command received");
 
     }
     else if (cmd_type == "STATUS") {
-      sendMessage("DEBUG", ("STATUS request received: " + String(args)).c_str());
-      // TODO: Send comprehensive status report
+      sendMessage("DEBUG", "STATUS request received");
 
     }
     else if (cmd_type == "ESTOP") {
-      sendMessage("DEBUG", ("ESTOP command received: " + String(args)).c_str());
-      // TODO: Route to safety coordinator
+      sendMessage("DEBUG", "ESTOP command received");
 
     }
     else if (cmd_type == "CALIBRATE") {
-      sendMessage("DEBUG", ("CALIBRATE command received: " + String(args)).c_str());
-      // TODO: Route to appropriate sensor module
+      sendMessage("DEBUG", "CALIBRATE command received");
 
     }
     else {
-      sendMessage("ERROR", ("Unknown command type: " + cmd_type).c_str());
+      String error_msg = "Unknown command type: " + cmd_type;
+      sendMessage("ERROR", error_msg.c_str());
     }
   }
 
@@ -159,15 +150,46 @@ namespace sigyn_teensy {
 
   void SerialManager::sendMessage(const char* type, const char* payload) {
     if (queue_count_ < kMaxQueueSize) {
-      snprintf(message_queue_[queue_tail_], kMaxMessageLength, "%s:%s\n", type,
-        payload);
+      // Check if this is a diagnostic message type that needs JSON conversion
+      if (strcmp(type, "INFO") == 0 || strcmp(type, "DEBUG") == 0 || 
+          strcmp(type, "ERROR") == 0 || strcmp(type, "WARN") == 0 || 
+          strcmp(type, "FATAL") == 0 || strcmp(type, "CRITICAL") == 0 ||
+          strcmp(type, "INIT") == 0 || strcmp(type, "FAULT") == 0) {
+        // Convert to JSON format and send as a DIAG message with proper board ID
+        char json_payload[kMaxMessageLength - 20];
+        snprintf(json_payload, sizeof(json_payload), 
+                 "{\"level\":\"%s\",\"message\":\"%s\"}", 
+                 type, payload);
+        snprintf(message_queue_[queue_tail_], kMaxMessageLength, "DIAG%d:%s\n", 
+                 BOARD_ID, json_payload);
+      } else {
+        // Regular message with board ID injection (e.g., "ODOM" becomes "ODOM1")
+        snprintf(message_queue_[queue_tail_], kMaxMessageLength, "%s%d:%s\n", type,
+          BOARD_ID, payload);
+      }
       queue_tail_ = (queue_tail_ + 1) % kMaxQueueSize;
       queue_count_++;
     }
 #if ENABLE_SD_LOGGING
-    SDLogger::getInstance().logFormatted("%s:%s", type, payload);
+    SDLogger::getInstance().logFormatted("%s%d:%s", type, BOARD_ID, payload);
 #endif
     sendQueuedMessages();
+  }
+
+  void SerialManager::sendDiagnostic(const char* level, const char* module, const char* message) {
+    char json_payload[kMaxMessageLength - 20]; // Reserve space for type and board ID
+    snprintf(json_payload, sizeof(json_payload), 
+             "{\"level\": \"%s\", \"module\": \"%s\", \"message\": \"%s\"}", 
+             level, module, message);
+    sendMessage("DIAG", json_payload);
+  }
+
+  void SerialManager::sendStatus(const char* level, const char* message) {
+    char json_payload[kMaxMessageLength - 20]; // Reserve space for type and board ID
+    snprintf(json_payload, sizeof(json_payload), 
+             "{\"level\": \"%s\", \"message\": \"%s\"}", 
+             level, message);
+    sendMessage("DIAG", json_payload);
   }
 
   void SerialManager::sendQueuedMessages() {

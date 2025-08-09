@@ -183,12 +183,12 @@ void BatteryMonitor::selectSensor(size_t battery_idx) const {
 }
 
 void BatteryMonitor::sendStatusMessage(size_t idx) {
-  // Create a JSON-like string for the battery status
-  String message = "idx:" + String(idx) + ",V:" + String(getVoltage(idx), 2) +
-                   ",A:" + String(getCurrent(idx), 2) +
-                   ",charge:" + String(estimateChargePercentage(getVoltage(idx))) +
-                   ",state:" + String(batteryStateToString(state_[idx])) +
-                   ",location:" + String(g_battery_config_[idx].battery_name);
+  // Create a JSON string for the battery status
+  String message = "{\"idx\":" + String(idx) + ",\"V\":" + String(getVoltage(idx), 2) +
+                   ",\"A\":" + String(getCurrent(idx), 2) +
+                   ",\"charge\":" + String(estimateChargePercentage(getVoltage(idx))) +
+                   ",\"state\":\"" + String(batteryStateToString(state_[idx])) +
+                   "\",\"location\":\"" + String(g_battery_config_[idx].battery_name) + "\"}";
 
   SerialManager::getInstance().sendMessage("BATT", message.c_str());
 }
@@ -201,8 +201,7 @@ void BatteryMonitor::setup() {
   Wire.setClock(400000);
   multiplexer_available_ = testI2cMultiplexer();
   if (!multiplexer_available_) {
-    SerialManager::getInstance().sendMessage(
-        "FATAL", "BatteryMonitor setup failed: I2C multiplexer not available");
+    SerialManager::getInstance().sendDiagnostic("FATAL", "BatteryMonitor", "I2C multiplexer not available");
     return;
   }
 
@@ -278,7 +277,7 @@ void BatteryMonitor::updateBatteryState(size_t idx) {
     snprintf(msg, sizeof(msg),
              "Battery %zu does not meet WARNING LOW VOLTAGE of %4.3f: V=%.2f A=%.2f", idx,
              g_battery_config_[idx].warning_low_voltage, voltage, current);
-    SerialManager::getInstance().sendMessage("WARNING", msg);
+    SerialManager::getInstance().sendMessage("WARN", msg);
   } else if ((idx == 0) && (current < 0.0f)) {
     state_[idx] = BatteryState::CHARGING;
   } else {

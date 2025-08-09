@@ -350,6 +350,13 @@ public:
    */
   void ResetStatistics();
 
+  /**
+   * @brief Get the board ID from the last parsed message.
+   * 
+   * @return Board ID (1, 2, 3, etc.) or 0 if not specified
+   */
+  int GetCurrentBoardId() const { return current_board_id_; }
+
 private:
   /**
    * @brief Parse message type from message string.
@@ -374,6 +381,17 @@ private:
    * @return Map of key-value pairs extracted from JSON
    */
   MessageData ParseJsonContent(const std::string& content) const;
+
+  /**
+   * @brief Parse comprehensive JSON content into key-value pairs.
+   * 
+   * This function properly parses JSON format messages used by TeensyV2
+   * including ODOM, BATT, IMU, TEMP and other sensor messages.
+   * 
+   * @param[in] content JSON string content
+   * @return Map of key-value pairs extracted from JSON
+   */
+  MessageData ParseComprehensiveJsonContent(const std::string& content) const;
 
   /**
    * @brief Validate message format and content.
@@ -439,6 +457,9 @@ private:
 
   // Message type callbacks
   std::unordered_map<MessageType, MessageCallback> callbacks_;
+
+  // Board context tracking
+  mutable int current_board_id_;
 
   // Statistics tracking
   mutable uint64_t total_messages_received_;

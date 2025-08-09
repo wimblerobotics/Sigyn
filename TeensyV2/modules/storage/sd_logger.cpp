@@ -413,11 +413,6 @@ namespace sigyn_teensy {
         if (write_buffer_.length() > 0) {
             flush();
         }
-
-        // Update directory cache periodically
-        if (millis() - last_directory_cache_time_ms_ > config_.directory_cache_interval_ms) {
-            updateDirectoryCache();
-        }
     }
 
     void SDLogger::updatePerformanceStatistics() {

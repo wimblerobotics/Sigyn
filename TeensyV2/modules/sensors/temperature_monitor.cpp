@@ -327,15 +327,15 @@ void TemperatureMonitor::updateTemperatureReadings() {
             total_system_readings_++;
             sensor_status_[i].total_readings++;
             
-            // Send individual sensor message in compact format for ROS2 bridge
-            String temp_msg = "id=" + String(i) + ",temp=" + String(sensor_status_[i].temperature_c, 1) + ",status=OK";
+            // Send individual sensor message in JSON format for ROS2 bridge
+            String temp_msg = "{\"id\":" + String(i) + ",\"temp\":" + String(sensor_status_[i].temperature_c, 1) + ",\"status\":\"OK\"}";
             SerialManager::getInstance().sendMessage("TEMP", temp_msg.c_str());
         } else {
             total_system_errors_++;
             sensor_status_[i].error_count++;
             
             // Send error message for failed sensor reading
-            String temp_msg = "id=" + String(i) + ",temp=null,status=ERROR";
+            String temp_msg = "{\"id\":" + String(i) + ",\"temp\":null,\"status\":\"ERROR\"}";
             SerialManager::getInstance().sendMessage("TEMP", temp_msg.c_str());
         }
         
@@ -650,8 +650,9 @@ void TemperatureMonitor::sendDiagnosticReports() {
     diag_msg += ",warning_time:" + String(system_status_.time_in_warning_ms);
     diag_msg += ",critical_time:" + String(system_status_.time_in_critical_ms);
     
-    String full_msg = "level:INFO,module:TemperatureMonitor,msg:Diagnostic report,details:" + diag_msg;
-    SerialManager::getInstance().sendMessage("DIAG", full_msg.c_str());
+    // Convert to JSON format for diagnostic message
+    String json_msg = "{\"level\":\"INFO\",\"module\":\"TemperatureMonitor\",\"message\":\"Diagnostic report\",\"details\":\"" + diag_msg + "\"}";
+    SerialManager::getInstance().sendMessage("DIAG", json_msg.c_str());
 }
 
 } // namespace sigyn_teensy
