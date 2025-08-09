@@ -841,13 +841,13 @@ MessageData MessageParser::ParseJsonContent(const std::string& content) const {
     std::string freq = extractJsonValue("freq");
     if (!freq.empty()) data["freq"] = freq;
     
-    std::string target_freq = extractJsonValue("target_freq");
+    std::string target_freq = extractJsonValue("tfreq");  // Fixed: use actual field name "tfreq"
     if (!target_freq.empty()) data["target_freq"] = target_freq;
     
-    std::string mod_viol = extractJsonValue("mod_viol");
+    std::string mod_viol = extractJsonValue("mviol");  // Fixed: use actual field name "mviol"
     if (!mod_viol.empty()) data["mod_viol"] = mod_viol;
     
-    std::string freq_viol = extractJsonValue("freq_viol");
+    std::string freq_viol = extractJsonValue("fviol");  // Fixed: use actual field name "fviol"
     if (!freq_viol.empty()) data["freq_viol"] = freq_viol;
     
     // Extract VL53L0X fields

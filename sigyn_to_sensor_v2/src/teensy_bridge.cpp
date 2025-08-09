@@ -15,6 +15,7 @@
 #include <cerrno>
 #include <cstring>
 #include <sstream>
+#include <chrono>
 
 using namespace std::chrono_literals;
 
@@ -519,60 +520,84 @@ void TeensyBridge::HandleIMUMessage(const MessageData& data, rclcpp::Time timest
 void TeensyBridge::HandlePerformanceMessage(const MessageData& data, rclcpp::Time timestamp) {
   // Parse and publish detailed performance data
   auto freq_it = data.find("freq");
-  auto loop_count_it = data.find("loop_count");
-  auto modules_it = data.find("modules");
+  auto target_freq_it = data.find("target_freq");
+  auto mod_viol_it = data.find("mod_viol");
+  auto freq_viol_it = data.find("freq_viol");
+  auto json_it = data.find("json");
   
-  if (freq_it != data.end()) {
-    double frequency = std::stod(freq_it->second);
-    RCLCPP_DEBUG(this->get_logger(), "Performance: freq=%.1f Hz", frequency);
-    
-    // Create and publish diagnostic message with performance data
-    auto diag_msg = diagnostic_msgs::msg::DiagnosticArray();
-    diag_msg.header.stamp = timestamp;
-    
-    // Overall system performance status
-    auto system_status = diagnostic_msgs::msg::DiagnosticStatus();
-    system_status.name = "teensy_system_performance";
-    system_status.hardware_id = "teensy_v2";
-    
-    // Determine status level based on frequency
-    if (frequency >= 75.0) {
-      system_status.level = diagnostic_msgs::msg::DiagnosticStatus::OK;
-      system_status.message = "System performance nominal";
-    } else if (frequency >= 50.0) {
-      system_status.level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
-      system_status.message = "System performance degraded";
-    } else {
-      system_status.level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
-      system_status.message = "System performance critical";
+  if (freq_it != data.end() && !freq_it->second.empty()) {
+    try {
+      double frequency_hz = std::stod(freq_it->second);
+      
+      RCLCPP_DEBUG(this->get_logger(), "Performance: freq=%.1f Hz", frequency_hz);
+      
+      // Create and publish diagnostic message with performance data
+      auto diag_msg = diagnostic_msgs::msg::DiagnosticArray();
+      diag_msg.header.stamp = timestamp;
+      
+      // Overall system performance status
+      auto system_status = diagnostic_msgs::msg::DiagnosticStatus();
+      system_status.name = "teensy_system_performance";
+      system_status.hardware_id = "teensy_v2";
+      
+      // Determine status level based on frequency
+      if (frequency_hz >= 75.0) {
+        system_status.level = diagnostic_msgs::msg::DiagnosticStatus::OK;
+        system_status.message = "System performance nominal";
+      } else if (frequency_hz >= 50.0) {
+        system_status.level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
+        system_status.message = "System performance degraded";
+      } else {
+        system_status.level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
+        system_status.message = "System performance critical";
+      }
+      
+      // Add performance metrics as key-value pairs
+      auto freq_kv = diagnostic_msgs::msg::KeyValue();
+      freq_kv.key = "loop_frequency_hz";
+      freq_kv.value = std::to_string(frequency_hz);
+      system_status.values.push_back(freq_kv);
+      
+      // Add target frequency if available
+      if (target_freq_it != data.end() && !target_freq_it->second.empty()) {
+        auto target_kv = diagnostic_msgs::msg::KeyValue();
+        target_kv.key = "target_frequency_hz";
+        target_kv.value = target_freq_it->second;
+        system_status.values.push_back(target_kv);
+      }
+      
+      // Add violation counts if available
+      if (mod_viol_it != data.end() && !mod_viol_it->second.empty()) {
+        auto mviol_kv = diagnostic_msgs::msg::KeyValue();
+        mviol_kv.key = "module_violations";
+        mviol_kv.value = mod_viol_it->second;
+        system_status.values.push_back(mviol_kv);
+      }
+      
+      if (freq_viol_it != data.end() && !freq_viol_it->second.empty()) {
+        auto fviol_kv = diagnostic_msgs::msg::KeyValue();
+        fviol_kv.key = "frequency_violations";
+        fviol_kv.value = freq_viol_it->second;
+        system_status.values.push_back(fviol_kv);
+      }
+      
+      // Add raw JSON for detailed analysis if available
+      if (json_it != data.end() && !json_it->second.empty()) {
+        auto json_kv = diagnostic_msgs::msg::KeyValue();
+        json_kv.key = "module_details_json";
+        json_kv.value = json_it->second;
+        system_status.values.push_back(json_kv);
+      }
+      
+      diag_msg.status.push_back(system_status);
+      diagnostics_pub_->publish(diag_msg);
+      
+    } catch (const std::exception& e) {
+      RCLCPP_WARN(this->get_logger(), "Failed to parse performance frequency data: %s", e.what());
     }
-    
-    // Add performance metrics as key-value pairs
-    auto freq_kv = diagnostic_msgs::msg::KeyValue();
-    freq_kv.key = "loop_frequency_hz";
-    freq_kv.value = freq_it->second;
-    system_status.values.push_back(freq_kv);
-    
-    if (loop_count_it != data.end()) {
-      auto count_kv = diagnostic_msgs::msg::KeyValue();
-      count_kv.key = "total_loops";
-      count_kv.value = loop_count_it->second;
-      system_status.values.push_back(count_kv);
-    }
-    
-    diag_msg.status.push_back(system_status);
-    
-    // Parse and add individual module performance if available
-    if (modules_it != data.end()) {
-      // TODO: Parse JSON array of module statistics
-      // For now, add as a single diagnostic value
-      auto modules_kv = diagnostic_msgs::msg::KeyValue();
-      modules_kv.key = "module_stats";
-      modules_kv.value = modules_it->second;
-      system_status.values.push_back(modules_kv);
-    }
-    
-    diagnostics_pub_->publish(diag_msg);
+  } else {
+    // Log missing data but don't publish empty diagnostics
+    RCLCPP_DEBUG(this->get_logger(), "Received PERF message with missing or empty frequency data");
   }
 }
 
@@ -839,10 +864,34 @@ void TeensyBridge::StatusTimerCallback() {
 }
 
 void TeensyBridge::DiagnosticsTimerCallback() {
-  // Publish parsing statistics
+  // Only publish parsing statistics if we have received any messages
   if (message_parser_) {
+    // Check if there's any meaningful data to report
     auto stats_msg = message_parser_->GetParsingStatistics();
-    diagnostics_pub_->publish(stats_msg);
+    
+    // Only publish if we have received at least one message
+    bool has_data = false;
+    for (const auto& status : stats_msg.status) {
+      for (const auto& kv : status.values) {
+        if (kv.key == "total_received" && std::stoi(kv.value) > 0) {
+          has_data = true;
+          break;
+        }
+      }
+      if (has_data) break;
+    }
+    
+    if (has_data) {
+      diagnostics_pub_->publish(stats_msg);
+    } else {
+      // Log that we're not receiving data, but don't spam with empty diagnostics
+      static auto last_no_data_log = std::chrono::steady_clock::now();
+      auto now = std::chrono::steady_clock::now();
+      if (std::chrono::duration_cast<std::chrono::seconds>(now - last_no_data_log).count() >= 30) {
+        RCLCPP_WARN(this->get_logger(), "No data received from Teensy devices - diagnostic publishing suspended");
+        last_no_data_log = now;
+      }
+    }
   }
 }
 
