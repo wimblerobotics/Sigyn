@@ -47,8 +47,8 @@ struct RoboClawConfig {
   uint32_t baud_rate = 230400;         ///< Serial communication baud rate
   
   // Safety thresholds
-  float max_current_m1 = 15.0f;        ///< Maximum current for motor 1 (Amps)
-  float max_current_m2 = 15.0f;        ///< Maximum current for motor 2 (Amps)
+  float max_current_m1 = 100.0f;        ///< Maximum current for motor 1 (Amps)
+  float max_current_m2 = 100.0f;        ///< Maximum current for motor 2 (Amps)
   float warning_current = 10.0f;       ///< Warning current threshold (Amps)
   uint32_t max_speed_qpps = 10000;     ///< Maximum speed (quad pulses per second)
   

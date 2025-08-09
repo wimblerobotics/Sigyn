@@ -57,8 +57,6 @@ bool MessageParser::ParseMessage(const std::string& message, rclcpp::Time timest
     // Get message content after the colon
     std::string content = message.substr(colon_pos + 1);
     
-    RCLCPP_DEBUG(logger_, "ParseMessage: type=%d, content='%s'", static_cast<int>(type), content.c_str());
-    
     // Parse content based on message type - now most messages use JSON format
     if (type == MessageType::PERFORMANCE || type == MessageType::VL53L0X || 
         type == MessageType::ROBOCLAW ||
@@ -66,8 +64,7 @@ bool MessageParser::ParseMessage(const std::string& message, rclcpp::Time timest
         type == MessageType::ODOM || type == MessageType::TEMPERATURE ||
         (content.find('{') == 0)) {
       // JSON format messages (most messages now use this format)
-      RCLCPP_DEBUG(logger_, "ParseMessage: Using JSON parser for content");
-      data = ParseComprehensiveJsonContent(content);
+      data = ParseJsonContent(content);
     } else if (type == MessageType::DIAGNOSTIC || type == MessageType::INIT || type == MessageType::CRITICAL) {
       // Check if this is a structured diagnostic message (DIAG:) or free-form (DEBUG:, etc.)
       std::string type_prefix = message.substr(0, colon_pos);
@@ -76,32 +73,17 @@ bool MessageParser::ParseMessage(const std::string& message, rclcpp::Time timest
         type_prefix = type_prefix.substr(0, type_prefix.length() - 1);
       }
       
-      RCLCPP_DEBUG(logger_, "ParseMessage: Diagnostic type_prefix='%s', full_message='%s'", type_prefix.c_str(), message.c_str());
-      
       if (type_prefix == "DIAG") {
-        // Structured diagnostic messages can be JSON or key:value format
-        if (content.find('{') == 0) {
-          RCLCPP_DEBUG(logger_, "ParseMessage: Parsing DIAG as JSON");
-          data = ParseComprehensiveJsonContent(content);
-        } else {
-          RCLCPP_DEBUG(logger_, "ParseMessage: Parsing DIAG as key:value");
-          data = ParseKeyValuePairs(content);
-        }
+        // Structured diagnostic messages use key:value format
+        data = ParseKeyValuePairs(content);
       } else {
         // DEBUG, INFO, ERROR, etc. messages are free-form diagnostic text
-        RCLCPP_DEBUG(logger_, "ParseMessage: Free-form diagnostic message, content='%s'", content.c_str());
         data["message"] = content;
         RCLCPP_DEBUG(logger_, "%s: %s", type_prefix.c_str(), content.c_str());
       }
     } else {
       // Fallback to key:value format for any remaining messages
-      RCLCPP_DEBUG(logger_, "ParseMessage: Using key:value parser for content");
       data = ParseKeyValuePairs(content);
-    }
-    
-    RCLCPP_DEBUG(logger_, "ParseMessage: Parsed data has %zu fields", data.size());
-    for (const auto& kv : data) {
-      RCLCPP_DEBUG(logger_, "  Data field: '%s' = '%s'", kv.first.c_str(), kv.second.c_str());
     }
     
     // Update statistics
@@ -432,39 +414,18 @@ EstopData MessageParser::ParseEstopData(const MessageData& data) const {
 DiagnosticData MessageParser::ParseDiagnosticData(const MessageData& data) const {
   DiagnosticData diag;
   
-  // Debug: Log the diagnostic data being parsed
-  RCLCPP_DEBUG(logger_, "ParseDiagnosticData: Parsing data with %zu fields", data.size());
-  std::string debug_fields = "Fields: ";
-  for (const auto& kv : data) {
-    debug_fields += "['" + kv.first + "'='" + kv.second + "'] ";
-  }
-  RCLCPP_DEBUG(logger_, "%s", debug_fields.c_str());
-  
   try {
-    // Check if this is structured diagnostic data (level/module/message format)
+    // Check if this is structured diagnostic data (level/module/msg format)
     auto level_it = data.find("level");
     auto module_it = data.find("module");
     auto msg_it = data.find("msg");
     auto message_it = data.find("message");
     
-    if (level_it != data.end() || module_it != data.end() || msg_it != data.end() || message_it != data.end()) {
-      // Structured diagnostic data
-      if (level_it != data.end()) {
-        diag.level = level_it->second;
-      }
-      
-      if (module_it != data.end()) {
-        diag.module = module_it->second;
-      } else {
-        // Default module name for diagnostic messages without explicit module
-        diag.module = "teensy_sensor_board_" + std::to_string(current_board_id_);
-      }
-      
-      if (msg_it != data.end()) {
-        diag.message = msg_it->second;
-      } else if (message_it != data.end()) {
-        diag.message = message_it->second;
-      }
+    if (level_it != data.end() && module_it != data.end() && msg_it != data.end()) {
+      // Structured diagnostic data (level:INFO,module:TemperatureMonitor,msg:Diagnostic report,details:...)
+      diag.level = level_it->second;
+      diag.module = module_it->second;
+      diag.message = msg_it->second;
       
       auto details_it = data.find("details");
       if (details_it != data.end()) {
@@ -475,55 +436,46 @@ DiagnosticData MessageParser::ParseDiagnosticData(const MessageData& data) const
       if (time_it != data.end()) {
         diag.timestamp = static_cast<uint64_t>(SafeStringToInt(time_it->second, 0));
       }
-    } else {
-      // Simple diagnostic message (DIAG: free-form text)
-      auto message_it = data.find("message");
-      if (message_it != data.end()) {
-        // Use the free-form message as both module name and message content
-        std::string full_message = message_it->second;
-        
-        // Try to extract module name from message (e.g., "BNO055Monitor PERF_VIOLATION: ...")
-        size_t first_space = full_message.find(' ');
-        if (first_space != std::string::npos) {
-          diag.module = full_message.substr(0, first_space);
-          diag.message = full_message;
-        } else {
-          diag.module = "teensy_sensor";
-          diag.message = full_message;
-        }
-        
-        // Default level to INFO for simple messages
-        diag.level = "INFO";
-      } else {
-        // Check if this is a performance data message (has freq, mviol, etc.)
-        auto freq_it = data.find("freq");
-        auto mviol_it = data.find("mviol");
-        auto fviol_it = data.find("fviol");
-        
-        if (freq_it != data.end() || mviol_it != data.end() || fviol_it != data.end()) {
-          // This is performance data - construct a diagnostic message from it
-          diag.module = "PerformanceMonitor";
-          diag.level = "INFO";
-          
-          // Build message from performance data
-          std::string perf_msg = "Performance: ";
-          if (freq_it != data.end()) {
-            perf_msg += "freq=" + freq_it->second + "Hz ";
-          }
-          if (mviol_it != data.end()) {
-            perf_msg += "module_violations=" + mviol_it->second + " ";
-          }
-          if (fviol_it != data.end()) {
-            perf_msg += "freq_violations=" + fviol_it->second;
-          }
-          
-          diag.message = perf_msg;
-        } else {
-          RCLCPP_WARN(logger_, "Diagnostic data has no message content and no recognizable performance data");
-          diag.valid = false;
-          return diag;
-        }
+      
+      // Ensure we have minimum required content
+      if (diag.level.empty() || diag.module.empty() || diag.message.empty()) {
+        RCLCPP_WARN(logger_, "Structured diagnostic data has empty required fields");
+        diag.valid = false;
+        return diag;
       }
+    } else if (level_it != data.end() && message_it != data.end()) {
+      // JSON diagnostic data ({"level":"INFO","message":"TemperatureMonitor: Starting initialization"})
+      diag.level = level_it->second;
+      diag.message = message_it->second;
+      
+      // Extract module name from message if possible
+      std::string full_message = message_it->second;
+      size_t colon_pos = full_message.find(':');
+      if (colon_pos != std::string::npos) {
+        diag.module = full_message.substr(0, colon_pos);
+      } else {
+        diag.module = "teensy_sensor";
+      }
+    } else if (message_it != data.end()) {
+      // Simple diagnostic message (DIAG: free-form text)
+      std::string full_message = message_it->second;
+      
+      // Try to extract module name from message (e.g., "BNO055Monitor PERF_VIOLATION: ...")
+      size_t first_space = full_message.find(' ');
+      if (first_space != std::string::npos) {
+        diag.module = full_message.substr(0, first_space);
+        diag.message = full_message;
+      } else {
+        diag.module = "teensy_sensor";
+        diag.message = full_message;
+      }
+      
+      // Default level to INFO for simple messages
+      diag.level = "INFO";
+    } else {
+      RCLCPP_WARN(logger_, "Diagnostic data has no message content");
+      diag.valid = false;
+      return diag;
     }
     
     diag.valid = true;
@@ -776,26 +728,19 @@ MessageData MessageParser::ParseKeyValuePairs(const std::string& content) const 
 }
 
 bool MessageParser::ValidateMessage(const std::string& message) const {
-  // Debug: Log all messages being validated
-  RCLCPP_DEBUG(logger_, "ValidateMessage: Checking message: '%s'", message.c_str());
-  
   if (message.empty() || message.length() > 2048) {
-    RCLCPP_DEBUG(logger_, "ValidateMessage: FAILED - empty or too long (length: %zu)", message.length());
     return false;
   }
   
   // Check for colon separator - all valid messages must have one
   size_t colon_pos = message.find(':');
   if (colon_pos == std::string::npos || colon_pos == 0) {
-    RCLCPP_DEBUG(logger_, "ValidateMessage: FAILED - no colon separator found");
     return false;  // Reject messages without colons or with colon as first character
   }
   
   // Get message type and content
   std::string type_str = message.substr(0, colon_pos);
   std::string content = message.substr(colon_pos + 1);
-  
-  RCLCPP_DEBUG(logger_, "ValidateMessage: type_str='%s', content='%s'", type_str.c_str(), content.c_str());
   
   // Extract base message type (remove board ID suffix if present)
   std::string base_type = type_str;
@@ -804,19 +749,16 @@ bool MessageParser::ValidateMessage(const std::string& message) const {
     base_type = type_str.substr(0, type_str.length() - 1);
   }
   
-  RCLCPP_DEBUG(logger_, "ValidateMessage: base_type='%s'", base_type.c_str());
-  
   // Check if message type is recognized
   MessageType type = StringToMessageType(base_type);
   if (type == MessageType::UNKNOWN) {
-    RCLCPP_DEBUG(logger_, "ValidateMessage: FAILED - unknown message type '%s'", base_type.c_str());
     return false;
   }
   
   // JSON messages should start with { 
   if (base_type == "PERF" || base_type == "VL53L0X" || base_type == "ROBOCLAW" || 
       base_type == "BATT" || base_type == "IMU" || base_type == "ODOM" || 
-      base_type == "TEMP" || base_type == "TEMPERATURE" ||
+      base_type == "TEMPERATURE" ||
       (content.find('{') == 0)) {
     return !content.empty() && content[0] == '{';
   } 
@@ -837,7 +779,6 @@ MessageType MessageParser::StringToMessageType(const std::string& type_str) cons
   if (type_str == "PERF") return MessageType::PERFORMANCE;
   if (type_str == "SAFETY") return MessageType::SAFETY;
   if (type_str == "IMU") return MessageType::IMU;
-  if (type_str == "TEMP") return MessageType::TEMPERATURE;
   if (type_str == "TEMPERATURE") return MessageType::TEMPERATURE;
   if (type_str == "VL53L0X") return MessageType::VL53L0X;
   if (type_str == "ROBOCLAW") return MessageType::ROBOCLAW;
@@ -930,106 +871,6 @@ std::vector<std::string> MessageParser::ParseCommaSeparatedList(const std::strin
   }
   
   return result;
-}
-
-MessageData MessageParser::ParseComprehensiveJsonContent(const std::string& content) const {
-  MessageData data;
-  
-  if (content.empty() || content.front() != '{' || content.back() != '}') {
-    return data;
-  }
-  
-  // Store raw JSON for debugging
-  data["json"] = content;
-  
-  try {
-    // Simple JSON parser - extract key-value pairs from {"key":value,"key2":"value2",...}
-    std::string json_body = content.substr(1, content.length() - 2); // Remove { and }
-    
-    size_t pos = 0;
-    while (pos < json_body.length()) {
-      // Find key start
-      size_t key_start = json_body.find('"', pos);
-      if (key_start == std::string::npos) break;
-      key_start++; // Skip opening quote
-      
-      // Find key end
-      size_t key_end = json_body.find('"', key_start);
-      if (key_end == std::string::npos) break;
-      
-      std::string key = json_body.substr(key_start, key_end - key_start);
-      
-      // Find colon
-      size_t colon_pos = json_body.find(':', key_end);
-      if (colon_pos == std::string::npos) break;
-      colon_pos++; // Skip colon
-      
-      // Skip whitespace after colon
-      while (colon_pos < json_body.length() && 
-             (json_body[colon_pos] == ' ' || json_body[colon_pos] == '\t')) {
-        colon_pos++;
-      }
-      
-      // Parse value
-      std::string value;
-      if (colon_pos < json_body.length()) {
-        if (json_body[colon_pos] == '"') {
-          // String value
-          colon_pos++; // Skip opening quote
-          size_t value_end = json_body.find('"', colon_pos);
-          if (value_end != std::string::npos) {
-            value = json_body.substr(colon_pos, value_end - colon_pos);
-            pos = value_end + 1;
-          } else {
-            break;
-          }
-        } else if (json_body[colon_pos] == '[') {
-          // Array value - find matching closing bracket
-          size_t bracket_count = 1;
-          size_t array_start = colon_pos;
-          colon_pos++; // Skip opening bracket
-          
-          while (colon_pos < json_body.length() && bracket_count > 0) {
-            if (json_body[colon_pos] == '[') bracket_count++;
-            else if (json_body[colon_pos] == ']') bracket_count--;
-            colon_pos++;
-          }
-          
-          if (bracket_count == 0) {
-            value = json_body.substr(array_start, colon_pos - array_start);
-            pos = colon_pos;
-          } else {
-            break;
-          }
-        } else {
-          // Numeric or boolean value - find next comma or end
-          size_t value_end = json_body.find(',', colon_pos);
-          if (value_end == std::string::npos) {
-            value_end = json_body.length();
-          }
-          value = json_body.substr(colon_pos, value_end - colon_pos);
-          pos = value_end;
-        }
-        
-        // Store the key-value pair
-        data[key] = value;
-      }
-      
-      // Find next key (skip comma and whitespace)
-      while (pos < json_body.length() && 
-             (json_body[pos] == ',' || json_body[pos] == ' ' || json_body[pos] == '\t')) {
-        pos++;
-      }
-    }
-    
-  } catch (const std::exception& e) {
-    RCLCPP_WARN(logger_, "Error parsing JSON content: %s", e.what());
-    // Clear extracted data but keep raw JSON for debugging
-    data.clear();
-    data["json"] = content;
-  }
-  
-  return data;
 }
 
 MessageData MessageParser::ParseJsonContent(const std::string& content) const {
@@ -1134,9 +975,24 @@ MessageData MessageParser::ParseJsonContent(const std::string& content) const {
       }
     }
     
-    // Extract TEMPERATURE fields
-    std::string temperatures = extractJsonValue("temperatures");
-    if (!temperatures.empty()) data["temperatures"] = temperatures;
+    // Extract temperatures array - special handling needed for arrays
+    search = "\"temperatures\":";
+    pos = content.find(search);
+    if (pos != std::string::npos) {
+      pos += search.length();
+      // Skip whitespace
+      while (pos < content.length() && (content[pos] == ' ' || content[pos] == '\t')) {
+        pos++;
+      }
+      // Look for opening bracket
+      if (pos < content.length() && content[pos] == '[') {
+        size_t end_pos = content.find(']', pos);
+        if (end_pos != std::string::npos) {
+          std::string temperatures_array = content.substr(pos, end_pos - pos + 1);
+          data["temperatures"] = temperatures_array;
+        }
+      }
+    }
     
     std::string avg_temp = extractJsonValue("avg_temp");
     if (!avg_temp.empty()) data["avg_temp"] = avg_temp;
@@ -1155,55 +1011,61 @@ MessageData MessageParser::ParseJsonContent(const std::string& content) const {
   return data;
 }
 
-TemperatureData MessageParser::ParseTemperatureData(const MessageData& data, bool is_array_format) const {
+TemperatureData MessageParser::ParseTemperatureData(const MessageData& data) const {
   TemperatureData temp_data;
   temp_data.valid = true;
   
   try {
-    if (is_array_format) {
-      // Parse TEMPERATURE message (JSON array format)
-      temp_data.total_sensors = SafeStringToInt(data.at("total_sensors"), 0);
-      temp_data.active_sensors = SafeStringToInt(data.at("active_sensors"), 0);
+    // Parse TEMPERATURE message (JSON array format only)
+    temp_data.total_sensors = SafeStringToInt(data.find("total_sensors") != data.end() ? data.at("total_sensors") : "0", 0);
+    temp_data.active_sensors = SafeStringToInt(data.find("active_sensors") != data.end() ? data.at("active_sensors") : "0", 0);
+    temp_data.avg_temp = SafeStringToDouble(data.find("avg_temp") != data.end() ? data.at("avg_temp") : "0", 0.0);
+    temp_data.max_temp = SafeStringToDouble(data.find("max_temp") != data.end() ? data.at("max_temp") : "0", 0.0);
+    temp_data.min_temp = SafeStringToDouble(data.find("min_temp") != data.end() ? data.at("min_temp") : "0", 0.0);
+    temp_data.hottest_sensor = SafeStringToInt(data.find("hottest_sensor") != data.end() ? data.at("hottest_sensor") : "0", 0);
+    
+    // Parse boolean flags
+    std::string warning_str = data.find("system_warning") != data.end() ? data.at("system_warning") : "false";
+    temp_data.system_warning = (warning_str == "true");
+    std::string critical_str = data.find("system_critical") != data.end() ? data.at("system_critical") : "false";
+    temp_data.system_critical = (critical_str == "true");
+    
+    // Parse optional statistics
+    temp_data.rate_hz = SafeStringToDouble(data.find("rate_hz") != data.end() ? data.at("rate_hz") : "0", 0.0);
+    temp_data.readings = SafeStringToInt(data.find("readings") != data.end() ? data.at("readings") : "0", 0);
+    temp_data.errors = SafeStringToInt(data.find("errors") != data.end() ? data.at("errors") : "0", 0);
+    
+    // Parse temperatures array
+    auto it = data.find("temperatures");
+    if (it != data.end()) {
+      std::string temp_array = it->second;
       
-      // Parse temperatures array if present
-      auto it = data.find("temperatures");
-      if (it != data.end()) {
-        std::string temp_array = it->second;
-        // Simple array parsing - look for numbers and null values
-        std::istringstream stream(temp_array);
-        std::string token;
-        while (std::getline(stream, token, ',')) {
-          // Remove brackets and whitespace
-          token.erase(std::remove_if(token.begin(), token.end(), 
-                     [](char c) { return c == '[' || c == ']' || c == ' '; }), token.end());
-          
-          if (token == "null" || token.empty()) {
-            temp_data.temperatures.push_back(std::numeric_limits<double>::quiet_NaN());
-          } else {
-            temp_data.temperatures.push_back(SafeStringToDouble(token, 0.0));
-          }
+      // Remove brackets if present
+      if (!temp_array.empty() && temp_array.front() == '[') {
+        temp_array = temp_array.substr(1);
+      }
+      if (!temp_array.empty() && temp_array.back() == ']') {
+        temp_array = temp_array.substr(0, temp_array.length() - 1);
+      }
+      
+      // Split by comma
+      std::istringstream stream(temp_array);
+      std::string token;
+      while (std::getline(stream, token, ',')) {
+        // Remove whitespace
+        token.erase(std::remove_if(token.begin(), token.end(), 
+                   [](char c) { return c == ' ' || c == '\t'; }), token.end());
+        
+        if (token == "null" || token.empty()) {
+          temp_data.temperatures.push_back(std::numeric_limits<double>::quiet_NaN());
+        } else {
+          temp_data.temperatures.push_back(SafeStringToDouble(token, 0.0));
         }
       }
-      
-      // Parse optional statistics
-      temp_data.reading_rate_hz = SafeStringToDouble(data.find("rate_hz") != data.end() ? data.at("rate_hz") : "0", 0.0);
-      temp_data.total_readings = SafeStringToInt(data.find("readings") != data.end() ? data.at("readings") : "0", 0);
-      temp_data.total_errors = SafeStringToInt(data.find("errors") != data.end() ? data.at("errors") : "0", 0);
-      
-    } else {
-      // Parse TEMP message (individual sensor format)
-      RCLCPP_DEBUG(logger_, "Parsing TEMP individual format, data size: %zu", data.size());
-      for (const auto& kv : data) {
-        RCLCPP_DEBUG(logger_, "  Key: '%s', Value: '%s'", kv.first.c_str(), kv.second.c_str());
-      }
-      
-      temp_data.sensor_id = SafeStringToInt(data.find("id") != data.end() ? data.at("id") : "0", 0);
-      temp_data.temperature_c = SafeStringToDouble(data.find("temp") != data.end() ? data.at("temp") : "0", 0.0);
-      temp_data.status = data.find("status") != data.end() ? data.at("status") : "UNKNOWN";
-      
-      RCLCPP_DEBUG(logger_, "Parsed: sensor_id=%d, temperature_c=%.2f, status=%s", 
-                   temp_data.sensor_id, temp_data.temperature_c, temp_data.status.c_str());
     }
+    
+    RCLCPP_DEBUG(logger_, "Parsed TEMPERATURE: total=%d, active=%d, avg=%.1f, temperatures_count=%zu", 
+                 temp_data.total_sensors, temp_data.active_sensors, temp_data.avg_temp, temp_data.temperatures.size());
     
   } catch (const std::exception& e) {
     RCLCPP_WARN(logger_, "Error parsing temperature data: %s", e.what());

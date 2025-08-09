@@ -151,18 +151,23 @@ struct DiagnosticData {
 };
 
 /**
- * @brief Temperature sensor data structure parsed from TEMP and TEMPERATURE messages.
+ * @brief Temperature sensor data structure parsed from TEMPERATURE messages.
  */
 struct TemperatureData {
-  int sensor_id = 0;                    ///< Sensor ID/index
-  double temperature_c = 0.0;           ///< Temperature in Celsius
-  std::string status = "UNKNOWN";       ///< Sensor status (OK, ERROR, etc.)
-  int total_sensors = 0;                ///< Total number of sensors (from array message)
+  // Array data (from TEMPERATURE messages)
+  int total_sensors = 0;                ///< Total number of sensors
   int active_sensors = 0;               ///< Number of active sensors
   std::vector<double> temperatures;     ///< Array of all temperatures (NaN for invalid)
-  double reading_rate_hz = 0.0;         ///< System reading rate
-  uint64_t total_readings = 0;          ///< Total readings since startup
-  uint64_t total_errors = 0;            ///< Total errors since startup
+  double avg_temp = 0.0;                ///< Average temperature
+  double max_temp = 0.0;                ///< Maximum temperature
+  double min_temp = 0.0;                ///< Minimum temperature
+  int hottest_sensor = 0;               ///< Index of hottest sensor
+  bool system_warning = false;          ///< System thermal warning
+  bool system_critical = false;         ///< System thermal critical
+  double rate_hz = 0.0;                 ///< Reading rate
+  uint64_t readings = 0;                ///< Total readings
+  uint64_t errors = 0;                  ///< Total errors
+  
   bool valid = false;                   ///< Data validity flag
 };
 
@@ -292,13 +297,13 @@ public:
   DiagnosticData ParseDiagnosticData(const MessageData& data) const;
 
   /**
-   * @brief Parse temperature data from TEMP/TEMPERATURE message.
+   * @brief Parse temperature data from TEMP or TEMPERATURE message.
    * 
    * @param[in] data Parsed key-value or JSON data
    * @param[in] is_array_format True if TEMPERATURE format, false if TEMP format
    * @return TemperatureData structure with parsed values
    */
-  TemperatureData ParseTemperatureData(const MessageData& data, bool is_array_format = false) const;
+  TemperatureData ParseTemperatureData(const MessageData& data) const;
 
   /**
    * @brief Parse VL53L0X data from VL53L0X message.
@@ -383,13 +388,10 @@ private:
   MessageData ParseJsonContent(const std::string& content) const;
 
   /**
-   * @brief Parse comprehensive JSON content into key-value pairs.
+   * @brief Parse comprehensive JSON content with nested structures and arrays.
    * 
-   * This function properly parses JSON format messages used by TeensyV2
-   * including ODOM, BATT, IMU, TEMP and other sensor messages.
-   * 
-   * @param[in] content JSON string content
-   * @return Map of key-value pairs extracted from JSON
+   * @param[in] content JSON string content with nested data
+   * @return Map of key-value pairs extracted from comprehensive JSON
    */
   MessageData ParseComprehensiveJsonContent(const std::string& content) const;
 

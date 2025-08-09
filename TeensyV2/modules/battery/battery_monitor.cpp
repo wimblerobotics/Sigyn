@@ -201,7 +201,8 @@ void BatteryMonitor::setup() {
   Wire.setClock(400000);
   multiplexer_available_ = testI2cMultiplexer();
   if (!multiplexer_available_) {
-    SerialManager::getInstance().sendDiagnostic("FATAL", "BatteryMonitor", "I2C multiplexer not available");
+    SerialManager::getInstance().sendMessage(
+        "FATAL", "BatteryMonitor setup failed: I2C multiplexer not available");
     return;
   }
 
@@ -277,7 +278,7 @@ void BatteryMonitor::updateBatteryState(size_t idx) {
     snprintf(msg, sizeof(msg),
              "Battery %zu does not meet WARNING LOW VOLTAGE of %4.3f: V=%.2f A=%.2f", idx,
              g_battery_config_[idx].warning_low_voltage, voltage, current);
-    SerialManager::getInstance().sendMessage("WARN", msg);
+    SerialManager::getInstance().sendMessage("WARNING", msg);
   } else if ((idx == 0) && (current < 0.0f)) {
     state_[idx] = BatteryState::CHARGING;
   } else {

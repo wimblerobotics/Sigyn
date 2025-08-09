@@ -595,42 +595,38 @@ void TeensyBridge::HandleDiagnosticMessage(const MessageData& data, rclcpp::Time
 }
 
 void TeensyBridge::HandleTemperatureMessage(const MessageData& data, rclcpp::Time timestamp) {
+  // Handle aggregate TEMPERATURE message: TEMPERATURE1:{"total_sensors":8,"active_sensors":2,"temperatures":[25.4,26.1,null,null,null,null,null,null],...}
   auto temperature_data = message_parser_->ParseTemperatureData(data);
-  if (temperature_data.valid) {
-    // Handle single sensor reading or multiple readings
-    if (temperature_data.temperatures.empty()) {
-      // Single sensor reading
+  
+  if (temperature_data.valid && !temperature_data.temperatures.empty()) {
+    // Process individual sensor readings from the temperatures array
+    for (size_t i = 0; i < temperature_data.temperatures.size() && i < 2; i++) {
+      double temp_value = temperature_data.temperatures[i];
+      
+      // Skip null/invalid temperatures
+      if (std::isnan(temp_value)) {
+        continue;
+      }
+      
+      // Create individual sensor message
       sensor_msgs::msg::Temperature temp_msg;
       temp_msg.header.stamp = timestamp;
-      temp_msg.header.frame_id = "motor_" + std::to_string(temperature_data.sensor_id);
-      temp_msg.temperature = temperature_data.temperature_c;
+      temp_msg.header.frame_id = "motor_" + std::to_string(i);
+      temp_msg.temperature = temp_value;
       temp_msg.variance = 0.1;  // Conservative variance estimate
       
-      // Route to appropriate publisher based on sensor ID
-      if (temperature_data.sensor_id == 0 && temperature_motor0_pub_) {
+      // Route to appropriate publisher based on sensor index
+      if (i == 0 && temperature_motor0_pub_) {
         temperature_motor0_pub_->publish(temp_msg);
-      } else if (temperature_data.sensor_id == 1 && temperature_motor1_pub_) {
+      } else if (i == 1 && temperature_motor1_pub_) {
         temperature_motor1_pub_->publish(temp_msg);
       }
-    } else {
-      // Multiple sensor readings (array format)
-      for (size_t i = 0; i < temperature_data.temperatures.size() && i < 2; ++i) {
-        if (!std::isnan(temperature_data.temperatures[i])) {
-          sensor_msgs::msg::Temperature temp_msg;
-          temp_msg.header.stamp = timestamp;
-          temp_msg.header.frame_id = "motor_" + std::to_string(i);
-          temp_msg.temperature = temperature_data.temperatures[i];
-          temp_msg.variance = 0.1;  // Conservative variance estimate
-          
-          // Route to appropriate publisher based on index
-          if (i == 0 && temperature_motor0_pub_) {
-            temperature_motor0_pub_->publish(temp_msg);
-          } else if (i == 1 && temperature_motor1_pub_) {
-            temperature_motor1_pub_->publish(temp_msg);
-          }
-        }
-      }
     }
+    
+    RCLCPP_DEBUG(this->get_logger(), "Processed TEMPERATURE message: %d sensors, %zu temperature values", 
+                 temperature_data.total_sensors, temperature_data.temperatures.size());
+  } else {
+    RCLCPP_WARN(this->get_logger(), "Invalid temperature data or empty temperatures array");
   }
 }
 

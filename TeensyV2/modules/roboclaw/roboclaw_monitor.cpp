@@ -67,7 +67,7 @@ RoboClawMonitor& RoboClawMonitor::getInstance() {
 }
 
 void RoboClawMonitor::setup() {
-  SerialManager::getInstance().sendDiagnostic("INFO", "RoboClawMonitor", "Starting initialization");
+  SerialManager::getInstance().sendMessage("INFO", "RoboClawMonitor: Starting initialization");
   
   // Initialize serial communication
   roboclaw_.begin(config_.baud_rate);
@@ -80,10 +80,10 @@ void RoboClawMonitor::setup() {
   
   if (initializeRoboClaw()) {
     connection_state_ = ConnectionState::CONNECTED;
-    SerialManager::getInstance().sendDiagnostic("INFO", "RoboClawMonitor", "Initialization successful");
+    SerialManager::getInstance().sendMessage("INFO", "RoboClawMonitor: Initialization successful");
   } else {
     connection_state_ = ConnectionState::ERROR_RECOVERY;
-    SerialManager::getInstance().sendDiagnostic("ERROR", "RoboClawMonitor", "Initialization failed");
+    SerialManager::getInstance().sendMessage("ERROR", "RoboClawMonitor: Initialization failed");
   }
   
   // Initialize timing
@@ -1030,9 +1030,8 @@ void RoboClawMonitor::sendDiagnosticReports() {
   diag_msg += ",connection_state:" + String(static_cast<int>(connection_state_));
   diag_msg += ",emergency_stop:" + String(emergency_stop_active_ ? "true" : "false");
   
-  // Convert to JSON format for diagnostic message
-  String json_msg = "{\"level\":\"INFO\",\"module\":\"RoboClawMonitor\",\"message\":\"Diagnostic report\",\"details\":\"" + diag_msg + "\"}";
-  SerialManager::getInstance().sendMessage("DIAG", json_msg.c_str());
+  SerialManager::getInstance().sendMessage("DIAG", 
+    ("level:INFO,module:RoboClawMonitor,msg:Diagnostic report,details:" + diag_msg).c_str());
 }
 
 String RoboClawMonitor::decodeErrorStatus(uint32_t error_status) const {
