@@ -121,7 +121,8 @@
     "streambuf": "cpp",
     "syncstream": "cpp",
     "thread": "cpp",
-    "typeindex": "cpp"
+    "typeindex": "cpp",
+    "*.tpp": "cpp"
   },
   "extensions.ignoreRecommendations": true,
   "clangd.enable": false,
