@@ -70,7 +70,7 @@ void RoboClawMonitor::setup() {
   SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Starting initialization");
   
   // Initialize serial communication
-  roboclaw_.begin(config_.baud_rate);
+  // roboclaw_.begin(config_.baud_rate);
   
   // Initialize hardware pins if needed
   // pinMode(E_STOP_PIN, OUTPUT);
