@@ -192,10 +192,20 @@ void serialEvent() {
 
 void setup() {
   // Initialize serial communication first
+  uint32_t start_time = millis();
   Serial.begin(BOARD_SERIAL_BAUD_RATE);
-  while (!Serial && millis() < BOARD_SERIAL_WAIT_MS) {
+  while (!Serial && (start_time - millis() < BOARD_SERIAL_WAIT_MS)) {
     // Wait for serial connection
   }
+
+#if ENABLE_ROBOCLAW
+  RoboClawConfig config_;
+  start_time = millis();
+  Serial7.begin(config_.baud_rate); // RoboClaw serial port
+  while (!Serial7 && (start_time - millis() < BOARD_SERIAL_WAIT_MS)) {
+    // Wait for serial connection
+  }
+#endif
 
   // TODO: Setup inter-board communication pins (commented out for now)
   // pinMode(INTER_BOARD_SIGNAL_OUTPUT_PIN, OUTPUT);

@@ -942,6 +942,34 @@ MessageData MessageParser::ParseJsonPayload(const std::string& json_content) con
     std::string qw = extractJsonValue("qw");
     if (!qw.empty()) data["qw"] = qw;
     
+    // Extract ODOM fields
+    std::string px = extractJsonValue("px");
+    if (!px.empty()) data["px"] = px;
+    
+    std::string py = extractJsonValue("py");
+    if (!py.empty()) data["py"] = py;
+    
+    std::string ox = extractJsonValue("ox");
+    if (!ox.empty()) data["ox"] = ox;
+    
+    std::string oy = extractJsonValue("oy");
+    if (!oy.empty()) data["oy"] = oy;
+    
+    std::string oz = extractJsonValue("oz");
+    if (!oz.empty()) data["oz"] = oz;
+    
+    std::string ow = extractJsonValue("ow");
+    if (!ow.empty()) data["ow"] = ow;
+    
+    std::string vx = extractJsonValue("vx");
+    if (!vx.empty()) data["vx"] = vx;
+    
+    std::string vy = extractJsonValue("vy");
+    if (!vy.empty()) data["vy"] = vy;
+    
+    std::string wz = extractJsonValue("wz");
+    if (!wz.empty()) data["wz"] = wz;
+    
     // Extract array fields (distances, temperatures) - special handling needed
     std::string search = "\"distances\":";
     size_t pos = json_content.find(search);

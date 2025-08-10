@@ -30,7 +30,7 @@ RoboClaw::RoboClaw(SoftwareSerial *serial, uint32_t tout) {
 //
 // Destructor
 //
-RoboClaw::~RoboClaw() { Serial6.end(); }
+RoboClaw::~RoboClaw() { hserial->end(); }
 
 void RoboClaw::begin(long speed) {
   if (hserial) {
