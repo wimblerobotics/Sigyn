@@ -85,7 +85,7 @@ public:
       std::bind(&PerimeterRoamerNode::scanCallback, this, std::placeholders::_1));
     
     battery_sub_ = this->create_subscription<sensor_msgs::msg::BatteryState>(
-      "/battery_state", 10,
+      "/sigyn/teensy_bridge/battery/status", 10,
       std::bind(&PerimeterRoamerNode::batteryCallback, this, std::placeholders::_1));
 
     BT::BehaviorTreeFactory factory;

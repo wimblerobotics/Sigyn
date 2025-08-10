@@ -58,7 +58,7 @@ def generate_launch_description():
         remappings=[
             # These should match your simulation topics
             ('/scan', '/scan'),
-            ('/battery_state', '/battery_state'),
+            ('/battery_state', '/sigyn/teensy_bridge/battery/status'),
             ('/navigate_to_pose', '/navigate_to_pose'),
             ('/odom', '/odom'),
             ('/cmd_vel', '/cmd_vel_nav'),
