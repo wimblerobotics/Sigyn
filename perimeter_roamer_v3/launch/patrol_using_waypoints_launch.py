@@ -22,7 +22,7 @@ def generate_launch_description():
     
     loop_waypoints_arg = DeclareLaunchArgument(
         'loop_waypoints', 
-        default_value='false',
+        default_value='true',
         description='Whether to continuously loop through waypoints after completing all'
     )
     

@@ -232,7 +232,7 @@ void PerformanceMonitor::getPerformanceStats(char* buffer, size_t size) {
                 mod->name(),
                 min_ms, max_ms, avg_ms, exec_time_ms,
                 (unsigned long)stats.loop_count,
-                is_violation ? "T" : "F");
+                is_violation ? "true" : "false");
 
             if (mod_written > 0 && written + mod_written < (int)size - 50) { // Leave more buffer space
                 written += mod_written;

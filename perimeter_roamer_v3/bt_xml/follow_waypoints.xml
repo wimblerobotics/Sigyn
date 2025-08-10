@@ -4,7 +4,7 @@
             <Fallback name="MainFallback">
                 <!-- Priority 1: Handle critical battery emergencies -->
                 <Sequence name="EmergencyBatterySequence">
-                    <CheckBatteryState name="CheckEmergencyBattery" low_battery_threshold="20.0"/>
+                    <CheckBatteryState name="CheckEmergencyBattery" low_battery_threshold="32.0"/>
                     <NavigateToPose name="EmergencyGoToCharging" 
                                    target_pose="{charging_pose}" 
                                    timeout="60.0"
@@ -51,7 +51,7 @@
                                     <ReactiveFallback name="ReactiveNavigation">
                                         <!-- Check for low battery during navigation -->
                                         <Sequence name="LowBatteryDuringNav">
-                                            <CheckBatteryState name="CheckBatteryDuringNav" low_battery_threshold="15.0"/>
+                                            <CheckBatteryState name="CheckBatteryDuringNav" low_battery_threshold="34.0"/>
                                             <NavigateToPose name="GoToChargingDuringNav" 
                                                            target_pose="{charging_pose}" 
                                                            timeout="60.0"

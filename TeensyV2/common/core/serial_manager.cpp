@@ -174,17 +174,37 @@ namespace sigyn_teensy {
   void SerialManager::sendDiagnosticMessage(const char* level, const char* module, const char* message) {
     char json_payload[kMaxMessageLength - 20]; // Reserve space for type and board ID
     
-    // Escape quotes in the message for JSON safety
+    // Escape quotes and control characters in the message for JSON safety
     char escaped_message[kMaxMessageLength / 2];
     const char* src = message;
     char* dst = escaped_message;
     size_t max_escaped = sizeof(escaped_message) - 1;
     
-    while (*src && (dst - escaped_message) < max_escaped - 1) {
+    while (*src && (dst - escaped_message) < max_escaped - 2) {  // -2 for potential escape sequences
       if (*src == '"') {
         *dst++ = '\\';
         if ((dst - escaped_message) < max_escaped - 1) {
           *dst++ = '"';
+        }
+      } else if (*src == '\t') {
+        *dst++ = '\\';
+        if ((dst - escaped_message) < max_escaped - 1) {
+          *dst++ = 't';
+        }
+      } else if (*src == '\n') {
+        *dst++ = '\\';
+        if ((dst - escaped_message) < max_escaped - 1) {
+          *dst++ = 'n';
+        }
+      } else if (*src == '\r') {
+        *dst++ = '\\';
+        if ((dst - escaped_message) < max_escaped - 1) {
+          *dst++ = 'r';
+        }
+      } else if (*src == '\\') {
+        *dst++ = '\\';
+        if ((dst - escaped_message) < max_escaped - 1) {
+          *dst++ = '\\';
         }
       } else {
         *dst++ = *src;

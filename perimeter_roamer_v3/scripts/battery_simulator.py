@@ -16,16 +16,17 @@ class BatterySimulator(Node):
     def publish_battery_state(self):
         msg = BatteryState()
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = "base_link"
+        msg.header.frame_id = "36VLIPO"  # Match TeensyV2 battery location name
         
-        # Simulate slow battery drain
+        # Simulate slow battery drain with correct voltage range for 36V LiFePO4 system
         self.battery_level -= 0.1  # Drain 0.1% per second
         if self.battery_level < 18.5:
             self.battery_level = 100.0  # Reset when empty
             self.get_logger().info('Battery recharged to 100%')
         
         msg.percentage = self.battery_level / 100.0  # Convert to 0-1 range
-        msg.voltage = 12.0 + (self.battery_level / 100.0) * 2.0  # 12-14V range
+        # 36V LiFePO4 system: 34-44V range (34V warning, 32V critical, 44V full)
+        msg.voltage = 32.0 + (self.battery_level / 100.0) * 12.0  # 32-44V range
         msg.current = -1.5  # Discharging at 1.5A
         msg.charge = float('nan')  # Not available
         msg.capacity = float('nan')  # Not available
@@ -34,6 +35,7 @@ class BatterySimulator(Node):
         msg.power_supply_health = BatteryState.POWER_SUPPLY_HEALTH_GOOD
         msg.power_supply_technology = BatteryState.POWER_SUPPLY_TECHNOLOGY_LION
         msg.present = True
+        msg.location = "36VLIPO"  # Set location to match frame_id
         
         self.publisher.publish(msg)
         
