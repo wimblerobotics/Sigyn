@@ -70,7 +70,7 @@ def generate_launch_description():
         remappings=[
             # Remap to actual topics on your robot
             ('/scan', '/scan'),
-            ('/battery_state', '/battery_state'),
+            ('/battery_state', '/sigyn/teensy_bridge/battery/status'),
             ('/navigate_to_pose', '/navigate_to_pose'),
         ]
     )

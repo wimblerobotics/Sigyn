@@ -8,7 +8,7 @@ import time
 class BatterySimulator(Node):
     def __init__(self):
         super().__init__('battery_simulator')
-        self.publisher = self.create_publisher(BatteryState, '/battery_state', 10)
+        self.publisher = self.create_publisher(BatteryState, '/sigyn/teensy_bridge/battery/status', 10)
         self.timer = self.create_timer(1.0, self.publish_battery_state)
         self.battery_level = 100.0  # Start at 100%
         self.get_logger().info('Battery simulator started')

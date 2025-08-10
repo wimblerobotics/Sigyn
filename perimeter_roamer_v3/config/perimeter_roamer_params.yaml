@@ -7,7 +7,7 @@ perimeter_roamer_node:
     
     # Battery Configuration
     low_battery_threshold: 25.0  # Percentage
-    battery_topic: "/battery_state"
+    battery_topic: "/sigyn/teensy_bridge/battery/status"
     
     # LIDAR Configuration
     scan_topic: "/scan"
