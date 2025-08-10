@@ -104,7 +104,7 @@ void BNO055Monitor::setup() {
     return;
   }
 
-  SerialManager::getInstance().sendMessage("INFO", "BNO055Monitor: Starting dual sensor initialization");
+  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Starting dual sensor initialization");
 
   // Initialize I2C
   Wire.begin();
@@ -113,7 +113,7 @@ void BNO055Monitor::setup() {
   // Test I2C multiplexer
   multiplexer_available_ = testI2CMultiplexer();
   if (!multiplexer_available_) {
-    SerialManager::getInstance().sendMessage("ERROR", "BNO055Monitor: I2C multiplexer not available");
+    SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "I2C multiplexer not available");
     setup_completed_ = true;
     return;
   }
@@ -125,30 +125,30 @@ void BNO055Monitor::setup() {
       active_sensor_count_++;
       sensor_states_[i] = IMUState::NORMAL;
       char msg[64];
-      snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d initialized successfully", i);
-      SerialManager::getInstance().sendMessage("INFO", msg);
+      snprintf(msg, sizeof(msg), "Sensor %d initialized successfully", i);
+      SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
 
       // Prime the sensor with additional diagnostics
       if (!primeSensorReadings(i)) {
         char warn_msg[64];
-        snprintf(warn_msg, sizeof(warn_msg), "BNO055Monitor: Sensor %d priming incomplete", i);
-        SerialManager::getInstance().sendMessage("WARN", warn_msg);
+        snprintf(warn_msg, sizeof(warn_msg), "Sensor %d priming incomplete", i);
+        SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), warn_msg);
       } else {
         char info_msg[64];
-        snprintf(info_msg, sizeof(info_msg), "BNO055Monitor: Sensor %d primed successfully", i);
-        SerialManager::getInstance().sendMessage("INFO", info_msg);
+        snprintf(info_msg, sizeof(info_msg), "Sensor %d primed successfully", i);
+        SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), info_msg);
       }
     } else {
       sensor_states_[i] = IMUState::FAILED;
       char msg[64];
-      snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d initialization failed", i);
-      SerialManager::getInstance().sendMessage("WARN", msg);
+      snprintf(msg, sizeof(msg), "Sensor %d initialization failed", i);
+      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg);
     }
   }
 
   char msg[64];
-  snprintf(msg, sizeof(msg), "BNO055Monitor: %d/%d sensors initialized", active_sensor_count_, kMaxSensors);
-  SerialManager::getInstance().sendMessage("INFO", msg);
+  snprintf(msg, sizeof(msg), "%d/%d sensors initialized", active_sensor_count_, kMaxSensors);
+  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
 
   // Initialize performance stats
   for (uint8_t i = 0; i < kMaxSensors; i++) {
@@ -201,7 +201,7 @@ void BNO055Monitor::loop() {
           current_read_state_[i] = ReadState::IDLE;
           char msg[64];
           snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d quaternion read failed", i);
-          SerialManager::getInstance().sendMessage("ERROR", msg);
+          SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), msg);
         }
         break;
         
@@ -239,10 +239,8 @@ void BNO055Monitor::loop() {
     
     report_sensor_index = (report_sensor_index + 1) % kMaxSensors;
     
-    // Update timestamp only after all sensors have been reported
-    if (report_sensor_index == 0) {
-      last_report_time_ = now;
-    }
+    // Always update timestamp to ensure proper spacing between sensor reports
+    last_report_time_ = now;
   }
 
   // Performance monitoring and violation detection
@@ -262,7 +260,7 @@ void BNO055Monitor::loop() {
                "active_sensors=%d, multiplexer=%s",
                (unsigned long)execution_time_us, (unsigned long)violation_count,
                active_sensor_count_, multiplexer_available_ ? "OK" : "FAIL");
-      SerialManager::getInstance().sendMessage("DIAG", diag_msg);
+      SerialManager::getInstance().sendDiagnosticMessage("DIAG", name(), diag_msg);
       
       // Additional diagnostic info about sensor states
       for (uint8_t i = 0; i < kMaxSensors; i++) {
@@ -294,7 +292,7 @@ void BNO055Monitor::loop() {
                  i, state_str, read_state_str,
                  (long)(next_sensor_start_time_[i] - now),
                  sensor_data_[i].calibration_status);
-        SerialManager::getInstance().sendMessage("DIAG", state_msg);
+        SerialManager::getInstance().sendDiagnosticMessage("DIAG", name(), state_msg);
       }
       
       last_violation_report = now;
@@ -415,7 +413,7 @@ bool BNO055Monitor::initializeSensor(uint8_t sensor_id) {
   if (!checkChipID()) {
     char msg[64];
     snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d chip ID check failed", sensor_id);
-    SerialManager::getInstance().sendMessage("ERROR", msg);
+    SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), msg);
     return false;
   }
 
@@ -641,17 +639,17 @@ bool BNO055Monitor::primeSensorReadings(uint8_t sensor_id) {
   for (int cycle = 1; cycle <= 3; cycle++) {
     char debug_msg[80];
     snprintf(debug_msg, sizeof(debug_msg), "BNO055Monitor: Priming sensor %d (Cycle %d) - quaternion only", sensor_id, cycle);
-    SerialManager::getInstance().sendMessage("INFO", debug_msg);
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), debug_msg);
 
     uint32_t start_time = micros();
     success = readQuaternion(data.qw, data.qx, data.qy, data.qz);
     uint32_t elapsed_time = micros() - start_time;
     snprintf(debug_msg, sizeof(debug_msg), "readQuaternion: success=%d, time=%luus", success, elapsed_time);
-    SerialManager::getInstance().sendMessage("DEBUG", debug_msg);
+    SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), debug_msg);
 
     if (!success) {
       snprintf(debug_msg, sizeof(debug_msg), "BNO055Monitor: Sensor %d priming failed during cycle %d", sensor_id, cycle);
-      SerialManager::getInstance().sendMessage("ERROR", debug_msg);
+      SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), debug_msg);
       break;
     }
 
@@ -662,7 +660,7 @@ bool BNO055Monitor::primeSensorReadings(uint8_t sensor_id) {
     data.valid = true;
     char info_msg[80];
     snprintf(info_msg, sizeof(info_msg), "BNO055Monitor: Sensor %d primed successfully", sensor_id);
-    SerialManager::getInstance().sendMessage("INFO", info_msg);
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), info_msg);
   }
 
   return success;
@@ -676,7 +674,7 @@ bool BNO055Monitor::validateGyroscopeReadsDuringPriming(uint8_t sensor_id) {
     }
     char error_msg[64];
     snprintf(error_msg, sizeof(error_msg), "Gyroscope read failed during priming for sensor %d", sensor_id);
-    SerialManager::getInstance().sendMessage("ERROR", error_msg);
+    SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), error_msg);
     delay(50); // Retry delay
   }
   return false;
@@ -687,7 +685,7 @@ void BNO055Monitor::initializeMinValueIfUnset(uint8_t sensor_id, float value) {
     performance_stats_[sensor_id].min = value;
     char info_msg[64];
     snprintf(info_msg, sizeof(info_msg), "Initialized min value for sensor %d with value %.2f", sensor_id, value);
-    SerialManager::getInstance().sendMessage("INFO", info_msg);
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), info_msg);
   }
 }
 

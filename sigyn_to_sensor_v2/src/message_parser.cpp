@@ -28,13 +28,18 @@ void MessageParser::RegisterCallback(MessageType type, MessageCallback callback)
 }
 
 bool MessageParser::ParseMessage(const std::string& message, rclcpp::Time timestamp) {
+  // For backward compatibility, delegate to new JSON-first parsing
+  return ParseJsonMessage(message, timestamp);
+}
+
+bool MessageParser::ParseJsonMessage(const std::string& message, rclcpp::Time timestamp) {
   total_messages_received_++;
   
   if (timestamp.nanoseconds() == 0) {
     timestamp = rclcpp::Clock().now();
   }
   
-  // Validate message format
+  // Validate message format: TYPE:JSON
   if (!ValidateMessage(message)) {
     total_validation_errors_++;
     RCLCPP_WARN(logger_, "Message validation failed: %s", message.c_str());
@@ -42,48 +47,50 @@ bool MessageParser::ParseMessage(const std::string& message, rclcpp::Time timest
   }
   
   try {
-    // Parse message type
-    MessageType type = ParseMessageType(message);
-    if (type == MessageType::UNKNOWN) {
+    // Parse message type and JSON payload
+    size_t colon_pos = message.find(':');
+    if (colon_pos == std::string::npos) {
       total_parsing_errors_++;
-      RCLCPP_WARN(logger_, "Unknown message type: %s", message.c_str());
+      RCLCPP_ERROR(logger_, "Invalid message format (no colon): %s", message.c_str());
       return false;
     }
     
-    // Find colon separator (validation ensures it exists)
-    size_t colon_pos = message.find(':');
+    std::string type_with_id = message.substr(0, colon_pos);
+    std::string json_payload = message.substr(colon_pos + 1);
+    
+    // Extract base type and board ID
+    std::string base_type = type_with_id;
+    int board_id = 0;
+    if (!type_with_id.empty() && std::isdigit(type_with_id.back())) {
+      board_id = type_with_id.back() - '0';
+      base_type = type_with_id.substr(0, type_with_id.length() - 1);
+      current_board_id_ = board_id;
+    }
+    
+    // Parse JSON payload
     MessageData data;
+    if (json_payload.empty() || json_payload[0] != '{') {
+      // Not valid JSON
+      total_parsing_errors_++;
+      RCLCPP_ERROR(logger_, "Expected JSON payload but got: '%s' from message: %s", 
+                   json_payload.c_str(), message.c_str());
+      return false;
+    }
     
-    // Get message content after the colon
-    std::string content = message.substr(colon_pos + 1);
+    data = ParseJsonPayload(json_payload);
+    if (data.empty()) {
+      total_parsing_errors_++;
+      RCLCPP_ERROR(logger_, "Failed to parse JSON payload: '%s' from message: %s", 
+                   json_payload.c_str(), message.c_str());
+      return false;
+    }
     
-    // Parse content based on message type - now most messages use JSON format
-    if (type == MessageType::PERFORMANCE || type == MessageType::VL53L0X || 
-        type == MessageType::ROBOCLAW ||
-        type == MessageType::BATTERY || type == MessageType::IMU || 
-        type == MessageType::ODOM || type == MessageType::TEMPERATURE ||
-        (content.find('{') == 0)) {
-      // JSON format messages (most messages now use this format)
-      data = ParseJsonContent(content);
-    } else if (type == MessageType::DIAGNOSTIC || type == MessageType::INIT || type == MessageType::CRITICAL) {
-      // Check if this is a structured diagnostic message (DIAG:) or free-form (DEBUG:, etc.)
-      std::string type_prefix = message.substr(0, colon_pos);
-      // Remove board ID from type prefix for comparison
-      if (!type_prefix.empty() && std::isdigit(type_prefix.back())) {
-        type_prefix = type_prefix.substr(0, type_prefix.length() - 1);
-      }
-      
-      if (type_prefix == "DIAG") {
-        // Structured diagnostic messages use key:value format
-        data = ParseKeyValuePairs(content);
-      } else {
-        // DEBUG, INFO, ERROR, etc. messages are free-form diagnostic text
-        data["message"] = content;
-        RCLCPP_DEBUG(logger_, "%s: %s", type_prefix.c_str(), content.c_str());
-      }
-    } else {
-      // Fallback to key:value format for any remaining messages
-      data = ParseKeyValuePairs(content);
+    // Determine message type and route to callback
+    MessageType type = StringToMessageType(base_type);
+    if (type == MessageType::UNKNOWN) {
+      total_parsing_errors_++;
+      RCLCPP_WARN(logger_, "Unknown message type '%s' in message: %s", base_type.c_str(), message.c_str());
+      return false;
     }
     
     // Update statistics
@@ -415,67 +422,34 @@ DiagnosticData MessageParser::ParseDiagnosticData(const MessageData& data) const
   DiagnosticData diag;
   
   try {
-    // Check if this is structured diagnostic data (level/module/msg format)
+    // All diagnostic messages are now JSON format with level, module, message fields
     auto level_it = data.find("level");
     auto module_it = data.find("module");
-    auto msg_it = data.find("msg");
     auto message_it = data.find("message");
+    auto timestamp_it = data.find("timestamp");
     
-    if (level_it != data.end() && module_it != data.end() && msg_it != data.end()) {
-      // Structured diagnostic data (level:INFO,module:TemperatureMonitor,msg:Diagnostic report,details:...)
+    if (level_it != data.end()) {
       diag.level = level_it->second;
-      diag.module = module_it->second;
-      diag.message = msg_it->second;
-      
-      auto details_it = data.find("details");
-      if (details_it != data.end()) {
-        diag.details = details_it->second;
-      }
-      
-      auto time_it = data.find("time");
-      if (time_it != data.end()) {
-        diag.timestamp = static_cast<uint64_t>(SafeStringToInt(time_it->second, 0));
-      }
-      
-      // Ensure we have minimum required content
-      if (diag.level.empty() || diag.module.empty() || diag.message.empty()) {
-        RCLCPP_WARN(logger_, "Structured diagnostic data has empty required fields");
-        diag.valid = false;
-        return diag;
-      }
-    } else if (level_it != data.end() && message_it != data.end()) {
-      // JSON diagnostic data ({"level":"INFO","message":"TemperatureMonitor: Starting initialization"})
-      diag.level = level_it->second;
-      diag.message = message_it->second;
-      
-      // Extract module name from message if possible
-      std::string full_message = message_it->second;
-      size_t colon_pos = full_message.find(':');
-      if (colon_pos != std::string::npos) {
-        diag.module = full_message.substr(0, colon_pos);
-      } else {
-        diag.module = "teensy_sensor";
-      }
-    } else if (message_it != data.end()) {
-      // Simple diagnostic message (DIAG: free-form text)
-      std::string full_message = message_it->second;
-      
-      // Try to extract module name from message (e.g., "BNO055Monitor PERF_VIOLATION: ...")
-      size_t first_space = full_message.find(' ');
-      if (first_space != std::string::npos) {
-        diag.module = full_message.substr(0, first_space);
-        diag.message = full_message;
-      } else {
-        diag.module = "teensy_sensor";
-        diag.message = full_message;
-      }
-      
-      // Default level to INFO for simple messages
-      diag.level = "INFO";
     } else {
-      RCLCPP_WARN(logger_, "Diagnostic data has no message content");
+      diag.level = "INFO"; // Default
+    }
+    
+    if (module_it != data.end()) {
+      diag.module = module_it->second;
+    } else {
+      diag.module = "teensy_sensor"; // Default
+    }
+    
+    if (message_it != data.end()) {
+      diag.message = message_it->second;
+    } else {
+      RCLCPP_WARN(logger_, "Diagnostic message has no message content");
       diag.valid = false;
       return diag;
+    }
+    
+    if (timestamp_it != data.end()) {
+      diag.timestamp = static_cast<uint64_t>(SafeStringToInt(timestamp_it->second, 0));
     }
     
     diag.valid = true;
@@ -755,30 +729,19 @@ bool MessageParser::ValidateMessage(const std::string& message) const {
     return false;
   }
   
-  // JSON messages should start with { 
-  if (base_type == "PERF" || base_type == "VL53L0X" || base_type == "ROBOCLAW" || 
-      base_type == "BATT" || base_type == "IMU" || base_type == "ODOM" || 
-      base_type == "TEMPERATURE" ||
-      (content.find('{') == 0)) {
-    return !content.empty() && content[0] == '{';
-  } 
-  
-  // Diagnostic messages are free-form text (but must have recognized type)
-  if (base_type == "DIAG" || base_type == "WARNING" || base_type == "DEBUG" || 
-      base_type == "INFO" || base_type == "ERROR" || base_type == "CRITICAL" || 
-      base_type == "INIT") {
-    return !content.empty();
+  // All messages should now have JSON content starting with {
+  if (content.empty() || content[0] != '{') {
+    return false;
   }
   
-  // All other messages should have some content
-  return !content.empty();
+  return true;
 }
 
 MessageType MessageParser::StringToMessageType(const std::string& type_str) const {
   if (type_str == "BATT") return MessageType::BATTERY;
   if (type_str == "PERF") return MessageType::PERFORMANCE;
   if (type_str == "SAFETY") return MessageType::SAFETY;
-  if (type_str == "IMU") return MessageType::IMU;
+  if (type_str == "IMU" || type_str == "IMU1" || type_str == "IMU2") return MessageType::IMU;
   if (type_str == "TEMPERATURE") return MessageType::TEMPERATURE;
   if (type_str == "VL53L0X") return MessageType::VL53L0X;
   if (type_str == "ROBOCLAW") return MessageType::ROBOCLAW;
@@ -874,141 +837,162 @@ std::vector<std::string> MessageParser::ParseCommaSeparatedList(const std::strin
 }
 
 MessageData MessageParser::ParseJsonContent(const std::string& content) const {
+  // Legacy method - delegate to new JSON parser
+  return ParseJsonPayload(content);
+}
+
+MessageData MessageParser::ParseJsonPayload(const std::string& json_content) const {
   MessageData data;
   
-  if (content.empty()) {
+  if (json_content.empty()) {
     return data;
   }
   
-  // For PERF messages, we'll store the entire JSON as a single "json" key
-  // This allows the consumer to handle JSON parsing if needed
-  data["json"] = content;
+  // Store the raw JSON for handlers that need it
+  data["json"] = json_content;
   
-  // Also extract some commonly used values for easy access
   try {
     // Simple JSON value extraction without full parser
-    // Look for common PERF fields: freq, target_freq, mod_viol, freq_viol
+    // Extract commonly used fields across all message types
     
-    auto extractJsonValue = [&content](const std::string& key) -> std::string {
+    auto extractJsonValue = [&json_content](const std::string& key) -> std::string {
       std::string search = "\"" + key + "\":";
-      size_t pos = content.find(search);
+      size_t pos = json_content.find(search);
       if (pos == std::string::npos) {
-        // Try without quotes for numeric keys
-        search = "\"" + key + "\":";
-        pos = content.find(search);
-        if (pos == std::string::npos) {
-          return "";
-        }
+        return "";
       }
       
       pos += search.length();
       
       // Skip whitespace
-      while (pos < content.length() && (content[pos] == ' ' || content[pos] == '\t')) {
+      while (pos < json_content.length() && (json_content[pos] == ' ' || json_content[pos] == '\t')) {
         pos++;
       }
       
       // Extract value (up to comma, closing brace, or end)
       size_t end_pos = pos;
-      while (end_pos < content.length() && 
-             content[end_pos] != ',' && 
-             content[end_pos] != '}' && 
-             content[end_pos] != ']') {
-        end_pos++;
+      if (pos < json_content.length() && json_content[pos] == '"') {
+        pos++; // Skip opening quote
+        end_pos = pos;
+        while (end_pos < json_content.length() && json_content[end_pos] != '"') {
+          end_pos++;
+        }
+      } else {
+        while (end_pos < json_content.length() && 
+               json_content[end_pos] != ',' && 
+               json_content[end_pos] != '}' && 
+               json_content[end_pos] != ']') {
+          end_pos++;
+        }
       }
       
-      std::string value = content.substr(pos, end_pos - pos);
-      
-      // Trim quotes if present
-      if (!value.empty() && value.front() == '"' && value.back() == '"') {
-        value = value.substr(1, value.length() - 2);
-      }
-      
+      std::string value = json_content.substr(pos, end_pos - pos);
       return value;
     };
     
-    // Extract common PERF fields
+    // Extract diagnostic message fields
+    std::string level = extractJsonValue("level");
+    if (!level.empty()) data["level"] = level;
+    
+    std::string module = extractJsonValue("module");
+    if (!module.empty()) data["module"] = module;
+    
+    std::string message = extractJsonValue("message");
+    if (!message.empty()) data["message"] = message;
+    
+    std::string timestamp = extractJsonValue("timestamp");
+    if (!timestamp.empty()) data["timestamp"] = timestamp;
+    
+    // Extract common sensor data fields
     std::string freq = extractJsonValue("freq");
     if (!freq.empty()) data["freq"] = freq;
     
-    std::string target_freq = extractJsonValue("tfreq");  // Fixed: use actual field name "tfreq"
+    std::string target_freq = extractJsonValue("tfreq");
     if (!target_freq.empty()) data["target_freq"] = target_freq;
     
-    std::string mod_viol = extractJsonValue("mviol");  // Fixed: use actual field name "mviol"
+    std::string mod_viol = extractJsonValue("mviol");
     if (!mod_viol.empty()) data["mod_viol"] = mod_viol;
     
-    std::string freq_viol = extractJsonValue("fviol");  // Fixed: use actual field name "fviol"
+    std::string freq_viol = extractJsonValue("fviol");
     if (!freq_viol.empty()) data["freq_viol"] = freq_viol;
     
-    // Extract VL53L0X fields
-    std::string total_sensors = extractJsonValue("total_sensors");
-    if (!total_sensors.empty()) data["total_sensors"] = total_sensors;
+    // Extract battery fields
+    std::string voltage = extractJsonValue("V");
+    if (!voltage.empty()) data["V"] = voltage;
     
-    std::string active_sensors = extractJsonValue("active_sensors");
-    if (!active_sensors.empty()) data["active_sensors"] = active_sensors;
+    std::string current = extractJsonValue("A");
+    if (!current.empty()) data["A"] = current;
     
-    std::string min_distance = extractJsonValue("min_distance");
-    if (!min_distance.empty()) data["min_distance"] = min_distance;
+    std::string charge = extractJsonValue("charge");
+    if (!charge.empty()) data["charge"] = charge;
     
-    std::string max_distance = extractJsonValue("max_distance");
-    if (!max_distance.empty()) data["max_distance"] = max_distance;
+    // Extract IMU fields
+    std::string id = extractJsonValue("id");
+    if (!id.empty()) data["id"] = id;
     
-    std::string obstacles = extractJsonValue("obstacles");
-    if (!obstacles.empty()) data["obstacles"] = obstacles;
+    std::string qx = extractJsonValue("qx");
+    if (!qx.empty()) data["qx"] = qx;
     
-    // Extract distances array - special handling needed
+    std::string qy = extractJsonValue("qy");
+    if (!qy.empty()) data["qy"] = qy;
+    
+    std::string qz = extractJsonValue("qz");
+    if (!qz.empty()) data["qz"] = qz;
+    
+    std::string qw = extractJsonValue("qw");
+    if (!qw.empty()) data["qw"] = qw;
+    
+    // Extract array fields (distances, temperatures) - special handling needed
     std::string search = "\"distances\":";
-    size_t pos = content.find(search);
+    size_t pos = json_content.find(search);
     if (pos != std::string::npos) {
       pos += search.length();
       // Skip whitespace
-      while (pos < content.length() && (content[pos] == ' ' || content[pos] == '\t')) {
+      while (pos < json_content.length() && (json_content[pos] == ' ' || json_content[pos] == '\t')) {
         pos++;
       }
       // Look for opening bracket
-      if (pos < content.length() && content[pos] == '[') {
-        size_t end_pos = content.find(']', pos);
+      if (pos < json_content.length() && json_content[pos] == '[') {
+        size_t end_pos = json_content.find(']', pos);
         if (end_pos != std::string::npos) {
-          std::string distances_array = content.substr(pos, end_pos - pos + 1);
+          std::string distances_array = json_content.substr(pos, end_pos - pos + 1);
           data["distances"] = distances_array;
         }
       }
     }
     
-    // Extract temperatures array - special handling needed for arrays
+    // Extract temperatures array
     search = "\"temperatures\":";
-    pos = content.find(search);
+    pos = json_content.find(search);
     if (pos != std::string::npos) {
       pos += search.length();
       // Skip whitespace
-      while (pos < content.length() && (content[pos] == ' ' || content[pos] == '\t')) {
+      while (pos < json_content.length() && (json_content[pos] == ' ' || json_content[pos] == '\t')) {
         pos++;
       }
       // Look for opening bracket
-      if (pos < content.length() && content[pos] == '[') {
-        size_t end_pos = content.find(']', pos);
+      if (pos < json_content.length() && json_content[pos] == '[') {
+        size_t end_pos = json_content.find(']', pos);
         if (end_pos != std::string::npos) {
-          std::string temperatures_array = content.substr(pos, end_pos - pos + 1);
+          std::string temperatures_array = json_content.substr(pos, end_pos - pos + 1);
           data["temperatures"] = temperatures_array;
         }
       }
     }
     
-    std::string avg_temp = extractJsonValue("avg_temp");
-    if (!avg_temp.empty()) data["avg_temp"] = avg_temp;
-    
-    std::string max_temp = extractJsonValue("max_temp");
-    if (!max_temp.empty()) data["max_temp"] = max_temp;
-    
-    std::string min_temp = extractJsonValue("min_temp");
-    if (!min_temp.empty()) data["min_temp"] = min_temp;
-    
   } catch (const std::exception& e) {
-    RCLCPP_WARN(logger_, "Error extracting JSON values: %s", e.what());
+    RCLCPP_WARN(logger_, "Error parsing JSON payload: %s", e.what());
     // Still keep the raw JSON even if extraction fails
   }
   
   return data;
+}
+
+bool MessageParser::IsDataMessage(const std::string& type_prefix) const {
+  // Data messages are sensor/system data
+  return (type_prefix == "BATT" || type_prefix == "PERF" || type_prefix == "IMU" || 
+          type_prefix == "TEMPERATURE" || type_prefix == "VL53L0X" || 
+          type_prefix == "ROBOCLAW" || type_prefix == "ODOM" || type_prefix == "SAFETY");
 }
 
 TemperatureData MessageParser::ParseTemperatureData(const MessageData& data) const {

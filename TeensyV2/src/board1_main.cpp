@@ -2,7 +2,11 @@
  * @file board1_main.ino
  * @brief Main controller board (Board 1) for TeensyV2 system
  *
- * This is the primary controller board responsible for:
+ * This is the primary controller board r  // Try to send fault notification if possible
+  if (serial_manager) {
+    String fault_msg = "type=system,board=" + String(BOARD_ID) + ",time=" + String(millis());
+    serial_manager->sendDiagnosticMessage("FATAL", "Main", fault_msg.c_str());
+  }sible for:
  * - Motor control and odometry
  * - VL53L0X distance sensors
  * - RoboClaw motor driver interface
@@ -120,24 +124,13 @@ void fault_handler() {
   // TODO: Uncomment when inter-board communication is implemented
   // digitalWrite(INTER_BOARD_SIGNAL_OUTPUT_PIN, HIGH);  // Signal other boards
   
-  // Board 1 specific emergency actions
-#if BOARD_ID == 1
-  // Board 1 has direct E-stop control
-  // digitalWrite(ESTOP_OUTPUT_PIN, HIGH);  // Assert E-stop output
-  SerialManager::getInstance().sendMessage("CRITICAL", "Board 1 system fault detected, emergency stop activated");
-#elif BOARD_ID == 2
-  // Board 2 signals Board 1 to handle E-stop
-  SerialManager::getInstance().sendMessage("CRITICAL", "Board 2 system fault detected, signaling Board 1");
-#else
-  // Other boards signal Board 1 to handle E-stop
-  String msg = "Board " + String(BOARD_ID) + " system fault detected, signaling Board 1";
-  SerialManager::getInstance().sendMessage("CRITICAL", msg.c_str());
-#endif
+  String fault_msg = "CRITICAL FAULT: Board " + String(BOARD_ID) + " system fault detected, signaling Board 1";
+  serial_manager->sendDiagnosticMessage("FAULT", "board1_main", fault_msg.c_str());
 
   // Try to send fault notification if possible
   if (serial_manager) {
     String fault_msg = "type=system,board=" + String(BOARD_ID) + ",time=" + String(millis());
-    serial_manager->sendMessage("FAULT", fault_msg.c_str());
+    serial_manager->sendDiagnosticMessage("FAULT", "board1_main", fault_msg.c_str());
   }
 
   // Halt system
@@ -257,76 +250,39 @@ void setup() {
   // Initialize all registered modules
   Module::setupAll();
 
-  // Send initialization complete message through SerialManager
-  String board_info = "Board ";
-#ifdef BOARD_ID
-  board_info += String(BOARD_ID);
-#else
-  board_info += "Unknown";
-#endif
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", ("===== Board " + String(BOARD_ID) + " Initialization Complete =====").c_str());
 
-  // Add board name if available
-#if defined(BOARD_ID) && BOARD_ID == 1
-  board_info += " (Navigation_Safety)";
-#elif defined(BOARD_ID) && BOARD_ID == 2
-  board_info += " (Power_Sensors)";
-#endif
-
-  board_info += " - Initialization Complete";
-  SerialManager::getInstance().sendMessage("INFO", board_info.c_str());
-
-  // Send enabled features information through SerialManager
-  String features = "Enabled features: ";
-  bool first = true;
-  
+  // Print enabled features for this board
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "Enabled features:");
 #if ENABLE_SD_LOGGING
-  if (!first) features += ", ";
-  features += "SD_Logging";
-  first = false;
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - SD Logging");
 #endif
 #if ENABLE_MOTOR_CONTROL
-  if (!first) features += ", ";
-  features += "Motor_Control";
-  first = false;
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - Motor Control");
 #endif
 #if ENABLE_VL53L0X
-  if (!first) features += ", ";
-  features += "VL53L0X_Distance_Sensors";
-  first = false;
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - VL53L0X Distance Sensors");
 #endif
 #if ENABLE_TEMPERATURE
-  if (!first) features += ", ";
-  features += "Temperature_Monitoring";
-  first = false;
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - Temperature Monitoring");
 #endif
 #if ENABLE_PERFORMANCE
-  if (!first) features += ", ";
-  features += "Performance_Monitoring";
-  first = false;
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - Performance Monitoring");
 #endif
 #if ENABLE_SAFETY
-  if (!first) features += ", ";
-  features += "Safety_Coordinator";
-  first = false;
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - Safety Coordinator");
 #endif
 #if ENABLE_ROBOCLAW
-  if (!first) features += ", ";
-  features += "RoboClaw_Motor_Driver";
-  first = false;
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - RoboClaw Motor Driver");
 #endif
 #if ENABLE_BATTERY
-  if (!first) features += ", ";
-  features += "Battery_Monitoring";
-  first = false;
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - Battery Monitoring");
 #endif
 #if ENABLE_IMU
-  if (!first) features += ", ";
-  features += "IMU_BNO055";
-  first = false;
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - IMU (BNO055)");
 #endif
 
-  SerialManager::getInstance().sendMessage("INFO", features.c_str());
-  SerialManager::getInstance().sendMessage("INFO", "Ready for operation");
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "Ready for operation");
 }
 
 // TODO: Uncomment when inter-board communication is implemented

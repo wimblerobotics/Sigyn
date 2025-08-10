@@ -122,7 +122,7 @@ void SafetyCoordinator::attemptRecovery() {
     deactivateEstop();
   } else {
     // Optional: log that recovery failed
-    SerialManager::getInstance().sendMessage("SAFETY", "recovery_failed");
+    SerialManager::getInstance().sendDiagnosticMessage("SAFETY", name(), "recovery_failed");
   }
 }
 

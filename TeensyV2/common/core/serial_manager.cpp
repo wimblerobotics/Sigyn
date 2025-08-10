@@ -72,7 +72,7 @@ namespace sigyn_teensy {
     if (cmd_type == "TWIST") {
       // Store TWIST command for RoboClawMonitor to process
       // Use a simple approach: send the command data as a special message type
-      sendMessage("DEBUG", ("TWIST command received: " + String(args)).c_str());
+      sendDiagnosticMessage("DEBUG", "SerialManager", ("TWIST command received: " + String(args)).c_str());
 
       // We'll create a mechanism for modules to check for commands
       // For now, set a static variable that RoboClawMonitor can check
@@ -80,39 +80,39 @@ namespace sigyn_teensy {
 
     }
     else if (cmd_type == "SDDIR") {
-      sendMessage("DEBUG", ("SDDIR command received: " + String(args)).c_str());
+      sendDiagnosticMessage("DEBUG", "SerialManager", ("SDDIR command received: " + String(args)).c_str());
       // Store SDDIR command for SDLogger to process
       setLatestSDDirCommand(String(args));
 
     }
     else if (cmd_type == "SDFILE") {
-      sendMessage("DEBUG", ("SDFILE command received: " + String(args)).c_str());
+      sendDiagnosticMessage("DEBUG", "SerialManager", ("SDFILE command received: " + String(args)).c_str());
       // Store SDFILE command for SDLogger to process
       setLatestSDFileCommand(String(args));
 
     }
     else if (cmd_type == "CONFIG") {
-      sendMessage("DEBUG", ("CONFIG command received: " + String(args)).c_str());
+      sendDiagnosticMessage("DEBUG", "SerialManager", ("CONFIG command received: " + String(args)).c_str());
       // TODO: Implement configuration updates
 
     }
     else if (cmd_type == "STATUS") {
-      sendMessage("DEBUG", ("STATUS request received: " + String(args)).c_str());
+      sendDiagnosticMessage("DEBUG", "SerialManager", ("STATUS request received: " + String(args)).c_str());
       // TODO: Send comprehensive status report
 
     }
     else if (cmd_type == "ESTOP") {
-      sendMessage("DEBUG", ("ESTOP command received: " + String(args)).c_str());
+      sendDiagnosticMessage("DEBUG", "SerialManager", ("ESTOP command received: " + String(args)).c_str());
       // TODO: Route to safety coordinator
 
     }
     else if (cmd_type == "CALIBRATE") {
-      sendMessage("DEBUG", ("CALIBRATE command received: " + String(args)).c_str());
+      sendDiagnosticMessage("DEBUG", "SerialManager", ("CALIBRATE command received: " + String(args)).c_str());
       // TODO: Route to appropriate sensor module
 
     }
     else {
-      sendMessage("ERROR", ("Unknown command type: " + cmd_type).c_str());
+      sendDiagnosticMessage("ERROR", "SerialManager", ("Unknown command type: " + cmd_type).c_str());
     }
   }
 
@@ -169,6 +169,36 @@ namespace sigyn_teensy {
     SDLogger::getInstance().logFormatted("%s%d:%s", type, BOARD_ID, payload);
 #endif
     sendQueuedMessages();
+  }
+
+  void SerialManager::sendDiagnosticMessage(const char* level, const char* module, const char* message) {
+    char json_payload[kMaxMessageLength - 20]; // Reserve space for type and board ID
+    
+    // Escape quotes in the message for JSON safety
+    char escaped_message[kMaxMessageLength / 2];
+    const char* src = message;
+    char* dst = escaped_message;
+    size_t max_escaped = sizeof(escaped_message) - 1;
+    
+    while (*src && (dst - escaped_message) < max_escaped - 1) {
+      if (*src == '"') {
+        *dst++ = '\\';
+        if ((dst - escaped_message) < max_escaped - 1) {
+          *dst++ = '"';
+        }
+      } else {
+        *dst++ = *src;
+      }
+      src++;
+    }
+    *dst = '\0';
+    
+    // Create JSON diagnostic message
+    snprintf(json_payload, sizeof(json_payload), 
+             "{\"level\":\"%s\",\"module\":\"%s\",\"message\":\"%s\",\"timestamp\":%lu}",
+             level, module, escaped_message, millis());
+    
+    sendMessage("DIAG", json_payload);
   }
 
   void SerialManager::sendQueuedMessages() {

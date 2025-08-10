@@ -189,7 +189,7 @@ void Module::resetAllSafetyFlags() {
 void Module::setupAll() {
   // Initialize SerialManager first, as other modules may depend on it for logging
   // This establishes communication early for debugging and error reporting
-  SerialManager::getInstance().sendMessage("INIT", "starting_module_setup");
+  SerialManager::getInstance().sendDiagnosticMessage("INIT", "Module", "starting_module_setup");
 
   // Initialize all registered modules in registration order
   // Order dependencies should be handled by controlling registration order
@@ -205,10 +205,10 @@ void Module::setupAll() {
       char init_msg[50];
       snprintf(init_msg, sizeof(init_msg), "module_initialized:%s",
                mod->name());
-      SerialManager::getInstance().sendMessage("INIT", init_msg);
+      SerialManager::getInstance().sendDiagnosticMessage("INIT", "Module", init_msg);
     }
   }
-  SerialManager::getInstance().sendMessage("INIT", "module_setup_complete");
+  SerialManager::getInstance().sendDiagnosticMessage("INIT", "Module", "module_setup_complete");
 }
 
 void Module::updatePerformanceStats(Module* module,
