@@ -430,8 +430,11 @@ DiagnosticData MessageParser::ParseDiagnosticData(const MessageData& data) const
     
     if (level_it != data.end()) {
       diag.level = level_it->second;
+      RCLCPP_DEBUG(logger_, "Diagnostic level extracted: '%s' (length: %zu)", 
+                   diag.level.c_str(), diag.level.length());
     } else {
       diag.level = "INFO"; // Default
+      RCLCPP_DEBUG(logger_, "Diagnostic level not found, using default: '%s'", diag.level.c_str());
     }
     
     if (module_it != data.end()) {
@@ -558,6 +561,12 @@ diagnostic_msgs::msg::DiagnosticArray MessageParser::ToDiagnosticArrayMsg(const 
   } else {
     status.level = diagnostic_msgs::msg::DiagnosticStatus::STALE;
   }
+  
+  // Add level string as a key-value pair for display
+  diagnostic_msgs::msg::KeyValue level_kv;
+  level_kv.key = "level_string";
+  level_kv.value = data.level;
+  status.values.push_back(level_kv);
   
   // Add board ID as a key-value pair
   if (current_board_id_ > 0) {
