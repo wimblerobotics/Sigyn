@@ -157,6 +157,13 @@ public:
 private:
   void tick_tree()
   {
+    // Check if shutdown was requested
+    if (g_shutdown_requested) {
+      RCLCPP_INFO(this->get_logger(), "Shutdown requested, stopping behavior tree");
+      timer_->cancel();
+      return;
+    }
+    
     BT::NodeStatus status = tree_.tickRoot();
     if (status == BT::NodeStatus::SUCCESS) {
       RCLCPP_INFO(this->get_logger(), "Behavior Tree execution completed successfully. Continuing...");
@@ -184,10 +191,18 @@ private:
 
   void batteryCallback(const sensor_msgs::msg::BatteryState::SharedPtr msg)
   {
+    // Only process battery messages from the main 36V LiFePO4 battery
+    if (msg->header.frame_id != "36VLIPO") {
+      RCLCPP_DEBUG(this->get_logger(), "Ignoring battery message from frame_id: %s", 
+                   msg->header.frame_id.c_str());
+      return;
+    }
+    
     battery_level_ = msg->percentage * 100.0f;
     last_battery_time_ = this->get_clock()->now();
     RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
-                         "Main node battery callback: %.1f%%", battery_level_);
+                         "Main node 36VLIPO battery callback: %.1f%% (%.1fV)", 
+                         battery_level_, msg->voltage);
     
     // Update blackboard
     if (tree_.rootBlackboard()) {
@@ -228,7 +243,10 @@ int main(int argc, char ** argv)
   // Handle Ctrl+C gracefully with polling executor
   try {
     while (rclcpp::ok() && !g_shutdown_requested) {
-      executor.spin_some(std::chrono::milliseconds(100));
+      executor.spin_some(std::chrono::milliseconds(50));  // Reduced timeout for better responsiveness
+      if (g_shutdown_requested) {
+        break;
+      }
     }
   } catch (const rclcpp::exceptions::RCLError & e) {
     RCLCPP_ERROR(node->get_logger(), "RCL error: %s", e.what());
@@ -237,6 +255,9 @@ int main(int argc, char ** argv)
   }
   
   RCLCPP_INFO(node->get_logger(), "Shutting down perimeter roamer node");
+  
+  // Force shutdown sequence
+  executor.cancel();
   rclcpp::shutdown();
   return 0;
 }

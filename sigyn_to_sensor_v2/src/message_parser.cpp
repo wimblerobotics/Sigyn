@@ -11,6 +11,9 @@
 #include <sstream>
 #include <algorithm>
 #include <regex>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 namespace sigyn_to_sensor_v2 {
 
@@ -470,7 +473,13 @@ sensor_msgs::msg::BatteryState MessageParser::ToBatteryStateMsg(const BatteryDat
   sensor_msgs::msg::BatteryState msg;
   
   msg.header.stamp = timestamp;
-  msg.header.frame_id = "battery_" + std::to_string(data.id);
+  
+  // Use location field from TeensyV2 message for frame_id, fallback to battery_id if empty
+  if (!data.location.empty()) {
+    msg.header.frame_id = data.location;
+  } else {
+    msg.header.frame_id = "battery_" + std::to_string(data.id);
+  }
   
   msg.voltage = static_cast<float>(data.voltage);
   msg.current = static_cast<float>(data.current);
@@ -747,7 +756,7 @@ bool MessageParser::ValidateMessage(const std::string& message) const {
 }
 
 MessageType MessageParser::StringToMessageType(const std::string& type_str) const {
-  if (type_str == "BATT") return MessageType::BATTERY;
+  if (type_str == "BATT" || type_str == "BATT2") return MessageType::BATTERY;
   if (type_str == "PERF") return MessageType::PERFORMANCE;
   if (type_str == "SAFETY") return MessageType::SAFETY;
   if (type_str == "IMU" || type_str == "IMU1" || type_str == "IMU2") return MessageType::IMU;
@@ -861,165 +870,35 @@ MessageData MessageParser::ParseJsonPayload(const std::string& json_content) con
   data["json"] = json_content;
   
   try {
-    // Simple JSON value extraction without full parser
-    // Extract commonly used fields across all message types
+    // Parse JSON using proper JSON library
+    json parsed = json::parse(json_content);
     
-    auto extractJsonValue = [&json_content](const std::string& key) -> std::string {
-      std::string search = "\"" + key + "\":";
-      size_t pos = json_content.find(search);
-      if (pos == std::string::npos) {
-        return "";
-      }
-      
-      pos += search.length();
-      
-      // Skip whitespace
-      while (pos < json_content.length() && (json_content[pos] == ' ' || json_content[pos] == '\t')) {
-        pos++;
-      }
-      
-      // Extract value (up to comma, closing brace, or end)
-      size_t end_pos = pos;
-      if (pos < json_content.length() && json_content[pos] == '"') {
-        pos++; // Skip opening quote
-        end_pos = pos;
-        while (end_pos < json_content.length() && json_content[end_pos] != '"') {
-          end_pos++;
-        }
-      } else {
-        while (end_pos < json_content.length() && 
-               json_content[end_pos] != ',' && 
-               json_content[end_pos] != '}' && 
-               json_content[end_pos] != ']') {
-          end_pos++;
-        }
-      }
-      
-      std::string value = json_content.substr(pos, end_pos - pos);
-      return value;
-    };
-    
-    // Extract diagnostic message fields
-    std::string level = extractJsonValue("level");
-    if (!level.empty()) data["level"] = level;
-    
-    std::string module = extractJsonValue("module");
-    if (!module.empty()) data["module"] = module;
-    
-    std::string message = extractJsonValue("message");
-    if (!message.empty()) data["message"] = message;
-    
-    std::string timestamp = extractJsonValue("timestamp");
-    if (!timestamp.empty()) data["timestamp"] = timestamp;
-    
-    // Extract common sensor data fields
-    std::string freq = extractJsonValue("freq");
-    if (!freq.empty()) data["freq"] = freq;
-    
-    std::string target_freq = extractJsonValue("tfreq");
-    if (!target_freq.empty()) data["target_freq"] = target_freq;
-    
-    std::string mod_viol = extractJsonValue("mviol");
-    if (!mod_viol.empty()) data["mod_viol"] = mod_viol;
-    
-    std::string freq_viol = extractJsonValue("fviol");
-    if (!freq_viol.empty()) data["freq_viol"] = freq_viol;
-    
-    // Extract battery fields
-    std::string voltage = extractJsonValue("V");
-    if (!voltage.empty()) data["V"] = voltage;
-    
-    std::string current = extractJsonValue("A");
-    if (!current.empty()) data["A"] = current;
-    
-    std::string charge = extractJsonValue("charge");
-    if (!charge.empty()) data["charge"] = charge;
-    
-    // Extract IMU fields
-    std::string id = extractJsonValue("id");
-    if (!id.empty()) data["id"] = id;
-    
-    std::string qx = extractJsonValue("qx");
-    if (!qx.empty()) data["qx"] = qx;
-    
-    std::string qy = extractJsonValue("qy");
-    if (!qy.empty()) data["qy"] = qy;
-    
-    std::string qz = extractJsonValue("qz");
-    if (!qz.empty()) data["qz"] = qz;
-    
-    std::string qw = extractJsonValue("qw");
-    if (!qw.empty()) data["qw"] = qw;
-    
-    // Extract ODOM fields
-    std::string px = extractJsonValue("px");
-    if (!px.empty()) data["px"] = px;
-    
-    std::string py = extractJsonValue("py");
-    if (!py.empty()) data["py"] = py;
-    
-    std::string ox = extractJsonValue("ox");
-    if (!ox.empty()) data["ox"] = ox;
-    
-    std::string oy = extractJsonValue("oy");
-    if (!oy.empty()) data["oy"] = oy;
-    
-    std::string oz = extractJsonValue("oz");
-    if (!oz.empty()) data["oz"] = oz;
-    
-    std::string ow = extractJsonValue("ow");
-    if (!ow.empty()) data["ow"] = ow;
-    
-    std::string vx = extractJsonValue("vx");
-    if (!vx.empty()) data["vx"] = vx;
-    
-    std::string vy = extractJsonValue("vy");
-    if (!vy.empty()) data["vy"] = vy;
-    
-    std::string wz = extractJsonValue("wz");
-    if (!wz.empty()) data["wz"] = wz;
-    
-    // Extract array fields (distances, temperatures) - special handling needed
-    std::string search = "\"distances\":";
-    size_t pos = json_content.find(search);
-    if (pos != std::string::npos) {
-      pos += search.length();
-      // Skip whitespace
-      while (pos < json_content.length() && (json_content[pos] == ' ' || json_content[pos] == '\t')) {
-        pos++;
-      }
-      // Look for opening bracket
-      if (pos < json_content.length() && json_content[pos] == '[') {
-        size_t end_pos = json_content.find(']', pos);
-        if (end_pos != std::string::npos) {
-          std::string distances_array = json_content.substr(pos, end_pos - pos + 1);
-          data["distances"] = distances_array;
-        }
+    // Convert all JSON key-value pairs to MessageData
+    for (auto& [key, value] : parsed.items()) {
+      if (value.is_string()) {
+        data[key] = value.get<std::string>();
+      } else if (value.is_number()) {
+        // Convert all numbers to strings for compatibility with existing code
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(6) << value.get<double>();
+        data[key] = oss.str();
+      } else if (value.is_boolean()) {
+        data[key] = value.get<bool>() ? "true" : "false";
+      } else if (value.is_array()) {
+        // Convert array to string representation for compatibility
+        data[key] = value.dump();
+      } else if (value.is_object()) {
+        // Convert nested object to string representation for compatibility
+        data[key] = value.dump();
+      } else if (value.is_null()) {
+        data[key] = "null";
       }
     }
     
-    // Extract temperatures array
-    search = "\"temperatures\":";
-    pos = json_content.find(search);
-    if (pos != std::string::npos) {
-      pos += search.length();
-      // Skip whitespace
-      while (pos < json_content.length() && (json_content[pos] == ' ' || json_content[pos] == '\t')) {
-        pos++;
-      }
-      // Look for opening bracket
-      if (pos < json_content.length() && json_content[pos] == '[') {
-        size_t end_pos = json_content.find(']', pos);
-        if (end_pos != std::string::npos) {
-          std::string temperatures_array = json_content.substr(pos, end_pos - pos + 1);
-          data["temperatures"] = temperatures_array;
-        }
-      }
-    }
-    
+  } catch (const json::exception& e) {
+    RCLCPP_ERROR(logger_, "JSON parsing error: %s for content: %s", e.what(), json_content.c_str());
   } catch (const std::exception& e) {
-    RCLCPP_WARN(logger_, "Error parsing JSON payload: %s", e.what());
-    // Still keep the raw JSON even if extraction fails
+    RCLCPP_ERROR(logger_, "Exception parsing JSON: %s", e.what());
   }
   
   return data;
@@ -1027,7 +906,7 @@ MessageData MessageParser::ParseJsonPayload(const std::string& json_content) con
 
 bool MessageParser::IsDataMessage(const std::string& type_prefix) const {
   // Data messages are sensor/system data
-  return (type_prefix == "BATT" || type_prefix == "PERF" || type_prefix == "IMU" || 
+  return (type_prefix == "BATT" || type_prefix == "BATT2" || type_prefix == "PERF" || type_prefix == "IMU" || 
           type_prefix == "TEMPERATURE" || type_prefix == "VL53L0X" || 
           type_prefix == "ROBOCLAW" || type_prefix == "ODOM" || type_prefix == "SAFETY");
 }
