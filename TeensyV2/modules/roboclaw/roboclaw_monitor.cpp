@@ -67,7 +67,7 @@ RoboClawMonitor& RoboClawMonitor::getInstance() {
 }
 
 void RoboClawMonitor::setup() {
-  SerialManager::getInstance().sendMessage("INFO", "RoboClawMonitor: Starting initialization");
+  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Starting initialization");
   
   // Initialize serial communication
   roboclaw_.begin(config_.baud_rate);
@@ -80,10 +80,10 @@ void RoboClawMonitor::setup() {
   
   if (initializeRoboClaw()) {
     connection_state_ = ConnectionState::CONNECTED;
-    SerialManager::getInstance().sendMessage("INFO", "RoboClawMonitor: Initialization successful");
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Initialization successful");
   } else {
     connection_state_ = ConnectionState::ERROR_RECOVERY;
-    SerialManager::getInstance().sendMessage("ERROR", "RoboClawMonitor: Initialization failed");
+    SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "Initialization failed");
   }
   
   // Initialize timing
@@ -104,7 +104,7 @@ void RoboClawMonitor::loop() {
       // Attempt reconnection
       if (initializeRoboClaw()) {
         connection_state_ = ConnectionState::CONNECTED;
-        SerialManager::getInstance().sendMessage("INFO", "RoboClawMonitor: Reconnected");
+        SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Reconnected");
       }
       break;
       
@@ -211,8 +211,8 @@ bool RoboClawMonitor::isUnsafe() {
   
   // Log safety status if unsafe condition detected
   if (unsafe && safety_reasons.length() > 0) {
-    SerialManager::getInstance().sendMessage("WARN", 
-      ("RoboClawMonitor unsafe - reasons: " + safety_reasons).c_str());
+    SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), 
+      ("Unsafe condition detected - reasons: " + safety_reasons).c_str());
   }
   
   return unsafe;
@@ -227,7 +227,7 @@ void RoboClawMonitor::resetSafetyFlags() {
   motor1_status_.timeout_error = false;
   motor2_status_.timeout_error = false;
   
-  SerialManager::getInstance().sendMessage("INFO", "RoboClawMonitor: Safety flags reset");
+  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Safety flags reset");
 }
 
 void RoboClawMonitor::setVelocityCommand(float linear_x, float angular_z) {
@@ -265,7 +265,7 @@ void RoboClawMonitor::setMotorSpeeds(int32_t m1_qpps, int32_t m2_qpps) {
 void RoboClawMonitor::emergencyStop() {
   emergency_stop_active_ = true;
   setMotorSpeeds(0, 0);
-   SerialManager::getInstance().sendMessage("ESTOP", 
+   SerialManager::getInstance().sendDiagnosticMessage("ESTOP", name(),
     ("active:true,source:ROBOCLAW,reason:Emergency stop activated,manual_reset:false,time:" +
     String(millis())).c_str());
 }
@@ -277,7 +277,7 @@ void RoboClawMonitor::resetErrors() {
   
   // Attempt to clear RoboClaw errors if connected
   if (connection_state_ == ConnectionState::CONNECTED) {
-    SerialManager::getInstance().sendMessage("INFO", "RoboClawMonitor: Attempting to clear RoboClaw errors");
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Attempting to clear RoboClaw errors");
     
     // Method 1: Stop all motor commands (sometimes clears latched errors)
     setMotorSpeeds(0, 0);
@@ -285,13 +285,13 @@ void RoboClawMonitor::resetErrors() {
     // Method 2: Reset encoder counts (can clear some error states)
     bool reset_success = roboclaw_.ResetEncoders(config_.address);
     if (reset_success) {
-      SerialManager::getInstance().sendMessage("INFO", "RoboClawMonitor: Encoder reset successful");
+      SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Encoder reset successful");
       // Reinitialize encoder tracking
       prev_encoder_m1_ = 0;
       prev_encoder_m2_ = 0;
       odometry_initialized_ = false; // Force re-initialization
     } else {
-      SerialManager::getInstance().sendMessage("WARN", "RoboClawMonitor: Encoder reset failed");
+      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), "Encoder reset failed");
     }
     
     // Check if error cleared
@@ -299,10 +299,10 @@ void RoboClawMonitor::resetErrors() {
     uint32_t error_status = roboclaw_.ReadError(config_.address, &valid);
     if (valid) {
       if (error_status == 0) {
-        SerialManager::getInstance().sendMessage("INFO", "RoboClawMonitor: Error cleared successfully");
+        SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Error cleared successfully");
       } else {
-        String msg = "RoboClawMonitor: Errors remain after reset: " + decodeErrorStatus(error_status);
-        SerialManager::getInstance().sendMessage("WARN", msg.c_str());
+        String msg = "Errors remain after reset: " + decodeErrorStatus(error_status);
+        SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg.c_str());
       }
       system_status_.error_status = error_status;
     }
@@ -330,33 +330,33 @@ void RoboClawMonitor::handleTwistMessage(const String& data) {
 bool RoboClawMonitor::initializeRoboClaw() {
   // Test communication
   if (!testCommunication()) {
-    SerialManager::getInstance().sendMessage("ERROR", "RoboClawMonitor: Communication test failed");
+    SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "Communication test failed");
     return false;
   }
 
   // Set Max current limits (if applicable)
   if (!roboclaw_.SetM1MaxCurrent(config_.address, config_.max_current_m1 * 100) ||
       !roboclaw_.SetM2MaxCurrent(config_.address, config_.max_current_m2 * 100)) {
-    SerialManager::getInstance().sendMessage("ERROR", "RoboClawMonitor: Failed to set max current limits");
+    SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "Failed to set max current limits");
     return false;
   } else {
     uint32_t m1_max_current;
     uint32_t m2_max_current;
     roboclaw_.ReadM1MaxCurrent(config_.address, m1_max_current);
     roboclaw_.ReadM2MaxCurrent(config_.address, m2_max_current);
-    SerialManager::getInstance().sendMessage("INFO", 
-      ("RoboClawMonitor: Max current limits set - M1: " + String(m1_max_current / 100.0f) + 
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(),
+      ("Max current limits set - M1: " + String(m1_max_current / 100.0f) + 
       "A, M2: " + String(m2_max_current / 100.0f) + "A").c_str());
   }
   
   // Set PID values (ported from legacy code)
   if (!roboclaw_.SetM1VelocityPID(config_.address, 7.26239f, 2.43f, 0.0f, 2437)) {
-    SerialManager::getInstance().sendMessage("ERROR", "RoboClawMonitor: Failed to set M1 PID");
+    SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "Failed to set M1 PID");
     return false;
   }
   
   if (!roboclaw_.SetM2VelocityPID(config_.address, 7.26239f, 2.43f, 0.0f, 2437)) {
-    SerialManager::getInstance().sendMessage("ERROR", "RoboClawMonitor: Failed to set M2 PID");
+    SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "Failed to set M2 PID");
     return false;
   }
   
@@ -368,7 +368,7 @@ bool RoboClawMonitor::initializeRoboClaw() {
   if (valid1 && valid2) {
     runaway_detection_initialized_ = true;
   } else {
-    SerialManager::getInstance().sendMessage("WARN", "RoboClawMonitor: Failed to read initial encoder values");
+    SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), "Failed to read initial encoder values");
   }
   
   return true;
@@ -381,16 +381,16 @@ bool RoboClawMonitor::testCommunication() {
   if (success) {
     // Check if version matches expected
     if (strstr(version, "Roboclaw") != nullptr) {
-      String msg = "RoboClawMonitor: Version check passed: " + String(version);
-      SerialManager::getInstance().sendMessage("INFO", msg.c_str());
+      String msg = "Version check passed: " + String(version);
+      SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg.c_str());
       return true;
     } else {
-      String msg = "RoboClawMonitor: Unexpected version: " + String(version);
-      SerialManager::getInstance().sendMessage("WARN", msg.c_str());
+      String msg = "Unexpected version: " + String(version);
+      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg.c_str());
       return false;
     }
   } else {
-    SerialManager::getInstance().sendMessage("ERROR", "RoboClawMonitor: Failed to read version");
+    SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "Failed to read version");
     return false;
   }
 }
@@ -403,7 +403,7 @@ void RoboClawMonitor::handleCommunicationError() {
   motor1_status_.communication_ok = false;
   motor2_status_.communication_ok = false;
   
-  SerialManager::getInstance().sendMessage("ERROR", "RoboClawMonitor: Communication error detected");
+  SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "Communication error detected");
 }
 
 void RoboClawMonitor::velocityToMotorSpeeds(float linear_x, float angular_z, 
@@ -661,7 +661,7 @@ void RoboClawMonitor::updateCriticalMotorStatus() {
     if (encoder_fail_count_m1 > 0 || encoder_fail_count_m2 > 0) {
       String msg = "Encoder fails - M1:" + String(encoder_fail_count_m1) + 
                    " M2:" + String(encoder_fail_count_m2);
-      SerialManager::getInstance().sendMessage("WARN", msg.c_str());
+      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg.c_str());
       encoder_fail_count_m1 = 0;
       encoder_fail_count_m2 = 0;
     }
@@ -687,7 +687,7 @@ void RoboClawMonitor::updateOdometry() {
     uint32_t now = millis();
     if (now - last_log_time > 5000) { // Log every 5 seconds
       String msg = "ODOM: Skipping - not connected, state=" + String(static_cast<int>(connection_state_));
-      SerialManager::getInstance().sendMessage("DEBUG", msg.c_str());
+      SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), msg.c_str());
       last_log_time = now;
     }
     return;
@@ -701,7 +701,7 @@ void RoboClawMonitor::updateOdometry() {
     prev_encoder_m2_ = motor2_status_.encoder_count;
     last_odom_update_time_us_ = current_time_us;
     odometry_initialized_ = true;
-    SerialManager::getInstance().sendMessage("DEBUG", "ODOM: Initialized");
+    SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), "ODOM: Initialized");
     return;
   }
   
@@ -714,7 +714,7 @@ void RoboClawMonitor::updateOdometry() {
     uint32_t now = millis();
     if (now - last_dt_log > 10000) { // Log every 10 seconds
       String msg = "ODOM: Skipping - dt too small=" + String(dt_s, 6) + "s";
-      SerialManager::getInstance().sendMessage("DEBUG", msg.c_str());
+      SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), msg.c_str());
       last_dt_log = now;
     }
     return;
@@ -726,7 +726,7 @@ void RoboClawMonitor::updateOdometry() {
     uint32_t now = millis();
     if (now - last_reset_log > 5000) { // Log every 5 seconds
       String msg = "ODOM: Reset timing - dt was " + String(dt_s, 6) + "s (system overload)";
-      SerialManager::getInstance().sendMessage("WARN", msg.c_str());
+      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg.c_str());
       last_reset_log = now;
     }
     
@@ -758,7 +758,7 @@ void RoboClawMonitor::updateOdometry() {
       String msg = "ODOM: Encoder invalid - M1:" + String(motor1_status_.encoder_valid ? "OK" : "FAIL") + 
                    " M2:" + String(motor2_status_.encoder_valid ? "OK" : "FAIL") + 
                    " fails:" + String(enc_fail_count);
-      SerialManager::getInstance().sendMessage("WARN", msg.c_str());
+      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg.c_str());
       last_enc_log = now;
       enc_fail_count = 0;
     }
@@ -835,7 +835,7 @@ void RoboClawMonitor::updateOdometry() {
   if (now - last_health_report > 30000) { // Every 30 seconds
     String msg = "ODOM: Sent " + String(odom_sent_count) + " messages in 30s, freq=" + 
                  String(odom_sent_count / 30.0f, 1) + "Hz";
-    SerialManager::getInstance().sendMessage("DEBUG", msg.c_str());
+    SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), msg.c_str());
     last_health_report = now;
     odom_sent_count = 0;
   }
@@ -909,10 +909,10 @@ void RoboClawMonitor::checkSafetyConditions() {
     
     // Rate-limited ESTOP message
     if (now - last_estop_msg_time >= ESTOP_MSG_INTERVAL) {
-      SerialManager::getInstance().sendMessage("ESTOP",
-        ("active:true,source:ROBOCLAW_CURRENT,reason:Motor 1 overcurrent," +
+      String msg = "active:true,source:ROBOCLAW_CURRENT,reason:Motor 1 overcurrent," +
         String("value:") + String(motor1_status_.current_amps) +
-        ",manual_reset:false,time:" + String(millis())).c_str());
+        ",manual_reset:false,time:" + String(millis());
+      SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", "RoboClaw", msg.c_str());
       last_estop_msg_time = now;
     }
   }
@@ -924,10 +924,10 @@ void RoboClawMonitor::checkSafetyConditions() {
     
     // Rate-limited ESTOP message
     if (now - last_estop_msg_time >= ESTOP_MSG_INTERVAL) {
-      SerialManager::getInstance().sendMessage("ESTOP",
-        ("active:true,source:ROBOCLAW_CURRENT,reason:Motor 2 overcurrent," +
+      String msg = "active:true,source:ROBOCLAW_CURRENT,reason:Motor 2 overcurrent," +
         String("value:") + String(motor2_status_.current_amps) +
-        ",manual_reset:false,time:" + String(millis())).c_str());
+        ",manual_reset:false,time:" + String(millis());
+      SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", "RoboClaw", msg.c_str());
       last_estop_msg_time = now;
     }
   }
@@ -957,10 +957,10 @@ void RoboClawMonitor::detectMotorRunaway() {
     
     // Rate-limited ESTOP message
     if (now - last_runaway_msg_time >= RUNAWAY_MSG_INTERVAL) {
-      SerialManager::getInstance().sendMessage("ESTOP",
-        ("active:true,source:MOTOR_RUNAWAY,reason:Motor 1 runaway detected," +
+      String msg = "active:true,source:MOTOR_RUNAWAY,reason:Motor 1 runaway detected," +
         String("value:") + String(motor1_status_.speed_qpps) +
-        ",manual_reset:false,time:" + String(millis())).c_str());
+        ",manual_reset:false,time:" + String(millis());
+      SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg.c_str());
       last_runaway_msg_time = now;
     }
   }
@@ -971,10 +971,10 @@ void RoboClawMonitor::detectMotorRunaway() {
     
     // Rate-limited ESTOP message
     if (now - last_runaway_msg_time >= RUNAWAY_MSG_INTERVAL) {
-      SerialManager::getInstance().sendMessage("ESTOP",
-        ("active:true,source:MOTOR_RUNAWAY,reason:Motor 2 runaway detected," +
+      String msg = "active:true,source:MOTOR_RUNAWAY,reason:Motor 2 runaway detected," +
         String("value:") + String(motor2_status_.speed_qpps) +
-        ",manual_reset:false,time:" + String(millis())).c_str());
+        ",manual_reset:false,time:" + String(millis());
+      SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg.c_str());
       last_runaway_msg_time = now;
     }
   }
@@ -1013,8 +1013,8 @@ void RoboClawMonitor::sendStatusReports() {
       
       // Only attempt auto-recovery every 30 seconds to avoid spam
       if (now - last_auto_recovery > 30000) {
-        SerialManager::getInstance().sendMessage("INFO", 
-          "RoboClawMonitor: Attempting auto-recovery for latched overcurrent error");
+        SerialManager::getInstance().sendDiagnosticMessage("INFO", name(),
+          "Attempting auto-recovery for latched overcurrent error");
         resetErrors();
         last_auto_recovery = now;
       }
@@ -1030,8 +1030,8 @@ void RoboClawMonitor::sendDiagnosticReports() {
   diag_msg += ",connection_state:" + String(static_cast<int>(connection_state_));
   diag_msg += ",emergency_stop:" + String(emergency_stop_active_ ? "true" : "false");
   
-  SerialManager::getInstance().sendMessage("DIAG", 
-    ("level:INFO,module:RoboClawMonitor,msg:Diagnostic report,details:" + diag_msg).c_str());
+  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), 
+    ("Diagnostic report,details:" + diag_msg).c_str());
 }
 
 String RoboClawMonitor::decodeErrorStatus(uint32_t error_status) const {

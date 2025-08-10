@@ -201,8 +201,8 @@ void BatteryMonitor::setup() {
   Wire.setClock(400000);
   multiplexer_available_ = testI2cMultiplexer();
   if (!multiplexer_available_) {
-    SerialManager::getInstance().sendMessage(
-        "FATAL", "BatteryMonitor setup failed: I2C multiplexer not available");
+    SerialManager::getInstance().sendDiagnosticMessage(
+        "FATAL", name(), "BatteryMonitor setup failed: I2C multiplexer not available");
     return;
   }
 
@@ -214,7 +214,7 @@ void BatteryMonitor::setup() {
     snprintf(debug_msg, sizeof(debug_msg),
              "Initializing device %d: mux_channel=%d, i2c_addr=0x%02X", device,
              gINA226_DeviceIndexes_[device], 0x40);
-    SerialManager::getInstance().sendMessage("DEBUG", debug_msg);
+    SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), debug_msg);
 
     selectSensor(device);
 
@@ -224,14 +224,14 @@ void BatteryMonitor::setup() {
     if (!g_ina226_[device].begin()) {
       String message = "INA226 sensor initialization failed for device " + String(device) +
                        " (mux_channel=" + String(gINA226_DeviceIndexes_[device]) + ")";
-      SerialManager::getInstance().sendMessage("FATAL", message.c_str());
+      SerialManager::getInstance().sendDiagnosticMessage("FATAL", name(), message.c_str());
       return;
     }
 
     g_ina226_[device].setMaxCurrentShunt(20, 0.002);  // 20A max, 2mΩ shunt
 
     snprintf(debug_msg, sizeof(debug_msg), "Successfully initialized device %d", device);
-    SerialManager::getInstance().sendMessage("INFO", debug_msg);
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), debug_msg);
   }
   setup_completed_ = true;
 }
@@ -245,7 +245,7 @@ bool BatteryMonitor::testI2cMultiplexer() {
              "[BatteryMonitor::testI2cMultiplexer] I2C multiplexer found at "
              "address 0x%02X",
              I2C_MULTIPLEXER_ADDRESS);
-    SerialManager::getInstance().sendMessage("INFO", message);
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), message);
     return true;
   } else {
     snprintf(message, sizeof(message),
@@ -253,7 +253,7 @@ bool BatteryMonitor::testI2cMultiplexer() {
              "address 0x%02X (error: %d)",
              I2C_MULTIPLEXER_ADDRESS, error);
     // Log error message
-    SerialManager::getInstance().sendMessage("FATAL", message);
+    SerialManager::getInstance().sendDiagnosticMessage("FATAL", name(), message);
     return false;
   }
 }
@@ -272,13 +272,13 @@ void BatteryMonitor::updateBatteryState(size_t idx) {
              "CURRENT of %4.3f: V=%.2f A=%.2f",
              idx, g_battery_config_[idx].critical_low_voltage,
              g_battery_config_[idx].critical_high_current, voltage, current);
-    SerialManager::getInstance().sendMessage("CRITICAL", msg);
+    SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg);
   } else if (voltage < g_battery_config_[idx].warning_low_voltage) {
     state_[idx] = BatteryState::WARNING;
     snprintf(msg, sizeof(msg),
              "Battery %zu does not meet WARNING LOW VOLTAGE of %4.3f: V=%.2f A=%.2f", idx,
              g_battery_config_[idx].warning_low_voltage, voltage, current);
-    SerialManager::getInstance().sendMessage("WARNING", msg);
+    SerialManager::getInstance().sendDiagnosticMessage("WARNING", name(), msg);
   } else if ((idx == 0) && (current < 0.0f)) {
     state_[idx] = BatteryState::CHARGING;
   } else {

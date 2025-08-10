@@ -77,11 +77,11 @@ void PerformanceMonitor::checkFrequencyViolations() {
     snprintf(warn_msg, sizeof(warn_msg), "FREQ_VIOLATION: %.1fHz < %.1fHz (violation #%lu)",
              current_frequency, config_.min_loop_frequency_hz, 
              (unsigned long)violations_.total_frequency_violations);
-    SerialManager::getInstance().sendMessage("WARN", warn_msg);
+    SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), warn_msg);
     
     // Also send a high-priority safety message for critical violations
     if (violations_.consecutive_frequency_violations >= config_.max_frequency_violations) {
-      SerialManager::getInstance().sendMessage("CRITICAL", "Multiple consecutive frequency violations - system overload detected!");
+      SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), "Multiple consecutive frequency violations - system overload detected!");
     }
   } else {
     // Reset consecutive counter when performance recovers
@@ -113,7 +113,7 @@ void PerformanceMonitor::checkModuleExecutionTimes() {
           snprintf(log_msg, sizeof(log_msg), 
                    "Module %s exceeded time limit: %.2fms", 
                    mod->name(), execution_time_ms);
-          SerialManager::getInstance().sendMessage("WARN", log_msg);
+          SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), log_msg);
         }
       }
     }
@@ -241,7 +241,7 @@ void PerformanceMonitor::getPerformanceStats(char* buffer, size_t size) {
                 char debug_msg[100];
                 snprintf(debug_msg, sizeof(debug_msg), "PERF buffer overflow at module %d, written=%d, need=%d, size=%d", 
                          i, written, mod_written, (int)size);
-                SerialManager::getInstance().sendMessage("DEBUG", debug_msg);
+                SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), debug_msg);
                 break; // Buffer full
             }
         }
@@ -280,7 +280,7 @@ void PerformanceMonitor::reportStats() {
   
   if (json_len > MAX_SERIAL_PAYLOAD) {
     // Message too long - truncate gracefully by removing some module details
-    SerialManager::getInstance().sendMessage("WARN", 
+    SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), 
       ("PERF message truncated: " + String(json_len) + " > " + String(MAX_SERIAL_PAYLOAD)).c_str());
     
     // Force truncation at a safe JSON boundary
@@ -289,9 +289,6 @@ void PerformanceMonitor::reportStats() {
     stats_json[MAX_SERIAL_PAYLOAD - 8] = '\0';  // Null terminate
     json_len = strlen(stats_json);
   }
-  
-  //### SerialManager::getInstance().sendMessage("DEBUG", 
-  //   ("PERF JSON length: " + String(json_len) + "/" + String(sizeof(stats_json))).c_str());
   
   SerialManager::getInstance().sendMessage("PERF", stats_json);
 }

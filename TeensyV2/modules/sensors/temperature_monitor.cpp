@@ -73,8 +73,8 @@ TemperatureMonitor::TemperatureMonitor()
 }
 
 void TemperatureMonitor::setup() {
-    SerialManager::getInstance().sendMessage("INFO", "TemperatureMonitor: Starting initialization");
-    SerialManager::getInstance().sendMessage("DEBUG", "TemperatureMonitor: Module registered and setup() called");
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Starting initialization");
+    SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), "Module registered and setup() called");
     
     system_start_time_ms_ = millis();
     
@@ -86,9 +86,9 @@ void TemperatureMonitor::setup() {
         if (sensor_configured_[i] && sensor_configs_[i].analog_pin != 255) {
             pinMode(sensor_configs_[i].analog_pin, INPUT);
             
-            String msg = "TemperatureMonitor: Configured pin " + String(sensor_configs_[i].analog_pin) + 
+            String msg = "Configured pin " + String(sensor_configs_[i].analog_pin) + 
                         " for sensor " + sensor_configs_[i].sensor_name;
-            SerialManager::getInstance().sendMessage("INFO", msg.c_str());
+            SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg.c_str());
         }
     }
     
@@ -117,8 +117,8 @@ void TemperatureMonitor::setup() {
     last_diagnostic_report_time_ms_ = now;
     last_safety_check_time_ms_ = now;
     
-    SerialManager::getInstance().sendMessage("INFO", 
-        ("TemperatureMonitor: Setup complete - " + String(getSensorCount()) + " analog sensors ready").c_str());
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), 
+        ("Setup complete - " + String(getSensorCount()) + " analog sensors ready").c_str());
 }
 
 void TemperatureMonitor::loop() {
@@ -194,7 +194,7 @@ void TemperatureMonitor::resetSafetyFlags() {
     warning_start_time_ms_ = 0;
     critical_start_time_ms_ = 0;
     
-    SerialManager::getInstance().sendMessage("INFO", "TemperatureMonitor: Safety flags reset");
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Safety flags reset");
 }
 
 float TemperatureMonitor::getTemperature(uint8_t sensor_index, bool fahrenheit) const {
@@ -251,14 +251,14 @@ void TemperatureMonitor::configureSensor(uint8_t sensor_index, const Temperature
     sensor_configs_[sensor_index] = sensor_config;
     sensor_configured_[sensor_index] = true;
     
-    String msg = "TemperatureMonitor: Configured sensor " + String(sensor_index) + 
+    String msg = "Configured sensor " + String(sensor_index) + 
                  " (" + sensor_config.sensor_name + ")";
-    SerialManager::getInstance().sendMessage("INFO", msg.c_str());
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg.c_str());
 }
 
 void TemperatureMonitor::scanForSensors() {
     // For analog sensors, this is always successful since they're directly connected
-    SerialManager::getInstance().sendMessage("INFO", "TemperatureMonitor: Analog sensors always present - scan complete");
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Analog sensors always present - scan complete");
 }
 
 void TemperatureMonitor::calibrateSensor(uint8_t sensor_index, float reference_temp) {
@@ -268,9 +268,9 @@ void TemperatureMonitor::calibrateSensor(uint8_t sensor_index, float reference_t
     
     // For TMP36 sensors, calibration would involve adjusting the conversion formula
     // This is a placeholder for future calibration implementation
-    String msg = "TemperatureMonitor: Calibration requested for sensor " + String(sensor_index) + 
+    String msg = "Calibration requested for sensor " + String(sensor_index) + 
                  " with reference " + String(reference_temp, 1) + "°C";
-    SerialManager::getInstance().sendMessage("INFO", msg.c_str());
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg.c_str());
 }
 
 void TemperatureMonitor::resetSensorStatistics(uint8_t sensor_index) {
@@ -305,7 +305,7 @@ void TemperatureMonitor::resetSystemStatistics() {
         resetSensorStatistics(i);
     }
     
-    SerialManager::getInstance().sendMessage("INFO", "TemperatureMonitor: All statistics reset");
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "All statistics reset");
 }
 
 void TemperatureMonitor::updateTemperatureReadings() {
@@ -365,12 +365,6 @@ bool TemperatureMonitor::readSingleSensor(uint8_t sensor_index) {
     // Convert voltage to temperature using TMP36 formula
     // TMP36: Temperature (°C) = (Voltage_mV - 500mV) / 10mV/°C
     float temperature_c = (voltage_mv - TMP36_OFFSET_MV) / TMP36_SCALE_MV_PER_C;
-    
-    // // Debug output to help troubleshoot temperature readings
-    // String debug_msg = "Sensor " + String(sensor_index) + ": raw=" + String(raw_value) + 
-    //                   ", voltage=" + String(voltage_mv, 1) + "mV" +
-    //                   ", temp=" + String(temperature_c, 1) + "C";
-    // SerialManager::getInstance().sendMessage("DEBUG", debug_msg.c_str());
     
     // Validate temperature reading (reasonable range for motor temperatures)
     if (temperature_c < -40.0f || temperature_c > 150.0f) {
@@ -480,7 +474,7 @@ void TemperatureMonitor::checkSafetyConditions() {
             char msg[256];
             snprintf(msg, sizeof(msg), "Temperature of: %s with a temperature of: %.1f°C is either critical high (>= %.3f) or critical low (<= %.3f)",
                      config.sensor_name.c_str(), temp, config.critical_high_temp, config.critical_low_temp);
-            SerialManager::getInstance().sendMessage("CRITICAL", msg);
+            SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg);
         }
         
         if ((sensor_status_[i].warning_high || sensor_status_[i].warning_low) && 
@@ -488,7 +482,7 @@ void TemperatureMonitor::checkSafetyConditions() {
             char msg[256];
             snprintf(msg, sizeof(msg), "Temperature of: %s with a temperature of: %.1f°C is either warning high (>= %.3f) or warning low (<= %.3f)",
                      config.sensor_name.c_str(), temp, config.warning_high_temp, config.warning_low_temp);
-            SerialManager::getInstance().sendMessage("WARNING", msg);
+            SerialManager::getInstance().sendDiagnosticMessage("WARNING", name(), msg);
         }
     }
     
@@ -540,7 +534,7 @@ void TemperatureMonitor::detectThermalRunaway() {
                             " thermal runaway detected,value:" + String(sensor_status_[i].temperature_c, 1) + 
                             ",rate:" + String(trend, 1) + "C_per_min" +
                             ",manual_reset:false,time:" + String(millis());
-                SerialManager::getInstance().sendMessage("ESTOP", msg.c_str());
+                SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg.c_str());
                 last_thermal_message_time = now;
             }
         }
@@ -648,8 +642,8 @@ void TemperatureMonitor::sendDiagnosticReports() {
     diag_msg += ",warning_time:" + String(system_status_.time_in_warning_ms);
     diag_msg += ",critical_time:" + String(system_status_.time_in_critical_ms);
     
-    String full_msg = "level:INFO,module:TemperatureMonitor,msg:Diagnostic report,details:" + diag_msg;
-    SerialManager::getInstance().sendMessage("DIAG", full_msg.c_str());
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), 
+        ("Diagnostic report,details:" + diag_msg).c_str());
 }
 
 } // namespace sigyn_teensy

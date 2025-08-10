@@ -39,14 +39,14 @@ namespace sigyn_teensy {
         session_start_time_ms_ = millis();
         status_.session_start_time_ms = session_start_time_ms_;
 
-        SerialManager::getInstance().sendMessage("INFO", "SDLogger: Initializing SD card");
+        SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Initializing SD card");
         initializeSDCard();
 
         if (status_.card_initialized) {
-            SerialManager::getInstance().sendMessage("INFO", "SDLogger: Setup complete");
+            SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Setup complete");
         }
         else {
-            SerialManager::getInstance().sendMessage("ERROR", "SDLogger: SD card initialization failed");
+            SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "SD card initialization failed");
         }
     }
 
@@ -58,13 +58,13 @@ namespace sigyn_teensy {
 
         if (serial_mgr.hasNewSDDirCommand()) {
             String dir_command = serial_mgr.getLatestSDDirCommand();
-            SerialManager::getInstance().sendMessage("DEBUG", ("SDDIR command received: " + dir_command).c_str());
+            SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), ("SDDIR command received: " + dir_command).c_str());
             handleDirMessage(dir_command);
         }
 
         if (serial_mgr.hasNewSDFileCommand()) {
             String file_command = serial_mgr.getLatestSDFileCommand();
-            SerialManager::getInstance().sendMessage("DEBUG", ("SDFILE command received: " + file_command).c_str());
+            SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), ("SDFILE command received: " + file_command).c_str());
             handleFileDumpMessage(file_command);
         }
 
@@ -103,18 +103,18 @@ namespace sigyn_teensy {
                 }
 
                 // Send the line with SDLINE prefix
-                SerialManager::getInstance().sendMessage("SDLINE", line.c_str());
+                SerialManager::getInstance().sendDiagnosticMessage("SDLINE", name(), line.c_str());
 
                 dump_bytes_sent_ += line.length();
             }
             else {
                 // End of file reached
-                SerialManager::getInstance().sendMessage("SDEOF", "");
+                SerialManager::getInstance().sendDiagnosticMessage("SDEOF", name(), "");
                 dump_file_.close();
                 dump_state_ = DumpState::COMPLETE;
 
                 String msg = "Completed dumping file: " + dump_filename_;
-                SerialManager::getInstance().sendMessage("INFO", msg.c_str());
+                SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg.c_str());
 
                 dump_filename_ = "";
                 dump_bytes_sent_ = 0;
@@ -129,7 +129,7 @@ namespace sigyn_teensy {
 
     void SDLogger::resetSafetyFlags() {
         status_.write_errors = 0;
-        SerialManager::getInstance().sendMessage("INFO", "SDLogger: Safety flags reset");
+        SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Safety flags reset");
     }
 
     void SDLogger::log(const String& message) {
@@ -195,7 +195,7 @@ namespace sigyn_teensy {
         uint32_t next_file_number = findNextLogFileNumber();
         String filename = generateLogFilename(next_file_number);
 
-        SerialManager::getInstance().sendMessage("DEBUG", ("Creating log file: " + filename).c_str());
+        SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), ("Creating log file: " + filename).c_str());
 
         if (openLogFile(filename)) {
             status_.current_file_number = next_file_number;
@@ -209,7 +209,7 @@ namespace sigyn_teensy {
             }
             cached_directory_listing_ += filename;
 
-            SerialManager::getInstance().sendMessage("INFO", ("Created log file: " + filename).c_str());
+            SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), ("Created log file: " + filename).c_str());
 
             // Log startup message
             log("SDLogger started");
@@ -217,7 +217,7 @@ namespace sigyn_teensy {
             return true;
         }
 
-        SerialManager::getInstance().sendMessage("ERROR", ("Failed to create log file: " + filename).c_str());
+        SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), ("Failed to create log file: " + filename).c_str());
         return false;
     }
 
@@ -243,20 +243,20 @@ namespace sigyn_teensy {
 
     bool SDLogger::dumpFile(const String& filename) {
         if (!status_.card_initialized) {
-            SerialManager::getInstance().sendMessage("SDLINE", "ERROR: SD card not initialized");
-            SerialManager::getInstance().sendMessage("SDEOF", "");
+            SerialManager::getInstance().sendDiagnosticMessage("SDLINE", name(), "ERROR: SD card not initialized");
+            SerialManager::getInstance().sendDiagnosticMessage("SDEOF", name(), "");
             return false;
         }
 
         if (dump_state_ != DumpState::IDLE) {
-            SerialManager::getInstance().sendMessage("SDLINE", "ERROR: File dump already in progress");
-            SerialManager::getInstance().sendMessage("SDEOF", "");
+            SerialManager::getInstance().sendDiagnosticMessage("SDLINE", name(), "ERROR: File dump already in progress");
+            SerialManager::getInstance().sendDiagnosticMessage("SDEOF", name(), "");
             return false;
         }
 
         if (filename.length() == 0) {
-            SerialManager::getInstance().sendMessage("SDLINE", "ERROR: No filename specified");
-            SerialManager::getInstance().sendMessage("SDEOF", "");
+            SerialManager::getInstance().sendDiagnosticMessage("SDLINE", name(), "ERROR: No filename specified");
+            SerialManager::getInstance().sendDiagnosticMessage("SDEOF", name(), "");
             return false;
         }
 
@@ -264,8 +264,8 @@ namespace sigyn_teensy {
         dump_file_ = sd_card_.open(filename.c_str(), O_RDONLY);
         if (!dump_file_) {
             String error_msg = "ERROR: Could not open file '" + filename + "'";
-            SerialManager::getInstance().sendMessage("SDLINE", error_msg.c_str());
-            SerialManager::getInstance().sendMessage("SDEOF", "");
+            SerialManager::getInstance().sendDiagnosticMessage("SDLINE", name(), error_msg.c_str());
+            SerialManager::getInstance().sendDiagnosticMessage("SDEOF", name(), "");
             return false;
         }
 
@@ -275,7 +275,7 @@ namespace sigyn_teensy {
         dump_bytes_sent_ = 0;
 
         String msg = "Started dumping file: " + filename;
-        SerialManager::getInstance().sendMessage("INFO", msg.c_str());
+        SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg.c_str());
 
         return true;
     }
@@ -295,7 +295,7 @@ namespace sigyn_teensy {
 
     void SDLogger::handleDirMessage(const String& message) {
         if (!status_.card_initialized) {
-            SerialManager::getInstance().sendMessage("ERROR", "SD card not initialized");
+            SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "SD card not initialized");
             return;
         }
 
@@ -303,12 +303,12 @@ namespace sigyn_teensy {
         String dir_listing = getDirectoryListing();
 
         // Send directory listing with SDIR prefix - format exactly like legacy
-        SerialManager::getInstance().sendMessage("SDIR", dir_listing.c_str());
+        SerialManager::getInstance().sendDiagnosticMessage("SDIR", name(), dir_listing.c_str());
     }
 
     void SDLogger::handleFileDumpMessage(const String& message) {
         String msg = "Received file dump request: " + message;
-        SerialManager::getInstance().sendMessage("INFO", msg.c_str());
+        SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg.c_str());
 
         // Extract filename from message (should be just the filename)
         String filename = message;
@@ -322,10 +322,10 @@ namespace sigyn_teensy {
         filename.trim();
 
         if (deleteFile(filename)) {
-            SerialManager::getInstance().sendMessage("INFO", ("Deleted file: " + filename).c_str());
+            SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), ("Deleted file: " + filename).c_str());
         }
         else {
-            SerialManager::getInstance().sendMessage("ERROR", ("Failed to delete file: " + filename).c_str());
+            SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), ("Failed to delete file: " + filename).c_str());
         }
     }
 
@@ -343,7 +343,7 @@ namespace sigyn_teensy {
     void SDLogger::initializeSDCard() {
         logger_state_ = LoggerState::INITIALIZING;
 
-        SerialManager::getInstance().sendMessage("DEBUG", "SDLogger: Attempting SD card initialization...");
+        SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), "Attempting SD card initialization...");
 
         // Reset state - don't mark as initialized until everything succeeds
         status_.card_present = false;
@@ -352,11 +352,11 @@ namespace sigyn_teensy {
 
         if (!sd_card_.begin(SdioConfig(FIFO_SDIO))) {
             logger_state_ = LoggerState::ERROR_RECOVERY;
-            SerialManager::getInstance().sendMessage("ERROR", "SDLogger: SD card initialization failed");
+            SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "SD card initialization failed");
             return;
         }
 
-        SerialManager::getInstance().sendMessage("DEBUG", "SDLogger: SD card begin() succeeded");
+        SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), "SD card begin() succeeded");
         status_.card_present = true;
         status_.card_initialized = true;  // Set this before creating log file
 
@@ -367,14 +367,14 @@ namespace sigyn_teensy {
         if (!createNewLogFile()) {
             status_.card_initialized = false;  // Reset on failure
             logger_state_ = LoggerState::ERROR_RECOVERY;
-            SerialManager::getInstance().sendMessage("ERROR", "SDLogger: Failed to create initial log file");
+            SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "Failed to create initial log file");
             return;
         }
 
         // Check if log file was created successfully - only mark as initialized if everything worked
         if (status_.file_open && log_file_) {
             logger_state_ = LoggerState::READY;
-            SerialManager::getInstance().sendMessage("INFO", "SDLogger: Ready for logging");
+            SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Ready for logging");
 
             // Log startup message exactly like legacy code with board info
             String board_info = "Board ";
@@ -397,7 +397,7 @@ namespace sigyn_teensy {
         else {
             status_.card_initialized = false;  // Ensure it remains false on failure
             logger_state_ = LoggerState::ERROR_RECOVERY;
-            SerialManager::getInstance().sendMessage("ERROR", "SDLogger: Failed to create log file");
+            SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "Failed to create log file");
         }
     }
 
@@ -428,7 +428,7 @@ namespace sigyn_teensy {
             char msg[256];
             snprintf(msg, sizeof(msg), "SDLogger: Performance stats: Buffer usage: %u bytes (%u%%), Write rate: %.2f B/s, Total writes: %u",
                 status_.buffer_usage_bytes, status_.buffer_usage_percent, status_.write_rate_bps, status_.total_writes);
-            SerialManager::getInstance().sendMessage("DEBUG", msg);
+            SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), msg);
         }
     }
 
@@ -552,7 +552,7 @@ namespace sigyn_teensy {
 
     void SDLogger::updateDirectoryCache() {
         if (!status_.card_present) {  // Check card_present instead of card_initialized
-            SerialManager::getInstance().sendMessage("DEBUG", "updateDirectoryCache: Card not present");
+            SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), "updateDirectoryCache: Card not present");
             return;
         }
 
@@ -561,11 +561,11 @@ namespace sigyn_teensy {
         // Open root directory
         FsFile rootDirectory = sd_card_.open("/");
         if (!rootDirectory) {
-            SerialManager::getInstance().sendMessage("ERROR", "Could not open root directory");
+            SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "Could not open root directory");
             return;
         }
 
-        SerialManager::getInstance().sendMessage("DEBUG", "updateDirectoryCache: Scanning directory...");
+        SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), "updateDirectoryCache: Scanning directory...");
 
         // Build cached directory listing only - no file creation
         while (true) {
@@ -588,12 +588,12 @@ namespace sigyn_teensy {
             cached_directory_listing_ += ",";
             cached_directory_listing_ += String(fileSize);
 
-            SerialManager::getInstance().sendMessage("DEBUG", ("Found file: " + String(fileName) + " size: " + String(fileSize)).c_str());
+            SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), ("Found file: " + String(fileName) + " size: " + String(fileSize)).c_str());
         }
 
         rootDirectory.close();
 
-        SerialManager::getInstance().sendMessage("DEBUG", ("Directory listing: '" + cached_directory_listing_ + "'").c_str());
+        SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), ("Directory listing: '" + cached_directory_listing_ + "'").c_str());
 
         last_directory_cache_time_ms_ = millis();
     }

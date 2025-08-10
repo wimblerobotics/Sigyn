@@ -249,6 +249,18 @@ public:
                     rclcpp::Time timestamp = rclcpp::Time(0));
 
   /**
+   * @brief Parse a message with JSON-first approach.
+   * 
+   * All TeensyV2 messages should now be JSON format. This method parses the JSON
+   * directly and routes to appropriate handlers based on message structure.
+   * 
+   * @param[in] message Complete message string from TeensyV2 (TYPE:JSON)
+   * @param[in] timestamp Message timestamp
+   * @return true if message was parsed successfully, false if malformed
+   */
+  bool ParseJsonMessage(const std::string& message, rclcpp::Time timestamp);
+
+  /**
    * @brief Parse battery data from message.
    * 
    * @param[in] data Parsed key-value data
@@ -386,6 +398,22 @@ private:
    * @return Map of key-value pairs extracted from JSON
    */
   MessageData ParseJsonContent(const std::string& content) const;
+
+  /**
+   * @brief Parse a JSON payload and extract common fields.
+   * 
+   * @param[in] json_content JSON string to parse
+   * @return Map of key-value pairs from the JSON
+   */
+  MessageData ParseJsonPayload(const std::string& json_content) const;
+
+  /**
+   * @brief Determine if message is a data message or diagnostic message.
+   * 
+   * @param[in] type_prefix Message type (BATT, PERF, DIAG, etc.)
+   * @return true if data message, false if diagnostic
+   */
+  bool IsDataMessage(const std::string& type_prefix) const;
 
   /**
    * @brief Parse comprehensive JSON content with nested structures and arrays.

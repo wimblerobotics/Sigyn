@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <sys/select.h>
 #include <cerrno>
+#include <sstream>
 #include <cstring>
 #include <sstream>
 #include <chrono>
@@ -410,8 +411,8 @@ void TeensyBridge::SerialReaderThread() {
               // Set board context and parse message
               current_board_id = 1;
               auto timestamp = this->now();
-              if (!message_parser_->ParseMessage(line, timestamp)) {
-                RCLCPP_WARN(this->get_logger(), "Failed to parse message from board 1: %s", line.c_str());
+              if (!message_parser_->ParseJsonMessage(line, timestamp)) {
+                RCLCPP_ERROR(this->get_logger(), "Failed to parse JSON message from board 1: '%s'", line.c_str());
               }
             }
           }
@@ -437,8 +438,8 @@ void TeensyBridge::SerialReaderThread() {
               // Set board context and parse message
               current_board_id = 2;
               auto timestamp = this->now();
-              if (!message_parser_->ParseMessage(line, timestamp)) {
-                RCLCPP_WARN(this->get_logger(), "Failed to parse message from board 2: %s", line.c_str());
+              if (!message_parser_->ParseJsonMessage(line, timestamp)) {
+                RCLCPP_ERROR(this->get_logger(), "Failed to parse JSON message from board 2: '%s'", line.c_str());
               }
             }
           }
@@ -464,8 +465,8 @@ void TeensyBridge::SerialReaderThread() {
               // Set board context and parse message
               current_board_id = 3;
               auto timestamp = this->now();
-              if (!message_parser_->ParseMessage(line, timestamp)) {
-                RCLCPP_WARN(this->get_logger(), "Failed to parse message from board 3: %s", line.c_str());
+              if (!message_parser_->ParseJsonMessage(line, timestamp)) {
+                RCLCPP_ERROR(this->get_logger(), "Failed to parse JSON message from board 3: '%s'", line.c_str());
               }
             }
           }
@@ -524,10 +525,25 @@ void TeensyBridge::HandleIMUMessage(const MessageData& data, rclcpp::Time timest
 }
 
 void TeensyBridge::HandlePerformanceMessage(const MessageData& data, rclcpp::Time timestamp) {
-  // Simply forward performance data as diagnostic message 
+  // Parse performance data and convert to diagnostic message for monitoring
   // Board health monitoring is now handled on Teensy side by safety_coordinator
-  auto diagnostic_data = message_parser_->ParseDiagnosticData(data);
-  if (diagnostic_data.valid) {
+  auto performance_data = message_parser_->ParsePerformanceData(data);
+  if (performance_data.valid) {
+    // Create a diagnostic message from performance data
+    sigyn_to_sensor_v2::DiagnosticData diagnostic_data;
+    diagnostic_data.valid = true;
+    diagnostic_data.level = "INFO";
+    diagnostic_data.module = "performance_monitor";
+    diagnostic_data.message = "TeensyV2 performance metrics";
+    
+    // Add performance details
+    std::ostringstream details;
+    details << "freq=" << performance_data.loop_frequency 
+            << ", exec=" << performance_data.execution_time 
+            << ", violations=" << performance_data.violation_count
+            << ", modules=" << performance_data.module_count;
+    diagnostic_data.details = details.str();
+    
     auto msg = message_parser_->ToDiagnosticArrayMsg(diagnostic_data, timestamp);
     diagnostics_pub_->publish(msg);
   }
@@ -575,6 +591,50 @@ void TeensyBridge::HandleDiagnosticMessage(const MessageData& data, rclcpp::Time
   
   auto diagnostic_data = message_parser_->ParseDiagnosticData(data);
   if (diagnostic_data.valid) {
+    // Check for ESTOP information in CRITICAL diagnostic messages
+    if (diagnostic_data.level == "CRITICAL") {
+      // Look for ESTOP patterns in the message content
+      std::string message = diagnostic_data.message;
+      if (message.find("active:true") != std::string::npos) {
+        // Extract ESTOP information and treat as ESTOP message
+        std::string source = "UNKNOWN";
+        std::string reason = "UNKNOWN";
+        
+        // Parse source field
+        size_t source_pos = message.find("source:");
+        if (source_pos != std::string::npos) {
+          size_t source_start = source_pos + 7; // Length of "source:"
+          size_t source_end = message.find(",", source_start);
+          if (source_end != std::string::npos) {
+            source = message.substr(source_start, source_end - source_start);
+          } else {
+            source = message.substr(source_start);
+          }
+        }
+        
+        // Parse reason field
+        size_t reason_pos = message.find("reason:");
+        if (reason_pos != std::string::npos) {
+          size_t reason_start = reason_pos + 7; // Length of "reason:"
+          size_t reason_end = message.find(",", reason_start);
+          if (reason_end != std::string::npos) {
+            reason = message.substr(reason_start, reason_end - reason_start);
+          } else {
+            reason = message.substr(reason_start);
+          }
+        }
+        
+        // Log ESTOP event
+        RCLCPP_WARN(this->get_logger(), "E-STOP TRIGGERED (from diagnostic): %s - %s", 
+                    source.c_str(), reason.c_str());
+        
+        // Publish ESTOP status
+        auto estop_msg = std_msgs::msg::Bool();
+        estop_msg.data = true;
+        estop_status_pub_->publish(estop_msg);
+      }
+    }
+    
     auto msg = message_parser_->ToDiagnosticArrayMsg(diagnostic_data, timestamp);
     
     // Debug the generated diagnostic message
