@@ -1,0 +1,62 @@
+DIAG2:{"level":"DEBUG","module":"SDLogger","message":"SDLogger: Performance stats: Buffer usage: 0 bytes (0%), Write rate: 1199.00 B/s, Total writes: 31663","timestamp":9525155}
+BATT2:{"idx":0,"V":40.38,"A":2.06,"charge":0.84,"state":"NORMAL","location":"36VLIPO"}
+BATT2:{"idx":1,"V":4.98,"A":2.49,"charge":0.00,"state":"NORMAL","location":"5VDCDC"}
+BATT2:{"idx":2,"V":24.33,"A":0.13,"charge":0.00,"state":"NORMAL","location":"24VDCDC"}
+BATT2:{"idx":3,"V":3.38,"A":0.69,"charge":0.00,"state":"NORMAL","location":"3.3VDCDC"}
+BATT2:{"idx":4,"V":12.22,"A":4.88,"charge":0.00,"state":"NORMAL","location":"12VDCDC"}
+PERF2:{"freq":500000.0, "tfreq":30.0, "mviol":91489, "fviol":0, "mods":[{"n":"SDLogger","min":0.00,"max":28.62,"avg":0.00,"last":0.00,"cnt":3560287904,"viol":false},{"n":"PerformanceMonitor","min":0.00,"max":0.14,"avg":0.00,"last":0.00,"cnt":3560287903,"viol":false},{"n":"SafetyCoordinator","min":0.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":3560287903,"viol":false},{"n":"BatteryMonitor","min":0.00,"max":2.26,"avg":0.00,"last":0.00,"cnt":3560287903,"viol":false},{"n":"BNO055Monitor","min":0.00,"max":5.38,"avg":0.00,"last":0.00,"cnt":3560287903,"viol":false}]}
+DIAG2:{"level":"DEBUG","module":"SDLogger","message":"SDLogger: Performance stats: Buffer usage: 0 bytes (0%), Write rate: 1199.00 B/s, Total writes: 31666","timestamp":9526155}
+BATT2:{"idx":0,"V":40.38,"A":1.89,"charge":0.84,"state":"NORMAL","location":"36VLIPO"}
+BATT2:{"idx":1,"V":4.98,"A":2.49,"charge":0.00,"state":"NORMAL","location":"5VDCDC"}
+BATT2:{"idx":2,"V":24.33,"A":0.15,"charge":0.00,"state":"NORMAL","location":"24VDCDC"}
+BATT2:{"idx":3,"V":3.38,"A":0.86,"charge":0.00,"state":"NORMAL","location":"3.3VDCDC"}
+BATT2:{"idx":4,"V":12.22,"A":4.54,"charge":0.00,"state":"NORMAL","location":"12VDCDC"}
+PERF2:{"freq":500000.0, "tfreq":30.0, "mviol":91497, "fviol":0, "mods":[{"n":"SDLogger","min":0.00,"max":28.62,"avg":0.00,"last":0.00,"cnt":3560679198,"viol":false},{"n":"PerformanceMonitor","min":0.00,"max":0.14,"avg":0.00,"last":0.00,"cnt":3560679197,"viol":false},{"n":"SafetyCoordinator","min":0.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":3560679197,"viol":false},{"n":"BatteryMonitor","min":0.00,"max":2.26,"avg":0.00,"last":0.00,"cnt":3560679197,"viol":false},{"n":"BNO055Monitor","min":0.00,"max":5.38,"avg":0.00,"last":0.00,"cnt":3560679197,"viol":false}]}
+DIAG2:{"level":"DEBUG","module":"SDLogger","message":"SDLogger: Performance stats: Buffer usage: 0 bytes (0%), Write rate: 1199.00 B/s, Total writes: 31669","timestamp":9527155}
+BATT2:{"idx":0,"V":40.45,"A":1.38,"charge":0.85,"state":"NORMAL","location":"36VLIPO"}
+BATT2:{"idx":1,"V":4.98,"A":2.38,"charge":0.00,"state":"NORMAL","location":"5VDCDC"}
+BATT2:{"idx":2,"V":24.32,"A":0.13,"charge":0.00,"state":"NORMAL","location":"24VDCDC"}
+BATT2:{"idx":3,"V":3.38,"A":0.68,"charge":0.00,"state":"NORMAL","location":"3.3VDCDC"}
+BATT2:{"idx":4,"V":12.25,"A":2.64,"charge":0.00,"state":"NORMAL","location":"12VDCDC"}
+DIAG2:{"level":"DIAG","module":"BNO055Monitor","message":"BNO055Monitor PERF_VIOLATION: 4862us (target <2000us), violations=328496, active_sensors=2, multiplexer=OK","timestamp":9527828}
+DIAG2:{"level":"DIAG","module":"BNO055Monitor","message":"BNO055Monitor sensor_0: state=NORMAL, read_state=DONE, next_start_in=20ms, calib=0x00","timestamp":9527828}
+DIAG2:{"level":"DIAG","module":"BNO055Monitor","message":"BNO055Monitor sensor_1: state=NORMAL, read_state=DONE, next_start_in=20ms, calib=0x00","timestamp":9527828}
+PERF2:{"freq":500000.0, "tfreq":30.0, "mviol":91503, "fviol":0, "mods":[{"n":"SDLogger","min":0.00,"max":28.62,"avg":0.00,"last":0.00,"cnt":3561070483,"viol":false},{"n":"PerformanceMonitor","min":0.00,"max":0.14,"avg":0.00,"last":0.00,"cnt":3561070482,"viol":false},{"n":"SafetyCoordinator","min":0.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":3561070482,"viol":false},{"n":"BatteryMonitor","min":0.00,"max":2.26,"avg":0.00,"last":0.00,"cnt":3561070482,"viol":false},{"n":"BNO055Monitor","min":0.00,"max":5.38,"avg":0.00,"last":0.00,"cnt":3561070482,"viol":false}]}
+DIAG2:{"level":"DEBUG","module":"SDLogger","message":"SDLogger: Performance stats: Buffer usage: 0 bytes (0%), Write rate: 1751.00 B/s, Total writes: 31673","timestamp":9528155}
+BATT2:{"idx":0,"V":40.50,"A":1.23,"charge":0.85,"state":"NORMAL","location":"36VLIPO"}
+BATT2:{"idx":1,"V":4.99,"A":2.33,"charge":0.00,"state":"NORMAL","location":"5VDCDC"}
+BATT2:{"idx":2,"V":24.32,"A":0.13,"charge":0.00,"state":"NORMAL","location":"24VDCDC"}
+BATT2:{"idx":3,"V":3.38,"A":0.66,"charge":0.00,"state":"NORMAL","location":"3.3VDCDC"}
+BATT2:{"idx":4,"V":12.26,"A":2.02,"charge":0.00,"state":"NORMAL","location":"12VDCDC"}
+PERF2:{"freq":500000.0, "tfreq":30.0, "mviol":91513, "fviol":0, "mods":[{"n":"SDLogger","min":0.00,"max":28.62,"avg":0.00,"last":0.00,"cnt":3561453100,"viol":false},{"n":"PerformanceMonitor","min":0.00,"max":0.14,"avg":0.00,"last":0.00,"cnt":3561453099,"viol":false},{"n":"SafetyCoordinator","min":0.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":3561453099,"viol":false},{"n":"BatteryMonitor","min":0.00,"max":2.26,"avg":0.00,"last":0.00,"cnt":3561453099,"viol":false},{"n":"BNO055Monitor","min":0.00,"max":5.38,"avg":0.00,"last":0.00,"cnt":3561453099,"viol":false}]}
+DIAG2:{"level":"DEBUG","module":"SDLogger","message":"SDLogger: Performance stats: Buffer usage: 0 bytes (0%), Write rate: 1199.00 B/s, Total writes: 31676","timestamp":9529155}
+BATT2:{"idx":0,"V":40.53,"A":1.09,"charge":0.85,"state":"NORMAL","location":"36VLIPO"}
+BATT2:{"idx":1,"V":4.99,"A":2.27,"charge":0.00,"state":"NORMAL","location":"5VDCDC"}
+BATT2:{"idx":2,"V":24.32,"A":0.13,"charge":0.00,"state":"NORMAL","location":"24VDCDC"}
+BATT2:{"idx":3,"V":3.38,"A":0.65,"charge":0.00,"state":"NORMAL","location":"3.3VDCDC"}
+BATT2:{"idx":4,"V":12.27,"A":1.83,"charge":0.00,"state":"NORMAL","location":"12VDCDC"}
+PERF2:{"freq":500000.0, "tfreq":30.0, "mviol":91524, "fviol":0, "mods":[{"n":"SDLogger","min":0.00,"max":28.62,"avg":0.00,"last":0.00,"cnt":3561829557,"viol":false},{"n":"PerformanceMonitor","min":0.00,"max":0.14,"avg":0.00,"last":0.00,"cnt":3561829556,"viol":false},{"n":"SafetyCoordinator","min":0.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":3561829556,"viol":false},{"n":"BatteryMonitor","min":0.00,"max":2.26,"avg":0.00,"last":0.00,"cnt":3561829556,"viol":false},{"n":"BNO055Monitor","min":0.00,"max":5.38,"avg":0.00,"last":0.00,"cnt":3561829556,"viol":false}]}
+DIAG2:{"level":"DEBUG","module":"SDLogger","message":"SDLogger: Performance stats: Buffer usage: 0 bytes (0%), Write rate: 1199.00 B/s, Total writes: 31679","timestamp":9530155}
+BATT2:{"idx":1,"V":4.99,"A":2.31,"charge":0.00,"state":"NORMAL","location":"5VDCDC"}
+BATT2:{"idx":2,"V":24.32,"A":0.11,"charge":0.00,"state":"NORMAL","location":"24VDCDC"}
+BATT2:{"idx":3,"V":3.38,"A":0.64,"charge":0.00,"state":"NORMAL","location":"3.3VDCDC"}
+BATT2:{"idx":4,"V":12.27,"A":2.25,"charge":0.00,"state":"NORMAL","location":"12VDCDC"}
+PERF2:{"freq":333333.3, "tfreq":30.0, "mviol":92751, "fviol":0, "mods":[{"n":"SDLogger","min":0.00,"max":28.62,"avg":0.00,"last":0.00,"cnt":3625501629,"viol":false},{"n":"PerformanceMonitor","min":0.00,"max":0.14,"avg":0.00,"last":0.00,"cnt":3625501628,"viol":false},{"n":"SafetyCoordinator","min":0.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":3625501628,"viol":false},{"n":"BatteryMonitor","min":0.00,"max":2.26,"avg":0.00,"last":0.00,"cnt":3625501628,"viol":false},{"n":"BNO055Monitor","min":0.00,"max":5.38,"avg":0.00,"last":0.00,"cnt":3625501628,"viol":false}]}
+DIAG2:{"level":"DEBUG","module":"SDLogger","message":"SDLogger: Performance stats: Buffer usage: 0 bytes (0%), Write rate: 1199.00 B/s, Total writes: 32228","timestamp":9698167}
+BATT2:{"idx":0,"V":40.55,"A":1.12,"charge":0.86,"state":"NORMAL","location":"36VLIPO"}
+BATT2:{"idx":1,"V":4.99,"A":2.29,"charge":0.00,"state":"NORMAL","location":"5VDCDC"}
+BATT2:{"idx":2,"V":24.32,"A":0.26,"charge":0.00,"state":"NORMAL","location":"24VDCDC"}
+BATT2:{"idx":3,"V":3.38,"A":0.69,"charge":0.00,"state":"NORMAL","location":"3.3VDCDC"}
+BATT2:{"idx":4,"V":12.27,"A":1.83,"charge":0.00,"state":"NORMAL","location":"12VDCDC"}
+PERF2:{"freq":500000.0, "tfreq":30.0, "mviol":92761, "fviol":0, "mods":[{"n":"SDLogger","min":0.00,"max":28.62,"avg":0.00,"last":0.00,"cnt":3625884471,"viol":false},{"n":"PerformanceMonitor","min":0.00,"max":0.14,"avg":0.00,"last":0.00,"cnt":3625884470,"viol":false},{"n":"SafetyCoordinator","min":0.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":3625884470,"viol":false},{"n":"BatteryMonitor","min":0.00,"max":2.26,"avg":0.00,"last":0.00,"cnt":3625884470,"viol":false},{"n":"BNO055Monitor","min":0.00,"max":5.38,"avg":0.00,"last":0.00,"cnt":3625884470,"viol":false}]}
+DIAG2:{"level":"DIAG","module":"BNO055Monitor","message":"BNO055Monitor PERF_VIOLATION: 4418us (target <2000us), violations=333868, active_sensors=2, multiplexer=OK","timestamp":9699123}
+DIAG2:{"level":"DIAG","module":"BNO055Monitor","message":"BNO055Monitor sensor_0: state=NORMAL, read_state=DONE, next_start_in=20ms, calib=0x00","timestamp":9699123}
+DIAG2:{"level":"DIAG","module":"BNO055Monitor","message":"BNO055Monitor sensor_1: state=NORMAL, read_state=DONE, next_start_in=20ms, calib=0x00","timestamp":9699123}
+DIAG2:{"level":"DEBUG","module":"SDLogger","message":"SDLogger: Performance stats: Buffer usage: 0 bytes (0%), Write rate: 1751.00 B/s, Total writes: 32232","timestamp":9699167}
+BATT2:{"idx":0,"V":40.56,"A":1.06,"charge":0.86,"state":"NORMAL","location":"36VLIPO"}
+BATT2:{"idx":1,"V":4.99,"A":2.27,"charge":0.00,"state":"NORMAL","location":"5VDCDC"}
+BATT2:{"idx":2,"V":24.32,"A":0.13,"charge":0.00,"state":"NORMAL","location":"24VDCDC"}
+BATT2:{"idx":3,"V":3.38,"A":0.66,"charge":0.00,"state":"NORMAL","location":"3.3VDCDC"}
+BATT2:{"idx":4,"V":12.27,"A":1.81,"charge":0.00,"state":"NORMAL","location":"12VDCDC"}
+PERF2:{"freq":500000.0, "tfreq":30.0, "mviol":92774, "fviol":0, "mods":[{"n":"SDLogger","min":0.00,"max":28.62,"avg":0.00,"last":0.00,"cnt":3626258174,"viol":false},{"n":"PerformanceMonitor","min":0.00,"max":0.14,"avg":0.00,"last":0.00,"cnt":3626258173,"viol":false},{"n":"SafetyCoordinator","min":0.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":3626258173,"viol":false},{"n":"BatteryMonitor","min":0.00,"max":2.26,"avg":0.00,"last":0.00,"cnt":3626258173,"viol":false},{"n":"BNO055Monitor","min":0.00,"max":5.38,"avg":0.00,"last":0.00,"cnt":3626258173,"viol":false}]}
+DIAG2:{"level":"DEBUG","module":"SDLogger","message":"SDLogger: Performance stats: Buffer usage: 0 bytes (0%), Write rate: 1199.00 B/s, Total writes: 32235","timestamp":9700167}
