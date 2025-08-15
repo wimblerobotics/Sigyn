@@ -1,0 +1,27 @@
+
+###
+# Lever Nuts Wiring
+###
+  GNDp1_TO_GNDp2:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+###
+# Fuse box Wiring
+###
+  FUSE_BOX_IN:
+    wirecount: 4
+    color_code: IEC
+    colors: [GY, GY, GY, GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  FUSE_BOX_OUT:
+    wirecount: 4
+    color_code: IEC
+    colors: [GY, GY, GY, GY]
+    gauge: "16 AWG"
+    show_wirecount: false

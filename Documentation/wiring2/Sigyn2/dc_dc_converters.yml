@@ -1,0 +1,48 @@
+###
+# DC-DC Converters
+###
+
+  DC_DC_24V_10A:
+    type: DC-DC Converter
+    pincount: 4
+    pinlabels: [OUT_PLUS, OUT_GND, IN_GND, IN_PLUS]
+    image:
+      src: "images/24V10A_DC_DC.jpeg"
+      width: 160
+      height: 147
+  
+  DC_DC_12V_30A:
+    type: DC-DC Converter
+    pincount: 4
+    pinlabels: [OUT_PLUS, OUT_GND, IN_GND, IN_PLUS]
+    image:
+      src: "images/12V30A_DC_DC.jpeg"
+      width: 160
+      height: 165
+  
+  DC_DC_5V_10A:
+    type: DC-DC Converter
+    pincount: 4
+    pinlabels: [OUT_PLUS, OUT_GND, IN_GND, IN_PLUS]
+    image:
+      src: "images/5V10A_DC_DC.jpeg"
+      width: 160
+      height: 189
+  
+  DC_DC_3r3V_10A:
+    type: DC-DC Converter
+    pincount: 4
+    pinlabels: [OUT_PLUS, OUT_GND, IN_GND, IN_PLUS]
+    image:
+      src: "images/3r3V12A_DC_DC.png"
+      width: 160
+      height: 189
+
+  FUSE_BOX:
+    type: Fuse Box
+    pincount: 8
+    pinlabels: [FUSE1_IN, FUSE1_OUT, FUSE2_IN, FUSE2_OUT, FUSE3_IN, FUSE3_OUT, FUSE4_IN, FUSE4_OUT]
+    # image:
+    #   src: "images/FuseBox.png"
+    #   width: 160
+    #   height: 160
