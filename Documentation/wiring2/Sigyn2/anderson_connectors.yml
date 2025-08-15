@@ -1,0 +1,4 @@
+  ASTRIP:
+    type: Anderson Powerpole
+    pinlabels: [ RD,  BK ]
+    pincolors: [ RD, BK ]

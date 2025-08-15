@@ -1,0 +1,32 @@
+###
+# Voltage and Current Sensors for Sigyn2
+###
+
+  5VMON:
+    type: INA226 Voltage Current Monitor
+    pincount: 8
+    pinlabels: [V+, C+, C-, V-, GND, SCL, SDA, VCC]
+    image:
+      src: "images/INA226.jpg"
+      width: 220
+      height: 218
+  
+  12VMON:
+    type: INA226 Voltage Current Monitor
+    pincount: 8
+    pinlabels: [V+, C+, C-, V-, GND, SCL, SDA, VCC]
+    image:
+      src: "images/INA226.jpg"
+      width: 220
+      height: 218
+  
+  36VMON:
+    type: INA226 Voltage Current Monitor
+    pincount: 8
+    pinlabels: [V+, C+, C-, V-, GND, SCL, SDA, VCC]
+    image:
+      src: "images/INA226.jpg"
+      width: 220
+      height: 218
+  
+  
