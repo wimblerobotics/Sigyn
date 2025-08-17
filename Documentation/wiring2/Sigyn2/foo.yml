@@ -45,12 +45,12 @@ connectors:
       width: 160
       height: 189
   
-  DC_DC_3r3V_10A:
+  DC_DC_3R3V_10A:
     type: DC-DC Converter
     pincount: 4
     pinlabels: [OUT_PLUS, OUT_GND, IN_GND, IN_PLUS]
     image:
-      src: "images/3r3V12A_DC_DC.png"
+      src: "images/12V30A_DC_DC.jpeg"
       width: 160
       height: 189
 
@@ -73,6 +73,38 @@ connectors:
       src: "images/LeverNuts3.png"
       width: 80
       height: 82
+
+  5V2:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
+
+  5V4:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
+
+  5V5:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
+
+  5VPC:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
 
   5Vp1:
     type: XHF Lever Nuts
@@ -107,6 +139,55 @@ connectors:
       width: 80
       height: 68
 
+  12V4:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
+
+  12V5:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
+
+  12VPC:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
+
+  24VGND7:
+    type: XHF Lever Nuts
+    pincount: 3
+    image:
+      src: "images/LeverNuts3.png"
+      width: 80
+      height: 82
+
+  24V1:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
+
+  24Vs1:
+    type: XHF Lever Nuts
+    pincount: 3
+    pincount: 3
+    image:
+      src: "images/LeverNuts3.png"
+      width: 80
+      height: 82
+      
   36V1:
     type: XHF Lever Nuts
     pincount: 5
@@ -116,6 +197,46 @@ connectors:
       height: 68
 
   36V2:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
+
+  3R3V1:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
+
+  3R3V4:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
+
+  3R3VGND7:
+    type: XHF Lever Nuts
+    pincount: 3
+    image:
+      src: "images/LeverNuts3.png"
+      width: 80
+      height: 82
+  
+  3R3Vs1:
+    type: XHF Lever Nuts
+    pincount: 3
+    image:
+      src: "images/LeverNuts3.png"
+      width: 80
+      height: 82
+  
+  GND3:
     type: XHF Lever Nuts
     pincount: 5
     image:
@@ -155,6 +276,38 @@ connectors:
       width: 80
       height: 68
 
+  GND1:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
+
+  GND2:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
+
+  GND4:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
+
+  GNDPC:
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
+
   PS1:
     type: XHF Lever Nuts
     pincount: 3
@@ -176,6 +329,15 @@ connectors:
 # Voltage and Current Sensors for Sigyn2
 ###
 
+  3R3VMON:
+    type: INA226 Voltage Current Monitor
+    pincount: 8
+    pinlabels: [V+, C+, C-, V-, GND, SCL, SDA, VCC]
+    image:
+      src: "images/INA226.jpg"
+      width: 220
+      height: 218
+  
   5VMON:
     type: INA226 Voltage Current Monitor
     pincount: 8
@@ -186,6 +348,15 @@ connectors:
       height: 218
   
   12VMON:
+    type: INA226 Voltage Current Monitor
+    pincount: 8
+    pinlabels: [V+, C+, C-, V-, GND, SCL, SDA, VCC]
+    image:
+      src: "images/INA226.jpg"
+      width: 220
+      height: 218
+  
+  24VMON:
     type: INA226 Voltage Current Monitor
     pincount: 8
     pinlabels: [V+, C+, C-, V-, GND, SCL, SDA, VCC]
@@ -231,6 +402,43 @@ cables:
     gauge: "16 AWG"
     show_wirecount: false 
 ###
+# 24V Cables
+###
+  24V_DC_DC_10A:
+    wirecount: 4
+    color_code: IEC
+    colors: [YE, BK, BK, RD]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  24V_Mon_C+_To_Lever_Nut:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  24V_Mon_V+_To_Lever_Nut:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+    
+  24V_Mon_C-_To_Lever_Nut:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  24V_Mon_V-_To_Lever_Nut:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK]
+    gauge: "16 AWG"
+    show_wirecount: false 
+###
 # 36V Cables
 ###
   36V_Mon_C+_To_Lever_Nut:
@@ -269,6 +477,43 @@ cables:
     show_wirecount: false
 
 
+###
+# 3R3V Cables
+###
+  3R3V_DC_DC_10A:
+    wirecount: 4
+    color_code: IEC
+    colors: [YE, BK, BK, RD]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  3R3V_Mon_C+_To_Lever_Nut:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  3R3V_Mon_V+_To_Lever_Nut:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+    
+  3R3V_Mon_C-_To_Lever_Nut:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  3R3V_Mon_V-_To_Lever_Nut:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK]
+    gauge: "16 AWG"
+    show_wirecount: false 
 ###
 # 5V Cables
 ###
@@ -342,7 +587,119 @@ cables:
     gauge: "16 AWG"
     show_wirecount: false 
 
-###
+  GNDp3_TO_GNDp2:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GNDp1_TO_PS2:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GNDp3_TO_PS2:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  3R3V4-1_TO_3.3v1-2:
+    wirecount: 1
+    color_code: IEC
+    colors: [BL]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GND3-1_TO_GNDPC-5:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  3R3V4-1_TO_3R3v1-2:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  5V5-1_TO_5VPC-4:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GND4-1_TO_GNDp3-5:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  5V4-1_TO_5VPC-5:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GND1-1_TO_GNDPC-2:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GND2-2_TO_GNDPC-3:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  12V4-1_TO_12VPC-2:
+    wirecount: 1
+    color_code: IEC
+    colors: [GN]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  5VPC-1_TO_5V2-3:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GNDPC-1__TO_GNDp3-4:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  12VPC-1_TO_12Vp1-2:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  12VPC-3_TO_12V5-1:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+##
 # Fuse box Wiring
 ###
   FUSE_BOX_IN:
@@ -361,6 +718,60 @@ cables:
 
 
 connections:
+  -
+    - DC_DC_3R3V_10A: [IN_PLUS]
+    - 3R3V_DC_DC_10A: [4]
+    - 36V1: [2]
+
+  -
+    - DC_DC_3R3V_10A: [IN_GND]
+    - 3R3V_DC_DC_10A: [3]
+    - 3R3VGND7: [1]
+
+  -
+    - DC_DC_3R3V_10A: [OUT_GND]
+    - 3R3V_DC_DC_10A: [2]
+    - 3R3VGND7: [1]
+
+  -
+    - DC_DC_3R3V_10A: [OUT_PLUS]
+    - 3R3V_DC_DC_10A: [1]
+    - 3R3Vs1: [1]
+
+  -
+    - 3R3VMON: [C+]
+    - 3R3V_Mon_C+_To_Lever_Nut: [1]
+    - 3R3Vs1: [2]
+
+  -
+    - 3R3VMON: [V+]
+    - 3R3V_Mon_V+_To_Lever_Nut: [1]
+    - 3R3Vs1: [3]
+
+  -
+    - GNDp2: [1]
+    - FUSE_BOX_OUT: [1]
+    - FUSE_BOX: [FUSE1_OUT]
+
+  -
+    - FUSE_BOX: [FUSE1_IN]
+    - FUSE_BOX_IN: [1]
+    - 3R3VGND7: [3]
+
+  -
+    - 3R3VMON: [C-]
+    - 3R3V_Mon_C-_To_Lever_Nut: [1]
+    - 3R3V1: [1]
+
+  -
+    - 3R3VMON: [V-]
+    - 3R3V_Mon_V-_To_Lever_Nut: [1]
+    - GNDp3: [4]
+
+  -
+    - 3R3V4: [1]
+    - 3R3V4-1_TO_3R3v1-2: [1]
+    - 3R3V1: [2]
   -
     - DC_DC_5V_10A: [IN_PLUS]
     - 5V_DC_DC_10A: [4]
@@ -457,6 +868,56 @@ connections:
     - GNDp1: [3]
 
   -
+    - DC_DC_24V_10A: [IN_PLUS]
+    - 24V_DC_DC_10A: [4]
+    - 36V1: [3]
+
+  -
+    - DC_DC_24V_10A: [IN_GND]
+    - 24V_DC_DC_10A: [3]
+    - 24VGND7: [3]
+
+  -
+    - DC_DC_24V_10A: [OUT_GND]
+    - 24V_DC_DC_10A: [2]
+    - 24VGND7: [2]
+
+  -
+    - DC_DC_24V_10A: [OUT_PLUS]
+    - 24V_DC_DC_10A: [1]
+    - 24Vs1: [1]
+
+  -
+    - 24VMON: [C+]
+    - 24V_Mon_C+_To_Lever_Nut: [1]
+    - 24Vs1: [3]
+
+  -
+    - 24VMON: [V+]
+    - 24V_Mon_V+_To_Lever_Nut: [1]
+    - 24Vs1: [2]
+
+  -
+    - GNDp1: [5]
+    - FUSE_BOX_OUT: [4]
+    - FUSE_BOX: [FUSE4_OUT]
+
+  -
+    - FUSE_BOX: [FUSE4_IN]
+    - FUSE_BOX_IN: [4]
+    - 24VGND7: [1]
+
+  -
+    - 24VMON: [C-]
+    - 24V_Mon_C-_To_Lever_Nut: [1]
+    - 24V1: [1]
+
+  -
+    - 24VMON: [V-]
+    - 24V_Mon_V-_To_Lever_Nut: [1]
+    - GNDp3: [3]
+
+  -
     - 36VMON: [C-]
     - 36V_Mon_C-_To_Lever_Nut: [1]
     - 36V1: [1]
@@ -499,3 +960,68 @@ connections:
     - GNDp1: [2]
     - GNDp1_TO_GNDp2: [1]
     - GNDp2: [2]
+
+  -
+    - GNDp3: [5]
+    - GNDp3_TO_GNDp2: [1]
+    - GNDp2: [3]
+
+  -
+    - PS2: [1]
+    - GNDp3_TO_PS2: [1]
+    - GNDp3: [1]
+
+  -
+    - GND3: [1]
+    - GND3-1_TO_GNDPC-5: [1]
+    - GNDPC: [5]
+  
+  -
+    - 5V5: [1]
+    - 5V5-1_TO_5VPC-4: [1]
+    - 5VPC: [4]
+
+  -
+    - GND4: [1]
+    - GND4-1_TO_GNDp3-5: [1]
+    - GNDp3: [5]
+  
+  -
+    - 5V4: [1]
+    - 5V4-1_TO_5VPC-5: [1]
+    - 5VPC: [5]
+  
+  -
+    - GND1: [1]
+    - GND1-1_TO_GNDPC-2: [1]
+    - GNDPC: [2]
+
+  -
+    - GND2: [2]
+    - GND2-2_TO_GNDPC-3: [1]
+    - GNDPC: [3]  
+
+  -
+    - 12V4: [1]
+    - 12V4-1_TO_12VPC-2: [1]
+    - 12VPC: [2]
+  
+  -
+    - 5VPC: [1]
+    - 5VPC-1_TO_5V2-3: [1]
+    - 5V2: [3]
+  
+  -
+    - GNDPC: [1]
+    - GNDPC-1__TO_GNDp3-4: [1]
+    - GNDp3: [4]
+
+  -
+    - 12VPC: [1]
+    - 12VPC-1_TO_12Vp1-2: [1]
+    - 12Vp1: [2]
+
+  -
+    - 12VPC: [3]
+    - 12VPC-3_TO_12V5-1: [1]
+    - 12V5: [1]

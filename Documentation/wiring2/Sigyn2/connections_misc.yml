@@ -2,3 +2,68 @@
     - GNDp1: [2]
     - GNDp1_TO_GNDp2: [1]
     - GNDp2: [2]
+
+  -
+    - GNDp3: [5]
+    - GNDp3_TO_GNDp2: [1]
+    - GNDp2: [3]
+
+  -
+    - PS2: [1]
+    - GNDp3_TO_PS2: [1]
+    - GNDp3: [1]
+
+  -
+    - GND3: [1]
+    - GND3-1_TO_GNDPC-5: [1]
+    - GNDPC: [5]
+  
+  -
+    - 5V5: [1]
+    - 5V5-1_TO_5VPC-4: [1]
+    - 5VPC: [4]
+
+  -
+    - GND4: [1]
+    - GND4-1_TO_GNDp3-5: [1]
+    - GNDp3: [5]
+  
+  -
+    - 5V4: [1]
+    - 5V4-1_TO_5VPC-5: [1]
+    - 5VPC: [5]
+  
+  -
+    - GND1: [1]
+    - GND1-1_TO_GNDPC-2: [1]
+    - GNDPC: [2]
+
+  -
+    - GND2: [2]
+    - GND2-2_TO_GNDPC-3: [1]
+    - GNDPC: [3]  
+
+  -
+    - 12V4: [1]
+    - 12V4-1_TO_12VPC-2: [1]
+    - 12VPC: [2]
+  
+  -
+    - 5VPC: [1]
+    - 5VPC-1_TO_5V2-3: [1]
+    - 5V2: [3]
+  
+  -
+    - GNDPC: [1]
+    - GNDPC-1__TO_GNDp3-4: [1]
+    - GNDp3: [4]
+
+  -
+    - 12VPC: [1]
+    - 12VPC-1_TO_12Vp1-2: [1]
+    - 12Vp1: [2]
+
+  -
+    - 12VPC: [3]
+    - 12VPC-3_TO_12V5-1: [1]
+    - 12V5: [1]

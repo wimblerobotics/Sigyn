@@ -1,0 +1,49 @@
+  -
+    - DC_DC_24V_10A: [IN_PLUS]
+    - 24V_DC_DC_10A: [4]
+    - 36V1: [3]
+
+  -
+    - DC_DC_24V_10A: [IN_GND]
+    - 24V_DC_DC_10A: [3]
+    - 24VGND7: [3]
+
+  -
+    - DC_DC_24V_10A: [OUT_GND]
+    - 24V_DC_DC_10A: [2]
+    - 24VGND7: [2]
+
+  -
+    - DC_DC_24V_10A: [OUT_PLUS]
+    - 24V_DC_DC_10A: [1]
+    - 24Vs1: [1]
+
+  -
+    - 24VMON: [C+]
+    - 24V_Mon_C+_To_Lever_Nut: [1]
+    - 24Vs1: [3]
+
+  -
+    - 24VMON: [V+]
+    - 24V_Mon_V+_To_Lever_Nut: [1]
+    - 24Vs1: [2]
+
+  -
+    - GNDp1: [5]
+    - FUSE_BOX_OUT: [4]
+    - FUSE_BOX: [FUSE4_OUT]
+
+  -
+    - FUSE_BOX: [FUSE4_IN]
+    - FUSE_BOX_IN: [4]
+    - 24VGND7: [1]
+
+  -
+    - 24VMON: [C-]
+    - 24V_Mon_C-_To_Lever_Nut: [1]
+    - 24V1: [1]
+
+  -
+    - 24VMON: [V-]
+    - 24V_Mon_V-_To_Lever_Nut: [1]
+    - GNDp3: [3]
