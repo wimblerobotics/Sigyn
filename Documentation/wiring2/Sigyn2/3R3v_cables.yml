@@ -1,0 +1,37 @@
+###
+# 3R3V Cables
+###
+  3R3V_DC_DC_10A:
+    wirecount: 4
+    color_code: IEC
+    colors: [YE, BK, BK, RD]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  3R3V_Mon_C+_To_Lever_Nut:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  3R3V_Mon_V+_To_Lever_Nut:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+    
+  3R3V_Mon_C-_To_Lever_Nut:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  3R3V_Mon_V-_To_Lever_Nut:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK]
+    gauge: "16 AWG"
+    show_wirecount: false 

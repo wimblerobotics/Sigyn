@@ -7,14 +7,18 @@ include(voltage_current_sensors.yml)
 
 cables:
 include(12v_cables.yml)
+include(24v_cables.yml)
 include(36v_cables.yml)
+include(3R3v_cables.yml)
 include(5v_cables.yml)
 include(anderson_cables.yml)
 include(cables.yml)
 
 connections:
+include(connections_3R3.yml)
 include(connections_5.yml)
 include(connections_12.yml)
+include(connections_24.yml)
 include(connections_36.yml)
 include(connections_anderson.yml)
 include(connections_misc.yml)

@@ -9,7 +9,119 @@
     gauge: "16 AWG"
     show_wirecount: false 
 
-###
+  GNDp3_TO_GNDp2:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GNDp1_TO_PS2:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GNDp3_TO_PS2:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  3R3V4-1_TO_3.3v1-2:
+    wirecount: 1
+    color_code: IEC
+    colors: [BL]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GND3-1_TO_GNDPC-5:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  3R3V4-1_TO_3R3v1-2:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  5V5-1_TO_5VPC-4:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GND4-1_TO_GNDp3-5:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  5V4-1_TO_5VPC-5:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GND1-1_TO_GNDPC-2:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GND2-2_TO_GNDPC-3:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  12V4-1_TO_12VPC-2:
+    wirecount: 1
+    color_code: IEC
+    colors: [GN]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  5VPC-1_TO_5V2-3:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GNDPC-1__TO_GNDp3-4:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  12VPC-1_TO_12Vp1-2:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  12VPC-3_TO_12V5-1:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+##
 # Fuse box Wiring
 ###
   FUSE_BOX_IN:

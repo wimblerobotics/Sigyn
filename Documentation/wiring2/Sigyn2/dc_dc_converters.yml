@@ -29,12 +29,12 @@
       width: 160
       height: 189
   
-  DC_DC_3r3V_10A:
+  DC_DC_3R3V_10A:
     type: DC-DC Converter
     pincount: 4
     pinlabels: [OUT_PLUS, OUT_GND, IN_GND, IN_PLUS]
     image:
-      src: "images/3r3V12A_DC_DC.png"
+      src: "images/12V30A_DC_DC.jpeg"
       width: 160
       height: 189
 
