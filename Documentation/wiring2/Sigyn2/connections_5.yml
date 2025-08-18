@@ -1,0 +1,49 @@
+  -
+    - DC_DC_5V_10A: [IN_PLUS]
+    - 5V_DC_DC_10A: [4]
+    - 36V1: [4]
+
+  -
+    - DC_DC_5V_10A: [IN_GND] #+
+    - 5V_DC_DC_10A: [3] #+
+    - 5VGND7: [1] #+
+
+  -
+    - DC_DC_5V_10A: [OUT_GND] #+
+    - 5V_DC_DC_10A: [2] #+
+    - 5VGND7: [2] #+
+
+  -
+    - DC_DC_5V_10A: [OUT_PLUS]
+    - 5V_DC_DC_10A: [1]
+    - 5Vs1: [1]
+
+  -
+    - 5VMON: [C+]
+    - 5V_Mon_C+_To_Lever_Nut: [1]
+    - 5Vs1: [2]
+
+  -
+    - 5VMON: [V+]
+    - 5V_Mon_V+_To_Lever_Nut: [1]
+    - 5Vs1: [3]
+  -
+    - 5VMON: [C-] #+
+    - 5VMON_5V2: [1] #+
+    - 5V2: [1] #+
+
+  -
+    - 5VMON: [V-] #+
+    - 5V_Mon_To_GNDp2: [1] #+
+    - GNDp3: [2] #+
+
+  -
+    - GNDp1: [4]
+    - FUSE_BOX_OUT: [2]
+    - FUSE_BOX: [FUSE2_OUT]
+
+  -
+    - FUSE_BOX: [FUSE2_IN]
+    - FUSE_BOX_IN: [2]
+    - 5VGND7: [3]
+
