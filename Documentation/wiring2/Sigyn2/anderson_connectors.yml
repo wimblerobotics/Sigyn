@@ -1,4 +1,9 @@
-  ASTRIP:
+  ASTRIP: #+
     type: Anderson Powerpole
     pinlabels: [ RD,  BK ]
     pincolors: [ RD, BK ]
+
+  5Vx4: #+
+    type: Anderson Powerpole
+    pinlabels: [ RD1,  BK1, RD2, BK2, RD3, BK3, RD4, BK4 ]
+    pincolors: [ RD, BK, RD, BK, RD, BK, RD, BK ]

@@ -29,7 +29,7 @@
     gauge: "16 AWG"
     show_wirecount: false 
 
-  3R3V_Mon_V-_To_Lever_Nut:
+  3R3VMon_V-_To_GNDp3:
     wirecount: 1
     color_code: IEC
     colors: [BK]

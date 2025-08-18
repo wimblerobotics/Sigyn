@@ -1,1 +1,1 @@
-clear;m4 <wireviz_sigyn2.yml >foo.yml;/home/ros/sigyn-venv/bin/wireviz --format hp -O sigyn2_wiring foo.yml
+clear;m4 <wireviz_sigyn2.yml >foo.yml;wireviz --format hp -O sigyn2_wiring foo.yml

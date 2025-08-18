@@ -29,9 +29,9 @@
     - 3R3Vs1: [3]
 
   -
-    - GNDp2: [1]
-    - FUSE_BOX_OUT: [1]
-    - FUSE_BOX: [FUSE1_OUT]
+    - GNDp2: [1] #+
+    - FUSE_BOX_OUT: [1] #+
+    - FUSE_BOX: [FUSE1_OUT] #+
 
   -
     - FUSE_BOX: [FUSE1_IN]
@@ -44,9 +44,9 @@
     - 3R3V1: [1]
 
   -
-    - 3R3VMON: [V-]
-    - 3R3V_Mon_V-_To_Lever_Nut: [1]
-    - GNDp3: [4]
+    - 3R3VMON: [V-] #+
+    - 3R3VMon_V-_To_GNDp3: [1] #+
+    - GNDp3: [4] #+
 
   -
     - 3R3V4: [1]
