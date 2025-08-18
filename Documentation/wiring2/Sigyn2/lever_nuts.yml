@@ -10,7 +10,7 @@
       width: 80
       height: 82
 
-  5V2:
+  5V2: #
     type: XHF Lever Nuts
     pincount: 5
     image:
@@ -34,15 +34,7 @@
       width: 80
       height: 68
 
-  5VPC:
-    type: XHF Lever Nuts
-    pincount: 5
-    image:
-      src: "images/LeverNuts5.png"
-      width: 80
-      height: 68
-
-  5Vp1:
+  5VPC: #+
     type: XHF Lever Nuts
     pincount: 5
     image:
@@ -91,7 +83,7 @@
       width: 80
       height: 68
 
-  12VPC:
+  12VPC: #+
     type: XHF Lever Nuts
     pincount: 5
     image:
@@ -172,14 +164,6 @@
       width: 80
       height: 82
   
-  GND3:
-    type: XHF Lever Nuts
-    pincount: 5
-    image:
-      src: "images/LeverNuts5.png"
-      width: 80
-      height: 68
-
   GNDp1:
     type: XHF Lever Nuts
     pincount: 5
@@ -196,7 +180,7 @@
       width: 80
       height: 68
 
-  GNDp3:
+  GNDp3: #+
     type: XHF Lever Nuts
     pincount: 5
     image:
@@ -204,7 +188,7 @@
       width: 80
       height: 68
 
-  GNDp4:
+  GNDp4: #+
     type: XHF Lever Nuts
     pincount: 5
     image:
@@ -212,7 +196,7 @@
       width: 80
       height: 68
 
-  GND1:
+  GND1: #+
     type: XHF Lever Nuts
     pincount: 5
     image:
@@ -228,7 +212,7 @@
       width: 80
       height: 68
 
-  GND4:
+  GND3: #+
     type: XHF Lever Nuts
     pincount: 5
     image:
@@ -236,7 +220,15 @@
       width: 80
       height: 68
 
-  GNDPC:
+  GND4: #+
+    type: XHF Lever Nuts
+    pincount: 5
+    image:
+      src: "images/LeverNuts5.png"
+      width: 80
+      height: 68
+
+  GNDPC: #+
     type: XHF Lever Nuts
     pincount: 5
     image:

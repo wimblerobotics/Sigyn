@@ -29,7 +29,7 @@
       width: 220
       height: 218
   
-  24VMON:
+  24VMON: #+
     type: INA226 Voltage Current Monitor
     pincount: 8
     pinlabels: [V+, C+, C-, V-, GND, SCL, SDA, VCC]

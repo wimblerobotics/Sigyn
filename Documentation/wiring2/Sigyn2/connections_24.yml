@@ -20,12 +20,12 @@
 
   -
     - 24VMON: [C+]
-    - 24V_Mon_C+_To_Lever_Nut: [1]
+    - 24VMON_C+_TO_24Vs1: [1]
     - 24Vs1: [3]
 
   -
     - 24VMON: [V+]
-    - 24V_Mon_V+_To_Lever_Nut: [1]
+    - 24VMON_V+_TO_24Vs1: [1]
     - 24Vs1: [2]
 
   -
@@ -40,10 +40,10 @@
 
   -
     - 24VMON: [C-]
-    - 24V_Mon_C-_To_Lever_Nut: [1]
+    - 24VMON_C-_TO_24V1: [1]
     - 24V1: [1]
 
   -
-    - 24VMON: [V-]
-    - 24V_Mon_V-_To_Lever_Nut: [1]
-    - GNDp3: [3]
+    - 24VMON: [V-] #+
+    - 24VMon_V-_TO_GNDp3: [1] #+
+    - GNDp3: [3] #+

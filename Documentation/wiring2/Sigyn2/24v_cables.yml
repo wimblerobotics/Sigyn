@@ -8,28 +8,28 @@
     gauge: "16 AWG"
     show_wirecount: false
 
-  24V_Mon_C+_To_Lever_Nut:
+  24VMON_C+_TO_24Vs1:
     wirecount: 1
     color_code: IEC
     colors: [RD]
     gauge: "16 AWG"
     show_wirecount: false 
 
-  24V_Mon_V+_To_Lever_Nut:
+  24VMON_V+_TO_24Vs1:
     wirecount: 1
     color_code: IEC
     colors: [RD]
     gauge: "16 AWG"
     show_wirecount: false 
     
-  24V_Mon_C-_To_Lever_Nut:
+  24VMON_C-_TO_24V1:
     wirecount: 1
     color_code: IEC
     colors: [RD]
     gauge: "16 AWG"
     show_wirecount: false 
 
-  24V_Mon_V-_To_Lever_Nut:
+  24VMon_V-_TO_GNDp3: #+
     wirecount: 1
     color_code: IEC
     colors: [BK]
