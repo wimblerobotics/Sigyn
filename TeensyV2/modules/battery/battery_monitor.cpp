@@ -75,12 +75,13 @@ BatteryConfig BatteryMonitor::g_battery_config_[kNumberOfBatteries] = {
      false, false, false, 0x40,  A0,    A1,    11.0f, 0.0f,   0.0f,  1.0f, 1.0f, "36VLIPO"},
     {4.9f,  4.94f, 5.7f,  5.5f, 9.0f, 10.0f, 5.0f,  50.0f, 50.0f, 100,  1000, 100,     true,
      false, false, false, 0x40, A0,   A1,    11.0f, 0.0f,  0.0f,  1.0f, 1.0f, "5VDCDC"},
+    {11.8f, 11.9f, 12.5f, 12.4f, 19.0f, 20.0f, 5.0f,  240.0f, 50.0f, 100,  1000, 100,      true,
+     false, false, false, 0x40,  A0,    A1,    11.0f, 0.0f,   0.0f,  1.0f, 1.0f, "12VDCDC"},
     {23.0f, 23.5f, 25.0f, 24.5f, 9.0f, 10.0f, 5.0f,  240.0f, 50.0f, 100,  1000, 100,      true,
      false, false, false, 0x40,  A0,   A1,    11.0f, 0.0f,   0.0f,  1.0f, 1.0f, "24VDCDC"},
     {3.1f,  3.2f,  3.4f,  3.5f, 9.0f, 10.0f, 5.0f,  33.0f, 50.0f, 100,  1000, 100,       true,
      false, false, false, 0x40, A0,   A1,    11.0f, 0.0f,  0.0f,  1.0f, 1.0f, "3.3VDCDC"},
-    {11.8f, 11.9f, 12.5f, 12.4f, 19.0f, 20.0f, 5.0f,  240.0f, 50.0f, 100,  1000, 100,      true,
-     false, false, false, 0x40,  A0,    A1,    11.0f, 0.0f,   0.0f,  1.0f, 1.0f, "12VDCDC"}};
+    };
 INA226 BatteryMonitor::g_ina226_[kNumberOfBatteries] = {INA226(0x40), INA226(0x40), INA226(0x40),
                                                         INA226(0x40), INA226(0x40)};
 uint8_t BatteryMonitor::gINA226_DeviceIndexes_[kNumberOfBatteries] = {2, 3, 4, 5, 6};
