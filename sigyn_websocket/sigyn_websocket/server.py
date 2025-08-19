@@ -25,9 +25,19 @@ class TelemetryServer(Node):
         # Publishers
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
 
+        # QoS profiles for different topics
+        from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
+        
+        # Map topic uses reliable/transient local QoS (like RViz2)
+        map_qos = QoSProfile(
+            depth=1,
+            reliability=QoSReliabilityPolicy.RELIABLE,
+            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL
+        )
+        
         # Subscriptions
         self.create_subscription(LaserScan, '/scan', self.on_scan, 10)
-        self.create_subscription(OccupancyGrid, '/map', self.on_map, 10)
+        self.create_subscription(OccupancyGrid, '/map', self.on_map, map_qos)
         self.create_subscription(OccupancyGrid, '/global_costmap/costmap', self.on_global_costmap, 10)
         self.create_subscription(OccupancyGridUpdate, '/global_costmap/costmap_updates', self.on_global_costmap_update, 10)
         self.create_subscription(BatteryState, '/sigyn/teensy_bridge/battery/status', self.on_battery, 10)
@@ -38,6 +48,10 @@ class TelemetryServer(Node):
         self.ws_host = '0.0.0.0'
         self.ws_port = 8765
         self._ws_loop = None
+        
+        # Store last received data for new clients
+        self.last_map_data = None
+        self.last_costmap_data = None
         
         # Last command time for deadman switch
         self.last_cmd_time = 0.0
@@ -65,6 +79,18 @@ class TelemetryServer(Node):
         async def handler(websocket, path):
             self.get_logger().info(f'Client connected: {websocket.remote_address}')
             self.connected_clients.add(websocket)
+            
+            # Send last received map and costmap data to new client
+            try:
+                if self.last_map_data:
+                    await websocket.send(cbor2.dumps({'t': 'map', 'p': self.last_map_data}))
+                    self.get_logger().info('Sent stored map data to new client')
+                if self.last_costmap_data:
+                    await websocket.send(cbor2.dumps({'t': 'global_costmap', 'p': self.last_costmap_data}))
+                    self.get_logger().info('Sent stored costmap data to new client')
+            except Exception as e:
+                self.get_logger().error(f'Error sending stored data to new client: {e}')
+            
             try:
                 async for message in websocket:
                     await self._handle_client_message(websocket, message)
@@ -170,6 +196,8 @@ class TelemetryServer(Node):
             },
             'data': zlib.compress(bytes(msg.data))
         }
+        # Store for new clients
+        self.last_map_data = payload
         self._broadcast('map', payload)
 
     def on_global_costmap(self, msg: OccupancyGrid):
@@ -180,6 +208,8 @@ class TelemetryServer(Node):
             'h': msg.info.height,
             'data': zlib.compress(bytes(msg.data))
         }
+        # Store for new clients
+        self.last_costmap_data = payload
         self._broadcast('global_costmap', payload)
 
     def on_global_costmap_update(self, msg: OccupancyGridUpdate):
