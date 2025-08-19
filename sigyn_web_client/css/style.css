@@ -30,7 +30,7 @@ h1 {
     align-items: center;
 }
 
-#map-canvas, #costmap-canvas {
+#map-canvas, #costmap-canvas, #scan-canvas {
     position: absolute;
     top: 0;
     left: 0;
@@ -40,10 +40,6 @@ h1 {
     border: 1px solid #444;
 }
 
-#map-canvas {
-    z-index: 1; /* Map layer behind */
-}
-
-#costmap-canvas {
-    z-index: 2; /* Costmap layer on top */
-}
+#map-canvas { z-index: 1; }
+#costmap-canvas { z-index: 2; }
+#scan-canvas { z-index: 3; }
