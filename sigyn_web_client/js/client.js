@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusElement = document.getElementById('connection-status');
     const canvas = document.getElementById('map-canvas');
     const ctx = canvas.getContext('2d');
+    const costmapCanvas = document.getElementById('costmap-canvas');
+    const costmapCtx = costmapCanvas.getContext('2d');
 
     let lastMapData = null; // Store map data for redrawing
 
@@ -22,18 +24,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const containerRect = container.getBoundingClientRect();
         const containerWidth = containerRect.width - 4; // Account for border
         const containerHeight = containerRect.height - 4;
-        
+
         // Calculate scale to fit container while maintaining aspect ratio
         const scaleX = containerWidth / w;
         const scaleY = containerHeight / h;
         const scale = Math.min(scaleX, scaleY);
-        
-        canvas.width = w;
-        canvas.height = h;
-        canvas.style.width = (w * scale) + 'px';
-        canvas.style.height = (h * scale) + 'px';
-        
-        console.log(`Canvas: ${w}x${h}, Container: ${containerWidth}x${containerHeight}, Scale: ${scale.toFixed(2)}`);
+
+        // Only change intrinsic size if it actually changed (changing clears content)
+        const sizeChanged = (canvas.width !== w || canvas.height !== h || costmapCanvas.width !== w || costmapCanvas.height !== h);
+        if (sizeChanged) {
+            canvas.width = w;
+            canvas.height = h;
+            costmapCanvas.width = w;
+            costmapCanvas.height = h;
+        }
+
+        // Always update CSS size (does not clear)
+        [canvas, costmapCanvas].forEach(canv => {
+            canv.style.width = (w * scale) + 'px';
+            canv.style.height = (h * scale) + 'px';
+        });
+
+        console.log(`Canvas: ${w}x${h}, Container: ${containerWidth}x${containerHeight}, Scale: ${scale.toFixed(2)}, sizeChanged=${sizeChanged}`);
+        return sizeChanged;
     }
     let socket;
     let mapMetadata = null;
@@ -148,16 +161,16 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             console.log('Drawing map:', map.w, 'x', map.h);
             const { w, h, data } = map;
-            
-            scaleCanvas(w, h);
-            
+
+            const resized = scaleCanvas(w, h);
+
             // Use standard zlib decompression (we know this works)
             const inflatedData = pako.inflate(new Uint8Array(data));
             console.log('Map inflated data length:', inflatedData.length);
-            
+
             lastMapData = { w, h, inflatedData }; // Store for redrawing
             drawMapData(w, h, inflatedData);
-            
+
         } catch (error) {
             console.error('Error drawing map:', error);
         }
@@ -166,23 +179,41 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawMapData(w, h, inflatedData) {
         const imageData = ctx.createImageData(w, h);
 
-        for (let i = 0; i < inflatedData.length; i++) {
-            const val = inflatedData[i];
-            let r, g, b;
-            if (val === 100) { 
-                // Occupied space - black
-                r = g = b = 0;
-            } else if (val === 0) { 
-                // Free space - white
-                r = g = b = 255;
-            } else { 
-                // Unknown space - light gray
-                r = g = b = 200;
+        // Draw each pixel with proper ROS map value interpretation, flipped vertically
+        for (let row = 0; row < h; row++) {
+            for (let col = 0; col < w; col++) {
+                // Original index in the data array
+                const dataIndex = row * w + col;
+                // Flipped index in the image data (flip vertically)
+                const flippedRow = h - 1 - row;
+                const pixelIndex = (flippedRow * w + col) * 4;
+
+                // Inflate returns Uint8 (0..255). In OccupancyGrid: -1=unknown, 0=free, 100=occupied.
+                // Map -1 to 255 in Uint8, so convert back for logic.
+                const raw = inflatedData[dataIndex];
+                const val = (raw === 255) ? -1 : raw;
+
+                let r, g, b;
+                if (val === -1) {
+                    // Unknown space - light gray like RViz (around 205)
+                    r = g = b = 205;
+                } else if (val === 0) {
+                    // Free space - white
+                    r = g = b = 255;
+                } else if (val === 100) {
+                    // Occupied - black
+                    r = g = b = 0;
+                } else {
+                    // Intermediate probabilities 1..99 -> grayscale (white->black)
+                    const gray = 255 - Math.round((val / 100) * 255);
+                    r = g = b = Math.max(0, Math.min(255, gray));
+                }
+
+                imageData.data[pixelIndex] = r;
+                imageData.data[pixelIndex + 1] = g;
+                imageData.data[pixelIndex + 2] = b;
+                imageData.data[pixelIndex + 3] = 255; // Fully opaque
             }
-            imageData.data[i * 4] = r;
-            imageData.data[i * 4 + 1] = g;
-            imageData.data[i * 4 + 2] = b;
-            imageData.data[i * 4 + 3] = 255; // Fully opaque
         }
         ctx.putImageData(imageData, 0, 0);
         console.log('Map drawn successfully');
@@ -192,14 +223,21 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             console.log('Drawing costmap:', costmap.w, 'x', costmap.h);
             const { w, h, data } = costmap;
-            
-            // Set canvas size
-            scaleCanvas(w, h);
-            
+
+            const resized = scaleCanvas(w, h);
+
+            // If size changed, redraw the map layer that was cleared by resizing
+            if (resized && lastMapData) {
+                drawMapData(lastMapData.w, lastMapData.h, lastMapData.inflatedData);
+            }
+
+            // Clear the costmap canvas completely
+            costmapCtx.clearRect(0, 0, w, h);
+
             // Decompress costmap data
             const inflatedData = pako.inflate(new Uint8Array(data));
             console.log('Costmap inflated data length:', inflatedData.length);
-            
+
             // Analyze cost values for debugging
             const costCounts = {};
             for (let i = 0; i < Math.min(1000, inflatedData.length); i++) {
@@ -207,66 +245,63 @@ document.addEventListener('DOMContentLoaded', () => {
                 costCounts[cost] = (costCounts[cost] || 0) + 1;
             }
             console.log('Sample cost values:', Object.keys(costCounts).sort((a,b) => b-a).slice(0, 10));
-            
-            // Create image data directly using RViz2 costmap color scheme
-            const imageData = ctx.createImageData(w, h);
-            
+
+            // Create costmap image data - start completely transparent
+            const costmapImageData = costmapCtx.createImageData(w, h);
+
             // Draw each pixel based on cost value using exact RViz2 mapping
-            for (let i = 0; i < inflatedData.length; i++) {
-                const cost = inflatedData[i];
-                const pixelIndex = i * 4;
-                
-                if (cost === 0) {
-                    // Free space - transparent (RGB doesn't matter, alpha = 0)
-                    imageData.data[pixelIndex] = 0;     // r
-                    imageData.data[pixelIndex + 1] = 0; // g
-                    imageData.data[pixelIndex + 2] = 0; // b
-                    imageData.data[pixelIndex + 3] = 0; // a (transparent)
-                } else if (cost >= 1 && cost <= 98) {
-                    // Gradient from blue to magenta: v = (255 * i) / 100
-                    // setColorForValue(i, v, 0, 255 - v, 255);
-                    const v = (255 * cost) / 100;
-                    imageData.data[pixelIndex] = v;         // r
-                    imageData.data[pixelIndex + 1] = 0;     // g
-                    imageData.data[pixelIndex + 2] = 255 - v; // b
-                    imageData.data[pixelIndex + 3] = 255;   // a (opaque)
-                } else if (cost === 99) {
-                    // Obstacle values in cyan: setColorForValue(99, 0, 255, 255, 255);
-                    imageData.data[pixelIndex] = 0;       // r
-                    imageData.data[pixelIndex + 1] = 255; // g (cyan)
-                    imageData.data[pixelIndex + 2] = 255; // b (cyan)
-                    imageData.data[pixelIndex + 3] = 255; // a (opaque)
-                } else if (cost === 100) {
-                    // Lethal obstacle values in purple: setColorForValue(100, 255, 0, 255, 255);
-                    imageData.data[pixelIndex] = 255;     // r (magenta)
-                    imageData.data[pixelIndex + 1] = 0;   // g
-                    imageData.data[pixelIndex + 2] = 255; // b (magenta)
-                    imageData.data[pixelIndex + 3] = 255; // a (opaque)
-                } else if (cost >= 101 && cost <= 127) {
-                    // Illegal positive values - green: setColorForIllegalPositiveValues(0, 255, 0)
-                    imageData.data[pixelIndex] = 0;       // r
-                    imageData.data[pixelIndex + 1] = 255; // g (green)
-                    imageData.data[pixelIndex + 2] = 0;   // b
-                    imageData.data[pixelIndex + 3] = 255; // a (opaque)
-                } else if (cost >= 128 && cost <= 254) {
-                    // Red to yellow gradient: setColorForValue(i, 255, (255 * (i - 128)) / (254 - 128), 0, 255);
-                    const yellowComponent = (255 * (cost - 128)) / (254 - 128);
-                    imageData.data[pixelIndex] = 255;                    // r (red)
-                    imageData.data[pixelIndex + 1] = yellowComponent;    // g (gradient to yellow)
-                    imageData.data[pixelIndex + 2] = 0;                  // b
-                    imageData.data[pixelIndex + 3] = 255;                // a (opaque)
-                } else { // cost === 255
-                    // Legal negative value minus one: setColorForLegalNegativeValueMinusOne(0x70, 0x89, 0x86)
-                    imageData.data[pixelIndex] = 0x70;    // r
-                    imageData.data[pixelIndex + 1] = 0x89; // g
-                    imageData.data[pixelIndex + 2] = 0x86; // b
-                    imageData.data[pixelIndex + 3] = 255;  // a (opaque)
+            // Flip vertically by reading rows in reverse order
+            for (let row = 0; row < h; row++) {
+                for (let col = 0; col < w; col++) {
+                    const dataIndex = row * w + col;
+                    const flippedRow = h - 1 - row;
+                    const pixelIndex = (flippedRow * w + col) * 4;
+
+                    const cost = inflatedData[dataIndex];
+
+                    if (cost === 0) {
+                        // Free space - leave completely transparent (RGBA = 0,0,0,0)
+                        // costmapImageData already initialized to zeros
+                        continue;
+                    } else if (cost >= 1 && cost <= 98) {
+                        const v = (255 * cost) / 100;
+                        costmapImageData.data[pixelIndex] = v;         // r
+                        costmapImageData.data[pixelIndex + 1] = 0;     // g
+                        costmapImageData.data[pixelIndex + 2] = 255 - v; // b
+                        costmapImageData.data[pixelIndex + 3] = 51;    // a (20% opacity)
+                    } else if (cost === 99) {
+                        costmapImageData.data[pixelIndex] = 0;       // r
+                        costmapImageData.data[pixelIndex + 1] = 255; // g (cyan)
+                        costmapImageData.data[pixelIndex + 2] = 255; // b (cyan)
+                        costmapImageData.data[pixelIndex + 3] = 51;  // a (20% opacity)
+                    } else if (cost === 100) {
+                        costmapImageData.data[pixelIndex] = 255;     // r (magenta)
+                        costmapImageData.data[pixelIndex + 1] = 0;   // g
+                        costmapImageData.data[pixelIndex + 2] = 255; // b (magenta)
+                        costmapImageData.data[pixelIndex + 3] = 51;  // a (20% opacity)
+                    } else if (cost >= 101 && cost <= 127) {
+                        costmapImageData.data[pixelIndex] = 0;       // r
+                        costmapImageData.data[pixelIndex + 1] = 255; // g (green)
+                        costmapImageData.data[pixelIndex + 2] = 0;   // b
+                        costmapImageData.data[pixelIndex + 3] = 51;  // a (20% opacity)
+                    } else if (cost >= 128 && cost <= 254) {
+                        const yellowComponent = (255 * (cost - 128)) / (254 - 128);
+                        costmapImageData.data[pixelIndex] = 255;                    // r (red)
+                        costmapImageData.data[pixelIndex + 1] = yellowComponent;    // g
+                        costmapImageData.data[pixelIndex + 2] = 0;                  // b
+                        costmapImageData.data[pixelIndex + 3] = 51;                 // a (20% opacity)
+                    } else { // cost === 255
+                        costmapImageData.data[pixelIndex] = 0x70;    // r
+                        costmapImageData.data[pixelIndex + 1] = 0x89; // g
+                        costmapImageData.data[pixelIndex + 2] = 0x86; // b
+                        costmapImageData.data[pixelIndex + 3] = 51;   // a (20% opacity)
+                    }
                 }
             }
-            
-            // Draw directly to canvas
-            ctx.putImageData(imageData, 0, 0);
-            
+
+            // Draw the costmap data to the costmap canvas (no global alpha needed)
+            costmapCtx.putImageData(costmapImageData, 0, 0);
+
             console.log('Costmap drawn successfully');
         } catch (error) {
             console.error('Error drawing costmap:', error);
@@ -304,8 +339,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Handle window resize
     window.addEventListener('resize', () => {
         if (lastMapData) {
+            const resized = scaleCanvas(lastMapData.w, lastMapData.h);
             // Redraw everything on resize
-            scaleCanvas(lastMapData.w, lastMapData.h);
             drawMapData(lastMapData.w, lastMapData.h, lastMapData.inflatedData);
             // Costmap will be redrawn on next update
         }

@@ -30,9 +30,20 @@ h1 {
     align-items: center;
 }
 
-#map-canvas {
+#map-canvas, #costmap-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
     border: 1px solid #444;
+}
+
+#map-canvas {
+    z-index: 1; /* Map layer behind */
+}
+
+#costmap-canvas {
+    z-index: 2; /* Costmap layer on top */
 }
