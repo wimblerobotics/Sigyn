@@ -102,10 +102,10 @@ class TelemetryServer(Node):
             try:
                 data = cbor2.dumps({'t': topic, 'p': payload})
                 
-                # Use asyncio.gather for concurrent sending
-                tasks = [client.send(data) for client in self.connected_clients if client.open]
-                if tasks:
-                    self.ws_loop.create_task(asyncio.gather(*tasks, return_exceptions=True))
+                # Create a task for each client to send data concurrently
+                for client in self.connected_clients:
+                    if client.open:
+                        self.ws_loop.create_task(client.send(data))
 
             except Exception as e:
                 self.get_logger().error(f'Broadcast preparation error: {e}')
