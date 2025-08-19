@@ -1,0 +1,34 @@
+body {
+    font-family: sans-serif;
+    background-color: #282c34;
+    color: #abb2bf;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+h1 {
+    color: #61afef;
+}
+
+#connection-status {
+    margin-bottom: 20px;
+    padding: 5px 10px;
+    border-radius: 5px;
+}
+
+.map-container {
+    border: 2px solid #61afef;
+    width: 80vw;
+    height: 80vh;
+    overflow: hidden;
+    position: relative;
+}
+
+#map-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+}

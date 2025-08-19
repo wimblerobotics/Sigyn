@@ -15,6 +15,7 @@ from map_msgs.msg import OccupancyGridUpdate
 
 import websockets
 import cbor2
+import zlib
 
 class TelemetryServer(Node):
     def __init__(self):
@@ -156,7 +157,8 @@ class TelemetryServer(Node):
         self._broadcast('scan', payload)
 
     def on_map(self, msg: OccupancyGrid):
-        """Process static map data"""
+        """Process static map data and broadcast it compressed."""
+        self.get_logger().info(f'Map received: {msg.info.width}x{msg.info.height}. Compressing and sending...')
         payload = {
             'w': msg.info.width,
             'h': msg.info.height,
@@ -164,35 +166,31 @@ class TelemetryServer(Node):
             'origin': {
                 'x': msg.info.origin.position.x,
                 'y': msg.info.origin.position.y,
-                'theta': msg.info.origin.orientation.z  # Simplified
-            }
+                'theta': msg.info.origin.orientation.z
+            },
+            'data': zlib.compress(bytes(msg.data))
         }
-        self._broadcast('map_meta', payload)
-        self.get_logger().info(f'Map received: {msg.info.width}x{msg.info.height}')
+        self._broadcast('map', payload)
 
     def on_global_costmap(self, msg: OccupancyGrid):
-        """Process global costmap data"""
+        """Process global costmap data and broadcast it compressed."""
+        self.get_logger().debug(f'Global costmap: {msg.info.width}x{msg.info.height}. Compressing and sending...')
         payload = {
             'w': msg.info.width,
             'h': msg.info.height,
-            'res': msg.info.resolution,
-            'origin': {
-                'x': msg.info.origin.position.x,
-                'y': msg.info.origin.position.y,
-                'theta': msg.info.origin.orientation.z  # Simplified
-            }
+            'data': zlib.compress(bytes(msg.data))
         }
-        self._broadcast('global_costmap_meta', payload)
-        self.get_logger().debug(f'Global costmap: {msg.info.width}x{msg.info.height}')
+        self._broadcast('global_costmap', payload)
 
     def on_global_costmap_update(self, msg: OccupancyGridUpdate):
-        """Process costmap update patches"""
+        """Process costmap update patches and broadcast them compressed."""
+        self.get_logger().debug(f'Costmap update: {msg.width}x{msg.height} @ ({msg.x},{msg.y})')
         payload = {
             'x': msg.x,
             'y': msg.y,
             'w': msg.width,
             'h': msg.height,
-            'data_len': len(msg.data)
+            'data': zlib.compress(bytes(msg.data))
         }
         self._broadcast('global_costmap_update', payload)
 
