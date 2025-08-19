@@ -2,23 +2,22 @@
 <package format="3">
   <name>sigyn_websocket</name>
   <version>0.1.0</version>
-  <description>ROS 2 bridge exposing telemetry/control over WebSocket with CBOR payloads and planning for WebRTC H.265 video.</description>
+  <description>ROS 2 bridge exposing telemetry/control over WebSocket with CBOR payloads.</description>
   <maintainer email="michael@wimblerobotics.com">Wimble Robotics</maintainer>
   <license>MIT</license>
 
-  <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_python</buildtool_depend>
 
-  <exec_depend>rclpy</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
-  <exec_depend>geometry_msgs</exec_depend>
-  <exec_depend>sensor_msgs</exec_depend>
-  <exec_depend>nav_msgs</exec_depend>
-  <exec_depend>map_msgs</exec_depend>
-  <exec_depend>diagnostic_msgs</exec_depend>
-  <exec_depend>nav2_msgs</exec_depend>
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>map_msgs</depend>
+  <depend>diagnostic_msgs</depend>
 
-  <exec_depend>python3</exec_depend>
+  <exec_depend>python3-websockets</exec_depend>
+  <exec_depend>python3-cbor2</exec_depend>
 
   <export>
     <build_type>ament_python</build_type>

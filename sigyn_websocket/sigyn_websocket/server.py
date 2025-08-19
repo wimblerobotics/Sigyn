@@ -1,5 +1,7 @@
 import asyncio
 import json
+import threading
+import time
 from typing import Any, Dict
 
 import rclpy
@@ -14,17 +16,15 @@ from map_msgs.msg import OccupancyGridUpdate
 import websockets
 import cbor2
 
-# Minimal server scaffolding; not yet wired to topics. This is to establish structure.
-
 class TelemetryServer(Node):
     def __init__(self):
         super().__init__('sigyn_websocket_server')
-        self.get_logger().info('Starting sigyn_websocket server (scaffold)')
+        self.get_logger().info('Starting sigyn_websocket server')
 
         # Publishers
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
 
-        # Subscriptions (placeholders; wire up later)
+        # Subscriptions
         self.create_subscription(LaserScan, '/scan', self.on_scan, 10)
         self.create_subscription(OccupancyGrid, '/map', self.on_map, 10)
         self.create_subscription(OccupancyGrid, '/global_costmap/costmap', self.on_global_costmap, 10)
@@ -33,121 +33,188 @@ class TelemetryServer(Node):
         self.create_subscription(DiagnosticArray, '/sigyn/teensy_bridge/diagnostics', self.on_diag, 10)
 
         # WebSocket state
-        self.clients = set()
+        self.connected_clients = set()
         self.ws_host = '0.0.0.0'
         self.ws_port = 8765
+        self._ws_loop = None
+        
+        # Last command time for deadman switch
+        self.last_cmd_time = 0.0
+        self.cmd_timeout = 1.0  # 1 second timeout
+        
+        # Create timer for deadman check
+        self.create_timer(0.1, self.check_deadman)
+        
+        # Start WebSocket server in separate thread
+        self.ws_thread = threading.Thread(target=self._run_websocket_server, daemon=True)
+        self.ws_thread.start()
 
-        # Start asyncio server after an event loop is available
-        self.loop = asyncio.get_event_loop()
-        self.loop.create_task(self._start_ws())
+    @property
+    def ws_loop(self):
+        """Wait for the WebSocket event loop to be available."""
+        while self._ws_loop is None:
+            time.sleep(0.01)
+        return self._ws_loop
 
-    async def _start_ws(self):
+    def _run_websocket_server(self):
+        """Run WebSocket server in separate thread with its own event loop"""
+        asyncio.set_event_loop(asyncio.new_event_loop())
+        self._ws_loop = asyncio.get_event_loop()
+        
         async def handler(websocket, path):
-            self.clients.add(websocket)
+            self.get_logger().info(f'Client connected: {websocket.remote_address}')
+            self.connected_clients.add(websocket)
             try:
                 async for message in websocket:
                     await self._handle_client_message(websocket, message)
+            except websockets.exceptions.ConnectionClosed:
+                self.get_logger().info(f'Client disconnected: {websocket.remote_address}')
+            except Exception as e:
+                self.get_logger().error(f'WebSocket error: {e}')
             finally:
-                self.clients.discard(websocket)
+                self.connected_clients.discard(websocket)
 
-        self.get_logger().info(f'WebSocket listening on {self.ws_host}:{self.ws_port}')
-        await websockets.serve(handler, self.ws_host, self.ws_port)
+        async def start_server():
+            self.get_logger().info(f'WebSocket server starting on {self.ws_host}:{self.ws_port}')
+            await websockets.serve(handler, self.ws_host, self.ws_port)
+            self.get_logger().info('WebSocket server started')
 
-    async def _broadcast(self, topic: str, payload: Dict[str, Any] | bytes, binary: bool = True):
-        if not self.clients:
+        self._ws_loop.run_until_complete(start_server())
+        self._ws_loop.run_forever()
+        
+    def check_deadman(self):
+        """Check if cmd_vel commands have timed out"""
+        current_time = time.time()
+        if self.last_cmd_time > 0 and (current_time - self.last_cmd_time) > self.cmd_timeout:
+            # Send stop command
+            msg = Twist()
+            msg.linear.x = 0.0
+            msg.angular.z = 0.0
+            self.cmd_vel_pub.publish(msg)
+            self.last_cmd_time = 0.0  # Reset to avoid repeated stops
+
+    def _broadcast(self, topic: str, payload: Dict[str, Any] | bytes):
+        """Thread-safe broadcast to all connected clients"""
+        if not self.connected_clients:
             return
+
+        def schedule_broadcast():
+            try:
+                data = cbor2.dumps({'t': topic, 'p': payload})
+                
+                # Use asyncio.gather for concurrent sending
+                tasks = [client.send(data) for client in self.connected_clients if client.open]
+                if tasks:
+                    self.ws_loop.create_task(asyncio.gather(*tasks, return_exceptions=True))
+
+            except Exception as e:
+                self.get_logger().error(f'Broadcast preparation error: {e}')
+        
+        # Schedule the broadcast on the WebSocket thread's event loop
+        self.ws_loop.call_soon_threadsafe(schedule_broadcast)
+
+    async def _handle_client_message(self, websocket, message: bytes):
+        """Handle incoming client messages"""
         try:
-            if binary:
-                data = cbor2.dumps({'t': topic, 'p': payload}) if isinstance(payload, dict) else payload
-                await asyncio.gather(*[c.send(data) for c in list(self.clients)])
-            else:
-                data = json.dumps({'t': topic, 'p': payload})
-                await asyncio.gather(*[c.send(data) for c in list(self.clients)])
+            # Messages from client are expected to be CBOR
+            cmd = cbor2.loads(message)
         except Exception as e:
-            self.get_logger().warn(f'Broadcast error: {e}')
-
-    async def _handle_client_message(self, websocket, message: str):
-        # Expect small JSON commands initially
-        try:
-            cmd = json.loads(message)
-        except Exception:
+            self.get_logger().warn(f'Invalid CBOR from client: {e}')
             return
+            
         t = cmd.get('t')
         p = cmd.get('p', {})
+        
         if t == 'cmd_vel':
             msg = Twist()
             msg.linear.x = float(p.get('vx', 0.0))
             msg.angular.z = float(p.get('wz', 0.0))
             self.cmd_vel_pub.publish(msg)
+            self.last_cmd_time = time.time()  # Update deadman timer
+            self.get_logger().debug(f'cmd_vel: vx={msg.linear.x}, wz={msg.angular.z}')
         elif t == 'nav_goal':
             # TODO: wire to NavigateToPose action
-            pass
-        elif t == 'camera_select':
-            # TODO: implement if needed
-            pass
+            self.get_logger().info(f'nav_goal received: {p}')
+        elif t == 'ping':
+            # Respond to ping with CBOR
+            await websocket.send(cbor2.dumps({'t': 'pong', 'p': {}}))
+        else:
+            self.get_logger().warn(f'Unknown command type: {t}')
 
-    # --- ROS Callbacks (stubs) ---
+    # --- ROS Callbacks ---
     def on_scan(self, msg: LaserScan):
-        # Compress to uint16 mm payload later; for now, send minimal sample count
-        payload = {'n': len(msg.ranges)}
-        asyncio.create_task(self._broadcast('scan', payload, binary=True))
+        """Process LIDAR scan data"""
+        # For now, send basic info. TODO: compress to uint16 mm payload
+        payload = {
+            'n': len(msg.ranges),
+            'min_angle': msg.angle_min,
+            'max_angle': msg.angle_max,
+            'increment': msg.angle_increment,
+            'range_min': msg.range_min,
+            'range_max': msg.range_max
+        }
+        self._broadcast('scan', payload)
 
     def on_map(self, msg: OccupancyGrid):
-        payload = {'w': msg.info.width, 'h': msg.info.height, 'res': msg.info.resolution}
-        asyncio.create_task(self._broadcast('map_meta', payload, binary=True))
+        """Process static map data"""
+        payload = {
+            'w': msg.info.width,
+            'h': msg.info.height,
+            'res': msg.info.resolution,
+            'origin': {
+                'x': msg.info.origin.position.x,
+                'y': msg.info.origin.position.y,
+                'theta': msg.info.origin.orientation.z  # Simplified
+            }
+        }
+        self._broadcast('map_meta', payload)
+        self.get_logger().info(f'Map received: {msg.info.width}x{msg.info.height}')
 
     def on_global_costmap(self, msg: OccupancyGrid):
-        payload = {'w': msg.info.width, 'h': msg.info.height}
-        asyncio.create_task(self._broadcast('global_costmap_meta', payload, binary=True))
+        """Process global costmap data"""
+        payload = {
+            'w': msg.info.width,
+            'h': msg.info.height,
+            'res': msg.info.resolution,
+            'origin': {
+                'x': msg.info.origin.position.x,
+                'y': msg.info.origin.position.y,
+                'theta': msg.info.origin.orientation.z  # Simplified
+            }
+        }
+        self._broadcast('global_costmap_meta', payload)
+        self.get_logger().debug(f'Global costmap: {msg.info.width}x{msg.info.height}')
 
     def on_global_costmap_update(self, msg: OccupancyGridUpdate):
-        payload = {'x': msg.x, 'y': msg.y, 'w': msg.width, 'h': msg.height}
-        asyncio.create_task(self._broadcast('global_costmap_update', payload, binary=True))
+        """Process costmap update patches"""
+        payload = {
+            'x': msg.x,
+            'y': msg.y,
+            'w': msg.width,
+            'h': msg.height,
+            'data_len': len(msg.data)
+        }
+        self._broadcast('global_costmap_update', payload)
 
     def on_battery(self, msg: BatteryState):
-        # Filter by header.frame_id == '36VLIPO'
-        if msg.header.frame_id != '36VLIPO':
-            return
-        # Use volts, current, and levels
-        v = float(msg.voltage) if msg.voltage is not None else 0.0
-        i = float(msg.current) if msg.current is not None else 0.0
-        state = 'red' if v <= 32.0 else ('yellow' if v <= 34.0 else 'green')
-        payload = {'v': v, 'i': i, 'state': state}
-        asyncio.create_task(self._broadcast('battery', payload, binary=True))
+        payload = {
+            'voltage': msg.voltage,
+            'current': msg.current,
+            'percentage': msg.percentage,
+            'power_supply_status': msg.power_supply_status
+        }
+        self._broadcast('battery', payload)
 
     def on_diag(self, msg: DiagnosticArray):
-        # Look for RoboClaw bits in the array; placeholder until exact key is known
-        # We'll forward a minimal status if present
-        found = False
-        for status in msg.status:
-            if 'RoboClaw' in status.name or 'roboclaw' in status.name.lower():
-                # Search for known keys
-                err_bits = None
-                for kv in status.values:
-                    if kv.key in ('error_bits', 'err', 'RoboClawError'):
-                        try:
-                            err_bits = int(kv.value, 0)
-                        except Exception:
-                            pass
-                if err_bits is not None:
-                    # Decode selected flags on the server (M1_OVERCURRENT, M2_OVERCURRENT, E_STOP)
-                    M1_OVERCURRENT = 0x00000001
-                    M2_OVERCURRENT = 0x00000002
-                    E_STOP = 0x00000020
-                    payload = {
-                        'err': err_bits,
-                        'm1_oc': bool(err_bits & M1_OVERCURRENT),
-                        'm2_oc': bool(err_bits & M2_OVERCURRENT),
-                        'estop': bool(err_bits & E_STOP),
-                    }
-                    asyncio.create_task(self._broadcast('roboclaw', payload, binary=True))
-                    found = True
-                    break
-        if not found:
-            return
+        # For now, just forward the whole thing
+        # In future, might want to parse and simplify
+        payload = {
+            'status': [{'name': s.name, 'level': s.level, 'message': s.message} for s in msg.status]
+        }
+        self._broadcast('diagnostics', payload)
 
 
-def main():
+def main(args=None):
     rclpy.init()
     node = TelemetryServer()
     try:
