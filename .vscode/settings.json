@@ -145,12 +145,10 @@
   "C_Cpp.clang_format_style": "file",
   "C_Cpp.clang_format_fallbackStyle": "Google",
   "[cpp]": {
-    "editor.defaultFormatter": "ms-vscode.cpptools"
+    "editor.defaultFormatter": "ms-vscode.cpptools",
+    "editor.formatOnSave": true
   },
   "[c]": {
     "editor.defaultFormatter": "ms-vscode.cpptools"
-  },
-  "[python]": {
-    "editor.defaultFormatter": "ms-python.python"
   }
 }
