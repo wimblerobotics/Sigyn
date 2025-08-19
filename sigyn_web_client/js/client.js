@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const ctx = canvas.getContext('2d');
     const costmapCanvas = document.getElementById('costmap-canvas');
     const costmapCtx = costmapCanvas.getContext('2d');
+    const scanCanvas = document.getElementById('scan-canvas');
+    const scanCtx = scanCanvas.getContext('2d');
 
     let lastMapData = null; // Store map data for redrawing
 
@@ -31,16 +33,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const scale = Math.min(scaleX, scaleY);
 
         // Only change intrinsic size if it actually changed (changing clears content)
-        const sizeChanged = (canvas.width !== w || canvas.height !== h || costmapCanvas.width !== w || costmapCanvas.height !== h);
+        const sizeChanged = (canvas.width !== w || canvas.height !== h || costmapCanvas.width !== w || costmapCanvas.height !== h || scanCanvas.width !== w || scanCanvas.height !== h);
         if (sizeChanged) {
-            canvas.width = w;
-            canvas.height = h;
-            costmapCanvas.width = w;
-            costmapCanvas.height = h;
+            canvas.width = w; canvas.height = h;
+            costmapCanvas.width = w; costmapCanvas.height = h;
+            scanCanvas.width = w; scanCanvas.height = h;
         }
 
         // Always update CSS size (does not clear)
-        [canvas, costmapCanvas].forEach(canv => {
+        [canvas, costmapCanvas, scanCanvas].forEach(canv => {
             canv.style.width = (w * scale) + 'px';
             canv.style.height = (h * scale) + 'px';
         });
@@ -152,6 +153,9 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'global_costmap_update':
                 updateCostmap(payload);
                 break;
+            case 'scan':
+                drawScan(payload);
+                break;
             default:
                 console.log('Unhandled message type:', topic);
         }
@@ -168,7 +172,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const inflatedData = pako.inflate(new Uint8Array(data));
             console.log('Map inflated data length:', inflatedData.length);
 
-            lastMapData = { w, h, inflatedData }; // Store for redrawing
+            // Store for redrawing and for metric->pixel transforms
+            lastMapData = { w, h, inflatedData, res: map.res, origin: map.origin };
             drawMapData(w, h, inflatedData);
 
         } catch (error) {
@@ -332,6 +337,104 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         ctx.putImageData(imageData, x, y);
+    }
+
+    function drawScan(scan) {
+        if (!lastMapData) return; // need dimensions and resolution
+        const { w, h, res, origin } = lastMapData;
+        scanCtx.clearRect(0, 0, w, h);
+
+        const meters_to_pixels = 1.0 / ((res !== undefined && res !== null) ? res : 0.05);
+        const ox = origin && typeof origin.x === 'number' ? origin.x : 0;
+        const oy = origin && typeof origin.y === 'number' ? origin.y : 0;
+
+        // Draw robot pose/footprint if available
+        if (scan.robot && typeof scan.robot.x === 'number' && typeof scan.robot.y === 'number') {
+            const rx = Math.round((scan.robot.x - ox) * meters_to_pixels);
+            const ry_map = Math.round((scan.robot.y - oy) * meters_to_pixels);
+            const ry = h - 1 - ry_map;
+            const yaw = scan.robot.yaw || 0;
+
+            // Draw footprint as small circle
+            scanCtx.strokeStyle = 'rgba(0, 255, 0, 1.0)';
+            scanCtx.lineWidth = 2;
+            scanCtx.beginPath();
+            scanCtx.arc(rx, ry, Math.max(3, Math.round(0.15 * meters_to_pixels)), 0, 2 * Math.PI);
+            scanCtx.stroke();
+
+            // Draw heading arrow
+            const arrowLen = Math.max(10, Math.round(0.3 * meters_to_pixels));
+            const hx = rx + Math.cos(yaw) * arrowLen;
+            const hy_map = (h - 1 - ry) + Math.sin(yaw) * arrowLen; // compute in flipped coords carefully
+            const hy = h - 1 - Math.round(hy_map);
+            scanCtx.strokeStyle = 'rgba(0, 200, 255, 1.0)';
+            scanCtx.beginPath();
+            scanCtx.moveTo(rx, ry);
+            scanCtx.lineTo(Math.round(hx), hy);
+            scanCtx.stroke();
+        }
+
+        scanCtx.fillStyle = 'rgba(255, 255, 0, 1.0)';
+
+        let drewPts = false;
+        // Preferred path: draw pre-transformed points; only draw if frame matches map
+        if (scan.pts && scan.pts.byteLength && (!scan.frame || scan.frame === 'map')) {
+            try {
+                const raw = new Uint8Array(scan.pts);
+                const bytes = pako.inflate(raw);
+                const floats = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+                for (let i = 0; i + 1 < bytes.byteLength / 4; i += 2) {
+                    const mx = floats.getFloat32(i * 4, true);
+                    const my = floats.getFloat32((i + 1) * 4, true);
+                    const cx = Math.round((mx - ox) * meters_to_pixels);
+                    const cy_map = Math.round((my - oy) * meters_to_pixels);
+                    const cy = h - 1 - cy_map; // vertical flip
+                    if (cx >= 0 && cx < w && cy >= 0 && cy < h) {
+                        scanCtx.fillRect(cx, cy, 2, 2);
+                    }
+                }
+                drewPts = true;
+            } catch (e) {
+                console.warn('Failed to decode scan pts, falling back to polar:', e);
+            }
+        }
+
+        if (!drewPts) {
+            // Fallback: draw using raw ranges assuming robot at canvas center (not TF-correct)
+            const n = scan.n;
+            const angle_min = scan.min_angle;
+            const angle_increment = scan.increment;
+            const range_min = scan.range_min;
+            const range_max = scan.range_max;
+
+            let ranges = [];
+            if (scan.r && scan.r.byteLength) {
+                try {
+                    const raw = new Uint8Array(scan.r);
+                    const bytes = pako.inflate(raw);
+                    const floats = new Float32Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.byteLength / 4));
+                    ranges = Array.from(floats);
+                } catch (e) {
+                    console.warn('Failed to decode scan ranges, falling back to none:', e);
+                }
+            }
+
+            const origin_px_x = Math.floor(w / 2);
+            const origin_px_y = Math.floor(h / 2);
+
+            for (let i = 0; i < Math.min(n, ranges.length); i++) {
+                const r = ranges[i];
+                if (!isFinite(r) || r < range_min || r > range_max) continue;
+                const angle = angle_min + i * angle_increment;
+                const x = origin_px_x + Math.cos(angle) * (r * meters_to_pixels);
+                const y_map = origin_px_y + Math.sin(angle) * (r * meters_to_pixels);
+                const y = h - 1 - Math.round(y_map);
+                const px = Math.round(x);
+                if (px >= 0 && px < w && y >= 0 && y < h) {
+                    scanCtx.fillRect(px, y, 2, 2);
+                }
+            }
+        }
     }
 
     connect();

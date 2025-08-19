@@ -1,7 +1,9 @@
 import asyncio
 import json
+import struct
 import threading
 import time
+import math
 from typing import Any, Dict
 
 import rclpy
@@ -12,6 +14,10 @@ from sensor_msgs.msg import BatteryState
 from diagnostic_msgs.msg import DiagnosticArray
 from nav_msgs.msg import OccupancyGrid
 from map_msgs.msg import OccupancyGridUpdate
+from tf2_ros import Buffer, TransformListener, LookupException, ConnectivityException, ExtrapolationException
+
+from rclpy.time import Time
+from rclpy.duration import Duration
 
 import websockets
 import cbor2
@@ -63,6 +69,11 @@ class TelemetryServer(Node):
         # Start WebSocket server in separate thread
         self.ws_thread = threading.Thread(target=self._run_websocket_server, daemon=True)
         self.ws_thread.start()
+
+        # TF buffer/listener
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+        self.target_frame = 'map'
 
     @property
     def ws_loop(self):
@@ -171,28 +182,111 @@ class TelemetryServer(Node):
     # --- ROS Callbacks ---
     def on_scan(self, msg: LaserScan):
         """Process LIDAR scan data"""
-        # For now, send basic info. TODO: compress to uint16 mm payload
+        # Pack ranges as float32 and compress (legacy)
+        try:
+            ranges_bytes = struct.pack(f'<{len(msg.ranges)}f', *msg.ranges)
+            compressed_ranges = zlib.compress(ranges_bytes)
+        except Exception:
+            compressed_ranges = b''
+
+        compressed_pts = b''
+        tf_ok = False
+
+        # Try to get robot pose in map frame regardless of scan frame
+        robot = None
+        try:
+            base_frame = self._norm_frame('base_link')
+            map_frame = self._norm_frame('map')
+            t_base = self.tf_buffer.lookup_transform(
+                map_frame,
+                base_frame,
+                Time(),
+                timeout=Duration(seconds=0.5)
+            )
+            tx = t_base.transform.translation.x
+            ty = t_base.transform.translation.y
+            qx = t_base.transform.rotation.x
+            qy = t_base.transform.rotation.y
+            qz = t_base.transform.rotation.z
+            qw = t_base.transform.rotation.w
+            yaw = self._yaw_from_quat(qx, qy, qz, qw)
+            robot = {'x': tx, 'y': ty, 'yaw': yaw}
+        except Exception as e:
+            self.get_logger().debug(f'Robot pose TF (map->base_link) failed: {e}')
+
+        # Transform scan points into map frame and pack XY float32 pairs
+        try:
+            src_frame = self._norm_frame(msg.header.frame_id) or 'base_link'
+            map_frame = self._norm_frame('map')
+            tf = self.tf_buffer.lookup_transform(
+                map_frame,
+                src_frame,
+                Time(),
+                timeout=Duration(seconds=0.5)
+            )
+            tx = tf.transform.translation.x
+            ty = tf.transform.translation.y
+            qx = tf.transform.rotation.x
+            qy = tf.transform.rotation.y
+            qz = tf.transform.rotation.z
+            qw = tf.transform.rotation.w
+            yaw = self._yaw_from_quat(qx, qy, qz, qw)
+            cy = math.cos(yaw)
+            sy = math.sin(yaw)
+
+            pts = []
+            angle = msg.angle_min
+            for r in msg.ranges:
+                if math.isfinite(r) and msg.range_min <= r <= msg.range_max:
+                    lx = r * math.cos(angle)
+                    ly = r * math.sin(angle)
+                    mx = tx + cy*lx - sy*ly
+                    my = ty + sy*lx + cy*ly
+                    pts.append(mx)
+                    pts.append(my)
+                angle += msg.angle_increment
+
+            if pts:
+                pts_bytes = struct.pack(f'<{len(pts)}f', *pts)
+                compressed_pts = zlib.compress(pts_bytes)
+                tf_ok = True
+        except (LookupException, ConnectivityException, ExtrapolationException, Exception) as e:
+            self.get_logger().debug(f'Scan TF transform (map<-{msg.header.frame_id}) failed: {e}')
+
         payload = {
             'n': len(msg.ranges),
             'min_angle': msg.angle_min,
             'max_angle': msg.angle_max,
             'increment': msg.angle_increment,
             'range_min': msg.range_min,
-            'range_max': msg.range_max
+            'range_max': msg.range_max,
+            'r': compressed_ranges,
+            'pts': compressed_pts,
+            'frame': 'map',
+            'tf_ok': tf_ok,
+            'robot': robot,
+            'stamp': {'sec': msg.header.stamp.sec, 'nsec': msg.header.stamp.nanosec},
         }
         self._broadcast('scan', payload)
 
     def on_map(self, msg: OccupancyGrid):
         """Process static map data and broadcast it compressed."""
         self.get_logger().info(f'Map received: {msg.info.width}x{msg.info.height}. Compressing and sending...')
+        ox = msg.info.origin.position.x
+        oy = msg.info.origin.position.y
+        qx = msg.info.origin.orientation.x
+        qy = msg.info.origin.orientation.y
+        qz = msg.info.origin.orientation.z
+        qw = msg.info.origin.orientation.w
+        theta = math.atan2(2.0*(qw*qz + qx*qy), 1.0 - 2.0*(qy*qy + qz*qz))
         payload = {
             'w': msg.info.width,
             'h': msg.info.height,
             'res': msg.info.resolution,
             'origin': {
-                'x': msg.info.origin.position.x,
-                'y': msg.info.origin.position.y,
-                'theta': msg.info.origin.orientation.z
+                'x': ox,
+                'y': oy,
+                'theta': theta
             },
             'data': zlib.compress(bytes(msg.data))
         }
@@ -240,6 +334,13 @@ class TelemetryServer(Node):
             'status': [{'name': s.name, 'level': s.level, 'message': s.message} for s in msg.status]
         }
         self._broadcast('diagnostics', payload)
+
+    def _norm_frame(self, f: str | None) -> str:
+        return (f or '').lstrip('/')
+
+    @staticmethod
+    def _yaw_from_quat(qx: float, qy: float, qz: float, qw: float) -> float:
+        return math.atan2(2.0*(qw*qz + qx*qy), 1.0 - 2.0*(qy*qy + qz*qz))
 
 
 def main(args=None):
