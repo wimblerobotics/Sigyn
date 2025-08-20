@@ -1,8 +1,0 @@
-connectors:
-include(connectors.yml)
-
-cables:
-include(cables.yml)
-
-connections:
-include(connections_teensy_gripper.yml)
