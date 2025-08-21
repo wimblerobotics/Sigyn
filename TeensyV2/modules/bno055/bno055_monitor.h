@@ -181,7 +181,7 @@ namespace sigyn_teensy {
     static constexpr uint32_t kDefaultUpdateInterval = 20; ///< Default update interval (50Hz)
     static constexpr uint32_t kDefaultReportInterval = 100; ///< Default report interval (10Hz)
     // New: per-sensor publish interval targeting 20 Hz per sensor
-    static constexpr uint32_t kPerSensorPublishIntervalMs = 50; ///< Per-sensor publish interval (20Hz)
+    static constexpr uint32_t kPerSensorPublishIntervalMs = 20; ///< Per-sensor publish interval (20Hz)
 
     // Watchdog thresholds
     static constexpr uint32_t kStaleWarnMs = 500;   ///< Age to warn about stale IMU publish
