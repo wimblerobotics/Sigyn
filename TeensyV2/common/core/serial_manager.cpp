@@ -154,32 +154,18 @@ namespace sigyn_teensy {
         incoming_buffer_[buffer_pos_++] = c;
       }
     }
-    sendQueuedMessages();
   }
 
   void SerialManager::sendMessage(const char* type, const char* payload) {
-    // Update high-water mark before enqueue attempt
-    if (queue_count_ > queue_high_water_mark_) {
-      queue_high_water_mark_ = queue_count_;
-    }
+    // Revert to immediate send: format line and write directly to USB CDC
+    char line[kMaxMessageLength];
+    snprintf(line, sizeof(line), "%s%d:%s\n", type, BOARD_ID, payload);
 
-    if (queue_count_ < kMaxQueueSize) {
-      // Inject board ID and enqueue
-      snprintf(message_queue_[queue_tail_], kMaxMessageLength, "%s%d:%s\n", type, BOARD_ID, payload);
-      queue_tail_ = (queue_tail_ + 1) % kMaxQueueSize;
-      queue_count_++;
-    }
-    else {
-      // Queue full: account, classify, and report (throttled)
-      total_dropped_++;
-      classifyAndCountDrop_(type);
-      maybeReportQueueFull_();
-      return;
-    }
 #if ENABLE_SD_LOGGING
     SDLogger::getInstance().logFormatted("%s%d:%s", type, BOARD_ID, payload);
 #endif
-    sendQueuedMessages();
+
+    Serial.print(line);
   }
 
   void SerialManager::sendDiagnosticMessage(const char* level, const char* module, const char* message) {
@@ -238,15 +224,7 @@ namespace sigyn_teensy {
   }
 
   void SerialManager::sendQueuedMessages() {
-    // Maintain HWM
-    if (queue_count_ > queue_high_water_mark_) {
-      queue_high_water_mark_ = queue_count_;
-    }
-    while (queue_count_ > 0 && Serial.availableForWrite() > 0) {
-      Serial.print(message_queue_[queue_head_]);
-      queue_head_ = (queue_head_ + 1) % kMaxQueueSize;
-      queue_count_--;
-    }
+    // No-op: immediate send path (queue disabled)
   }
 
   void SerialManager::setLatestTwistCommand(const String& twist_data) {
