@@ -158,12 +158,23 @@ namespace sigyn_teensy {
   }
 
   void SerialManager::sendMessage(const char* type, const char* payload) {
+    // Update high-water mark before enqueue attempt
+    if (queue_count_ > queue_high_water_mark_) {
+      queue_high_water_mark_ = queue_count_;
+    }
+
     if (queue_count_ < kMaxQueueSize) {
-      // Inject board ID into message type (e.g., "ODOM" becomes "ODOM1")
-      snprintf(message_queue_[queue_tail_], kMaxMessageLength, "%s%d:%s\n", type,
-        BOARD_ID, payload);
+      // Inject board ID and enqueue
+      snprintf(message_queue_[queue_tail_], kMaxMessageLength, "%s%d:%s\n", type, BOARD_ID, payload);
       queue_tail_ = (queue_tail_ + 1) % kMaxQueueSize;
       queue_count_++;
+    }
+    else {
+      // Queue full: account, classify, and report (throttled)
+      total_dropped_++;
+      classifyAndCountDrop_(type);
+      maybeReportQueueFull_();
+      return;
     }
 #if ENABLE_SD_LOGGING
     SDLogger::getInstance().logFormatted("%s%d:%s", type, BOARD_ID, payload);
@@ -173,55 +184,64 @@ namespace sigyn_teensy {
 
   void SerialManager::sendDiagnosticMessage(const char* level, const char* module, const char* message) {
     char json_payload[kMaxMessageLength - 20]; // Reserve space for type and board ID
-    
+
     // Escape quotes and control characters in the message for JSON safety
     char escaped_message[kMaxMessageLength / 2];
     const char* src = message;
     char* dst = escaped_message;
     size_t max_escaped = sizeof(escaped_message) - 1;
-    
+
     while (*src && (dst - escaped_message) < max_escaped - 2) {  // -2 for potential escape sequences
       if (*src == '"') {
         *dst++ = '\\';
         if ((dst - escaped_message) < max_escaped - 1) {
           *dst++ = '"';
         }
-      } else if (*src == '\t') {
+      }
+      else if (*src == '\t') {
         *dst++ = '\\';
         if ((dst - escaped_message) < max_escaped - 1) {
           *dst++ = 't';
         }
-      } else if (*src == '\n') {
+      }
+      else if (*src == '\n') {
         *dst++ = '\\';
         if ((dst - escaped_message) < max_escaped - 1) {
           *dst++ = 'n';
         }
-      } else if (*src == '\r') {
+      }
+      else if (*src == '\r') {
         *dst++ = '\\';
         if ((dst - escaped_message) < max_escaped - 1) {
           *dst++ = 'r';
         }
-      } else if (*src == '\\') {
+      }
+      else if (*src == '\\') {
         *dst++ = '\\';
         if ((dst - escaped_message) < max_escaped - 1) {
           *dst++ = '\\';
         }
-      } else {
+      }
+      else {
         *dst++ = *src;
       }
       src++;
     }
     *dst = '\0';
-    
+
     // Create JSON diagnostic message
-    snprintf(json_payload, sizeof(json_payload), 
-             "{\"level\":\"%s\",\"module\":\"%s\",\"message\":\"%s\",\"timestamp\":%lu}",
-             level, module, escaped_message, millis());
-    
+    snprintf(json_payload, sizeof(json_payload),
+      "{\"level\":\"%s\",\"module\":\"%s\",\"message\":\"%s\",\"timestamp\":%lu}",
+      level, module, escaped_message, millis());
+
     sendMessage("DIAG", json_payload);
   }
 
   void SerialManager::sendQueuedMessages() {
+    // Maintain HWM
+    if (queue_count_ > queue_high_water_mark_) {
+      queue_high_water_mark_ = queue_count_;
+    }
     while (queue_count_ > 0 && Serial.availableForWrite() > 0) {
       Serial.print(message_queue_[queue_head_]);
       queue_head_ = (queue_head_ + 1) % kMaxQueueSize;
