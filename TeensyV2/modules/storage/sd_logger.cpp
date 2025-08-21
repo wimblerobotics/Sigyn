@@ -11,6 +11,8 @@
 
 namespace sigyn_teensy {
 
+    static constexpr bool kVerboseDirScan = false; // Set true to debug per-file during SD init
+
     SDLogger& SDLogger::getInstance() {
         static SDLogger instance;
         return instance;
@@ -157,7 +159,11 @@ namespace sigyn_teensy {
     }
 
     void SDLogger::logFormatted(const char* format, ...) {
-        char formatted_message[512];
+        // If SD isn't ready or file not open, skip formatting to reduce overhead during init
+        if (!status_.card_initialized || !status_.file_open) {
+            return;
+        }
+        static char formatted_message[3072]; // Increased to reduce risk of truncation
         va_list args;
         va_start(args, format);
         vsnprintf(formatted_message, sizeof(formatted_message), format, args);
@@ -360,8 +366,10 @@ namespace sigyn_teensy {
         status_.card_present = true;
         status_.card_initialized = true;  // Set this before creating log file
 
-        // Build directory cache first
+        // Build directory cache first (quickly)
         updateDirectoryCache();
+        // Brief yield to avoid monopolizing loop during init
+        delay(1);
 
         // Create initial log file
         if (!createNewLogFile()) {
@@ -383,8 +391,6 @@ namespace sigyn_teensy {
 #else
             board_info += "Unknown";
 #endif
-
-            // Add board name if available
 #if defined(BOARD_ID) && BOARD_ID == 1
             board_info += " (Navigation_Safety)";
 #elif defined(BOARD_ID) && BOARD_ID == 2
@@ -426,8 +432,11 @@ namespace sigyn_teensy {
             status_.buffer_usage_bytes = write_buffer_.length();
             status_.buffer_usage_percent = getBufferUsagePercent();
             char msg[256];
-            snprintf(msg, sizeof(msg), "SDLogger: Performance stats: Buffer usage: %u bytes (%u%%), Write rate: %.2f B/s, Total writes: %u",
-                status_.buffer_usage_bytes, status_.buffer_usage_percent, status_.write_rate_bps, status_.total_writes);
+            snprintf(msg, sizeof(msg), "SDLogger: Performance stats: Buffer usage: %lu bytes (%u%%), Write rate: %.2f B/s, Total writes: %lu",
+                (unsigned long)status_.buffer_usage_bytes,
+                (unsigned)status_.buffer_usage_percent,
+                (double)status_.write_rate_bps,
+                (unsigned long)status_.total_writes);
             SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), msg);
         }
     }
@@ -489,7 +498,7 @@ namespace sigyn_teensy {
     void SDLogger::addToBuffer(const String& data) {
         write_buffer_ += data;
         last_buffer_add_time_ms_ = millis();
-        
+
         // Count bytes as soon as they're added to buffer for accurate rate calculation
         bytes_written_this_second_ += data.length();
     }
@@ -515,7 +524,7 @@ namespace sigyn_teensy {
 
             // Clear the written portion from buffer
             write_buffer_.remove(0, bytes_written);
-            
+
             // Opportunistic physical write if enough time has passed since last flush
             uint32_t current_time = millis();
             if (current_time - last_flush_time_ms_ > config_.flush_interval_ms) {
@@ -565,9 +574,12 @@ namespace sigyn_teensy {
             return;
         }
 
-        SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), "updateDirectoryCache: Scanning directory...");
+        if (kVerboseDirScan) {
+            SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), "updateDirectoryCache: Scanning directory...");
+        }
 
         // Build cached directory listing only - no file creation
+        uint32_t fileCount = 0;
         while (true) {
             FsFile nextFileInDirectory = rootDirectory.openNextFile();
             if (!nextFileInDirectory) {
@@ -588,12 +600,25 @@ namespace sigyn_teensy {
             cached_directory_listing_ += ",";
             cached_directory_listing_ += String(fileSize);
 
-            SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), ("Found file: " + String(fileName) + " size: " + String(fileSize)).c_str());
+            if (kVerboseDirScan) {
+                String dbg = String("Found file: ") + String(fileName) + String(" size: ") + String(fileSize);
+                SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), dbg.c_str());
+            }
+            fileCount++;
         }
 
         rootDirectory.close();
 
-        SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), ("Directory listing: '" + cached_directory_listing_ + "'").c_str());
+        if (kVerboseDirScan) {
+            // Potentially very long, only emit when verbose
+            String dbg = String("Directory listing: '") + cached_directory_listing_ + String("'");
+            SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), dbg.c_str());
+        }
+        else {
+            char msg[96];
+            snprintf(msg, sizeof(msg), "Directory cached: %lu entries", (unsigned long)fileCount);
+            SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
+        }
 
         last_directory_cache_time_ms_ = millis();
     }
