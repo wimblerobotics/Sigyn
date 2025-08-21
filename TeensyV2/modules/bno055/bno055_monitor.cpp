@@ -192,31 +192,32 @@ namespace sigyn_teensy {
       }
 
       switch (current_read_state_[i]) {
-        case ReadState::READ_QUATERNION: {
-          if (readQuaternion(sensor_data_[i].qw, sensor_data_[i].qx, sensor_data_[i].qy, sensor_data_[i].qz)) {
-            current_read_state_[i] = ReadState::COMPLETE;
-          } else {
-            sensor_states_[i] = IMUState::CRITICAL;
-            current_read_state_[i] = ReadState::IDLE;
-            // Always reschedule even on failure
-            next_sensor_start_time_[i] = now + sensor_configs_[i].read_interval_ms;
-            char msg[64];
-            snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d quaternion read failed", i);
-            SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), msg);
-          }
-          break;
+      case ReadState::READ_QUATERNION: {
+        if (readQuaternion(sensor_data_[i].qw, sensor_data_[i].qx, sensor_data_[i].qy, sensor_data_[i].qz)) {
+          current_read_state_[i] = ReadState::COMPLETE;
         }
-        case ReadState::COMPLETE: {
-          sensor_data_[i].valid = true;
+        else {
+          sensor_states_[i] = IMUState::CRITICAL;
           current_read_state_[i] = ReadState::IDLE;
-          last_update_time_[i] = now;
-          // Schedule next read based on per-sensor target publish interval (20 Hz)
-          next_sensor_start_time_[i] = now + kPerSensorPublishIntervalMs;
-          break;
+          // Always reschedule even on failure
+          next_sensor_start_time_[i] = now + sensor_configs_[i].read_interval_ms;
+          char msg[64];
+          snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d quaternion read failed", i);
+          SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), msg);
         }
-        case ReadState::IDLE:
-        default:
-          break;
+        break;
+      }
+      case ReadState::COMPLETE: {
+        sensor_data_[i].valid = true;
+        current_read_state_[i] = ReadState::IDLE;
+        last_update_time_[i] = now;
+        // Schedule next read based on per-sensor target publish interval (20 Hz)
+        next_sensor_start_time_[i] = now + kPerSensorPublishIntervalMs;
+        break;
+      }
+      case ReadState::IDLE:
+      default:
+        break;
       }
     }
 
