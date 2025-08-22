@@ -2,6 +2,7 @@
 #include <cmath>
 #include <algorithm>
 #include <sstream>
+#include <limits>
 
 namespace sigyn_lidar_v2 {
 
@@ -24,14 +25,12 @@ namespace sigyn_lidar_v2 {
 
   sensor_msgs::msg::LaserScan LidarFusion::create_fused_scan(uint64_t timestamp_ns) const {
     auto fused_scan = merge_scans();
-
-    // Set timestamp
     fused_scan.header.stamp.sec = timestamp_ns / 1000000000ULL;
     fused_scan.header.stamp.nanosec = timestamp_ns % 1000000000ULL;
-    fused_scan.header.frame_id = config_.fused_frame_id;
-
+    // Preserve original sensor frame (first contributing scan) so caller can TF it; fallback to configured
+    std::string source_frame = accumulated_scans_.empty() ? config_.fused_frame_id : accumulated_scans_.front().frame_id;
+    fused_scan.header.frame_id = source_frame;
     stats_.total_scans_fused++;
-
     return fused_scan;
   }
 
@@ -128,17 +127,17 @@ namespace sigyn_lidar_v2 {
 
         if (bin_index >= 0 && bin_index < static_cast<int>(range_count)) {
           // Keep the closest valid range measurement
-          float current_range = static_cast<float>(point.range_m);
-          if (std::isfinite(current_range)) {
-            if (!std::isfinite(fused_scan.ranges[bin_index]) ||
-              current_range < fused_scan.ranges[bin_index]) {
-              if (std::isfinite(fused_scan.ranges[bin_index])) {
-                stats_.duplicate_angle_overwrites++;
+            float current_range = static_cast<float>(point.range_m);
+            if (std::isfinite(current_range)) {
+              if (!std::isfinite(fused_scan.ranges[bin_index]) ||
+                current_range < fused_scan.ranges[bin_index]) {
+                if (std::isfinite(fused_scan.ranges[bin_index])) {
+                  stats_.duplicate_angle_overwrites++;
+                }
+                fused_scan.ranges[bin_index] = current_range;
+                fused_scan.intensities[bin_index] = static_cast<float>(point.intensity);
               }
-              fused_scan.ranges[bin_index] = current_range;
-              fused_scan.intensities[bin_index] = static_cast<float>(point.intensity);
             }
-          }
         }
       }
     }

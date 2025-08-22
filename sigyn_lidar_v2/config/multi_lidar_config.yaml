@@ -27,5 +27,5 @@ multi_lidar_node:
     use_wheel_odom: true
     use_imu: false
     cmd_vel_topic: "/cmd_vel"
-    wheel_odom_topic: "/sigyn/wheel_odom"
+    wheel_odom_topic: "/odom"
     imu_topic: "/imu/data"

@@ -111,9 +111,12 @@ namespace sigyn_lidar_v2 {
       size_t total_scans_published;
       size_t fusion_cycles_completed;
       rclcpp::Time last_fused_scan_time;
+      size_t transform_collisions; // number of bin collisions during transform re-binning
+      size_t tf_failures;          // number of TF lookup failures
 
       NodeStats() : total_scans_received(0), total_scans_published(0),
-        fusion_cycles_completed(0), last_fused_scan_time(0, 0, RCL_ROS_TIME) {
+        fusion_cycles_completed(0), last_fused_scan_time(0, 0, RCL_ROS_TIME),
+        transform_collisions(0), tf_failures(0) {
       }
     } stats_;
 

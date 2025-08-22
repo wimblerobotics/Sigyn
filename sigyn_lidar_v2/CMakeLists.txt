@@ -36,6 +36,11 @@ ament_target_dependencies(${PROJECT_NAME}_lib
   tf2_geometry_msgs
 )
 
+# Ensure include directories are properly exported
+target_include_directories(${PROJECT_NAME}_lib PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
 # Create main executable
 add_executable(${PROJECT_NAME}_node
   src/main.cpp
@@ -53,6 +58,11 @@ ament_target_dependencies(${PROJECT_NAME}_node
   tf2_ros
   tf2_geometry_msgs
 )
+
+# Ensure include directories are properly exported
+target_include_directories(${PROJECT_NAME}_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
 
 # Install targets
 install(TARGETS
