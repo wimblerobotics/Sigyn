@@ -1,0 +1,20 @@
+modular_sigyn_lidar:
+  ros__parameters:
+    # Multiple lidar configuration example
+    devices: ["/dev/lidar_front_center", "/dev/lidar_rear_left"]
+    frames: ["lidar_front_frame", "lidar_rear_frame"]  # One frame per device
+    parsers: ["ld06", "ld06"]  # Parser type for each device
+    
+    # Segments per device - using flattened parameter structure
+    device0_segments: ["0:120", "240:360"]    # Front lidar: forward-facing segments
+    device1_segments: ["90:270"]              # Rear lidar: side and rear coverage
+    
+    fused_frame: "base_link"
+    deskew: true
+    skip_crc: true
+    output_frequency: 10.0  # Hz - affects polling rate and output frequency
+    
+    # Range filtering to reduce .inf values
+    range_min: 0.05
+    range_max: 8.0
+    confidence_threshold: 15  # Minimum confidence to accept readings
