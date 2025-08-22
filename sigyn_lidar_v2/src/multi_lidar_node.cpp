@@ -435,10 +435,8 @@ sensor_msgs::msg::LaserScan MultiLidarNode::transform_scan_to_frame(const sensor
   sensor_msgs::msg::LaserScan out = in;
   try {
     auto tf = tf_buffer_->lookupTransform(target_frame, in.header.frame_id, tf2::TimePointZero, std::chrono::milliseconds(20));
-    // Extract translation & yaw (assuming planar)
     double tx = tf.transform.translation.x;
     double ty = tf.transform.translation.y;
-    // Orientation quaternion
     double qx = tf.transform.rotation.x;
     double qy = tf.transform.rotation.y;
     double qz = tf.transform.rotation.z;
@@ -446,37 +444,46 @@ sensor_msgs::msg::LaserScan MultiLidarNode::transform_scan_to_frame(const sensor
     tf2::Quaternion q(qx,qy,qz,qw);
     double roll, pitch, yaw;
     tf2::Matrix3x3(q).getRPY(roll,pitch,yaw);
-    // For each beam convert polar->cartesian in source frame, apply pose, back to polar in target
-    size_t n = out.ranges.size();
+
+    const size_t n = in.ranges.size();
+    // Prepare fresh arrays to avoid in-place overwrite distortions
+    std::vector<float> new_ranges(n, std::numeric_limits<float>::infinity());
+    std::vector<float> new_intensities(n, 0.0f);
+
     for (size_t i=0;i<n;i++) {
-      float r = out.ranges[i];
+      float r = in.ranges[i];
       if (!std::isfinite(r)) continue;
-      double angle = out.angle_min + i * out.angle_increment; // assumes same ordering
+      double angle = in.angle_min + static_cast<double>(i) * in.angle_increment;
       double x = r * std::cos(angle);
       double y = r * std::sin(angle);
-      // rotate
-      double xr = x*std::cos(yaw) - y*std::sin(yaw);
-      double yr = x*std::sin(yaw) + y*std::cos(yaw);
-      // translate
-      xr += tx; yr += ty;
+      // rotate then translate
+      double xr = x*std::cos(yaw) - y*std::sin(yaw) + tx;
+      double yr = x*std::sin(yaw) + y*std::cos(yaw) + ty;
       double new_r = std::hypot(xr, yr);
       double new_theta = std::atan2(yr, xr);
-      // Normalize new_theta into [angle_min, angle_max)
-      while (new_theta < out.angle_min) new_theta += 2*M_PI;
-      while (new_theta >= out.angle_max) new_theta -= 2*M_PI;
-      // Find new index
-      int new_index = static_cast<int>(std::round((new_theta - out.angle_min)/out.angle_increment));
+      while (new_theta < in.angle_min) new_theta += 2*M_PI;
+      while (new_theta >= in.angle_max) new_theta -= 2*M_PI;
+      int new_index = static_cast<int>(std::round((new_theta - in.angle_min)/in.angle_increment));
       if (new_index >=0 && new_index < static_cast<int>(n)) {
-        // keep closest measurement if collision
-        if (!std::isfinite(out.ranges[new_index]) || new_r < out.ranges[new_index]) {
-          out.ranges[new_index] = static_cast<float>(new_r);
-          // intensity stays at original index; optional: move intensity
+        if (!std::isfinite(new_ranges[new_index]) || new_r < new_ranges[new_index]) {
+          if (std::isfinite(new_ranges[new_index])) {
+            // collision overwrite
+            const_cast<MultiLidarNode*>(this)->stats_.transform_collisions++;
+          }
+          new_ranges[new_index] = static_cast<float>(new_r);
+          new_intensities[new_index] = in.intensities[i];
+        } else {
+          // keep existing closer value
         }
       }
     }
+    out.ranges.swap(new_ranges);
+    out.intensities.swap(new_intensities);
     out.header.frame_id = target_frame;
   } catch (const tf2::TransformException& ex) {
-    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "TF transform failed: %s", ex.what());
+    const_cast<MultiLidarNode*>(this)->stats_.tf_failures++;
+    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 10000, "TF transform failed (%s->%s): %s", in.header.frame_id.c_str(), target_frame.c_str(), ex.what());
+    return in; // publish original frame if TF fails
   }
   return out;
 }
@@ -485,6 +492,7 @@ void MultiLidarNode::diagnostics_callback() {
   RCLCPP_INFO(get_logger(), "=== Multi-LIDAR Node Diagnostics ===");
   RCLCPP_INFO(get_logger(), "Scans received: %zu, published: %zu, fusion cycles: %zu",
     stats_.total_scans_received, stats_.total_scans_published, stats_.fusion_cycles_completed);
+  RCLCPP_INFO(get_logger(), "Transform collisions: %zu, TF failures: %zu", stats_.transform_collisions, stats_.tf_failures);
 
   for (size_t i = 0; i < devices_.size(); ++i) {
     const auto& device = devices_[i];
