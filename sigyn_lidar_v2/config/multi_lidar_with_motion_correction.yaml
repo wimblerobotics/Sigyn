@@ -8,7 +8,7 @@ multi_lidar_node:
     serial_baudrates: [230400]
     
     # Fusion configuration
-    fused_frame_id: "base_link"
+    fused_frame_id: "lidar_frame_top_lidar"  # Use LIDAR frame (no TF transform yet)
     fused_topic_name: "/scan"
     fusion_frequency_hz: 10.0
     enable_individual_topics: true

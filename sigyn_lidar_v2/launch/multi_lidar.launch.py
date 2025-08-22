@@ -6,6 +6,10 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
 
+# Usage from workspace root (after build & sourcing):
+# ros2 launch sigyn_lidar_v2 multi_lidar.launch.py
+# Or override config: ros2 launch sigyn_lidar_v2 multi_lidar.launch.py config_file:=${HOME}/custom.yaml
+
 def generate_launch_description():
     # Declare launch arguments
     config_file_arg = DeclareLaunchArgument(
@@ -15,7 +19,7 @@ def generate_launch_description():
             'config',
             'multi_lidar_config.yaml'
         ]),
-        description='Path to the configuration file'
+        description='Full path to YAML config file'
     )
     
     use_sim_time_arg = DeclareLaunchArgument(
