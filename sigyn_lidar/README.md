@@ -35,11 +35,12 @@ Each 47-byte packet:
 1    Ver/Len  (low 5 bits length=0x2C)
 2-3  Speed (little-endian)
 4-5  Start Angle (hundredth deg)
-6-41 12 * (2 bytes distance_mm + 1 byte confidence)
+6-41 12 * (2 bytes distance_mm + 1 byte intensity)
 42-43 End Angle (hundredth deg)
 44-45 Timestamp (ms modulo)
 46   CRC8
 ```
+Note: The LD06 protocol calls the intensity field "confidence" but it's actually the laser reflection intensity (0-255), not a measurement quality indicator.
 Angles are nominal; true angle per point interpolated between start/end.
 Wrap (end < start) indicates revolution boundary.
 

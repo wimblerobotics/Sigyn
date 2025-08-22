@@ -2,9 +2,6 @@
 #include <cstring>
 #include <cmath>
 #include <cstdio>
-#include <cstdint>
-#include <chrono>
-#include <algorithm>
 
 namespace sigyn_lidar {
 
@@ -43,20 +40,23 @@ namespace sigyn_lidar {
         return rad;
     }
 
-    bool LD06Parser::parseBytes(const uint8_t* data, size_t len, double now_sec) {
-        if (!data || len == 0) return false;
+    LD06Parser::LD06Parser() : skip_crc_(true), have_start_(false), first_start_angle_(0), last_end_angle_(0), frame_start_time_(0.0), last_packet_time_(0.0) {
+        stats_ = {};
+    }
+
+    void LD06Parser::parseBytes(const uint8_t* data, size_t len) {
+        if (!data || len == 0) return;
 
         stats_.bytes += len;
         buffer_.insert(buffer_.end(), data, data + len);
 
-        bool found_frame = false;
-        while (tryExtractOnePacket(now_sec)) {
-            found_frame = true;
+        while (tryExtractOnePacket()) {
+            // continue processing packets
         }
-        return found_frame;
     }
 
-    bool LD06Parser::tryExtractOnePacket(double now_sec) {
+    bool LD06Parser::tryExtractOnePacket() {
+        double now_sec = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
 
         // Look for header pattern: 0x54 followed by 0x2C or 0xEC
         size_t start = 0;
@@ -88,7 +88,7 @@ namespace sigyn_lidar {
         }
 
         LD06PacketRaw pkt;
-        memcpy(&pkt, buffer_.data(), PACKET_LEN);
+        std::memcpy(&pkt, buffer_.data(), PACKET_LEN);
         stats_.last_ver_len = pkt.ver_len;
 
         // CRC validation - skip for now to test frame detection
@@ -97,26 +97,36 @@ namespace sigyn_lidar {
             uint8_t computed = crc8_calc(reinterpret_cast<const uint8_t*>(&pkt), PACKET_LEN - 1);
             crc_valid = (computed == pkt.crc8);
             if (!crc_valid) {
-                printf("LD06 CRC fail: got 0x%02X expect 0x%02X\n", pkt.crc8, computed);
+                printf("DEBUG: CRC mismatch - computed=0x%02X, packet=0x%02X\n", computed, pkt.crc8);
             }
         }
 
-        if (!crc_valid) {
-            stats_.crc_fail++;
-            // Desync recovery: discard first byte only (more robust than discarding 2)
-            buffer_.erase(buffer_.begin());
-            return false;
+        if (crc_valid) {
+            stats_.packets++;
+            addPacketBeams(pkt, now_sec);
+            buffer_.erase(buffer_.begin(), buffer_.begin() + PACKET_LEN);
+            return true;
         }
-        stats_.packets++;
-        addPacketBeams(pkt, now_sec);
-        buffer_.erase(buffer_.begin(), buffer_.begin() + PACKET_LEN);
-        return true;
+        else {
+            stats_.crc_fail++;
+            // Remove just the header like ldlidar does, not whole packet
+            buffer_.erase(buffer_.begin(), buffer_.begin() + 2);
+        }
+
+        return false;
     }
 
     void LD06Parser::addPacketBeams(const LD06PacketRaw& pkt, double now_sec) {
-        current_speed_ = pkt.speed; // store last speed (raw units)
-        uint16_t start_a = pkt.start_angle; // hundredth degrees
-        uint16_t end_a   = pkt.end_angle;   // hundredth degrees
+        uint16_t start_a = pkt.start_angle;
+        uint16_t end_a = pkt.end_angle;
+
+        // Debug: log first few packets
+        static int packet_count = 0;
+        if (packet_count < 5) {
+            printf("DEBUG: Packet %d - start_angle=%u, end_angle=%u, speed=%u, timestamp=%u\n",
+                packet_count, start_a, end_a, pkt.speed, pkt.timestamp);
+            packet_count++;
+        }
 
         if (!have_start_) {
             have_start_ = true;
@@ -125,45 +135,57 @@ namespace sigyn_lidar {
             first_start_angle_ = start_a;
         }
 
-        // Compute interpolated angles for 12 points
-        // Vendor logic: span = (end - start + 36000) % 36000
-        uint32_t span = (end_a + 36000 - start_a) % 36000; // hundredth deg
-        double start_deg = start_a / 100.0;
+        // Calculate span for this packet
+        uint32_t span = (end_a + 36000 - start_a) % 36000;
         double step_deg = (span / 100.0) / (12 - 1);
+        double start_deg = start_a / 100.0;
+        double end_deg = end_a / 100.0;
 
-        for (int i=0;i<12;i++) {
-            double angle_deg = start_deg + i * step_deg; if (angle_deg >= 360.0) angle_deg -= 360.0;
+        // Add beams from this packet
+        for (int i = 0; i < 12; i++) {
+            double angle_deg = start_deg + i * step_deg;
+            if (angle_deg >= 360.0) angle_deg -= 360.0;
             double angle_rad = angle_deg * M_PI / 180.0;
-            float range_m = pkt.points[i].distance_mm * 0.001f; // mm -> m
-            uint8_t inten = pkt.points[i].confidence;
-            Beam b{ (float)normalizeAngleRad(angle_rad), range_m, (float)inten, 0.0, (float)normalizeAngleRad(angle_rad), false };
+            float range_m = pkt.points[i].distance_mm / 1000.0f;
+            float conf = pkt.points[i].confidence;
+            Beam b{ (float)normalizeAngleRad(angle_rad), range_m, conf, 0.0 };
             accumulating_.push_back(b);
         }
 
-        // Check revolution completion: detect wrap when current end angle in degrees is small and previous end large
-        // Use raw centidegree values to avoid precision loss.
-        bool wrap = false;
-        if (accumulating_.size() >= 12) {
-            // Convert current end to deg
-            double end_deg_curr = end_a / 100.0;
-            double last_end_deg = last_end_angle_ / 100.0;
-            if (end_deg_curr < 20.0 && last_end_deg > 340.0) {
-                wrap = true;
-                printf("LD06 frame wrap detected: last_end=%.1f curr_end=%.1f points=%zu\n", last_end_deg, end_deg_curr, accumulating_.size());
+        // Frame completion detection based on official LDROBOT implementation
+        // Check for wrap-around condition: when angle drops significantly (completing revolution)
+        if (!accumulating_.empty() && accumulating_.size() > 24) { // need minimum data
+            // Use end angle for comparison (more reliable than start angle)
+            double curr_end_deg = end_deg;
+
+            // Check last few beams for angle wrap detection
+            bool wrap_detected = false;
+            if (accumulating_.size() >= 12) {
+                // Look at angle from 12 beams ago vs current end angle
+                double prev_angle_deg = accumulating_[accumulating_.size() - 12].angle_rad * 180.0 / M_PI;
+
+                // Wrap condition: current end is small (< 20°) and previous was large (> 340°)
+                // This matches official LDROBOT logic: "(n.angle < 20.0) && (last_angle > 340.0)"
+                if (curr_end_deg < 20.0 && prev_angle_deg > 340.0) {
+                    wrap_detected = true;
+                    printf("DEBUG: Frame completed - angle wrap. Prev: %.1f°, Current: %.1f°, Points: %zu\n",
+                        prev_angle_deg, curr_end_deg, accumulating_.size());
+                }
             }
-        }
 
-        // Fallback: if too many points (>540 ~ 12 pts * 45 packets) assume missed wrap
-        if (!wrap && accumulating_.size() > 540) {
-            wrap = true;
-            printf("LD06 frame forced completion at %zu points (missed wrap)\n", accumulating_.size());
-        }
+            // Force completion fallback
+            if (!wrap_detected && accumulating_.size() > 360) {
+                wrap_detected = true;
+                printf("DEBUG: Frame completed - max points reached: %zu\n", accumulating_.size());
+            }
 
-        if (wrap) {
-            finalizeFrame(now_sec);
-            accumulating_.clear();
-            frame_start_time_ = now_sec;
-            first_start_angle_ = start_a;
+            if (wrap_detected) {
+                finalizeFrame(now_sec);
+                have_start_ = true;
+                frame_start_time_ = now_sec;
+                accumulating_.clear();
+                first_start_angle_ = start_a;
+            }
         }
 
         last_end_angle_ = end_a;
@@ -172,13 +194,15 @@ namespace sigyn_lidar {
 
     void LD06Parser::finalizeFrame(double now_sec) {
         if (accumulating_.empty()) return;
-        // Sort by angle ascending (vendor sorts before building scan)
-        std::sort(accumulating_.begin(), accumulating_.end(), [](const Beam& a, const Beam& b){ return a.angle_rad < b.angle_rad; });
 
         double duration = now_sec - frame_start_time_;
-        if (duration <= 0) duration = 0.1; // fallback
         size_t N = accumulating_.size();
-        for (size_t i=0;i<N;i++) accumulating_[i].relative_time = duration * (double)i / (double)N;
+        if (duration <= 0) duration = 0.1;
+
+        // Assign relative timestamps to each beam
+        for (size_t i = 0; i < N; i++) {
+            accumulating_[i].relative_time = duration * (double)i / (double)N;
+        }
 
         ScanFrame f;
         f.beams = std::move(accumulating_);
@@ -186,18 +210,27 @@ namespace sigyn_lidar {
         f.scan_start_time = frame_start_time_;
         f.scan_end_time = now_sec;
         f.revolution_hz = duration > 0 ? 1.0 / duration : 0.0;
-        f.raw_speed = current_speed_;
+
         frames_.push_back(std::move(f));
         stats_.frames++;
+
         if (frames_.size() > 4) frames_.pop_front();
     }
 
     ScanFrame LD06Parser::takeFrame() {
-        if (frames_.empty()) return ScanFrame{};
-        ScanFrame f = std::move(frames_.front()); frames_.pop_front(); return f;
+        ScanFrame f;
+        if (frames_.empty()) return f;
+        f = std::move(frames_.front());
+        frames_.pop_front();
+        return f;
     }
 
     void LD06Parser::reset() {
-        buffer_.clear(); accumulating_.clear(); frames_.clear(); have_start_ = false; last_end_angle_=0; current_speed_=0; }
+        buffer_.clear();
+        accumulating_.clear();
+        frames_.clear();
+        have_start_ = false;
+        last_end_angle_ = 0;
+    }
 
 }
