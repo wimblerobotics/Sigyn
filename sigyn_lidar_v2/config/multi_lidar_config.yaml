@@ -2,25 +2,25 @@ multi_lidar_node:
   ros__parameters:
     # LIDAR device configuration
     device_paths: ["/dev/lidar_front_center"]
-    frame_ids: ["lidar_frame_top_lidar"]
-    topic_names: ["/sigyn/lidar_front_center"]
+    frame_ids: ["lidar_frame_top_lidar"]          # Native sensor frame IDs
+    topic_names: ["/scan/lidar_front_center"]    # Individual raw data topics  (changed from /sigyn/...)
     device_types: ["LD06"]
     serial_baudrates: [230400]
     
     # Fusion configuration
-    fused_frame_id: "base_link"
-    fused_topic_name: "/scan"
+    fused_frame_id: "base_link"                   # Transformed fused scan frame
+    fused_topic_name: "/scan"                     # Fused scan topic
     fusion_frequency_hz: 10.0
-    enable_individual_topics: true
+    enable_individual_topics: true               # Publish individual raw topics
     
-    # Scan parameters (450 rays matching vendor expectation)
+    # Scan parameters (will be overridden dynamically by speed)
     angle_min: 0.0                    # Start angle (radians)
     angle_max: 6.283185307179586      # End angle (2*PI radians, 360 degrees)
-    angle_increment: 0.013962634015954636  # Angular resolution (~0.8 degrees, 2*PI/450)
-    range_min: 0.02                   # Minimum range (meters)
+    angle_increment: 0.013962634015954636  # Placeholder (~0.8 deg)
+    range_min: 0.0                   # Minimum range (meters) legacy
     range_max: 15.0                   # Maximum range (meters)
     
-    # Motion correction configuration (for future implementation)
+    # Motion correction configuration (disabled by default)
     enable_motion_correction: false
     max_correction_time_s: 0.2
     use_cmd_vel: true
