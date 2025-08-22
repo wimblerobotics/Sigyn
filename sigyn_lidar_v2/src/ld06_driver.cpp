@@ -1,3 +1,30 @@
+/**
+ * @file ld06_driver.cpp
+ * @author Sigyn Robotics
+ * @brief LD06 LiDAR driver implementation based on LDROBOT SDK
+ * @version 1.0.0
+ * @date 2025-08-21
+ * 
+ * @copyright Copyright (c) 2025 Sigyn Robotics. All rights reserved.
+ * Licensed under the MIT License.
+ * 
+ * This implementation incorporates CRC calculation, protocol parsing, and
+ * data processing algorithms from the LDROBOT LiDAR SDK:
+ * 
+ * Original work: LDROBOT LiDAR SDK
+ * Copyright (c) 2017-2023 SHENZHEN LDROBOT CO., LTD.
+ * Repository: https://github.com/ldrobotSensorTeam/ldlidar_ros2.git
+ * Authors: LDROBOT Team (support@ldrobot.com)
+ * Licensed under the MIT License.
+ * 
+ * Key vendor implementations used:
+ * - CRC8 lookup table and calculation algorithm
+ * - LD06 packet structure definitions  
+ * - Protocol state machine logic
+ * - Angle interpolation algorithms
+ * - Revolution detection methods
+ */
+
 #include "sigyn_lidar_v2/ld06_driver.hpp"
 #include <termios.h>
 #include <fcntl.h>

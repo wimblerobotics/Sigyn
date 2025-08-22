@@ -1,3 +1,19 @@
+/**
+ * @file ld06_driver.hpp
+ * @author Sigyn Robotics
+ * @brief LD06 LiDAR driver implementation based on LDROBOT SDK
+ * @version 1.0.0
+ * @date 2025-08-21
+ * 
+ * @copyright Copyright (c) 2025 Sigyn Robotics. All rights reserved.
+ * Licensed under the MIT License.
+ * 
+ * This implementation incorporates protocol parsing logic from:
+ * LDROBOT LiDAR SDK - Copyright (c) 2017-2023 SHENZHEN LDROBOT CO., LTD.
+ * Original: https://github.com/ldrobotSensorTeam/ldlidar_ros2.git
+ * Licensed under the MIT License.
+ */
+
 #pragma once
 
 #include "lidar_base.hpp"
