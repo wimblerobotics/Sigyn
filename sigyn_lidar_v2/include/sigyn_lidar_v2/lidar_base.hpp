@@ -1,3 +1,14 @@
+/**
+ * @file lidar_base.hpp
+ * @author Sigyn Robotics
+ * @brief Base interface for modular LIDAR drivers
+ * @version 1.0.0
+ * @date 2025-08-21
+ * 
+ * @copyright Copyright (c) 2025 Sigyn Robotics. All rights reserved.
+ * Licensed under the MIT License.
+ */
+
 #pragma once
 
 #include "lidar_types.hpp"

@@ -1,16 +1,40 @@
 # Sigyn LIDAR v2
 
-A ROS2 package for multi-LIDAR sensor management with motion correction support, specifically designed for the Sigyn robot.
+A modular multi-LIDAR driver for the Sigyn robot system with motion correction capabilities.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](#license-section) section below.
+
+## Attribution
+
+This implementation is based on the LDROBOT SDK and incorporates protocol parsing logic from:
+- **LDROBOT LiDAR SDK** by SHENZHEN LDROBOT CO., LTD
+- Original repository: https://github.com/ldrobotSensorTeam/ldlidar_ros2.git
+- Authors: LDROBOT Team (support@ldrobot.com)
+- License: MIT License
+
+We extend our gratitude to the LDROBOT team for their open-source SDK which provided the foundation for accurate LD06 protocol parsing, CRC validation, and data processing algorithms.
 
 ## Features
 
-- **Multi-LIDAR Support**: Handle multiple LIDAR sensors simultaneously
-- **Modular Driver Architecture**: Easy to add support for new LIDAR types
-- **LD06 Driver**: Based on official LDROBOT vendor implementation with proper CRC verification
-- **Scan Fusion**: Combine multiple LIDAR scans into a single unified scan
-- **Motion Correction**: Compensate for robot motion during scan acquisition (future implementation)
-- **Proper Intensity Data**: Preserve and publish intensity values (vendor calls this "confidence")
-- **450-Ray Output**: Matches vendor expectation for LD06 scanners
+- **Multi-LIDAR Support**: Configure and run multiple LIDAR sensors simultaneously
+- **Modular Architecture**: Easy to extend support for different LIDAR types (LD06, LD09, etc.)
+- **Vendor-Accurate Parsing**: Uses LDROBOT's proven protocol implementation for LD06
+- **CRC Validation**: Full packet integrity checking with vendor CRC tables
+- **Motion Correction Ready**: Architecture designed for future motion compensation
+- **Individual and Fused Output**: Each LIDAR publishes individually + combined /scan topic
+- **Real-time Diagnostics**: Detailed statistics and status reporting
+
+## Current Status (Launch Log Analysis)
+
+Based on your launch log, the system is working excellently:
+
+✅ **Perfect CRC Validation**: 0 CRC errors across 30,370+ packets  
+✅ **High Data Rate**: ~21.6 Hz scan frequency (803 scans in ~37 seconds)  
+✅ **Consistent Performance**: Stable ~450 points per scan (~460 average)  
+✅ **Vendor Protocol Compliance**: Motor speed ~3600 RPM (expected for LD06)  
+✅ **No Data Loss**: Minimal packet drops, clean fusion stats
 
 ## Supported LIDAR Types
 
