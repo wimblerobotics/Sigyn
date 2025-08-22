@@ -1,0 +1,31 @@
+multi_lidar_node:
+  ros__parameters:
+    # LIDAR device configuration
+    device_paths: ["/dev/lidar_front_center"]
+    frame_ids: ["lidar_frame_top_lidar"]
+    topic_names: ["/sigyn/lidar_front_center"]
+    device_types: ["LD06"]
+    serial_baudrates: [230400]
+    
+    # Fusion configuration
+    fused_frame_id: "base_link"
+    fused_topic_name: "/scan"
+    fusion_frequency_hz: 10.0
+    enable_individual_topics: true
+    
+    # Scan parameters (450 rays matching vendor expectation)
+    angle_min: 0.0                    # Start angle (radians)
+    angle_max: 6.283185307179586      # End angle (2*PI radians, 360 degrees)
+    angle_increment: 0.013962634015954636  # Angular resolution (~0.8 degrees, 2*PI/450)
+    range_min: 0.02                   # Minimum range (meters)
+    range_max: 15.0                   # Maximum range (meters)
+    
+    # Motion correction configuration - ENABLED for moving robot
+    enable_motion_correction: true
+    max_correction_time_s: 0.3        # Look back up to 300ms for motion data
+    use_cmd_vel: true                 # Use command velocity (primary source)
+    use_wheel_odom: true              # Use wheel odometry (more accurate)
+    use_imu: false                    # IMU data (optional, for advanced correction)
+    cmd_vel_topic: "/cmd_vel"         # Standard ROS command velocity
+    wheel_odom_topic: "/sigyn/wheel_odom"  # Sigyn wheel odometry topic
+    imu_topic: "/imu/data"            # IMU data topic (if available)

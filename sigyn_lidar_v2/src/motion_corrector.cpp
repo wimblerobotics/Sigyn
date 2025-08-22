@@ -153,24 +153,64 @@ MotionData MotionCorrector::interpolate_motion_at_time(uint64_t timestamp_ns) co
 
 LidarPoint MotionCorrector::correct_point(const LidarPoint& point, const MotionData& motion_start, 
                                          const MotionData& motion_end) const {
-  // For now, implement a basic motion correction
-  // In a full implementation, this would properly transform points based on robot motion
   
   LidarPoint corrected = point;
   
-  // Simple correction: adjust angle based on angular velocity
-  double scan_duration = (motion_end.timestamp_ns - motion_start.timestamp_ns) / 1e9;
-  if (scan_duration > 0) {
-    double point_time_ratio = (point.timestamp_ns - motion_start.timestamp_ns) / 1e9 / scan_duration;
-    double angular_correction = motion_start.angular_z * point_time_ratio * scan_duration;
-    
-    // Apply angular correction
-    corrected.angle_deg += angular_correction * 180.0 / M_PI;
-    
-    // Normalize angle
-    while (corrected.angle_deg >= 360.0f) corrected.angle_deg -= 360.0f;
-    while (corrected.angle_deg < 0.0f) corrected.angle_deg += 360.0f;
+  // Calculate scan duration and point timing
+  double scan_duration_s = (motion_end.timestamp_ns - motion_start.timestamp_ns) / 1e9;
+  if (scan_duration_s <= 0) {
+    return corrected; // No motion correction possible
   }
+  
+  // Calculate when this point was measured relative to scan start (0.0 to 1.0)
+  double point_time_ratio = std::clamp(
+    (point.timestamp_ns - motion_start.timestamp_ns) / static_cast<double>(motion_end.timestamp_ns - motion_start.timestamp_ns),
+    0.0, 1.0);
+  
+  // Interpolate motion at point measurement time
+  MotionData point_motion;
+  point_motion.linear_x = motion_start.linear_x + point_time_ratio * (motion_end.linear_x - motion_start.linear_x);
+  point_motion.linear_y = motion_start.linear_y + point_time_ratio * (motion_end.linear_y - motion_start.linear_y);
+  point_motion.angular_z = motion_start.angular_z + point_time_ratio * (motion_end.angular_z - motion_start.angular_z);
+  
+  // Calculate robot displacement during measurement
+  double dt = point_time_ratio * scan_duration_s;
+  
+  // Robot motion during scan (linear displacement and rotation)
+  double linear_displacement_x = point_motion.linear_x * dt;
+  double linear_displacement_y = point_motion.linear_y * dt;
+  double angular_displacement = point_motion.angular_z * dt;
+  
+  // Convert LIDAR point from polar to Cartesian (robot frame)
+  double angle_rad = point.angle_deg * M_PI / 180.0;
+  double range_m = point.distance_mm / 1000.0;  // Convert mm to meters
+  double point_x = range_m * std::cos(angle_rad);
+  double point_y = range_m * std::sin(angle_rad);
+  
+  // Apply motion correction transformation
+  // 1. Account for linear motion: subtract robot displacement
+  double corrected_x = point_x - linear_displacement_x;
+  double corrected_y = point_y - linear_displacement_y;
+  
+  // 2. Account for angular motion: rotate point back by angular displacement
+  double cos_theta = std::cos(-angular_displacement);
+  double sin_theta = std::sin(-angular_displacement);
+  
+  double final_x = corrected_x * cos_theta - corrected_y * sin_theta;
+  double final_y = corrected_x * sin_theta + corrected_y * cos_theta;
+  
+  // Convert back to polar coordinates
+  double final_range_m = std::sqrt(final_x * final_x + final_y * final_y);
+  corrected.distance_mm = static_cast<uint16_t>(final_range_m * 1000.0);  // Convert back to mm
+  corrected.angle_deg = std::atan2(final_y, final_x) * 180.0 / M_PI;
+  
+  // Normalize angle to [0, 360)
+  while (corrected.angle_deg >= 360.0f) corrected.angle_deg -= 360.0f;
+  while (corrected.angle_deg < 0.0f) corrected.angle_deg += 360.0f;
+  
+  // Keep original intensity and timestamp
+  corrected.intensity = point.intensity;
+  corrected.timestamp_ns = point.timestamp_ns;
   
   return corrected;
 }
