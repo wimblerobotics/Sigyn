@@ -47,6 +47,7 @@ namespace sigyn_lidar_v2 {
     ~MultiLidarNode() override;
 
   private:
+    // Removed orientation_mode & mirror_scan_. We standardize on legacy LD06 ordering when all devices are LD06.
     // Node lifecycle
     void declare_parameters();
     void load_configuration();
@@ -76,7 +77,7 @@ namespace sigyn_lidar_v2 {
     uint64_t get_current_timestamp_ns() const;
     sensor_msgs::msg::LaserScan lidar_scan_to_ros_msg(const LidarScan& scan) const;
     sensor_msgs::msg::LaserScan transform_scan_to_frame(const sensor_msgs::msg::LaserScan& in,
-                                                        const std::string& target_frame) const;
+      const std::string& target_frame) const;
 
     // Configuration
     std::vector<LidarConfig> lidar_configs_;
@@ -84,6 +85,11 @@ namespace sigyn_lidar_v2 {
     MotionCorrectionConfig motion_config_;
     double fusion_frequency_hz_;
     bool enable_individual_topics_;
+    bool all_ld06_ = false; // true if every configured device_type is LD06
+
+    // Store last raw scan for comparison
+    sensor_msgs::msg::LaserScan last_raw_scan_;
+    bool have_last_raw_scan_ = false;
 
     // LIDAR devices
     std::vector<std::shared_ptr<LidarDevice>> devices_;
@@ -123,6 +129,15 @@ namespace sigyn_lidar_v2 {
     // Diagnostics timer
     rclcpp::TimerBase::SharedPtr diagnostics_timer_;
     void diagnostics_callback();
+
+    // Debug helpers
+    void debug_log_configuration() const; // logs loaded parameters once at startup
+    void debug_log_scan_event(const std::string& device_name, const LidarScan& scan, const LidarScan& corrected) const; // per-scan (throttled)
+    mutable size_t debug_scan_log_counter_ = 0;
+    void debug_compare_fused_with_raw(const sensor_msgs::msg::LaserScan& fused_msg);
+
+    // Helper to produce LD06 legacy ordering for a canonical CCW scan (reverse arrays)
+    void reverse_scan(sensor_msgs::msg::LaserScan& msg) const;
 
     // TF
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
