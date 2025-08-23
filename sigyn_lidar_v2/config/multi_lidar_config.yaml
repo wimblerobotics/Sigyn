@@ -1,17 +1,14 @@
-multi_lidar_node:
+# Deprecated: use single_lidar_config.yaml instead
+# Keeping file temporarily for backward compatibility.
+
+single_lidar_node:
   ros__parameters:
     # LIDAR device configuration
-    device_paths: ["/dev/lidar_front_center"]
-    frame_ids: ["lidar_frame_top_lidar"]          # Native sensor frame IDs
-    topic_names: ["/sigyn/lidar_front_center"]    # Individual raw data topics  
-    device_types: ["LD06"]
-    serial_baudrates: [230400]
-    
-    # Fusion configuration
-    fused_frame_id: "lidar_frame_top_lidar"                   # Transformed fused scan frame
-    fused_topic_name: "/scan"                     # Fused scan topic
-    fusion_frequency_hz: 10.0
-    enable_individual_topics: true               # Publish individual raw topics
+    device_path: "/dev/lidar_front_center"
+    frame_id: "lidar_frame_top_lidar"          # Native sensor frame ID
+    topic_name: "/scan"                     # Fused scan topic
+    device_type: "LD06"
+    serial_baudrate: 230400
     
     # Scan parameters (450 rays matching vendor expectation)
     angle_min: 0.0                    # Start angle (radians)
@@ -23,9 +20,4 @@ multi_lidar_node:
     # Motion correction configuration (disabled by default)
     enable_motion_correction: false
     max_correction_time_s: 0.2
-    use_cmd_vel: true
-    use_wheel_odom: true
-    use_imu: false
-    cmd_vel_topic: "/cmd_vel"
-    wheel_odom_topic: "/sigyn/wheel_odom"
-    imu_topic: "/imu/data"
+    odom_topic: "/sigyn/odom"
