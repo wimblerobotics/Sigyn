@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# Deprecated: use single_lidar.launch.py instead
 
 from launch import LaunchDescription
 from launch_ros.actions import Node
@@ -7,29 +6,19 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
 
-# Usage from workspace root (after build & sourcing):
-# ros2 launch sigyn_lidar_v2 multi_lidar.launch.py
-# Or override config: ros2 launch sigyn_lidar_v2 multi_lidar.launch.py config_file:=${HOME}/custom.yaml
-
 def generate_launch_description():
-    # Declare launch arguments
     config_file_arg = DeclareLaunchArgument(
         'config_file',
         default_value=PathJoinSubstitution([
-            FindPackageShare('sigyn_lidar_v2'),
-            'config',
-            'single_lidar_config.yaml'
+            FindPackageShare('sigyn_lidar_v2'), 'config', 'single_lidar_config.yaml'
         ]),
-        description='(Deprecated) Using single_lidar_config.yaml'
+        description='Path to single LIDAR YAML config file'
     )
-    
+
     use_sim_time_arg = DeclareLaunchArgument(
-        'use_sim_time',
-        default_value='false',
-        description='Use simulation time'
+        'use_sim_time', default_value='false', description='Use simulation time'
     )
-    
-    # LIDAR node
+
     lidar_node = Node(
         package='sigyn_lidar_v2',
         executable='sigyn_lidar_v2_node',
@@ -40,7 +29,7 @@ def generate_launch_description():
             {'use_sim_time': LaunchConfiguration('use_sim_time')}
         ]
     )
-    
+
     return LaunchDescription([
         config_file_arg,
         use_sim_time_arg,

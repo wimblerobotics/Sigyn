@@ -1,0 +1,17 @@
+single_lidar_node:
+  ros__parameters:
+    device_path: "/dev/lidar_front_center"
+    frame_id: "lidar_frame_top_lidar"
+    topic_name: "/scan"
+    device_type: "LD06"
+    serial_baudrate: 230400
+
+    angle_min: 0.0
+    angle_max: 6.283185307179586
+    angle_increment: 0.013962634015954636
+    range_min: 0.02
+    range_max: 15.0
+
+    enable_motion_correction: false
+    max_correction_time_s: 0.2
+    odom_topic: "/sigyn/odom"
