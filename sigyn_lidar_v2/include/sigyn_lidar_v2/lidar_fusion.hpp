@@ -67,8 +67,8 @@ namespace sigyn_lidar_v2 {
       std::string source_frame;
 
       FusionPoint(double angle, double range, double intens, uint64_t stamp, const std::string& frame)
-        : angle_rad(angle), range_m(range), intensity(intens), timestamp_ns(stamp), source_frame(frame) {      
-}
+        : angle_rad(angle), range_m(range), intensity(intens), timestamp_ns(stamp), source_frame(frame) {
+      }
     };
 
     // Normalize angle to [0, 2π)

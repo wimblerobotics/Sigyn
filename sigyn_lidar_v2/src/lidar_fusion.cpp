@@ -127,17 +127,17 @@ namespace sigyn_lidar_v2 {
 
         if (bin_index >= 0 && bin_index < static_cast<int>(range_count)) {
           // Keep the closest valid range measurement
-            float current_range = static_cast<float>(point.range_m);
-            if (std::isfinite(current_range)) {
-              if (!std::isfinite(fused_scan.ranges[bin_index]) ||
-                current_range < fused_scan.ranges[bin_index]) {
-                if (std::isfinite(fused_scan.ranges[bin_index])) {
-                  stats_.duplicate_angle_overwrites++;
-                }
-                fused_scan.ranges[bin_index] = current_range;
-                fused_scan.intensities[bin_index] = static_cast<float>(point.intensity);
+          float current_range = static_cast<float>(point.range_m);
+          if (std::isfinite(current_range)) {
+            if (!std::isfinite(fused_scan.ranges[bin_index]) ||
+              current_range < fused_scan.ranges[bin_index]) {
+              if (std::isfinite(fused_scan.ranges[bin_index])) {
+                stats_.duplicate_angle_overwrites++;
               }
+              fused_scan.ranges[bin_index] = current_range;
+              fused_scan.intensities[bin_index] = static_cast<float>(point.intensity);
             }
+          }
         }
       }
     }
