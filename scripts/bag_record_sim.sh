@@ -38,6 +38,7 @@ ros2 bag record \
   /plan \
   /plan_smoothed \
   /robot_description \
+  /roboclaw_status \
   /rosout \
   /scan \
   /set_pose \
@@ -58,6 +59,7 @@ ros2 bag record \
   /sigyn/teensy_bridge/safety/estop_status \
   /sigyn/teensy_bridge/temperature/motor_0 \
   /sigyn/teensy_bridge/temperature/motor_1 \
+  /sigyn/wheel_odom \
   /speed_limit \
   /tf \
   /tf_static \
