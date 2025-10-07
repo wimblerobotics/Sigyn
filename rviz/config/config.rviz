@@ -5,11 +5,9 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
-        - /RobotModel1/Links1
         - /TF1/Frames1
         - /TF1/Tree1
         - /top LIDAR1/Topic1
-        - /cup LIDAR1/Status1
         - /cup LIDAR1/Topic1
         - /Map1/Topic1
         - /Odometry1/Topic1
@@ -1471,11 +1469,11 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 101.65576171875
+      Scale: 98.5235595703125
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz_default_plugins)
-      X: 6.19844913482666
-      Y: 5.748044013977051
+      X: 8.603963851928711
+      Y: 5.778493881225586
     Saved: ~
 Window Geometry:
   Camera Top:
