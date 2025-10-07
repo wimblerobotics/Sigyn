@@ -222,6 +222,12 @@ namespace sigyn_to_sensor_v2 {
         CmdVelCallback(msg);
       });
 
+    cmd_vel_gripper_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
+      "/cmd_vel_gripper", 10,
+      [this](const geometry_msgs::msg::Twist::SharedPtr msg) {
+        CmdVelGripperCallback(msg);
+      });
+
     // Create callback group for services
     service_callback_group_ = this->create_callback_group(
       rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -524,6 +530,11 @@ namespace sigyn_to_sensor_v2 {
       // Send any queued messages (like cmd_vel)
       if (board1_fd_ >= 0) {
         SendQueuedMessages();
+      }
+
+      // Send any queued gripper messages
+      if (board3_fd_ >= 0) {
+        SendGripperMessages();
       }
 
       // Small delay to prevent busy waiting
@@ -992,6 +1003,20 @@ namespace sigyn_to_sensor_v2 {
     // RCLCPP_INFO(this->get_logger(), "Queued TWIST command: %s", oss.str().c_str());
   }
 
+  void TeensyBridge::CmdVelGripperCallback(const geometry_msgs::msg::Twist::SharedPtr msg) {
+    // Queue the twist message for the gripper board (board3)
+    RCLCPP_INFO(this->get_logger(), "Received cmd_vel_gripper: linear.x=%.3f, angular.z=%.3f",
+      msg->linear.x, msg->angular.z);
+
+    std::ostringstream oss;
+    oss << "TWIST:linear_x:" << msg->linear.x << ",angular_z:" << msg->angular.z << "\n";
+
+    std::lock_guard<std::mutex> lock(gripper_queue_mutex_);
+    gripper_message_queue_.push(oss.str());
+
+    RCLCPP_INFO(this->get_logger(), "Queued gripper TWIST command: %s", oss.str().c_str());
+  }
+
   void TeensyBridge::SendQueuedMessages() {
     std::lock_guard<std::mutex> lock(outgoing_queue_mutex_);
 
@@ -1012,6 +1037,34 @@ namespace sigyn_to_sensor_v2 {
       }
 
       outgoing_message_queue_.pop();
+    }
+  }
+
+  void TeensyBridge::SendGripperMessages() {
+    std::lock_guard<std::mutex> lock(gripper_queue_mutex_);
+
+    while (!gripper_message_queue_.empty()) {
+      const std::string& message = gripper_message_queue_.front();
+
+      RCLCPP_INFO(this->get_logger(), "Sending gripper message: '%s'", message.c_str());
+
+      if (board3_fd_ >= 0) {
+        ssize_t bytes_written = write(board3_fd_, message.c_str(), message.length());
+        if (bytes_written < 0) {
+          RCLCPP_ERROR(this->get_logger(), "Failed to write to gripper board (board3)");
+          break;
+        }
+        else {
+          RCLCPP_INFO(this->get_logger(), "Sent %zd bytes to gripper board", bytes_written);
+          // Force immediate transmission
+          fsync(board3_fd_);
+        }
+      }
+      else {
+        RCLCPP_WARN(this->get_logger(), "Gripper board (board3) not connected, discarding message");
+      }
+
+      gripper_message_queue_.pop();
     }
   }
 
