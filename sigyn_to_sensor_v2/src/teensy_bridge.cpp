@@ -742,7 +742,16 @@ namespace sigyn_to_sensor_v2 {
       for (size_t i = 0; i < vl53l0x_data.distances_mm.size() && i < 8; ++i) {
         if (vl53l0x_data.distances_mm[i] > 0) {  // 0 indicates invalid reading
           sensor_msgs::msg::Range range_msg;
-          range_msg.header.stamp = timestamp;
+
+          // Correct timestamp using age_us to get actual measurement time
+          rclcpp::Time corrected_timestamp = timestamp;
+          if (i < vl53l0x_data.age_us.size() && vl53l0x_data.age_us[i] > 0) {
+            // Subtract the age to get the actual measurement time
+            corrected_timestamp = timestamp - rclcpp::Duration::from_nanoseconds(
+              static_cast<int64_t>(vl53l0x_data.age_us[i]) * 1000);
+          }
+
+          range_msg.header.stamp = corrected_timestamp;
           range_msg.header.frame_id = "vl53l0x_" + std::to_string(i);
           range_msg.radiation_type = sensor_msgs::msg::Range::INFRARED;
           range_msg.field_of_view = 0.44;  // ~25 degrees in radians for VL53L0X
