@@ -29,10 +29,16 @@
   <xacro:caster_wheel config="${props}" />
 
   <xacro:include filename="$(find description)/urdf/ld06.urdf.xacro" />
-  <xacro:include filename="$(find description)/urdf/gazebo.urdf.xacro" />
+
   <xacro:ld06 lidar_prefix="top_lidar">
     <origin xyz="0.155 0 0.300" rpy="0 0 -${pi / 2}" />
   </xacro:ld06>
+
+  <xacro:ld06 lidar_prefix="cup_lidar">
+    <origin xyz="${0.155-0.34} 0 ${0.300+1.485}" rpy="0 0 0" />
+  </xacro:ld06>
+
+  <xacro:include filename="$(find description)/urdf/gazebo.urdf.xacro" />
 
   <xacro:include filename="$(find description)/urdf/gripper_assembly.urdf.xacro" />
   <joint name="base_link_to_elevator_pole" type="fixed">
@@ -135,4 +141,5 @@
   </joint>
 
   <link name="imu_1" />
+  <xacro:include filename="$(find description)/urdf/vl53l0x.xacro" />
 </robot>
