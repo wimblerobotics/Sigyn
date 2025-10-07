@@ -55,7 +55,7 @@
 // =============================================================================
 #elif BOARD_ID == 3
 #define BOARD_HAS_SD_LOGGING     1
-#define BOARD_HAS_MOTOR_CONTROL  0
+#define BOARD_HAS_MOTOR_CONTROL  1
 #define BOARD_HAS_VL53L0X        0
 #define BOARD_HAS_TEMPERATURE    0
 #define BOARD_HAS_PERFORMANCE    1
