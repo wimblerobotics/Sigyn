@@ -207,34 +207,44 @@ namespace sigyn_teensy {
         break;
       }
       case ReadState::READ_GYROSCOPE: {
+        // Re-select sensor channel each state. Without this, the other sensor's
+        // selection overwrites the mux channel and subsequent reads can hit the wrong device.
+        selectSensor(sensor_configs_[i].mux_channel);
         if (readGyroscope(sensor_data_[i].gx, sensor_data_[i].gy, sensor_data_[i].gz)) {
           current_read_state_[i] = ReadState::READ_ACCELERATION;
         }
         else {
-          sensor_states_[i] = IMUState::CRITICAL;
-          current_read_state_[i] = ReadState::IDLE;
-          next_sensor_start_time_[i] = now + sensor_configs_[i].read_interval_ms;
-          char msg[80];
-          snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d gyroscope read failed", i);
-          SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), msg);
+          // Make a single gyro read failure non-fatal: mark WARNING, zero values, advance.
+          sensor_states_[i] = IMUState::WARNING;
+          sensor_data_[i].gx = sensor_data_[i].gy = sensor_data_[i].gz = 0.0f;
+          current_read_state_[i] = ReadState::READ_ACCELERATION;
+          char msg[96];
+          snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d gyroscope read failed (continuing)", i);
+          SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg);
         }
         break;
       }
       case ReadState::READ_ACCELERATION: {
+        // Re-select before accel read (other sensor may have changed mux); add tiny settle delay.
+        selectSensor(sensor_configs_[i].mux_channel);
+        delayMicroseconds(200);
         if (readLinearAcceleration(sensor_data_[i].ax, sensor_data_[i].ay, sensor_data_[i].az)) {
           current_read_state_[i] = ReadState::READ_STATUS;
         }
         else {
-          sensor_states_[i] = IMUState::CRITICAL;
-          current_read_state_[i] = ReadState::IDLE;
-          next_sensor_start_time_[i] = now + sensor_configs_[i].read_interval_ms;
-          char msg[80];
-            snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d acceleration read failed", i);
-          SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), msg);
+          // Non-fatal: mark WARNING, zero accel, proceed to status.
+          sensor_states_[i] = IMUState::WARNING;
+          sensor_data_[i].ax = sensor_data_[i].ay = sensor_data_[i].az = 0.0f;
+          current_read_state_[i] = ReadState::READ_STATUS;
+          char msg[96];
+          snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d acceleration read failed (continuing)", i);
+          SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg);
         }
         break;
       }
       case ReadState::READ_STATUS: {
+        // Re-select before status registers.
+        selectSensor(sensor_configs_[i].mux_channel);
         if (readStatus(sensor_data_[i].system_status, sensor_data_[i].system_error, sensor_data_[i].calibration_status)) {
           current_read_state_[i] = ReadState::COMPLETE;
         }
@@ -251,6 +261,11 @@ namespace sigyn_teensy {
         break;
       }
       case ReadState::COMPLETE: {
+        // If we previously downgraded to WARNING but all reads (except maybe status) succeeded this cycle,
+        // restore NORMAL state to avoid permanent degradation from transient I2C blips.
+        if (sensor_states_[i] == IMUState::WARNING) {
+          sensor_states_[i] = IMUState::NORMAL;
+        }
         sensor_data_[i].valid = true;
         current_read_state_[i] = ReadState::IDLE;
         last_update_time_[i] = now;
