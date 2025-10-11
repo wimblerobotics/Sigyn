@@ -233,27 +233,16 @@ local_costmap:
         z_voxels: 10       # 10 voxels = 2m total height
         max_obstacle_height: 2.0
         mark_threshold: 0
-        observation_sources: scan_low scan_high
-        # Low lidar at 30cm height - detects low obstacles
+        observation_sources: scan_low
+        # Low lidar at 30cm height - detects obstacles at robot navigation height
+        # Upper lidar NOT used for navigation - it sees doorframes as obstacles!
         scan_low:
           topic: /scan
           data_type: "LaserScan"
           clearing: True
           marking: True
           min_obstacle_height: 0.0
-          max_obstacle_height: 0.8   # Only obstacles up to 80cm
-          obstacle_max_range: 2.5
-          obstacle_min_range: 0.0
-          raytrace_max_range: 3.0
-          raytrace_min_range: 0.0
-        # High lidar at 178cm height - detects high obstacles
-        scan_high:
-          topic: /scan_cup
-          data_type: "LaserScan"
-          clearing: True
-          marking: True
-          min_obstacle_height: 1.2   # Only obstacles from 120cm up
-          max_obstacle_height: 2.0   # Up to 200cm
+          max_obstacle_height: 2.0   # Mark all obstacles up to ceiling height
           obstacle_max_range: 2.5
           obstacle_min_range: 0.0
           raytrace_max_range: 3.0
