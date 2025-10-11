@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2025 Wimblerobotics
+// https://github.com/wimblerobotics/Sigyn
+
 #include <fcntl.h>
 #include <linux/joystick.h>
 #include <rcutils/logging_macros.h>
@@ -41,7 +45,7 @@ bool should_publish_gripper = false;
  *
  * Returns 0 on success. Otherwise -1 is returned.
  */
-int ReadEvent(int fd, struct js_event *event) {
+int ReadEvent(int fd, struct js_event* event) {
   ssize_t bytes;
 
   bytes = read(fd, event, sizeof(*event));
@@ -89,7 +93,7 @@ struct AxisState {
  *
  * Returns the axis that the event indicated.
  */
-size_t GetAxisState(struct js_event *event, struct AxisState axes[3]) {
+size_t GetAxisState(struct js_event* event, struct AxisState axes[3]) {
   size_t axis = event->number / 2;
 
   if (axis < 3) {
@@ -107,7 +111,9 @@ bool some_button_changed_state = false;
 std::mutex some_button_changed_state_guard;
 
 // Helper to check if a joystick is at zero
-inline bool IsStickZero(int16_t lr, int16_t ud) { return lr == 0 && ud == 0; }
+inline bool IsStickZero(int16_t lr, int16_t ud) {
+  return lr == 0 && ud == 0;
+}
 
 void PublishCmdvelTimerCallback() {
   static bool was_active = false;
@@ -158,7 +164,7 @@ void PublishMessagesTimerCallback() {
 }
 
 void CaptureJoystickEvent() {
-  const char *device;
+  const char* device;
   int js = -1;
   struct js_event event;
   struct AxisState axes[3] = {0, 0};
@@ -304,7 +310,7 @@ void TwisterButtonThread() {
   }
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   rclcpp::init(argc, argv);
   node = rclcpp::Node::make_shared("bluetooth_joystick_node");
 
