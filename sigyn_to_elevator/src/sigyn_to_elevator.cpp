@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2025 Wimblerobotics
+// https://github.com/wimblerobotics/Sigyn
+
 #include <fcntl.h>
 #include <termios.h>
 #include <unistd.h>
