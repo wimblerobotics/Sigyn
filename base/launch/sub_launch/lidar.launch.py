@@ -26,7 +26,7 @@ def generate_launch_description():
                 {'lidar_frame': "lidar_frame_top_lidar"},
                 {'range_threshold': LaunchConfiguration("range_threshold")}
             ],
-            # remappings=[('scan', 'raw_scan')]
+            remappings=[('scan', 'raw_scan')]
         ),
         
         Node(
@@ -43,6 +43,22 @@ def generate_launch_description():
                 ],
             remappings=[('scan', 'scan_cup')]
         ),
+        
+        Node(
+          package="laser_filters",
+          executable="scan_to_scan_filter_chain",
+          name="scan_to_scan_filter_chain",
+          output="screen",
+          parameters=[
+            PathJoinSubstitution([
+                get_package_share_directory("base"),
+                "config", "laser_filters_angular.yaml",
+            ])],
+            remappings=[('scan', 'raw_scan'),
+                        ('scan_filtered', 'scan')]
+
+
+        )
     ]
     
     return LaunchDescription(nodes)
