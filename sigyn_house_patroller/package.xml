@@ -4,7 +4,7 @@
   <name>sigyn_house_patroller</name>
   <version>0.1.0</version>
   <description>Comprehensive house patrol system for Sigyn robot with threat detection and monitoring</description>
-  <maintainer email="michael@wimblerobotics.com">Michael Wimble</maintainer>
+  <maintainer email="mike@wimblerobotics.com">Michael Wimble</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
