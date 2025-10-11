@@ -4,7 +4,7 @@
   <name>msgs</name>
   <version>1.0.0</version>
   <description>Messages for Raven</description>
-  <maintainer email="mike@wimblerobotics.com">ros</maintainer>
+  <maintainer email="mike@wimblerobotics.com">Michael Wimble</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

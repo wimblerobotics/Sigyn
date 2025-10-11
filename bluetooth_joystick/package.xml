@@ -4,7 +4,7 @@
   <name>bluetooth_joystick</name>
   <version>1.0.0</version>
   <description>Convert bluetooth joystick actions to ROS messages</description>
-  <maintainer email="mike@wimblerobotics.com">ros</maintainer>
+  <maintainer email="mike@wimblerobotics.com">Michael Wimble</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

@@ -4,7 +4,7 @@
   <name>oakd_detector</name>
   <version>0.0.0</version>
   <description>OAKD Node</description>
-  <maintainer email="mike@wimblerobotics.com">ros</maintainer>
+  <maintainer email="mike@wimblerobotics.com">Michael Wimble</maintainer>
   <license>Apache-2.0</license>
 
   <depend>rclpy</depend>
