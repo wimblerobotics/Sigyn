@@ -5,7 +5,7 @@
   <version>1.0.0</version>
   <description>Convert a ROS2 topic to another kind of ROS 2 toic.</description>
   <maintainer email="mike@wimblerobotics.com">Michael Wimble</maintainer>
-  <license>MIT</license>
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>

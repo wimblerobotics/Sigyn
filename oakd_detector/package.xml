@@ -5,7 +5,7 @@
   <version>0.0.0</version>
   <description>OAKD Node</description>
   <maintainer email="mike@wimblerobotics.com">ros</maintainer>
-  <license>MIT</license>
+  <license>Apache-2.0</license>
 
   <depend>rclpy</depend>
   <depend>sensor_msgs</depend>

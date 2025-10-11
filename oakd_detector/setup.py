@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2025 Wimblerobotics
+# https://github.com/wimblerobotics/Sigyn
+
 import os
 from setuptools import find_packages, setup
 from glob import glob
