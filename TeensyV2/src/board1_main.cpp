@@ -1,12 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2025 Wimblerobotics
+// https://github.com/wimblerobotics/Sigyn
+
 /**
- * @file board1_main.ino
+ * @file board1_main.cpp
  * @brief Main controller board (Board 1) for TeensyV2 system
  *
- * This is the primary controller board r  // Try to send fault notification if possible
-  if (serial_manager) {
-    String fault_msg = "type=system,board=" + String(BOARD_ID) + ",time=" + String(millis());
-    serial_manager->sendDiagnosticMessage("FATAL", "Main", fault_msg.c_str());
-  }sible for:
+ * This is the primary controller board responsible for:
  * - Motor control and odometry
  * - VL53L0X distance sensors
  * - RoboClaw motor driver interface
