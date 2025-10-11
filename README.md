@@ -79,6 +79,15 @@ ros2 launch base sigyn.launch.py use_sim_time:=true
 
 ## Recent Updates
 
+### Localization and Sensor Fusion (October 2025)
+- **Multi-Height Lidar Strategy**: Upper lidar (178cm) for clean localization, lower lidar (30cm) for obstacle detection
+- **Dual IMU Integration**: BNO055 sensors with explicit unit configuration and mount-aware fusion
+- **EKF Optimization**: Wheel odometry + IMU fusion for stable, drift-free navigation
+- **AMCL Tuning**: Optimized for dual-lidar system with dynamic environment handling
+
+For comprehensive documentation on localization, sensor fusion, and configuration decisions, see:
+- [`Documentation/LocalizationAndSensorFusion.md`](Documentation/LocalizationAndSensorFusion.md) - Complete guide with lessons learned
+
 ### TeensyV2 System Enhancements
 - **Modular Embedded Architecture**: Updated TeensyV2 system with improved real-time performance
 - **Enhanced Battery Monitoring**: Battery messages now include location information for multi-battery setups
