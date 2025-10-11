@@ -182,6 +182,8 @@ namespace sigyn_teensy {
     static constexpr uint32_t kDefaultReportInterval = 100; ///< Default report interval (10Hz)
     // New: per-sensor publish interval targeting 20 Hz per sensor
     static constexpr uint32_t kPerSensorPublishIntervalMs = 20; ///< Per-sensor publish interval (20Hz)
+    // Number of consecutive failures before escalating a sensor to CRITICAL
+    static constexpr uint8_t kCriticalFailThreshold = 3; ///< Escalate after this many consecutive read failures
 
     // Watchdog thresholds
     static constexpr uint32_t kStaleWarnMs = 500;   ///< Age to warn about stale IMU publish
@@ -196,6 +198,9 @@ namespace sigyn_teensy {
     static constexpr uint8_t kRegSysStatus = 0x39;      ///< System status register
     static constexpr uint8_t kRegSysErr = 0x3A;         ///< System error register
     static constexpr uint8_t kRegCalibStat = 0x35;      ///< Calibration status register
+    static constexpr uint8_t kRegUnitSel = 0x3B;        ///< Unit selection register (accel/gyro/euler/temp units)
+    static constexpr uint8_t kRegAxisMapConfig = 0x41;  ///< Axis mapping configuration register
+    static constexpr uint8_t kRegAxisMapSign = 0x42;    ///< Axis mapping sign register
 
     // Data registers
     static constexpr uint8_t kRegQuaternionW = 0x20;    ///< Quaternion W LSB
@@ -495,6 +500,15 @@ namespace sigyn_teensy {
     // Watchdog helpers
     void checkWatchdog_();
     void recoverSensor_(uint8_t sensor_id);
+
+    // Retry helpers (declared here; definitions in .cpp)
+    bool readGyroWithRetry_(uint8_t sensor_id, float& x, float& y, float& z);
+    bool readAccelWithRetry_(uint8_t sensor_id, float& x, float& y, float& z);
+
+    // Failure counters for adaptive degradation logic
+    uint8_t consecutive_fail_quat_[kMaxSensors] = { 0, 0 };
+    uint8_t consecutive_fail_gyro_[kMaxSensors] = { 0, 0 };
+    uint8_t consecutive_fail_accel_[kMaxSensors] = { 0, 0 };
   };
 
 } // namespace sigyn_teensy

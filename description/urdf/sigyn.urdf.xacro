@@ -122,22 +122,20 @@
 
   <xacro:diff_drive_controller config="${props}" instances1="${props.wheels.instances}" instances2="${props.wheels.instances}" />
 
-  <!-- IMU0 - Upside down (components facing down) -->
+  <!-- IMU0 - Upside down & backwards -->
   <joint name="imu0_joint" type="fixed">
     <parent link="base_link" />
     <child link="imu_0" />
-    <origin xyz="-0.100 0.180 0.022" rpy="0 3.14159 0" />
-    <!-- 180° around Y-axis -->
+    <origin xyz="-0.100 0.180 0.022" rpy="0 3.14159 3.14159" />
   </joint>
 
   <link name="imu_0" />
 
-  <!-- IMU1 - Right-side up (components facing up) -->
+  <!-- IMU1 - Right-side up & backwards -->
   <joint name="imu1_joint" type="fixed">
     <parent link="base_link" />
     <child link="imu_1" />
-    <origin xyz="0.085 -0.185 0.022" rpy="0 0 0" />
-    <!-- No rotation needed -->
+    <origin xyz="0.085 -0.185 0.022" rpy="0 0 3.14159" />
   </joint>
 
   <link name="imu_1" />

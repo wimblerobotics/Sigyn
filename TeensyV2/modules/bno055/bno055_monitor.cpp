@@ -58,6 +58,10 @@
 
 #include "common/core/serial_manager.h"
 
+ // Firmware/feature revision tag for runtime verification that the flashed
+ // binary matches the source used during debugging.
+#define BNO055_MONITOR_FW_REV "IMU_FW_2025-10-09_r2"
+
 namespace sigyn_teensy {
 
   BNO055Monitor::BNO055Monitor()
@@ -102,6 +106,14 @@ namespace sigyn_teensy {
   void BNO055Monitor::setup() {
     if (setup_completed_) {
       return;
+    }
+
+    // Emit firmware revision early so we can confirm the board was actually
+    // flashed with the expected build when inspecting serial output.
+    {
+      char rev_msg[96];
+      snprintf(rev_msg, sizeof(rev_msg), "Firmware revision: %s", BNO055_MONITOR_FW_REV);
+      SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), rev_msg);
     }
 
     SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Starting dual sensor initialization");
@@ -193,16 +205,26 @@ namespace sigyn_teensy {
 
       switch (current_read_state_[i]) {
       case ReadState::READ_QUATERNION: {
+        selectSensor(sensor_configs_[i].mux_channel); // Always re-select before first read
         if (readQuaternion(sensor_data_[i].qw, sensor_data_[i].qx, sensor_data_[i].qy, sensor_data_[i].qz)) {
+          consecutive_fail_quat_[i] = 0;
           current_read_state_[i] = ReadState::READ_GYROSCOPE; // Proceed to gyro
         }
         else {
-          sensor_states_[i] = IMUState::CRITICAL;
-          current_read_state_[i] = ReadState::IDLE;
-          next_sensor_start_time_[i] = now + sensor_configs_[i].read_interval_ms;
-          char msg[80];
-          snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d quaternion read failed", i);
-          SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), msg);
+          consecutive_fail_quat_[i]++;
+          char msg[96];
+          snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d quaternion read failed (count=%u)", i, consecutive_fail_quat_[i]);
+          SerialManager::getInstance().sendDiagnosticMessage(consecutive_fail_quat_[i] >= kCriticalFailThreshold ? "ERROR" : "WARN", name(), msg);
+          if (consecutive_fail_quat_[i] >= kCriticalFailThreshold) {
+            sensor_states_[i] = IMUState::CRITICAL;
+            current_read_state_[i] = ReadState::IDLE;
+            next_sensor_start_time_[i] = now + sensor_configs_[i].read_interval_ms;
+          }
+          else {
+            // Retry sooner for transient failure
+            next_sensor_start_time_[i] = now + 5; // 5ms quick retry
+            current_read_state_[i] = ReadState::IDLE;
+          }
         }
         break;
       }
@@ -210,17 +232,25 @@ namespace sigyn_teensy {
         // Re-select sensor channel each state. Without this, the other sensor's
         // selection overwrites the mux channel and subsequent reads can hit the wrong device.
         selectSensor(sensor_configs_[i].mux_channel);
-        if (readGyroscope(sensor_data_[i].gx, sensor_data_[i].gy, sensor_data_[i].gz)) {
+        if (readGyroWithRetry_(i, sensor_data_[i].gx, sensor_data_[i].gy, sensor_data_[i].gz)) {
+          consecutive_fail_gyro_[i] = 0;
           current_read_state_[i] = ReadState::READ_ACCELERATION;
         }
         else {
-          // Make a single gyro read failure non-fatal: mark WARNING, zero values, advance.
-          sensor_states_[i] = IMUState::WARNING;
+          consecutive_fail_gyro_[i]++;
           sensor_data_[i].gx = sensor_data_[i].gy = sensor_data_[i].gz = 0.0f;
-          current_read_state_[i] = ReadState::READ_ACCELERATION;
-          char msg[96];
-          snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d gyroscope read failed (continuing)", i);
-          SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg);
+          char msg[112];
+          snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d gyroscope read failed (count=%u, continuing)", i, consecutive_fail_gyro_[i]);
+          SerialManager::getInstance().sendDiagnosticMessage(consecutive_fail_gyro_[i] >= kCriticalFailThreshold ? "ERROR" : "WARN", name(), msg);
+          if (consecutive_fail_gyro_[i] >= kCriticalFailThreshold) {
+            sensor_states_[i] = IMUState::CRITICAL;
+            current_read_state_[i] = ReadState::IDLE;
+            next_sensor_start_time_[i] = now + sensor_configs_[i].read_interval_ms;
+          }
+          else {
+            sensor_states_[i] = IMUState::WARNING;
+            current_read_state_[i] = ReadState::READ_ACCELERATION; // Advance despite failure
+          }
         }
         break;
       }
@@ -228,17 +258,25 @@ namespace sigyn_teensy {
         // Re-select before accel read (other sensor may have changed mux); add tiny settle delay.
         selectSensor(sensor_configs_[i].mux_channel);
         delayMicroseconds(200);
-        if (readLinearAcceleration(sensor_data_[i].ax, sensor_data_[i].ay, sensor_data_[i].az)) {
+        if (readAccelWithRetry_(i, sensor_data_[i].ax, sensor_data_[i].ay, sensor_data_[i].az)) {
+          consecutive_fail_accel_[i] = 0;
           current_read_state_[i] = ReadState::READ_STATUS;
         }
         else {
-          // Non-fatal: mark WARNING, zero accel, proceed to status.
-          sensor_states_[i] = IMUState::WARNING;
+          consecutive_fail_accel_[i]++;
           sensor_data_[i].ax = sensor_data_[i].ay = sensor_data_[i].az = 0.0f;
-          current_read_state_[i] = ReadState::READ_STATUS;
-          char msg[96];
-          snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d acceleration read failed (continuing)", i);
-          SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg);
+          char msg[120];
+          snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d acceleration read failed (count=%u, continuing)", i, consecutive_fail_accel_[i]);
+          SerialManager::getInstance().sendDiagnosticMessage(consecutive_fail_accel_[i] >= kCriticalFailThreshold ? "ERROR" : "WARN", name(), msg);
+          if (consecutive_fail_accel_[i] >= kCriticalFailThreshold) {
+            sensor_states_[i] = IMUState::CRITICAL;
+            current_read_state_[i] = ReadState::IDLE;
+            next_sensor_start_time_[i] = now + sensor_configs_[i].read_interval_ms;
+          }
+          else {
+            sensor_states_[i] = IMUState::WARNING;
+            current_read_state_[i] = ReadState::READ_STATUS; // Proceed
+          }
         }
         break;
       }
@@ -266,6 +304,9 @@ namespace sigyn_teensy {
         if (sensor_states_[i] == IMUState::WARNING) {
           sensor_states_[i] = IMUState::NORMAL;
         }
+        // Reset non-quaternion failure counters on successful cycle
+        consecutive_fail_gyro_[i] = 0;
+        consecutive_fail_accel_[i] = 0;
         sensor_data_[i].valid = true;
         current_read_state_[i] = ReadState::IDLE;
         last_update_time_[i] = now;
@@ -517,6 +558,35 @@ namespace sigyn_teensy {
     }
     delay(10);
 
+    // Explicitly set UNIT_SEL to known units to match our scaling:
+    // Bits: [7]=RES, [6]=Orientation Android/Windows, [5]=Temp unit (0=Celsius),
+    // [4]=Euler (0=degrees), [3]=Gyro (0=deg/s), [2:1]=Accel (00=m/s^2), [0]=Reserved
+    // Value 0x00 -> Celsius, degrees, deg/s, m/s^2
+    if (!writeRegister(kRegUnitSel, 0x00)) {
+      return false;
+    }
+    delay(10);
+
+    // Read back UNIT_SEL for diagnostics
+    {
+      uint8_t unit_sel = 0;
+      if (readRegister(kRegUnitSel, &unit_sel, 1)) {
+        char msg[96];
+        snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d UNIT_SEL=0x%02X (expect 0x00)", sensor_id, unit_sel);
+        SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
+      }
+    }
+
+    // Log axis mapping configuration (should typically be default 0x24 and sign 0x00)
+    {
+      uint8_t axis_cfg = 0, axis_sign = 0;
+      if (readRegister(kRegAxisMapConfig, &axis_cfg, 1) && readRegister(kRegAxisMapSign, &axis_sign, 1)) {
+        char msg[96];
+        snprintf(msg, sizeof(msg), "BNO055Monitor: Sensor %d AXIS_MAP cfg=0x%02X sign=0x%02X", sensor_id, axis_cfg, axis_sign);
+        SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
+      }
+    }
+
     // If the breakout has a 32.768 kHz crystal, select external crystal for improved stability
     // Teensy 4.1 host being crystal controlled is separate; this specifically configures the BNO055
     if (!writeRegister(kRegSysTrigger, 0x80)) {
@@ -755,8 +825,8 @@ namespace sigyn_teensy {
 
       uint32_t start_time = micros();
       success = readQuaternion(data.qw, data.qx, data.qy, data.qz);
-      if (success) success = readGyroscope(data.gx, data.gy, data.gz);
-      if (success) success = readLinearAcceleration(data.ax, data.ay, data.az);
+      if (success) success = readGyroWithRetry_(sensor_id, data.gx, data.gy, data.gz);
+      if (success) success = readAccelWithRetry_(sensor_id, data.ax, data.ay, data.az);
       if (success) success = readStatus(data.system_status, data.system_error, data.calibration_status);
       uint32_t elapsed_time = micros() - start_time;
       snprintf(debug_msg, sizeof(debug_msg), "prime_full: success=%d, time=%luus", success, elapsed_time);
@@ -870,6 +940,28 @@ namespace sigyn_teensy {
     current_read_state_[sensor_id] = ReadState::IDLE;
     next_sensor_start_time_[sensor_id] = millis();
     imu_reset_count_[sensor_id]++;
+  }
+
+  // --- New internal helpers with retry logic ---
+  // We use small retry counts to mask occasional mux or bus settle issues without
+  // incurring large latency penalties.
+  bool BNO055Monitor::readGyroWithRetry_(uint8_t sensor_id, float& x, float& y, float& z) {
+    for (uint8_t attempt = 0; attempt < 3; ++attempt) {
+      if (readGyroscope(x, y, z)) return true;
+      // Reselect and short settle before retry
+      selectSensor(sensor_configs_[sensor_id].mux_channel);
+      delayMicroseconds(300);
+    }
+    return false;
+  }
+
+  bool BNO055Monitor::readAccelWithRetry_(uint8_t sensor_id, float& x, float& y, float& z) {
+    for (uint8_t attempt = 0; attempt < 3; ++attempt) {
+      if (readLinearAcceleration(x, y, z)) return true;
+      selectSensor(sensor_configs_[sensor_id].mux_channel);
+      delayMicroseconds(300);
+    }
+    return false;
   }
 
   // Ensure only one set of readRegister/writeRegister exists; the versions above count i2c errors.
