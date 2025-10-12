@@ -428,11 +428,13 @@ def generate_launch_description():
     oakd_elevator_top = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
           [base_pgk, "/launch/sub_launch/oakd_stereo.launch.py"]
-        )
+        ),
+        condition=UnlessCondition(use_sim_time),
     )
     ld.add_action(oakd_elevator_top)
     
     pc2ls = Node(
+        condition=UnlessCondition(use_sim_time),
         package="pointcloud_to_laserscan",
         executable="pointcloud_to_laserscan_node",
         name="pointcloud_to_laserscan_node",

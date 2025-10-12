@@ -9,7 +9,14 @@
   <xacro:include filename="$(find description)/urdf/sigyn_base_macro.urdf.xacro" />
   <xacro:include filename="$(find description)/urdf/sigyn_caster_wheel_macro.urdf.xacro" />
   <xacro:include filename="$(find description)/urdf/sigyn_wheels_macro.urdf.xacro" />
-  <xacro:include filename="$(find description)/urdf/oakd.urdf.xacro" />
+
+  <xacro:unless value="$(arg sim_mode)">
+    <xacro:include filename="$(find description)/urdf/depthai_macro.urdf.xacro" />
+  </xacro:unless>
+
+  <xacro:unless value="$(arg sim_mode)">
+    <xacro:include filename="$(find description)/urdf/oakd.urdf.xacro" />
+  </xacro:unless>
 
   <xacro:if value="$(arg use_ros2_control)">
     <xacro:include filename="ros2_control.xacro" />
@@ -30,11 +37,11 @@
 
   <xacro:include filename="$(find description)/urdf/ld06.urdf.xacro" />
 
-  <xacro:ld06 lidar_prefix="top_lidar">
+  <xacro:ld06 lidar_prefix="top_lidar" topic_name="scan">
     <origin xyz="0.155 0 0.300" rpy="0 0 -${pi / 2}" />
   </xacro:ld06>
 
-  <xacro:ld06 lidar_prefix="cup_lidar">
+  <xacro:ld06 lidar_prefix="cup_lidar" topic_name="scan_cup">
     <origin xyz="${0.155-0.34} 0 ${0.300+1.485}" rpy="0 0 0" />
   </xacro:ld06>
 
@@ -48,12 +55,15 @@
   </joint>
 
   <!-- <xacro:oakd_link mount_point="elevator_top" /> -->
-  <xacro:oakd_joint mount_point="elevator_top">
-    <origin xyz="-0.12 -0.02 1.47" rpy="0 ${(pi / 4)+13*(2.0*pi/360.0)} ${-0*(2.0*pi/360.0)}" />
-  </xacro:oakd_joint>
+  <xacro:unless value="$(arg sim_mode)">
+    <xacro:oakd_joint mount_point="elevator_top">
+      <origin xyz="-0.12 -0.02 1.47" rpy="0 ${(pi / 4)+13*(2.0*pi/360.0)} ${-0*(2.0*pi/360.0)}" />
+    </xacro:oakd_joint>
+  </xacro:unless>
 
   <gazebo>
-    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+    <plugin filename="gz-sim-joint-position-controller-system"
+      name="gz::sim::systems::JointPositionController">
       <joint_name>elevator_pole_to_elevator_connector_plate</joint_name>
       <p_gain>1.0</p_gain>
       <i_gain>0.0</i_gain>
@@ -66,7 +76,8 @@
       <topic>/elevator_connector_plate/position</topic>
     </plugin>
 
-    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+    <plugin filename="gz-sim-joint-position-controller-system"
+      name="gz::sim::systems::JointPositionController">
       <joint_name>gripper_elevator_plate_to_gripper_extender</joint_name>
       <p_gain>1.0</p_gain>
       <i_gain>0.0</i_gain>
@@ -79,7 +90,8 @@
       <topic>/gripper_elevator_plate_to_gripper_extender/position</topic>
     </plugin>
 
-    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+    <plugin filename="gz-sim-joint-position-controller-system"
+      name="gz::sim::systems::JointPositionController">
       <joint_name>gripper_wrist_to_parallel_gripper_base_plate</joint_name>
       <p_gain>1.0</p_gain>
       <i_gain>0.0</i_gain>
@@ -92,7 +104,8 @@
       <topic>/gripper_wrist_to_parallel_gripper_base_plate/position</topic>
     </plugin>
 
-    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+    <plugin filename="gz-sim-joint-position-controller-system"
+      name="gz::sim::systems::JointPositionController">
       <joint_name>parallel_gripper_base_plate_to_left_finger</joint_name>
       <p_gain>1.0</p_gain>
       <i_gain>0.0</i_gain>
@@ -105,7 +118,8 @@
       <topic>/parallel_gripper_base_plate_to_left_finger/position</topic>
     </plugin>
 
-    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+    <plugin filename="gz-sim-joint-position-controller-system"
+      name="gz::sim::systems::JointPositionController">
       <joint_name>parallel_gripper_base_plate_to_right_finger</joint_name>
       <p_gain>1.0</p_gain>
       <i_gain>0.0</i_gain>
@@ -120,7 +134,8 @@
 
   </gazebo>
 
-  <xacro:diff_drive_controller config="${props}" instances1="${props.wheels.instances}" instances2="${props.wheels.instances}" />
+  <xacro:diff_drive_controller config="${props}" instances1="${props.wheels.instances}"
+    instances2="${props.wheels.instances}" />
 
   <!-- IMU0 - Upside down & backwards -->
   <joint name="imu0_joint" type="fixed">
