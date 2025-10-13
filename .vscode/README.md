@@ -20,32 +20,69 @@ Script to switch between different settings configurations (optional).
 
 ## Setting Up IntelliSense
 
-1. **For AMD64/x86_64 systems:**
+### Steps to Set Up IntelliSense:
+
+1. **Build the workspace to generate compile_commands.json:**
+   ```bash
+   cd /home/ros/sigyn_ws
+   source /opt/ros/[YOUR_ROS_DISTRO]/setup.bash
+   colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+   ```
+
+2. **For PlatformIO/Arduino (TeensyV2) development:**
+   ```bash
+   cd TeensyV2
+   pio run  # This generates TeensyV2/compile_commands.json
+   ```
+
+3. **Create your local `c_cpp_properties.json`:**
+
+   **For AMD64/x86_64 systems:**
    ```json
-   // c_cpp_properties.json
    {
        "configurations": [
+           {
+               "name": "Arduino",
+               "includePath": [
+                   "${workspaceFolder}/TeensyV2/**",
+                   "~/.platformio/packages/framework-arduinoteensy/**",
+                   "~/.platformio/packages/toolchain-gccarmnoneeabi-teensy/arm-none-eabi/include/**"
+               ],
+               "defines": [
+                   "ARDUINO=10819",
+                   "TEENSY41",
+                   "__IMXRT1062__"
+               ],
+               "compilerPath": "~/.platformio/packages/toolchain-gccarmnoneeabi-teensy/bin/arm-none-eabi-gcc",
+               "intelliSenseMode": "gcc-arm",
+               "compileCommands": "${workspaceFolder}/TeensyV2/compile_commands.json"
+           },
            {
                "name": "ROS2",
                "includePath": [
                    "${workspaceFolder}/**",
                    "/opt/ros/jazzy/include/**",
-                   "/home/ros/sigyn_ws/install/*/include/**",
-                   "/usr/include/**"
-               ],
-               "defines": [
-                   "ROS_DISTRO_JAZZY",
-                   "__linux__"
+                   "${workspaceFolder}/../install/*/include/**"
                ],
                "compilerPath": "/usr/bin/gcc",
-               "cStandard": "c17",
-               "cppStandard": "c++17",
                "intelliSenseMode": "linux-gcc-x64",
-               "compileCommands": "${workspaceFolder}/build/compile_commands.json",
-               "configurationProvider": "ms-vscode.cmake-tools"
+               "compileCommands": "${workspaceFolder}/build/compile_commands.json"
            }
-       ],
-       "version": 4
+       ]
+   }
+   ```
+
+   **For ARM64 systems:** Change `intelliSenseMode` to `"linux-gcc-arm64"` and verify ROS paths.
+
+4. **Create your local `settings.json`:**
+   ```json
+   {
+       "C_Cpp.intelliSenseEngine": "default",
+       "C_Cpp.configurationWarnings": "disabled",
+       "files.associations": {
+           "*.ino": "cpp"
+       },
+       "cmake.configureOnOpen": false
    }
    ```
 

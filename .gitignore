@@ -15,6 +15,10 @@ venv/
 .vscode/settings_*.json
 .vscode/c_cpp_properties.json
 .vscode/switch_settings.sh
+
+# Generated compile commands (machine-specific)
+compile_commands.json
+**/compile_commands.json
 msg/*Action.msg
 msg/*ActionFeedback.msg
 msg/*ActionGoal.msg
