@@ -3,6 +3,10 @@ project(perimeter_roamer_v3)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(nav2_msgs REQUIRED)

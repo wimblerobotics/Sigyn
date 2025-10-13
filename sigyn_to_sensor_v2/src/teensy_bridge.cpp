@@ -94,11 +94,13 @@ namespace sigyn_to_sensor_v2 {
 
     message_parser_->RegisterCallback(MessageType::ODOM,
       [this](const MessageData& data, rclcpp::Time timestamp) {
+        (void)timestamp; // Suppress unused parameter warning
         HandleOdomMessage(data, timestamp);
       });
 
     message_parser_->RegisterCallback(MessageType::SDIR,
       [this](const MessageData& data, rclcpp::Time timestamp) {
+        (void)timestamp; // Suppress unused parameter warning
         auto content_it = data.find("content");
         if (content_it != data.end()) {
           HandleSdirResponse(content_it->second);
@@ -107,6 +109,7 @@ namespace sigyn_to_sensor_v2 {
 
     message_parser_->RegisterCallback(MessageType::SDLINE,
       [this](const MessageData& data, rclcpp::Time timestamp) {
+        (void)timestamp; // Suppress unused parameter warning
         auto content_it = data.find("content");
         if (content_it != data.end()) {
           HandleSdlineResponse(content_it->second);
@@ -115,6 +118,7 @@ namespace sigyn_to_sensor_v2 {
 
     message_parser_->RegisterCallback(MessageType::SDEOF,
       [this](const MessageData& data, rclcpp::Time timestamp) {
+        (void)timestamp; // Suppress unused parameter warning
         auto content_it = data.find("content");
         HandleSdeofResponse(content_it != data.end() ? content_it->second : "");
       });
@@ -243,7 +247,7 @@ namespace sigyn_to_sensor_v2 {
         std::shared_ptr<sigyn_interfaces::srv::TeensySdGetDir::Response> response) {
           HandleSdGetDirRequest(request, response);
       },
-      rmw_qos_profile_services_default,
+      rclcpp::ServicesQoS(),
       service_callback_group_);
 
     sd_getfile_service_ = this->create_service<sigyn_interfaces::srv::TeensySdGetFile>(
@@ -252,7 +256,7 @@ namespace sigyn_to_sensor_v2 {
         std::shared_ptr<sigyn_interfaces::srv::TeensySdGetFile::Response> response) {
           HandleSdGetFileRequest(request, response);
       },
-      rmw_qos_profile_services_default,
+      rclcpp::ServicesQoS(),
       service_callback_group_);
 
     // Timers
@@ -603,6 +607,7 @@ namespace sigyn_to_sensor_v2 {
   }
 
   void TeensyBridge::HandleSafetyMessage(const MessageData& data, rclcpp::Time timestamp) {
+    (void)timestamp; // Suppress unused parameter warning
     // Extract safety state and publish E-stop status
     auto state_it = data.find("state");
     auto conditions_it = data.find("active_conditions");
@@ -618,20 +623,14 @@ namespace sigyn_to_sensor_v2 {
   }
 
   void TeensyBridge::HandleEstopMessage(const MessageData& data, rclcpp::Time timestamp) {
+    (void)timestamp; // Suppress unused parameter warning
     // Log E-stop events
     auto active_it = data.find("active");
-    auto source_it = data.find("source");
-    auto reason_it = data.find("reason");
-
-    if (active_it != data.end() && source_it != data.end() && reason_it != data.end()) {
-      if (active_it->second == "true") {
-        RCLCPP_WARN(this->get_logger(), "E-STOP TRIGGERED: %s - %s",
-          source_it->second.c_str(), reason_it->second.c_str());
-      }
-      else {
-        RCLCPP_INFO(this->get_logger(), "E-STOP CLEARED: %s - %s",
-          source_it->second.c_str(), reason_it->second.c_str());
-      }
+    if (active_it != data.end() && active_it->second == "true") {
+      RCLCPP_WARN(this->get_logger(), "E-STOP TRIGGERED");
+    }
+    else {
+      RCLCPP_INFO(this->get_logger(), "E-STOP CLEARED");
     }
   }
 

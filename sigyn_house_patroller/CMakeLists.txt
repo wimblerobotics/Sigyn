@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.8)
 project(sigyn_house_patroller)
 
-# Suppress CMake policy warnings for PCL compatibility
-if(POLICY CMP0144)
-  cmake_policy(SET CMP0144 NEW)
-endif()
+find_package(ament_cmake REQUIRED)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+cmake_policy(SET CMP0144 NEW)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  set(CMAKE_CXX_STANDARD 17)
-  set(CMAKE_CXX_STANDARD_REQUIRED ON)
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 

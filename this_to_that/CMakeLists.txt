@@ -7,7 +7,11 @@ endif()
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(ament_cmake_python REQUIRED)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(rcl_interfaces REQUIRED)
 find_package(sensor_msgs REQUIRED)

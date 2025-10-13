@@ -255,7 +255,7 @@ void LiPkg::ToLaserscan(std::vector<PointData> src)
 
     int index = (int)((output.angle_max - angle) / output.angle_increment);
     // int index = (int)((angle - output.angle_min) / output.angle_increment); //default, but this is inverted
-    if (index >= 0 && index < beam_size_)
+    if (index >= 0 && static_cast<unsigned int>(index) < beam_size_)
     {
 		if(range < range_threshold_)
 		{
