@@ -130,11 +130,13 @@ void processConfiguration(int argc, char *argv[]) {
 }
 
 void teensyDiagnosticsCallback(const std_msgs::msg::String::SharedPtr msg) {
+  (void)msg;
   // RCUTILS_LOG_INFO("[teensyDiagnosticsCallback] called");
   // diagnostic_messages.push_back(msg->data);
 }
 
 void teensyStatsCallback(const std_msgs::msg::String::SharedPtr msg) {
+  (void)msg;
   // RCUTILS_LOG_INFO("[teensyStatsCallback] called");
   // stats_messages.push_back(msg->data);
 }

@@ -188,7 +188,7 @@ private:
     if (enable_learning_ && !config.learning_complete) {
       config.distance_history.push_back(measured_distance);
       
-      if (config.distance_history.size() >= learning_samples_) {
+      if (config.distance_history.size() >= static_cast<size_t>(learning_samples_)) {
         CompleteLearning(config);
         config.learning_complete = true;
         
@@ -369,7 +369,7 @@ private:
     health.last_update_times.push_back(this->now());
 
     for (auto const& [door_id, config] : door_configs_) {
-      bool learning_complete = config.distance_history.size() >= learning_samples_;
+      bool learning_complete = config.distance_history.size() >= static_cast<size_t>(learning_samples_);
       health.component_names.push_back("door_" + door_id);
       health.component_health_status.push_back(learning_complete ? 1 : 2); // HEALTHY : DEGRADED
       health.component_descriptions.push_back("learning_complete: " + std::string(learning_complete ? "YES" : "NO"));
