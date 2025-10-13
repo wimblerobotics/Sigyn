@@ -38,7 +38,7 @@ SOFTWARE.
   <joint name="baselink_to_tof_0" type="fixed">
     <child link="vl53l0x_0" />
     <parent link="base_link" />
-    <origin xyz="-0.165 -0.150 0.050" rpy="${pi/2.0} 0 -${pi}" />
+    <origin xyz="-0.165 -0.150 0.050" rpy="${pi/2.0} -0.218 -${pi}" />
   </joint>
 
   <link name="vl53l0x_1">
@@ -53,7 +53,7 @@ SOFTWARE.
   <joint name="baselink_to_tof_1" type="fixed">
     <child link="vl53l0x_1" />
     <parent link="base_link" />
-    <origin xyz="-0.145 -0.165 0.050" rpy="${pi/2.0} 0 -${pi/2.0}" />
+    <origin xyz="-0.145 -0.165 0.050" rpy="${pi/2.0} -0.218 -${pi/2.0}" />
   </joint>
 
   <link name="vl53l0x_2">
@@ -68,7 +68,7 @@ SOFTWARE.
   <joint name="baselink_to_tof_2" type="fixed">
     <child link="vl53l0x_2" />
     <parent link="base_link" />
-    <origin xyz="0.145 -0.165 0.050" rpy="${pi/2.0} 0 -${pi/2.0}" />
+    <origin xyz="0.145 -0.165 0.050" rpy="${pi/2.0} -0.218 -${pi/2.0}" />
   </joint>
 
   <link name="vl53l0x_3">
@@ -83,7 +83,7 @@ SOFTWARE.
   <joint name="baselink_to_tof_3" type="fixed">
     <child link="vl53l0x_3" />
     <parent link="base_link" />
-    <origin xyz="0.160 -0.150 0.050" rpy="${pi/2.0} 0 0" />
+    <origin xyz="0.160 -0.150 0.050" rpy="${pi/2.0} -0.218 0" />
   </joint>
 
   <link name="vl53l0x_4">
@@ -98,7 +98,7 @@ SOFTWARE.
   <joint name="baselink_to_tof_4" type="fixed">
     <child link="vl53l0x_4" />
     <parent link="base_link" />
-    <origin xyz="0.160 0.150 0.050" rpy="${pi/2.0} 0 0" />
+    <origin xyz="0.160 0.150 0.050" rpy="${pi/2.0} -0.218 0" />
   </joint>
 
   <link name="vl53l0x_5">
@@ -113,7 +113,7 @@ SOFTWARE.
   <joint name="baselink_to_tof_5" type="fixed">
     <child link="vl53l0x_5" />
     <parent link="base_link" />
-    <origin xyz="0.145 0.165 0.200" rpy="${pi/2.0} 0 ${pi/2.0}" />
+    <origin xyz="0.145 0.165 0.200" rpy="${pi/2.0} -0.218 ${pi/2.0}" />
   </joint>
 
   <link name="vl53l0x_6">
@@ -128,7 +128,7 @@ SOFTWARE.
   <joint name="baselink_to_tof_6" type="fixed">
     <child link="vl53l0x_6" />
     <parent link="base_link" />
-    <origin xyz="-0.145 0.165 0.050" rpy="${pi/2.0} 0 ${pi/2.0}" />
+    <origin xyz="-0.145 0.165 0.050" rpy="${pi/2.0} -0.218 ${pi/2.0}" />
   </joint>
 
     <link name="vl53l0x_7">
@@ -143,7 +143,7 @@ SOFTWARE.
   <joint name="baselink_to_tof_7" type="fixed">
     <child link="vl53l0x_7" />
     <parent link="base_link" />
-    <origin xyz="-0.165 0.150 0.050" rpy="${pi/2.0} 0 -${pi}" />
+    <origin xyz="-0.165 0.150 0.050" rpy="${pi/2.0} -0.218 -${pi}" />
   </joint>
 
 
