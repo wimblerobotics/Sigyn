@@ -9,6 +9,17 @@ The following files are **NOT** tracked in git and should be created locally on 
 ### `settings.json`
 Your local VS Code settings. Copy from one of the example files below and modify as needed.
 
+### `tasks.json`
+Build and run tasks with machine-specific workspace paths. Copy from `tasks.json.template` and customize:
+- Update workspace paths to match your system
+- Update ROS version paths (/opt/ros/jazzy vs /opt/ros/humble)
+- Add any custom tasks you need
+
+### `c_cpp_properties.json`
+IntelliSense configuration with include paths. Should contain:
+- **ROS2** configuration using your local `compile_commands.json`
+- **TeensyV2** configuration with Arduino/Teensy include paths
+
 ### `c_cpp_properties.json`
 C++ IntelliSense configuration specific to your system architecture and ROS installation.
 
