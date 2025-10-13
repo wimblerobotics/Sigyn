@@ -9,8 +9,12 @@ log/
 msg_gen/
 srv_gen/
 venv/
+# VS Code hardware/OS-specific configuration files (keep local only)
 .vscode/settings.json
 .vscode/settings.json.bak
+.vscode/settings_*.json
+.vscode/c_cpp_properties.json
+.vscode/switch_settings.sh
 msg/*Action.msg
 msg/*ActionFeedback.msg
 msg/*ActionGoal.msg
