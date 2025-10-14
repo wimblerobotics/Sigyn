@@ -433,6 +433,15 @@ def generate_launch_description():
     )
     ld.add_action(oakd_elevator_top)
     
+    # Add compressed image republisher for OAK-D
+    oakd_compressed = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+          [base_pgk, "/launch/sub_launch/oakd_compressed_republisher.launch.py"]
+        ),
+        condition=UnlessCondition(use_sim_time),
+    )
+    ld.add_action(oakd_compressed)
+    
     pc2ls = Node(
         condition=UnlessCondition(use_sim_time),
         package="pointcloud_to_laserscan",
@@ -455,17 +464,17 @@ def generate_launch_description():
     )
     ld.add_action(pc2ls)
     
-    # battery_overlay = IncludeLaunchDescription(
-    #     PythonLaunchDescriptionSource(
-    #         os.path.join(
-    #             get_package_share_directory('this_to_that'),
-    #             'launch',
-    #             'battery_voltage.launch.py'
-    #         )
-    #     ),
-    #     condition=UnlessCondition(use_sim_time),sigyn
-    # )
-    # ld.add_action(battery_overlay)
+    battery_overlay = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('this_to_that'),
+                'launch',
+                'battery_voltage.launch.py'
+            )
+        ),
+        condition=UnlessCondition(use_sim_time)
+    )
+    ld.add_action(battery_overlay)
     
     # wifi_logger = IncludeLaunchDescription(
     #   PythonLaunchDescriptionSource(
@@ -478,7 +487,7 @@ def generate_launch_description():
     # )
     # ld.add_action(wifi_logger)
     
-    # head_mapper = IncludeLaunchDescription(
+    # heat_mapper = IncludeLaunchDescription(
     #   PythonLaunchDescriptionSource(
     #     os.path.join(
     #       get_package_share_directory('wifi_logger_visualizer'),sigyn
@@ -487,7 +496,7 @@ def generate_launch_description():
     #     )
     #   )
     # )
-    # ld.add_action(head_mapper)
+    # ld.add_action(heat_mapper)
 
     SaySomethingActionServer = Node(
         package="sigyn_behavior_trees",
