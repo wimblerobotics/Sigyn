@@ -1,6 +1,6 @@
 batter_percent_overlay:
   ros__parameters:
-    input_topic_name: /main_battery
+    input_topic_name: /sigyn/teensy_bridge/battery/status
     input_message_type: sensor_msgs/msg/BatteryState
     output_topic_name: /battery_percentage_overlay
     output_message_type: wifi_viz/msg/MinMaxCurr
