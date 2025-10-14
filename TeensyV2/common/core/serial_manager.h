@@ -139,14 +139,36 @@ namespace sigyn_teensy {
     void processIncomingMessages();
 
     /**
-     * @brief Set the latest TWIST command for modules to access.
+     * @brief Set the latest MOTOR command for modules to access.
      *
+     * @param[in] motor_data The MOTOR command data
+     */
+    void setLatestMotorCommand(const String& motor_data);
+
+    /**
+     * @brief Get the latest MOTOR command data.
+     *
+     * @return Latest MOTOR command data, or empty string if none
+     */
+    String getLatestMotorCommand();
+
+    /**
+     * @brief Check if there's a new MOTOR command and mark it as processed.
+     *
+     * @return True if there was a new command, false otherwise
+     */
+    bool hasNewMotorCommand();
+
+    // --- TWIST Command Methods (for elevator_board stepper motors) ---
+
+    /**
+     * @brief Set the latest TWIST command.
      * @param[in] twist_data The TWIST command data
      */
     void setLatestTwistCommand(const String& twist_data);
 
     /**
-     * @brief Get the latest TWIST command data.
+     * @brief Get the latest TWIST command.
      *
      * @return Latest TWIST command data, or empty string if none
      */
@@ -286,6 +308,16 @@ namespace sigyn_teensy {
     uint32_t last_queue_full_report_ms_ = 0; ///< Last time we emitted QUEUE_FULL
 
     // --- Command Storage ---
+
+    /**
+     * @brief Storage for the latest MOTOR command.
+     */
+    String latest_motor_command_;
+    
+    /**
+     * @brief Flag indicating if there's a new MOTOR command.
+     */
+    bool has_new_motor_command_ = false;
 
     /**
      * @brief Storage for the latest TWIST command.

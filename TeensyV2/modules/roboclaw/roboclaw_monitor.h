@@ -115,11 +115,11 @@ struct RoboClawStatus {
 };
 
 /**
- * @brief Velocity command structure for motor control.
+ * @brief Motor command structure for direct motor control.
  */
-struct VelocityCommand {
-  float linear_x = 0.0f;               ///< Linear velocity (m/s)
-  float angular_z = 0.0f;              ///< Angular velocity (rad/s)
+struct MotorCommand {
+  float left_rpm = 0.0f;               ///< Left motor RPM
+  float right_rpm = 0.0f;              ///< Right motor RPM  
   uint32_t timestamp_ms = 0;           ///< Command timestamp
 };
 
@@ -136,7 +136,7 @@ public:
   static RoboClawMonitor& getInstance();
   
   // Motor control interface
-  void setVelocityCommand(float linear_x, float angular_z);
+  void setMotorRPMs(float left_rpm, float right_rpm);  // New direct RPM control
   void setMotorSpeeds(int32_t m1_qpps, int32_t m2_qpps);
   void emergencyStop();
   void resetErrors();
@@ -151,7 +151,7 @@ public:
   const RoboClawConfig& getConfig() const { return config_; }
   
   // Message handling
-  void handleTwistMessage(const String& data);
+  void handleMotorCommand(const String& data);  // Replace TWIST with MOTOR commands
   
   // Error decoding
   String decodeErrorStatus(uint32_t error_status) const;
@@ -193,7 +193,7 @@ private:
   void updateMotorStatus();
   void updateCriticalMotorStatus();    // High-frequency: encoder/speed only
   void updateOdometry();               // High-frequency: odometry calculation
-  void processVelocityCommands();      // High-frequency: cmd_vel processing
+  void processMotorCommands();         // High-frequency: motor command processing
   void updateSystemStatus();
   void checkSafetyConditions();
   void handleRunawayDetection();
@@ -230,7 +230,7 @@ private:
   RoboClawStatus system_status_;
   
   // Command tracking
-  VelocityCommand last_velocity_command_;
+  MotorCommand last_motor_command_;
   int32_t last_commanded_m1_qpps_;
   int32_t last_commanded_m2_qpps_;
   uint32_t last_command_time_ms_;

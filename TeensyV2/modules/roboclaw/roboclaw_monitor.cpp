@@ -37,7 +37,7 @@ RoboClawMonitor::RoboClawMonitor()
       motor1_status_(),
       motor2_status_(),
       system_status_(),
-      last_velocity_command_(),
+      last_motor_command_(),
       last_commanded_m1_qpps_(0),
       last_commanded_m2_qpps_(0),
       last_command_time_ms_(0),
@@ -126,7 +126,7 @@ void RoboClawMonitor::loop() {
       }
       
       // HIGH FREQUENCY cmd_vel processing (can be independent)
-      processVelocityCommands(); // Critical: cmd_vel processing at high frequency
+      processMotorCommands(); // Critical: motor command processing at high frequency
       
       // MEDIUM FREQUENCY OPERATIONS (~10Hz) - safety checks
       if (now - last_safety_check_time_ms_ >= 100) { // 10Hz safety checks
@@ -135,7 +135,7 @@ void RoboClawMonitor::loop() {
       }
       
       // Handle command timeouts (check every loop but lightweight)
-      if (now - last_velocity_command_.timestamp_ms > MAX_MS_TO_WAIT_FOR_CMD_VEL_BEFORE_STOP_MOTORS) {
+      if (now - last_motor_command_.timestamp_ms > MAX_MS_TO_WAIT_FOR_CMD_VEL_BEFORE_STOP_MOTORS) {
         // Timeout - stop motors
         setMotorSpeeds(0, 0);
       }
@@ -234,14 +234,15 @@ void RoboClawMonitor::resetSafetyFlags() {
   SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Safety flags reset");
 }
 
-void RoboClawMonitor::setVelocityCommand(float linear_x, float angular_z) {
-  last_velocity_command_.linear_x = linear_x;
-  last_velocity_command_.angular_z = angular_z;
-  last_velocity_command_.timestamp_ms = millis();
+void RoboClawMonitor::setMotorRPMs(float left_rpm, float right_rpm) {
+  last_motor_command_.left_rpm = left_rpm;
+  last_motor_command_.right_rpm = right_rpm;
+  last_motor_command_.timestamp_ms = millis();
   
-  // Convert velocity to motor speeds
-  int32_t m1_qpps, m2_qpps;
-  velocityToMotorSpeeds(linear_x, angular_z, m1_qpps, m2_qpps);
+  // Convert RPM to QPPS (Quad Pulses Per Second)
+  int32_t m1_qpps = static_cast<int32_t>((left_rpm / 60.0f) * QUADRATURE_PULSES_PER_REVOLUTION);
+  int32_t m2_qpps = static_cast<int32_t>((right_rpm / 60.0f) * QUADRATURE_PULSES_PER_REVOLUTION);
+  
   setMotorSpeeds(m1_qpps, m2_qpps);
 }
 
@@ -313,22 +314,22 @@ void RoboClawMonitor::resetErrors() {
   }
 }
 
-void RoboClawMonitor::handleTwistMessage(const String& data) {
-  // Parse twist message: "linear_x:<value>,angular_z:<value>"
-  float linear_x = 0.0f, angular_z = 0.0f;
+void RoboClawMonitor::handleMotorCommand(const String& data) {
+  // Parse motor command: "left_rpm:<value>,right_rpm:<value>"
+  float left_rpm = 0.0f, right_rpm = 0.0f;
   
-  int linear_start = data.indexOf("linear_x:") + 9;
-  int linear_end = data.indexOf(",", linear_start);
-  if (linear_start > 8 && linear_end > linear_start) {
-    linear_x = data.substring(linear_start, linear_end).toFloat();
+  int left_start = data.indexOf("left_rpm:") + 9;
+  int left_end = data.indexOf(",", left_start);
+  if (left_start > 8 && left_end > left_start) {
+    left_rpm = data.substring(left_start, left_end).toFloat();
   }
   
-  int angular_start = data.indexOf("angular_z:") + 10;
-  if (angular_start > 9) {
-    angular_z = data.substring(angular_start).toFloat();
+  int right_start = data.indexOf("right_rpm:") + 10;
+  if (right_start > 9) {
+    right_rpm = data.substring(right_start).toFloat();
   }
   
-  setVelocityCommand(linear_x, angular_z);
+  setMotorRPMs(left_rpm, right_rpm);
 }
 
 bool RoboClawMonitor::initializeRoboClaw() {
@@ -845,21 +846,21 @@ void RoboClawMonitor::updateOdometry() {
   }
 }
 
-void RoboClawMonitor::processVelocityCommands() {
+void RoboClawMonitor::processMotorCommands() {
   if (connection_state_ != ConnectionState::CONNECTED) {
     return;
   }
   
-  // Check for new TWIST commands from SerialManager
-  if (SerialManager::getInstance().hasNewTwistCommand()) {
-    String twist_data = SerialManager::getInstance().getLatestTwistCommand();
-    handleTwistMessage(twist_data);
+  // Check for new MOTOR commands from SerialManager
+  if (SerialManager::getInstance().hasNewMotorCommand()) {
+    String motor_data = SerialManager::getInstance().getLatestMotorCommand();
+    handleMotorCommand(motor_data);
   }
   
   uint32_t now = millis();
   
   // Check for command timeout
-  if (now - last_velocity_command_.timestamp_ms > MAX_MS_TO_WAIT_FOR_CMD_VEL_BEFORE_STOP_MOTORS) {
+  if (now - last_motor_command_.timestamp_ms > MAX_MS_TO_WAIT_FOR_CMD_VEL_BEFORE_STOP_MOTORS) {
     // Timeout - ensure motors are stopped
     if (last_commanded_m1_qpps_ != 0 || last_commanded_m2_qpps_ != 0) {
       setMotorSpeeds(0, 0);
@@ -875,11 +876,9 @@ void RoboClawMonitor::processVelocityCommands() {
   }
   last_command_time = now;
   
-  // Convert twist to motor speeds
-  int32_t m1_qpps, m2_qpps;
-  velocityToMotorSpeeds(last_velocity_command_.linear_x, 
-                       last_velocity_command_.angular_z, 
-                       m1_qpps, m2_qpps);
+  // Convert RPM commands to motor speeds
+  int32_t m1_qpps = static_cast<int32_t>((last_motor_command_.left_rpm / 60.0f) * QUADRATURE_PULSES_PER_REVOLUTION);
+  int32_t m2_qpps = static_cast<int32_t>((last_motor_command_.right_rpm / 60.0f) * QUADRATURE_PULSES_PER_REVOLUTION);
   
   // Only send command if it changed significantly or periodically
   static uint32_t last_forced_update = 0;

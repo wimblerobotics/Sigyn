@@ -224,11 +224,8 @@ namespace sigyn_to_sensor_v2 {
         ConfigCommandCallback(msg);
       });
 
-    cmd_vel_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
-      "/sigyn/cmd_vel", 10,
-      [this](const geometry_msgs::msg::Twist::SharedPtr msg) {
-        CmdVelCallback(msg);
-      });
+    // Note: Motor control for main drive is now handled by ros2_control hardware interface
+    // This bridge only handles gripper control and sensor communications
 
     cmd_vel_gripper_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
       "/cmd_vel_gripper", 10,
@@ -992,19 +989,9 @@ namespace sigyn_to_sensor_v2 {
     }
   }
 
-  void TeensyBridge::CmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg) {
-    // Queue the twist message - all serial communication happens in the main loop
-    // RCLCPP_INFO(this->get_logger(), "Received cmd_vel: linear.x=%.3f, angular.z=%.3f", 
-    //             msg->linear.x, msg->angular.z);
-
-    std::ostringstream oss;
-    oss << "TWIST:linear_x:" << msg->linear.x << ",angular_z:" << msg->angular.z << "\n";
-
-    std::lock_guard<std::mutex> lock(outgoing_queue_mutex_);
-    outgoing_message_queue_.push(oss.str());
-
-    // RCLCPP_INFO(this->get_logger(), "Queued TWIST command: %s", oss.str().c_str());
-  }
+  // NOTE: CmdVelCallback removed - motor control now handled by ros2_control hardware interface
+  // Main drive commands go directly to TeensyV2 Board1 via hardware interface
+  // This bridge only handles gripper and sensor communications
 
   void TeensyBridge::CmdVelGripperCallback(const geometry_msgs::msg::Twist::SharedPtr msg) {
     // Queue the twist message for the gripper board (board3)
