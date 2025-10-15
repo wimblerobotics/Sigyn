@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2025 Wimblerobotics
+// https://github.com/wimblerobotics/Sigyn
+
 /**
  * @file sd_logger.h
  * @brief SD Card logging system for TeensyV2

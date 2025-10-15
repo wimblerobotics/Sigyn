@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2025 Wimblerobotics
+// https://github.com/wimblerobotics/Sigyn
+
 /**
  * @file teensy_bridge_node.cpp
  * @brief Main communication bridge node for TeensyV2 system

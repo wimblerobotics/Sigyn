@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro" name="ld06">
 
-  <xacro:macro name="ld06" params="lidar_prefix *joint_pose">
+  <xacro:macro name="ld06" params="lidar_prefix topic_name:=scan *joint_pose">
     <material name="ld06_${lidar_prefix}_grey">
       <color rgba="0.3 0.3 0.3 1" />
     </material>
@@ -122,7 +122,7 @@
             </range>
           </ray>
         </lidar>
-        <topic>scan</topic>
+        <topic>${topic_name}</topic>
         <gz_frame_id>lidar_beam_${lidar_prefix}</gz_frame_id>
       </sensor>
 
@@ -130,7 +130,7 @@
       <plugin name="gazebo_ros_laser_controller" filename="libgazebo_ros_gpu_laser.so">
         <ros>
           <namespace></namespace>
-          <remapping>~/out:=scan</remapping>
+          <remapping>~/out:=${topic_name}</remapping>
         </ros>
         <output_type>sensor_msgs/LaserScan</output_type>
         <frame_name>lidar_beam_${lidar_prefix}</frame_name>

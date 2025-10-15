@@ -4,8 +4,8 @@
   <name>perimeter_roamer_v3</name>
   <version>0.0.0</version>
   <description>Advanced perimeter roaming robot controller using Behavior Trees</description>
-  <maintainer email="mike@wimblerobotics.com">Mike Wimble</maintainer>
-  <license>MIT</license>
+  <maintainer email="mike@wimblerobotics.com">Michael Wimble</maintainer>
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

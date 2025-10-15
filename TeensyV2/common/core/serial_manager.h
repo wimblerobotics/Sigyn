@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2025 Wimblerobotics
+// https://github.com/wimblerobotics/Sigyn
+
 /**
  * @file serial_manager.h
  * @brief Efficient serial communication manager for TeensyV2

@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
 project(ldlidar)
 
-if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
-endif()
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -38,10 +37,5 @@ target_link_libraries(ldlidar udev)
 
 install(TARGETS ldlidar
   DESTINATION lib/${PROJECT_NAME})
-
-install(
-  DIRECTORY launch rviz
-  DESTINATION share/${PROJECT_NAME}
-)
 
 ament_package()

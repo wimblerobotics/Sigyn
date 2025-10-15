@@ -8,6 +8,9 @@ lib/
 log/
 msg_gen/
 srv_gen/
+venv/
+.vscode/settings.json
+.vscode/settings.json.bak
 msg/*Action.msg
 msg/*ActionFeedback.msg
 msg/*ActionGoal.msg
