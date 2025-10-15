@@ -82,7 +82,7 @@ namespace sigyn_to_sensor_v2 {
     // ROS2 callbacks
     void EstopCommandCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void ConfigCommandCallback(const std_msgs::msg::String::SharedPtr msg);
-    // Note: CmdVelCallback removed - motor control now handled by ros2_control hardware interface
+    void CmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg);
     void CmdVelGripperCallback(const geometry_msgs::msg::Twist::SharedPtr msg);
 
     // Service handlers
@@ -135,7 +135,7 @@ namespace sigyn_to_sensor_v2 {
     // Subscribers
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr estop_cmd_sub_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr config_cmd_sub_;
-    // Note: cmd_vel_sub_ removed - motor control now handled by ros2_control hardware interface
+    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_sub_;
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_gripper_sub_;
 
     // Services
