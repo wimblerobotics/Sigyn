@@ -1,0 +1,136 @@
+DIAG2:{"level":"INIT","module":"Module","message":"starting_module_setup","timestamp":9150}
+DIAG2:{"level":"INFO","module":"SDLogger","message":"Initializing SD card","timestamp":9150}
+DIAG2:{"level":"DEBUG","module":"SDLogger","message":"Attempting SD card initialization...","timestamp":9150}
+DIAG2:{"level":"DEBUG","module":"SDLogger","message":"SD card begin() succeeded","timestamp":9161}
+DIAG2:{"level":"INFO","module":"SDLogger","message":"Directory cached: 38 entries","timestamp":9163}
+DIAG2:{"level":"DEBUG","module":"SDLogger","message":"Creating log file: LOG00036.TXT","timestamp":9166}
+DIAG2:{"level":"INFO","module":"SDLogger","message":"Created log file: LOG00036.TXT","timestamp":9167}
+DIAG2:{"level":"INFO","module":"SDLogger","message":"Ready for logging","timestamp":9167}
+DIAG2:{"level":"INFO","module":"SDLogger","message":"Setup complete","timestamp":9167}
+DIAG2:{"level":"INIT","module":"Module","message":"module_initialized:SDLogger","timestamp":9167}
+DIAG2:{"level":"INIT","module":"Module","message":"module_initialized:PerformanceMonitor","timestamp":9167}
+DIAG2:{"level":"INIT","module":"Module","message":"module_initialized:SafetyCoordinator","timestamp":9167}
+DIAG2:{"level":"INFO","module":"BatteryMonitor","message":"[BatteryMonitor::testI2cMultiplexer] I2C multiplexer found at address 0x70","timestamp":9168}
+DIAG2:{"level":"DEBUG","module":"BatteryMonitor","message":"Initializing device 0: mux_channel=2, i2c_addr=0x40","timestamp":9168}
+DIAG2:{"level":"INFO","module":"BatteryMonitor","message":"Successfully initialized device 0","timestamp":9190}
+DIAG2:{"level":"DEBUG","module":"BatteryMonitor","message":"Initializing device 1: mux_channel=3, i2c_addr=0x40","timestamp":9190}
+DIAG2:{"level":"INFO","module":"BatteryMonitor","message":"Successfully initialized device 1","timestamp":9191}
+DIAG2:{"level":"DEBUG","module":"BatteryMonitor","message":"Initializing device 2: mux_channel=4, i2c_addr=0x40","timestamp":9191}
+DIAG2:{"level":"INFO","module":"BatteryMonitor","message":"Successfully initialized device 2","timestamp":9191}
+DIAG2:{"level":"DEBUG","module":"BatteryMonitor","message":"Initializing device 3: mux_channel=5, i2c_addr=0x40","timestamp":9191}
+DIAG2:{"level":"INFO","module":"BatteryMonitor","message":"Successfully initialized device 3","timestamp":9191}
+DIAG2:{"level":"DEBUG","module":"BatteryMonitor","message":"Initializing device 4: mux_channel=6, i2c_addr=0x40","timestamp":9191}
+DIAG2:{"level":"INFO","module":"BatteryMonitor","message":"Successfully initialized device 4","timestamp":9192}
+DIAG2:{"level":"INIT","module":"Module","message":"module_initialized:BatteryMonitor","timestamp":9192}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"Firmware revision: IMU_FW_2025-10-09_r2","timestamp":9192}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"Starting dual sensor initialization","timestamp":9192}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"BNO055Monitor: Sensor 0 UNIT_SEL=0x00 (expect 0x00)","timestamp":9906}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"BNO055Monitor: Sensor 0 AXIS_MAP cfg=0x24 sign=0x00","timestamp":9908}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"Sensor 0 initialized successfully","timestamp":10044}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"BNO055Monitor: Priming sensor 0 (Cycle 1) - full read","timestamp":10144}
+DIAG2:{"level":"DEBUG","module":"BNO055Monitor","message":"prime_full: success=1, time=2328us","timestamp":10151}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"BNO055Monitor: Priming sensor 0 (Cycle 2) - full read","timestamp":10201}
+DIAG2:{"level":"DEBUG","module":"BNO055Monitor","message":"prime_full: success=1, time=2323us","timestamp":10203}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"BNO055Monitor: Priming sensor 0 (Cycle 3) - full read","timestamp":10253}
+DIAG2:{"level":"DEBUG","module":"BNO055Monitor","message":"prime_full: success=1, time=3362us","timestamp":10256}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"BNO055Monitor: Sensor 0 primed successfully (full)","timestamp":10306}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"Sensor 0 primed successfully","timestamp":10306}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"BNO055Monitor: Sensor 1 UNIT_SEL=0x00 (expect 0x00)","timestamp":11021}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"BNO055Monitor: Sensor 1 AXIS_MAP cfg=0x24 sign=0x00","timestamp":11023}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"Sensor 1 initialized successfully","timestamp":11159}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"BNO055Monitor: Priming sensor 1 (Cycle 1) - full read","timestamp":11259}
+DIAG2:{"level":"DEBUG","module":"BNO055Monitor","message":"prime_full: success=1, time=2339us","timestamp":11262}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"BNO055Monitor: Priming sensor 1 (Cycle 2) - full read","timestamp":11312}
+DIAG2:{"level":"DEBUG","module":"BNO055Monitor","message":"prime_full: success=1, time=2340us","timestamp":11314}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"BNO055Monitor: Priming sensor 1 (Cycle 3) - full read","timestamp":11364}
+DIAG2:{"level":"DEBUG","module":"BNO055Monitor","message":"prime_full: success=1, time=3321us","timestamp":11367}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"BNO055Monitor: Sensor 1 primed successfully (full)","timestamp":11418}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"Sensor 1 primed successfully","timestamp":11418}
+DIAG2:{"level":"INFO","module":"BNO055Monitor","message":"2/2 sensors initialized","timestamp":11418}
+DIAG2:{"level":"INIT","module":"Module","message":"module_initialized:BNO055Monitor","timestamp":11418}
+DIAG2:{"level":"INIT","module":"Module","message":"module_setup_complete","timestamp":11418}
+DIAG2:{"level":"INFO","module":"board2","message":"===== Board 2 Initialization Complete =====","timestamp":11418}
+DIAG2:{"level":"INFO","module":"board2","message":"Enabled features:","timestamp":11418}
+DIAG2:{"level":"INFO","module":"board2","message":"  - SD Logging","timestamp":11418}
+DIAG2:{"level":"INFO","module":"board2","message":"  - Performance Monitoring","timestamp":11418}
+DIAG2:{"level":"INFO","module":"board2","message":"  - Safety Coordinator","timestamp":11418}
+DIAG2:{"level":"INFO","module":"board2","message":"  - Battery Monitoring","timestamp":11418}
+DIAG2:{"level":"INFO","module":"board2","message":"  - IMU (BNO055)","timestamp":11418}
+DIAG2:{"level":"INFO","module":"board2","message":"Ready for operation","timestamp":11418}
+DIAG2:{"level":"DEBUG","module":"SDLogger","message":"SDLogger: Performance stats: Buffer usage: 0 bytes (0%), Write rate: 6606.00 B/s, Total writes: 7","timestamp":11418}
+PERF2:{"freq":0.0, "tfreq":20.0, "mviol":0, "fviol":0, "mods":[{"n":"SDLogger","min":0.03,"max":0.03,"avg":0.03,"last":0.03,"cnt":1,"viol":false},{"n":"PerformanceMonitor","min":340282343469402359241130679742758912.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":0,"viol":false},{"n":"SafetyCoordinator","min":340282343469402359241130679742758912.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":0,"viol":false},{"n":"BatteryMonitor","min":340282343469402359241130679742758912.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":0,"viol":false},{"n":"BNO055Monitor","min":340282343469402359241130679742758912.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":0,"viol":false}]}
+DIAG2:{"level":"DIAG","module":"BNO055Monitor","message":"IMU_HEARTBEAT s=0 age=1111ms state=NORMAL mux=0 resets=0 i2c_err=0 mux_re=0","timestamp":11423}
+DIAG2:{"level":"DIAG","module":"BNO055Monitor","message":"IMU_HEARTBEAT s=1 age=0ms state=NORMAL mux=1 resets=0 i2c_err=0 mux_re=0","timestamp":11423}
+DIAG2:{"level":"WARN","module":"BNO055Monitor","message":"IMU_STALE sensor=0 age=1116ms state=3 read_state=2 mux=0","timestamp":11423}
+DIAG2:{"level":"DIAG","module":"BNO055Monitor","message":"BNO055Monitor PERF_VIOLATION: 5015us (target <2000us), violations=1, active_sensors=2, multiplexer=OK","timestamp":11423}
+DIAG2:{"level":"DIAG","module":"BNO055Monitor","message":"BNO055Monitor sensor_0: state=NORMAL, read_state=GYRO, next_start_in=0ms, calib=0x00","timestamp":11423}
+DIAG2:{"level":"DIAG","module":"BNO055Monitor","message":"BNO055Monitor sensor_1: state=NORMAL, read_state=GYRO, next_start_in=0ms, calib=0x00","timestamp":11423}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":-0.00109,"gy":0.00000,"gz":0.00218,"ax":0.00000,"ay":0.01000,"az":-0.01000,"calib":48,"status":5,"error":0,"timestamp":11418}
+IMU2:{"id":1,"qx":0.0000,"qy":0.0000,"qz":0.0000,"qw":0.0000,"gx":0.00000,"gy":0.00109,"gz":0.00000,"ax":0.00000,"ay":0.00000,"az":0.00000,"calib":0,"status":5,"error":0,"timestamp":11418}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":-0.00109,"gy":0.00109,"gz":0.00000,"ax":0.00000,"ay":0.02000,"az":0.10000,"calib":48,"status":5,"error":0,"timestamp":11454}
+IMU2:{"id":1,"qx":0.0000,"qy":0.0000,"qz":0.0000,"qw":1.0000,"gx":-0.00109,"gy":0.00218,"gz":0.00109,"ax":-0.02000,"ay":-0.15000,"az":0.07000,"calib":0,"status":5,"error":0,"timestamp":11454}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00109,"gy":0.00109,"gz":-0.00109,"ax":0.00000,"ay":0.02000,"az":0.07000,"calib":48,"status":5,"error":0,"timestamp":11490}
+IMU2:{"id":1,"qx":0.0000,"qy":0.0000,"qz":0.0000,"qw":1.0000,"gx":-0.00327,"gy":0.00109,"gz":-0.00109,"ax":0.00000,"ay":0.00000,"az":0.07000,"calib":0,"status":5,"error":0,"timestamp":11490}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00000,"gy":-0.00327,"gz":0.00218,"ax":0.00000,"ay":0.00000,"az":-0.01000,"calib":48,"status":5,"error":0,"timestamp":11522}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":0.00109,"gy":0.00327,"gz":0.00109,"ax":0.00000,"ay":0.00000,"az":0.16000,"calib":0,"status":5,"error":0,"timestamp":11522}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00109,"gy":-0.00218,"gz":0.00109,"ax":0.00000,"ay":0.01000,"az":0.04000,"calib":48,"status":5,"error":0,"timestamp":11559}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":-0.00218,"gy":0.00327,"gz":0.00000,"ax":0.01000,"ay":0.00000,"az":0.16000,"calib":0,"status":5,"error":0,"timestamp":11559}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00000,"gy":0.00327,"gz":0.00109,"ax":0.00000,"ay":0.01000,"az":0.10000,"calib":48,"status":5,"error":0,"timestamp":11592}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":0.00109,"gy":0.00218,"gz":0.00000,"ax":0.00000,"ay":0.00000,"az":0.10000,"calib":0,"status":5,"error":0,"timestamp":11592}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":-0.00109,"gy":0.00545,"gz":0.00000,"ax":0.00000,"ay":0.00000,"az":0.03000,"calib":48,"status":5,"error":0,"timestamp":11628}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":0.00000,"gy":-0.00109,"gz":0.00109,"ax":0.00000,"ay":0.00000,"az":0.20000,"calib":0,"status":5,"error":0,"timestamp":11628}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00218,"gy":0.00327,"gz":-0.00109,"ax":0.01000,"ay":0.00000,"az":0.10000,"calib":48,"status":5,"error":0,"timestamp":11661}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":-0.00109,"gy":0.00109,"gz":-0.00218,"ax":-0.01000,"ay":-0.01000,"az":0.19000,"calib":0,"status":5,"error":0,"timestamp":11661}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00109,"gy":0.00109,"gz":0.00000,"ax":0.00000,"ay":0.00000,"az":0.11000,"calib":48,"status":5,"error":0,"timestamp":11698}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":0.00000,"gy":0.00327,"gz":-0.00109,"ax":0.00000,"ay":0.00000,"az":0.08000,"calib":0,"status":5,"error":0,"timestamp":11698}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00000,"gy":0.00218,"gz":-0.00109,"ax":0.01000,"ay":0.00000,"az":0.01000,"calib":48,"status":5,"error":0,"timestamp":11730}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":0.00000,"gy":0.00000,"gz":0.00000,"ax":0.01000,"ay":0.00000,"az":0.20000,"calib":0,"status":5,"error":0,"timestamp":11730}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":-0.00109,"gy":0.00000,"gz":0.00000,"ax":0.00000,"ay":0.01000,"az":0.12000,"calib":48,"status":5,"error":0,"timestamp":11762}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":0.00000,"gy":0.00000,"gz":0.00109,"ax":0.01000,"ay":0.00000,"az":0.16000,"calib":0,"status":5,"error":0,"timestamp":11762}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00000,"gy":0.00109,"gz":0.00000,"ax":0.00000,"ay":0.02000,"az":0.07000,"calib":48,"status":5,"error":0,"timestamp":11799}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":-0.00109,"gy":-0.00109,"gz":-0.00218,"ax":0.00000,"ay":0.00000,"az":0.14000,"calib":0,"status":5,"error":0,"timestamp":11799}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00000,"gy":-0.00218,"gz":0.00000,"ax":0.00000,"ay":0.00000,"az":0.03000,"calib":48,"status":5,"error":0,"timestamp":11831}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":0.00109,"gy":0.00000,"gz":0.00000,"ax":0.00000,"ay":0.00000,"az":0.17000,"calib":0,"status":5,"error":0,"timestamp":11831}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00109,"gy":0.00000,"gz":0.00109,"ax":-0.02000,"ay":0.01000,"az":0.06000,"calib":48,"status":5,"error":0,"timestamp":11863}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":-0.00109,"gy":0.00218,"gz":0.00218,"ax":0.00000,"ay":0.00000,"az":0.19000,"calib":0,"status":5,"error":0,"timestamp":11863}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":-0.00218,"gy":-0.00218,"gz":0.00000,"ax":0.02000,"ay":0.00000,"az":0.08000,"calib":48,"status":5,"error":0,"timestamp":11899}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":0.00000,"gy":0.00109,"gz":-0.00109,"ax":0.01000,"ay":-0.02000,"az":0.15000,"calib":0,"status":5,"error":0,"timestamp":11899}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":-0.00109,"gy":0.00218,"gz":0.00109,"ax":-0.01000,"ay":0.01000,"az":0.04000,"calib":48,"status":5,"error":0,"timestamp":11931}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":-0.00109,"gy":0.00000,"gz":-0.00218,"ax":0.00000,"ay":-0.01000,"az":0.20000,"calib":0,"status":5,"error":0,"timestamp":11931}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":-0.00109,"gy":-0.00109,"gz":0.00218,"ax":0.00000,"ay":0.00000,"az":0.07000,"calib":48,"status":5,"error":0,"timestamp":11963}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":0.00000,"gy":0.00109,"gz":0.00000,"ax":0.00000,"ay":0.00000,"az":0.17000,"calib":0,"status":5,"error":0,"timestamp":11963}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00109,"gy":0.00000,"gz":-0.00109,"ax":0.00000,"ay":0.00000,"az":0.10000,"calib":48,"status":5,"error":0,"timestamp":11999}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":-0.00109,"gy":0.00109,"gz":-0.00109,"ax":0.00000,"ay":-0.01000,"az":0.13000,"calib":0,"status":5,"error":0,"timestamp":11999}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00000,"gy":0.00000,"gz":0.00000,"ax":-0.01000,"ay":0.02000,"az":0.05000,"calib":48,"status":5,"error":0,"timestamp":12031}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":0.00109,"gy":0.00109,"gz":0.00109,"ax":0.00000,"ay":-0.01000,"az":0.19000,"calib":0,"status":5,"error":0,"timestamp":12031}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00000,"gy":-0.00218,"gz":0.00109,"ax":0.00000,"ay":0.04000,"az":0.02000,"calib":48,"status":5,"error":0,"timestamp":12063}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":0.00000,"gy":0.00327,"gz":-0.00109,"ax":0.00000,"ay":0.00000,"az":0.18000,"calib":48,"status":5,"error":0,"timestamp":12063}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00109,"gy":0.00000,"gz":-0.00109,"ax":0.00000,"ay":0.00000,"az":0.05000,"calib":48,"status":5,"error":0,"timestamp":12099}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":0.00000,"gy":-0.00109,"gz":0.00109,"ax":0.00000,"ay":-0.01000,"az":0.08000,"calib":48,"status":5,"error":0,"timestamp":12099}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00000,"gy":0.00000,"gz":0.00109,"ax":0.01000,"ay":-0.01000,"az":0.06000,"calib":48,"status":5,"error":0,"timestamp":12131}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":0.00109,"gy":0.00109,"gz":-0.00218,"ax":0.00000,"ay":-0.01000,"az":0.17000,"calib":48,"status":5,"error":0,"timestamp":12131}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00109,"gy":0.00109,"gz":0.00000,"ax":0.00000,"ay":0.00000,"az":0.08000,"calib":48,"status":5,"error":0,"timestamp":12163}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":-0.00109,"gy":0.00000,"gz":-0.00109,"ax":0.00000,"ay":0.01000,"az":0.18000,"calib":48,"status":5,"error":0,"timestamp":12163}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":-0.00109,"gy":-0.00109,"gz":-0.00218,"ax":0.00000,"ay":-0.01000,"az":0.07000,"calib":48,"status":5,"error":0,"timestamp":12199}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":-0.00218,"gy":0.00000,"gz":0.00109,"ax":0.00000,"ay":0.01000,"az":0.15000,"calib":48,"status":5,"error":0,"timestamp":12199}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":-0.00109,"gy":0.00327,"gz":-0.00327,"ax":0.00000,"ay":0.00000,"az":0.01000,"calib":48,"status":5,"error":0,"timestamp":12231}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":-0.00218,"gy":0.00109,"gz":0.00000,"ax":0.00000,"ay":0.00000,"az":0.16000,"calib":48,"status":5,"error":0,"timestamp":12231}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":-0.00218,"gy":0.00109,"gz":0.00109,"ax":0.00000,"ay":0.00000,"az":0.09000,"calib":48,"status":5,"error":0,"timestamp":12263}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":-0.00218,"gy":0.00109,"gz":-0.00109,"ax":0.00000,"ay":0.00000,"az":0.19000,"calib":48,"status":5,"error":0,"timestamp":12263}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00109,"gy":0.00218,"gz":0.00000,"ax":0.00000,"ay":0.01000,"az":0.08000,"calib":48,"status":5,"error":0,"timestamp":12300}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":0.00000,"gy":-0.00109,"gz":-0.00109,"ax":-0.01000,"ay":0.00000,"az":0.12000,"calib":48,"status":5,"error":0,"timestamp":12300}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00109,"gy":0.00000,"gz":0.00109,"ax":0.00000,"ay":0.00000,"az":0.04000,"calib":48,"status":5,"error":0,"timestamp":12332}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0014,"qz":0.0000,"qw":1.0000,"gx":0.00000,"gy":-0.00109,"gz":-0.00109,"ax":0.00000,"ay":-0.02000,"az":0.19000,"calib":48,"status":5,"error":0,"timestamp":12332}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":-0.00109,"gy":-0.00109,"gz":-0.00109,"ax":0.00000,"ay":0.00000,"az":0.07000,"calib":48,"status":5,"error":0,"timestamp":12364}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0013,"qz":0.0000,"qw":1.0000,"gx":0.00109,"gy":0.00218,"gz":-0.00218,"ax":0.00000,"ay":0.00000,"az":0.17000,"calib":48,"status":5,"error":0,"timestamp":12364}
+IMU2:{"id":0,"qx":-0.9825,"qy":-0.1812,"qz":0.0000,"qw":0.0416,"gx":0.00109,"gy":0.00000,"gz":0.00000,"ax":0.00000,"ay":-0.01000,"az":0.09000,"calib":48,"status":5,"error":0,"timestamp":12400}
+IMU2:{"id":1,"qx":-0.0077,"qy":0.0013,"qz":0.0000,"qw":1.0000,"gx":-0.00109,"gy":0.00000,"gz":-0.00109,"ax":0.00000,"ay":0.00000,"az":0.12000,"calib":48,"status":5,"error":0,"timestamp":12400}
+DIAG2:{"level":"DEBUG","module":"SDLogger","message":"SDLogger: Performance stats: Buffer usage: 0 bytes (0%), Write rate: 13922.00 B/s, Total writes: 40","timestamp":12418}
+PERF2:{"freq":333333.3, "tfreq":20.0, "mviol":54, "fviol":0, "mods":[{"n":"SDLogger","min":0.00,"max":0.03,"avg":0.00,"last":0.03,"cnt":226319,"viol":false},{"n":"PerformanceMonitor","min":0.00,"max":0.15,"avg":0.00,"last":0.00,"cnt":226318,"viol":false},{"n":"SafetyCoordinator","min":0.00,"max":0.00,"avg":0.00,"last":0.00,"cnt":226318,"viol":false},{"n":"BatteryMonitor","min":0.00,"max":2.16,"avg":0.00,"last":0.00,"cnt":226318,"viol":false},{"n":"BNO055Monitor","min":0.00,"max":6.95,"avg":0.00,"last":0.00,"cnt":226318,"viol":false}]}
+DIAG2:{"level":"DIAG","module":"BNO055Monitor","message":"IMU_HEARTBEAT s=0 age=6ms state=NORMAL mux=0 resets=0 i2c_err=0 mux_re=0","timestamp":12418}
+DIAG2:{"level":"DIAG","module":"BNO055Monitor","message":"IMU_HEARTBEAT s=1 age=6ms state=NORMAL mux=1 resets=0 i2c_err=0 mux_re=0","timestamp":12418}
+BATT2:{"idx":0,"V":42.25,"A":1.39,"charge":1.00,"state":"NORMAL","location":"36VLIPO"}
+BATT2:{"idx":1,"V":5.12,"A":3.02,"charge":0.00,"state":"NORMAL","location":"5VDCDC"}
+BATT2:{"idx":2,"V":12.26,"A":1.76,"charge":0.00,"state":"NORMAL","location":"12VDCDC"}
+BATT2:{"idx":3,"V":24.28,"A":0.53,"charge":0.00,"state":"NORMAL","location":"24VDCDC"}
+BATT2:{"idx":4,"V":3.40,"A":0.57,"charge":0.00,"state":"NORMAL","location":"3.3VDCDC"}

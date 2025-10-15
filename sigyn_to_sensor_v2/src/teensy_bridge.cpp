@@ -224,8 +224,9 @@ namespace sigyn_to_sensor_v2 {
         ConfigCommandCallback(msg);
       });
 
+    // Main drive motor control via cmd_vel
     cmd_vel_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
-      "/sigyn/cmd_vel", 10,
+      "/cmd_vel", 10,
       [this](const geometry_msgs::msg::Twist::SharedPtr msg) {
         CmdVelCallback(msg);
       });
@@ -934,6 +935,42 @@ namespace sigyn_to_sensor_v2 {
     }
   }
 
+  void TeensyBridge::CmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg) {
+    // Convert cmd_vel (linear.x m/s, angular.z rad/s) to wheel RPMs for RoboClaw
+    // Wheel diameter: 0.102224144529039 m (from roboclaw_monitor.cpp)
+    // Wheel base: 0.3906 m (from roboclaw_monitor.cpp)
+    
+    constexpr float WHEEL_DIAMETER_M = 0.102224144529039f;
+    constexpr float WHEEL_BASE_M = 0.3906f;
+    
+    // Differential drive kinematics:
+    // v_left = linear.x - (angular.z * wheel_base / 2)
+    // v_right = linear.x + (angular.z * wheel_base / 2)
+    
+    float linear_velocity = msg->linear.x;  // m/s
+    float angular_velocity = msg->angular.z; // rad/s
+    
+    float v_left = linear_velocity - (angular_velocity * WHEEL_BASE_M / 2.0f);   // m/s
+    float v_right = linear_velocity + (angular_velocity * WHEEL_BASE_M / 2.0f);  // m/s
+    
+    // Convert wheel velocities (m/s) to RPM
+    // RPM = (velocity_m/s / (pi * diameter)) * 60
+    float left_rpm = (v_left / (M_PI * WHEEL_DIAMETER_M)) * 60.0f;
+    float right_rpm = (v_right / (M_PI * WHEEL_DIAMETER_M)) * 60.0f;
+    
+    // Create MOTOR command for TeensyV2 board1
+    // Format: MOTOR:left_rpm:<value>,right_rpm:<value>
+    std::ostringstream oss;
+    oss << "MOTOR:left_rpm:" << left_rpm << ",right_rpm:" << right_rpm << "\n";
+    
+    std::lock_guard<std::mutex> lock(outgoing_queue_mutex_);
+    outgoing_message_queue_.push(oss.str());
+    
+    RCLCPP_DEBUG(this->get_logger(), 
+      "Queued MOTOR command: linear=%.3f angular=%.3f -> left_rpm=%.2f right_rpm=%.2f",
+      linear_velocity, angular_velocity, left_rpm, right_rpm);
+  }
+
   void TeensyBridge::StatusTimerCallback() {
     // Publish connection status
     static int call_count = 0;
@@ -990,20 +1027,6 @@ namespace sigyn_to_sensor_v2 {
         }
       }
     }
-  }
-
-  void TeensyBridge::CmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg) {
-    // Queue the twist message - all serial communication happens in the main loop
-    // RCLCPP_INFO(this->get_logger(), "Received cmd_vel: linear.x=%.3f, angular.z=%.3f", 
-    //             msg->linear.x, msg->angular.z);
-
-    std::ostringstream oss;
-    oss << "TWIST:linear_x:" << msg->linear.x << ",angular_z:" << msg->angular.z << "\n";
-
-    std::lock_guard<std::mutex> lock(outgoing_queue_mutex_);
-    outgoing_message_queue_.push(oss.str());
-
-    // RCLCPP_INFO(this->get_logger(), "Queued TWIST command: %s", oss.str().c_str());
   }
 
   void TeensyBridge::CmdVelGripperCallback(const geometry_msgs::msg::Twist::SharedPtr msg) {

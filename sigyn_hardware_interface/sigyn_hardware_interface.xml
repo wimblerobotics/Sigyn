@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<library path="sigyn_hardware_interface">
+  <class name="sigyn_hardware_interface/SigynSystem" type="sigyn_hardware_interface::SigynSystem" base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Hardware interface for Sigyn robot differential drive system.
+      Communicates with TeensyV2 embedded system via serial for motor control and encoder feedback.
+    </description>
+  </class>
+</library>

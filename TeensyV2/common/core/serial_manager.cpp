@@ -73,13 +73,19 @@ namespace sigyn_teensy {
       cmd_type = cmd_type.substring(0, colon_pos);
     }
 
-    if (cmd_type == "TWIST") {
-      // Store TWIST command for RoboClawMonitor to process
-      // Use a simple approach: send the command data as a special message type
+    if (cmd_type == "MOTOR") {
+      // Store MOTOR command for RoboClawMonitor to process
+      sendDiagnosticMessage("DEBUG", "SerialManager", ("MOTOR command received: " + String(args)).c_str());
+
+      // Set the motor command for modules to check
+      setLatestMotorCommand(String(args));
+
+    }
+    else if (cmd_type == "TWIST") {
+      // Store TWIST command for StepperMotor (elevator_board) to process
       sendDiagnosticMessage("DEBUG", "SerialManager", ("TWIST command received: " + String(args)).c_str());
 
-      // We'll create a mechanism for modules to check for commands
-      // For now, set a static variable that RoboClawMonitor can check
+      // Set the twist command for modules to check
       setLatestTwistCommand(String(args));
 
     }
@@ -229,6 +235,23 @@ namespace sigyn_teensy {
 
   void SerialManager::sendQueuedMessages() {
     // No-op: immediate send path (queue disabled)
+  }
+
+  void SerialManager::setLatestMotorCommand(const String& motor_data) {
+    latest_motor_command_ = motor_data;
+    has_new_motor_command_ = true;
+  }
+
+  String SerialManager::getLatestMotorCommand() {
+    return latest_motor_command_;
+  }
+
+  bool SerialManager::hasNewMotorCommand() {
+    if (has_new_motor_command_) {
+      has_new_motor_command_ = false;  // Mark as processed
+      return true;
+    }
+    return false;
   }
 
   void SerialManager::setLatestTwistCommand(const String& twist_data) {

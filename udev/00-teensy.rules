@@ -1,5 +1,6 @@
 # Rule for Teensy HalfKay Bootloader
 SUBSYSTEM=="usb", ATTRS{idVendor}=="16c0", ATTRS{idProduct}=="0478", MODE:="0666"
+KERNEL=="hidraw*", ATTRS{idVendor}=="16c0", ATTRS{idProduct}=="0478", MODE:="0666"
 
 # Rules for Teensy 4.1 devices
 # teensy_sensor
