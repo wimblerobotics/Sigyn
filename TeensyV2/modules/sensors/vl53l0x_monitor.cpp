@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2025 Wimblerobotics
+// https://github.com/wimblerobotics/Sigyn
+
 /**
  * @file vl53l0x_monitor.cpp
  * @brief VL53L0X Time-of-Flight sensor monitoring implementation for TeensyV2

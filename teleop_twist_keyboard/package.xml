@@ -7,7 +7,7 @@
 
   <maintainer email="foo@bar.com">foobar</maintainer>
 
-  <license>MIT</license>
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_python</buildtool_depend>
 

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2025 Wimblerobotics
+// https://github.com/wimblerobotics/Sigyn
+
 #include <getopt.h>
 #include <rcutils/logging_macros.h>
 #include <yaml-cpp/yaml.h>
@@ -126,11 +130,13 @@ void processConfiguration(int argc, char *argv[]) {
 }
 
 void teensyDiagnosticsCallback(const std_msgs::msg::String::SharedPtr msg) {
+  (void)msg;
   // RCUTILS_LOG_INFO("[teensyDiagnosticsCallback] called");
   // diagnostic_messages.push_back(msg->data);
 }
 
 void teensyStatsCallback(const std_msgs::msg::String::SharedPtr msg) {
+  (void)msg;
   // RCUTILS_LOG_INFO("[teensyStatsCallback] called");
   // stats_messages.push_back(msg->data);
 }

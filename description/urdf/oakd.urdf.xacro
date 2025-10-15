@@ -30,7 +30,7 @@ https://github.com/jetdillo/tenacity_rover/tree/0945115d723c82f1d72bb4542ab3540b
       <visual>
         <origin rpy="0 0 0" xyz="0 0 0" />
         <geometry>
-          <mesh filename="package://depthai_descriptions/urdf/models/OAK-D-PRO.stl" />
+          <mesh filename="package://description/meshes/OAK-D.dae" />
         </geometry>
         <material name="mat">
           <color rgba="0.8 0.8 0.8 0.8" />

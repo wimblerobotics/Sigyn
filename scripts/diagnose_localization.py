@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2025 Wimblerobotics
+# https://github.com/wimblerobotics/Sigyn
+
 """
 Diagnostic script to capture and analyze localization data.
 

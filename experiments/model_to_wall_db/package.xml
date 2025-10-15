@@ -4,8 +4,8 @@
   <name>model_to_wall_db</name>
   <version>0.0.0</version>
   <description>Extract wall parameters from xacro files and create SQLite database</description>
-  <maintainer email="user@example.com">User</maintainer>
-  <license>MIT</license>
+  <maintainer email="mike@wimblerobotics.com">Michael Wimble</maintainer>
+  <license>Apache-2.0</license>
 
   <depend>rclpy</depend>
   <depend>python3-lxml</depend>

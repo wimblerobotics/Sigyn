@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2025 Wimblerobotics
+// https://github.com/wimblerobotics/Sigyn
+
 /**
  * @file bno055_monitor.cpp
  * @brief Implementation of comprehensive dual BNO055 IMU monitoring system
