@@ -11,65 +11,166 @@ Worldwide, the number of elderly people (65 years and older) surpassed the numbe
 
 ## Organization
 The various directories contain:
-* Designs<br/>
-    Holds various design documents. E.g. Fusion 360, LightBurn.
-* Docker<br/>
+
+### Design and Infrastructure
+* **Designs**<br/>
+    Holds various design documents (Fusion 360, LightBurn, KiCad, EasyEDA).
+* **Docker**<br/>
     For creating docker images to run the code.
-* Documentation<br/>
-    Documentation artifacts, such as notes, ***wireviz*** documentation.
-* Media<br/>
-    Interesting pictures, movies.
-* base<br/>
-    ROS 2 package containing the main lunch files, configuration, maps and such.
-* description<br/>
-    ROS 2 package containing the URDF and Gazebo worlds.
-* experiments<br/>
-    Ongoing, vague experiements. Just a repository for trying out things that
-    might become real code eventually, or gather data to guide development.
-* gripper<br/>
-    Teensy 4.1 code that manages the gripper elevator and extender.
-* lidar<br/>
-    Forked from elsewhere, contains fixes and customizations.
-* msgs<br/>
-    Contains messages for internal usage, not external API.
-* micro_ros<br/>
-    For creating a custom micro_ros with bigger message sizes and more of each resource kind.
-* rviz<br/>
-    rviz2 configuration files.
-* scripts<br/>
-    Utility scripts.
-* sigyn_interfaces.<br/>
-    Contains message, action and service definitions for ROS 2.
-* twist_multiplexer<br/>
-    Forked from elsewhere, contains fixes and customizations.
-* udev<br/>
-    Various rules to be placed in ***/etc/udev/rules*** to deal with the hardware. Mostly creates symbolic links to various devices, such as the ***teensy 4.1*** and ***LIDAR*** devices.
+* **Documentation**<br/>
+    Documentation artifacts, notes, wireviz documentation, and technical guides.
+* **Media**<br/>
+    Pictures, movies, and other media assets.
+
+### Core ROS2 Packages
+* **base**<br/>
+    Main launch files, navigation configuration, maps, and system integration.
+* **description**<br/>
+    Robot URDF models and Gazebo simulation worlds.
+* **sigyn_interfaces**<br/>
+    Custom message, action, and service definitions for ROS2.
+
+### Navigation and Behavior
+* **sigyn_behavior_trees**<br/>
+    Behavior tree implementations for autonomous operation.
+* **sigyn_house_patroller**<br/>
+    House patrol logic and threat detection.
+* **sigyn_nav_goals**<br/>
+    Navigation goal management and waypoint definitions.
+* **perimeter_roamer** / **perimeter_roamer_v3**<br/>
+    Perimeter patrolling behaviors and algorithms.
+
+### Sensors and Hardware Interfaces
+* **ldlidar**<br/>
+    Forked LIDAR driver with fixes and customizations.
+* **oakd_detector**<br/>
+    OAK-D camera integration for object detection.
+* **sigyn_to_sensor_v2**<br/>
+    ROS2 bridge to Teensy microcontroller for sensor data.
+* **sigyn_to_elevator**<br/>
+    Elevator control interface.
+* **TeensyV2**<br/>
+    Teensy 4.1 firmware for sensor management and motor control.
+
+### Control and Input
+* **bluetooth_joystick**<br/>
+    Bluetooth game controller integration for manual control.
+* **teleop_twist_keyboard**<br/>
+    Keyboard teleoperation interface (forked with customizations).
+* **twist_multiplexer**<br/>
+    Command multiplexer for multiple control sources (forked with fixes).
+
+### Utilities and Tools
+* **scripts** (py_scripts package)<br/>
+    Utility scripts including battery overlay publisher, WiFi monitoring, and diagnostic tools.
+* **rviz**<br/>
+    RViz2 configuration files.
+* **udev**<br/>
+    udev rules for hardware device management and symbolic links.
+
+### Web and Monitoring
+* **sigyn_web_client**<br/>
+    Web-based monitoring and control interface.
+* **sigyn_websocket**<br/>
+    WebSocket server for real-time robot communication.
+
+### Experimental and Development
+* **experiments**<br/>
+    Ongoing experiments and proof-of-concept code.
+* **msgs**<br/>
+    Internal message definitions (deprecated - use sigyn_interfaces).
+
+## Building the Workspace
+
+This is a standard ROS2 package. Build it with colcon and source the setup file.
+
+### Install Dependencies
+
+Use rosdep to install all required dependencies:
+
+```bash
+cd ~/sigyn_ws
+rosdep install --from-paths src --ignore-src -r -y
+```
+
+Key dependencies include:
+- **Nav2**: Navigation stack (`ros-jazzy-nav2-bringup`)
+- **Robot Localization**: Sensor fusion (`ros-jazzy-robot-localization`)
+- **RViz Overlays**: Battery and status displays (`ros-jazzy-rviz-2d-overlay-plugins`)
+- **OAK-D Camera**: DepthAI ROS driver (`ros-jazzy-depthai-ros`)
+- **LIDAR**: LD LIDAR drivers (included in repository)
+
+### Build the Workspace
+
+```bash
+cd ~/sigyn_ws
+colcon build --symlink-install
+source install/setup.bash
+```
+
+The `--symlink-install` flag allows you to edit Python scripts and launch files without rebuilding.
 
 ## Running the Robot
-This is a standard ROS 2 package. Build it with colcon and source ***install/setup.bash***
 
-In one window, you need to run the MicroRos agent via
-``` bash
-ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/teensy_sensor
+### Prerequisites
+
+Make sure udev rules are installed for hardware device access:
+```bash
+sudo cp udev/*.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo udevadm trigger
 ```
-Note that this relies on udev rules to create a symbolic link to the teensy 4.1 device in the ***/dev*** directory (see [00-teensy.rules](udev/00-teensy.rules)).
 
-In another window, run the nav2 stack, which also launches the other needed components.
-``` bash
+### Launch the Robot
+
+**Option 1: Complete System (Recommended)**
+
+Run everything in one launch file:
+```bash
 ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=true
 ```
 
-To visualize the system, run ***rviz2***. There is a configuration file which shows things the way I like.
-``` bash
-rviz2 -d ~/sigyn_ws/src/Sigyn/rviz/config/config.rviz
-```
+This automatically launches:
+- Robot state publisher
+- Navigation stack (Nav2)
+- Sensor bridges (Teensy, LIDAR, cameras)
+- Robot localization (EKF)
+- Battery overlay display
+- RViz visualization
 
-I usually begin by using the ***rviz2*** interface to set the 2D Pose Estimate, then I use the teleop module to move the robot around a bit to make sure that localization is working. Then I set a goal and watch it work.
+**Option 2: Manual Launch**
 
-If you don't have your own way of running teleoperation, here's what I use:
-``` bash
+If you need more control, launch components separately:
+
+1. **Main System** (without RViz):
+   ```bash
+   ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=false
+   ```
+
+2. **RViz** (separate window):
+   ```bash
+   rviz2 -d ~/sigyn_ws/src/Sigyn/rviz/config/config.rviz
+   ```
+
+Note: The Teensy sensor bridge (`sigyn_to_sensor_v2`) launches automatically with the main system.
+
+### Using the Robot
+
+1. **Set Initial Pose**: Use RViz "2D Pose Estimate" tool to set the robot's starting position
+2. **Test Localization**: Use teleoperation to move the robot and verify localization is working
+3. **Set Goal**: Use RViz "Nav2 Goal" tool to send navigation goals
+
+**Teleoperation**:
+```bash
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
 ```
+
+### Monitoring
+
+The robot displays real-time information in RViz:
+- **Battery Status**: Top-left overlay shows voltage and percentage
+- **Sensor Data**: LIDAR scans, camera images, IMU orientation
+- **Navigation**: Costmaps, paths, and local/global plans
 
 ## Running the Robot in Simulation
 The robot can be run in simulation by running the following command:
@@ -78,6 +179,14 @@ ros2 launch base sigyn.launch.py use_sim_time:=true
 ```
 
 ## Recent Updates
+
+### Battery Overlay Visualization (October 2025)
+- **RViz Battery Display**: Real-time battery status overlay in RViz viewport
+- **Multi-Battery Support**: Filters specific battery (36VLIPO) from multi-battery status topic
+- **Color-Coded Display**: Green (>50%), Yellow (20-50%), Red (<20%) battery levels
+- **Standard ROS2 Plugin**: Uses `rviz_2d_overlay_plugins` for reliable rendering
+- **Automatic Launch**: Battery overlay launches automatically with `sigyn.launch.py`
+- **Implementation**: Battery publisher located at `scripts/py_scripts/battery_overlay_publisher.py`
 
 ### Localization and Sensor Fusion (October 2025)
 - **Multi-Height Lidar Strategy**: Upper lidar (178cm) for clean localization, lower lidar (30cm) for obstacle detection
