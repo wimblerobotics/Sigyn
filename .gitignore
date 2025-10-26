@@ -93,3 +93,8 @@ Docker/Sigyn/TROUBLESHOOTING.md
 browse*.db
 .vscode/browse.vc.db-shm
 .vscode/browse.vc.db-wal
+
+# Machine-specific VS Code settings
+.vscode/settings_linux_amd.json
+.vscode/settings_macbook.json
+.vscode/switch_settings.sh
