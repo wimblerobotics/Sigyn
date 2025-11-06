@@ -14,9 +14,13 @@
     <xacro:include filename="$(find description)/urdf/depthai_macro.urdf.xacro" />
   </xacro:unless>
 
-  <xacro:unless value="$(arg sim_mode)">
+  <!-- <xacro:unless value="$(arg sim_mode)"> -->
     <xacro:include filename="$(find description)/urdf/oakd.urdf.xacro" />
-  </xacro:unless>
+  <!-- </xacro:unless> -->
+
+  <!-- <xacro:if value="$(arg sim_mode)">
+    <xacro:include filename="$(find description)/urdf/oakd_sim.urdf.xacro" />
+  </xacro:if> -->
 
   <xacro:if value="$(arg use_ros2_control)">
     <xacro:include filename="ros2_control.xacro" />
@@ -42,24 +46,26 @@
   </xacro:ld06>
 
   <xacro:ld06 lidar_prefix="cup_lidar" topic_name="scan_cup">
-    <origin xyz="${0.155-0.34} 0 ${0.300+1.485}" rpy="0 0 0" />
+    <!-- <origin xyz="${0.15-0.34} 0 ${0.300+1.485}" rpy="0 0 0" /> -->
+    <origin xyz="-0.161 -0.015 ${0.300 + 1.485 - 0.032}" rpy="0 0 0" />
   </xacro:ld06>
 
   <xacro:include filename="$(find description)/urdf/gazebo.urdf.xacro" />
 
   <xacro:include filename="$(find description)/urdf/gripper_assembly.urdf.xacro" />
   <joint name="base_link_to_elevator_pole" type="fixed">
-    <origin xyz="-0.16 -0.015 ${0.3 + (elevator_pole_height/2)}" rpy="0 0 0" />
+    <origin xyz="-0.16 0 ${0.3 + (elevator_pole_height/2)}" rpy="0 0 0" />
     <parent link="base_link" />
     <child link="evelator_pole" />
   </joint>
 
   <!-- <xacro:oakd_link mount_point="elevator_top" /> -->
-  <xacro:unless value="$(arg sim_mode)">
-    <xacro:oakd_joint mount_point="elevator_top">
-      <origin xyz="-0.12 -0.02 1.47" rpy="0 ${(pi / 4)+13*(2.0*pi/360.0)} ${-0*(2.0*pi/360.0)}" />
-    </xacro:oakd_joint>
-  </xacro:unless>
+  <xacro:oakd_joint mount_point="elevator_top">
+    <!-- <origin xyz="-0.12 -0.02 1.47" rpy="0 ${(pi / 4)+13*(2.0*pi/360.0)} ${-0*(2.0*pi/360.0)}" /> -->
+    <!-- <origin xyz="-0.12 -0.02 1.7" rpy="0 ${pi / 4} -1.029" /> -->
+    <!-- <origin xyz="-0.09 0.015 1.65" rpy="${-pi / 2} ${(-pi / 2) + 1.029} 0" /> -->
+    <origin xyz="-0.09 0.0 1.65" rpy="${-pi / 2} ${(-pi / 2) + 1.029} 0" />
+  </xacro:oakd_joint>
 
   <gazebo>
     <plugin filename="gz-sim-joint-position-controller-system"

@@ -323,13 +323,14 @@ def generate_launch_description():
     )
     ld.add_action(ros_gz_bridge)
 
-    ros_gz_image_bridge = Node(
-        package="ros_gz_image",
-        executable="image_bridge",
-        condition=IfCondition(use_sim_time),
-        arguments=["/camera/image_raw"],
-    )
-    ld.add_action(ros_gz_image_bridge)
+    # Camera topics now handled by main ros_gz_bridge via gz_bridge.yaml
+    # ros_gz_image_bridge = Node(
+    #     package="ros_gz_image",
+    #     executable="image_bridge",
+    #     condition=IfCondition(use_sim_time),
+    #     arguments=["/camera/image_raw"],
+    # )
+    # ld.add_action(ros_gz_image_bridge)
 
     # Bring up the navigation stack.
     navigation_launch_path = PathJoinSubstitution(
@@ -459,7 +460,7 @@ def generate_launch_description():
             },
         ],
         remappings= [
-          ("/cloud_in", "/stereo/points"),
+          ("/cloud_in", "/oakd_top/stereo/depth"),
           ("/scan", "/stereo/points2")],
     )
     ld.add_action(pc2ls)
@@ -538,11 +539,12 @@ def generate_launch_description():
     )
     ld.add_action(sigyn_to_sensor)
 
-    # Battery overlay for RViz
+    # Battery overlay for RViz (only for real robot)
     battery_overlay = Node(
         package='py_scripts',
         executable='battery_overlay_publisher',
         name='battery_overlay_publisher',
+        condition=UnlessCondition(use_sim_time),  # Only run for real robot
         output='screen',
         parameters=[{
             'battery_topic': '/sigyn/teensy_bridge/battery/status',

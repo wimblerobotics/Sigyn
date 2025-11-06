@@ -1,10 +1,10 @@
 amcl: # See: https://assets.researchsquare.com/files/rs-225880/v1_covered.pdf?c=1631856303
   ros__parameters:
     use_sim_time: True
-    alpha1: 0.20       # Expected process noise in odometry’s rotation estimate from rotation.
-    alpha2: 0.20       # Expected process noise in odometry’s rotation estimate from translation.
-    alpha3: 0.02       # Expected process noise in odometry’s translation estimate from translation.
-    alpha4: 0.2        # Expected process noise in odometry’s translation estimate from rotation.
+    alpha1: 0.30 #0.2  # Expected process noise in odometry’s rotation estimate from rotation.
+    alpha2: 0.30 #0.2  # Expected process noise in odometry’s rotation estimate from translation.
+    alpha3: 0.20 #0.2  # Expected process noise in odometry’s translation estimate from translation.
+    alpha4: 0.30 #0.2  # Expected process noise in odometry’s translation estimate from rotation.
     alpha5: 0.20       # For Omni models only: translation noise.
     base_frame_id: "base_link"
     beam_skip_distance: 0.5 # Ignore beams that most particles disagree with in Likelihood field model. Maximum distance to consider skipping for (m).
@@ -17,32 +17,32 @@ amcl: # See: https://assets.researchsquare.com/files/rs-225880/v1_covered.pdf?c=
     laser_max_range: 10.0   # Maximum scan range to be considered, -1.0 will cause the laser’s reported maximum range to be used.
     laser_min_range: -1.0   # Minimum scan range to be considered, -1.0 will cause the laser’s reported minimum range to be used.
     laser_model_type: "likelihood_field" # Which model to use, either beam, likelihood_field, or likelihood_field_prob.
-    max_beams: 250          # How many evenly-spaced beams in each scan to be used when updating the filter.
-    max_particles: 5000     # Maximum allowed number of particles.
-    min_particles: 2000     # Minimum allowed number of particles.
+    max_beams: 450          # How many evenly-spaced beams in each scan to be used when updating the filter.
+    max_particles: 3000     # Maximum allowed number of particles.
+    min_particles: 1500     # Minimum allowed number of particles.
     odom_frame_id: "odom"   # Which frame to use for odometry.
-    pf_err: 0.03            # Particle Filter population error.  
+    pf_err: 0.05            # Particle Filter population error.  
     pf_z: 0.99              # Particle filter population density.
-    recovery_alpha_fast: 0.01   # Exponential decay rate for the fast average weight filter, used in deciding when to recover by adding random poses.
-    recovery_alpha_slow: 0.0001  # Exponential decay rate for the slow average weight filter, used in deciding when to recover by adding random poses. A good value might be 0.001.
+    recovery_alpha_fast: 0.01 ###0.01  # Exponential decay rate for the fast average weight filter, used in deciding when to recover by adding random poses.
+    recovery_alpha_slow: 0.0001 ###0.001 # Exponential decay rate for the slow average weight filter, used in deciding when to recover by adding random poses. A good value might be 0.001.
     resample_interval: 1    # Number of filter updates required before resampling.
     robot_model_type: "nav2_amcl::DifferentialMotionModel" # The fully-qualified type of the plugin class.
     save_pose_rate: 0.5     # Maximum rate (Hz) at which to store the last estimated pose and covariance to the parameter server.
     sigma_hit: 0.2          # Standard deviation for Gaussian model used in z_hit part of the model.
     tf_broadcast: true      # Set this to false to prevent amcl from publishing the transform between the global frame and the odometry frame.
-    transform_tolerance: 0.2 # Time with which to post-date the transform that is published, to indicate that this transform is valid into the future.
+    transform_tolerance: 2.0 # Time with which to post-date the transform that is published, to indicate that this transform is valid into the future.
     # One degree = 0.017453278 radians
-    update_min_a: 0.005      # Rotational movement required before performing a filter update.
-    update_min_d: 0.01     # Translational movement required before performing a filter update.
-    z_hit: 0.9 ###0.95             # Mixture weight for z_hit part of model, sum of all used z weight must be 1. 
+    update_min_a: 0.05 ### 0.01745   # Rotational movement required before performing a filter update.
+    update_min_d: 0.05 ### 0.05      # Translational movement required before performing a filter update.
+    z_hit: 0.8 ###0.95             # Mixture weight for z_hit part of model, sum of all used z weight must be 1. 
     z_max: 0.05 ###0.001            # Mixture weight for z_max part of model, sum of all used z weight must be 1. Beam uses all 4, likelihood model uses z_hit and z_rand.
-    z_rand: 0.1 ###0.05            # Mixture weight for z_rand part of model, sum of all used z weight must be 1.
+    z_rand: 0.2 ###0.05            # Mixture weight for z_rand part of model, sum of all used z weight must be 1.
     z_short: 0.05 ###0.001          # Mixture weight for z_short part of model, sum of all used z weight must be 1.
-    scan_topic: scan_cup  # Use upper lidar - sees clean walls, less clutter than lower lidar
+    scan_topic: scan
     set_initial_pose: true # Causes AMCL to set initial pose from the initial_pose* parameters instead of waiting for the initial_pose message.
     initial_pose:
       x: 8.81
-      y: 2.0
+      y: 2.59
       yaw: 0.0
 
 bt_navigator:
@@ -202,50 +202,26 @@ local_costmap:
       publish_frequency: 5.0 # Frequency to publish costmap to topic.
       resolution: 0.0508 # Resolution of 1 pixel of the costmap, in meters.
       robot_base_frame: base_link
-      robot_radius: 0.28 # Radius of robot base (m). # was 0.2286, enlarge footprint buffer
+      robot_radius: 0.3 # Radius of robot base (m). # was 0.2286, enlarge footprint buffer
       rolling_window: True # Whether costmap should roll with robot base frame.
       # track_unknown_space: True # If false, treats unknown space as free space, else as unknown space.
-      transform_tolerance: 0.2 # TF transform tolerance.
+      transform_tolerance: 0.5 # TF transform tolerance.
       # trinary_costmap: True # Whether to use trinary or continuous costmap.
       # unknown_cost_value: 255 # Cost of unknown space if tracking it.
       update_frequency: 15.0 # Costmap update frequency.
       width: 3 # Width of costmap (m).
 
       plugins: [
-        "voxel_layer",        # Low lidar clears/marks first
-        "oakd_top_layer",     # OAK-D (currently disabled)
-        "range_sensor_layer", # VL53L0X marks after lidar so it isn't cleared
+        "static_layer",
+        # "sonar_layer",
+        "lidar_layer",
+        "oakd_top_layer",
+        # "voxel_layer",
         "inflation_layer"]
 
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: True
-
-      voxel_layer:
-        enabled: True
-        plugin: "nav2_costmap_2d::VoxelLayer"
-        footprint_clearing_enabled: True
-        combination_method: 1  # Max
-        publish_voxel_map: False
-        origin_z: 0.0
-        z_resolution: 0.2  # 20cm voxel height resolution
-        z_voxels: 10       # 10 voxels = 2m total height
-        max_obstacle_height: 2.0
-        mark_threshold: 0
-        observation_sources: scan_low
-        # Low lidar at 30cm height - detects obstacles at robot navigation height
-        # Upper lidar NOT used for navigation - it sees doorframes as obstacles!
-        scan_low:
-          topic: /scan
-          data_type: "LaserScan"
-          clearing: True
-          marking: True
-          min_obstacle_height: 0.0
-          max_obstacle_height: 2.0   # Mark all obstacles up to ceiling height
-          obstacle_max_range: 2.5
-          obstacle_min_range: 0.0
-          raytrace_max_range: 3.0
-          raytrace_min_range: 0.0
 
       inflation_layer:
         enabled: True
@@ -253,8 +229,29 @@ local_costmap:
         inflation_radius: 0.35   # larger buffer radius around obstacles
         plugin: "nav2_costmap_2d::InflationLayer"
 
+      lidar_layer:
+        enabled: True
+        combination_method: 1 # 0 => Overwrite, 1 => >Max, 2 => MaxWithoutUnknownOverwrite
+        expected_update_rate: 10.0 # Expected rate to get new data from sensor.
+        footprint_clearing_enabled: True # Clear any occupied cells under robot footprint.
+        map_subscribe_transient_local: True
+        observation_sources: front_lidar
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        front_lidar:
+          clearing: True # Whether source should raytrace clear in costmap.
+          # expected_update_rate: 0.0 # Expected rate to get new data from sensor.
+          data_type: "LaserScan" # Data type of input, LaserScan or PointCloud2.
+          inf_is_valid: True # Are infinite returns from laser scanners valid measurements to raycast.
+          marking: True # Whether source should mark in costmap.
+          max_obstacle_height: 2.0 # Maximum height to add return to occupancy grid.
+          min_obstacle_height: 0.0 # Minimum height to add return to occupancy grid.
+          obstacle_max_range: 2.4 # Maximum range to mark obstacles in costmap.
+          obstacle_min_range: 0.0 # Minimum range to mark obstacles in costmap.
+          raytrace_max_range: 3.0 # Maximum range to raytrace clear obstacles from costmap.
+          raytrace_min_range: 0.0 # Minimum range to raytrace clear obstacles from costmap.
+          topic: /scan # Topic of data.
       oakd_top_layer:
-        enabled: False  # Temporarily disable to diagnose full-red costmap
+        enabled: True
         combination_method: 1 # 0 => Overwrite, 1 => >Max, 2 => MaxWithoutUnknownOverwrite
         footprint_clearing_enabled: True # Clear any occupied cells under robot footprint.
         map_subscribe_transient_local: True
@@ -263,8 +260,8 @@ local_costmap:
         oakd_top:
           clearing: True # Whether source should raytrace clear in costmap.
           # expected_update_rate: 0.0 # Expected rate to get new data from sensor.
-          data_type: "PointCloud2" # Correct data type for /stereo/points2
-          inf_is_valid: True # Are infinite returns from laser scanners valid measurements to raycast.
+          data_type: "PointCloud2" # Data type of input, LaserScan or PointCloud2.
+          inf_is_valid: False # Point clouds don't have infinite returns
           marking: True # Whether source should mark in costmap.
           max_obstacle_height: 2.0 # Maximum height to add return to occupancy grid.
           min_obstacle_height: 0.05 # Minimum height to add return to occupancy grid.
@@ -272,33 +269,7 @@ local_costmap:
           obstacle_min_range: 0.0 # Minimum range to mark obstacles in costmap.
           raytrace_max_range: 3.0 # Maximum range to raytrace clear obstacles from costmap.
           raytrace_min_range: 0.0 # Minimum range to raytrace clear obstacles from costmap.
-          topic: /stereo/points2 # Topic of data.
-
-      range_sensor_layer:
-        enabled: True
-        plugin: "nav2_costmap_2d::RangeSensorLayer"
-        combination_method: 1   # Max combine so marked cells persist
-        topics: [
-          "/sigyn/teensy_bridge/range/vl53l0x_0",
-          "/sigyn/teensy_bridge/range/vl53l0x_1", 
-          "/sigyn/teensy_bridge/range/vl53l0x_2",
-          "/sigyn/teensy_bridge/range/vl53l0x_3",
-          "/sigyn/teensy_bridge/range/vl53l0x_4",
-          "/sigyn/teensy_bridge/range/vl53l0x_5",
-          "/sigyn/teensy_bridge/range/vl53l0x_6",
-          "/sigyn/teensy_bridge/range/vl53l0x_7"
-        ]
-        phi: 0.087            # Very narrow ~5° cone to avoid broad wedges
-        inflate_cone: 0.0     # No inflation; mark only where cone intersects
-        no_readings_timeout: 2.0   # Keep marks around longer so controller can react
-        # Thresholds are relative to layer's max_range; mark if range < mark_threshold * max_range
-        # With max_range=0.12, mark_threshold=0.95 => mark only when range < ~0.114 m
-        mark_threshold: 0.95
-        # Avoid aggressive auto-clearing so short occlusions/heading changes don't erase obstacles
-        clear_threshold: 0.98
-        clear_on_max_reading: false
-        min_range: 0.03
-        max_range: 0.12
+          topic: /oakd_top/stereo/points # Topic of data.
 
 
 global_costmap:

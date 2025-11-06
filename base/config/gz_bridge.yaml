@@ -18,26 +18,58 @@
   gz_type_name: "gz.msgs.LaserScan"
   direction: GZ_TO_ROS
 
-# # gz topic published by Sensors plugin
-# - ros_topic_name: "imu"
-#   gz_topic_name: "imu"
-#   ros_type_name: "sensor_msgs/msg/Imu"
-#   gz_type_name: "gz.msgs.IMU"
+# OAK-D RGB Camera (OLD - removing in favor of namespaced topics)
+# - ros_topic_name: "camera/image_raw"
+#   gz_topic_name: "camera/image_raw"
+#   ros_type_name: "sensor_msgs/msg/Image"
+#   gz_type_name: "gz.msgs.Image"
 #   direction: GZ_TO_ROS
 
-# # gz topic published by Sensors plugin (Camera)
+# OAK-D Camera Info (OLD - removing in favor of namespaced topics)
 # - ros_topic_name: "camera/camera_info"
 #   gz_topic_name: "camera/camera_info"
 #   ros_type_name: "sensor_msgs/msg/CameraInfo"
 #   gz_type_name: "gz.msgs.CameraInfo"
 #   direction: GZ_TO_ROS
 
-# # gz topic published by Sensors plugin (Camera)
-# - ros_topic_name: "camera/camera_raw"
-#   gz_topic_name: "camera/camera_raw"
-#   ros_type_name: "sensor_msgs/msg/Image"
-#   gz_type_name: "gz.msgs.ImageStamped"
-#   direction: GZ_TO_ROS
+# (Removed generic stereo/depth mapping; use namespaced oakd_top topics instead)
+
+# OAK-D Camera RGB Topic (standard convention: base/image_raw)
+- ros_topic_name: "oakd_top/color/image_raw"
+  gz_topic_name: "oakd_top/color/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+# OAK-D Camera Info Topic (auto-published by camera sensor)
+- ros_topic_name: "oakd_top/color/camera_info"
+  gz_topic_name: "oakd_top/color/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
+# OAK-D RGBD Depth Image (published by rgbd_camera as base/depth_image)
+- ros_topic_name: "oakd_top/stereo/depth_image"
+  gz_topic_name: "oakd_top/stereo/depth_image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+# OAK-D Stereo Camera Info (published by rgbd_camera)
+- ros_topic_name: "oakd_top/stereo/camera_info"
+  gz_topic_name: "oakd_top/stereo/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
+# OAK-D Point Cloud (published by rgbd_camera as base/points)
+- ros_topic_name: "oakd_top/stereo/points"
+  gz_topic_name: "oakd_top/stereo/points"
+  ros_type_name: "sensor_msgs/msg/PointCloud2"
+  gz_type_name: "gz.msgs.PointCloudPacked"
+  direction: GZ_TO_ROS
+
+# (Removed duplicate /stereo/points mapping)
 
 # gz topic published by DiffDrive plugin
 - ros_topic_name: "odom"

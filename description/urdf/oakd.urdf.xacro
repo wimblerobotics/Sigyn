@@ -6,6 +6,8 @@ https://github.com/jetdillo/tenacity_rover/tree/0945115d723c82f1d72bb4542ab3540b
 
 <!--  xacro macros for oakd mount -->
 <robot name="oakd" xmlns:xacro="http://ros.org/wiki/xacro">
+  <!-- Resolve package share to absolute path so Gazebo can load meshes reliably -->
+  <xacro:property name="description_share" value="$(find description)"/>
   
 
   <xacro:macro name="oakd_joint" params="mount_point *joint_pose">
@@ -30,12 +32,24 @@ https://github.com/jetdillo/tenacity_rover/tree/0945115d723c82f1d72bb4542ab3540b
       <visual>
         <origin rpy="0 0 0" xyz="0 0 0" />
         <geometry>
-          <mesh filename="package://description/meshes/OAK-D.dae" />
+          <!-- Use absolute file URI to avoid model:// resolution issues in Gazebo -->
+          <mesh filename="file://${description_share}/meshes/OAK-D.dae" scale="0.001 0.001 0.001" />
         </geometry>
         <material name="mat">
           <color rgba="0.8 0.8 0.8 0.8" />
         </material>
       </visual>
+      <collision>
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <geometry>
+          <box size="0.098 0.030 0.025" />
+        </geometry>
+      </collision>
+      <inertial>
+        <mass value="0.065" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001" />
+      </inertial>
     </link>
     <joint name="oak_model_origin_joint" type="fixed">
       <parent link="oak" />
@@ -54,35 +68,141 @@ https://github.com/jetdillo/tenacity_rover/tree/0945115d723c82f1d72bb4542ab3540b
       <child link="oak_rgb_camera_frame" />
       <origin rpy="0 0 0" xyz="0 0 0" />
     </joint>
-    <link name="oak_rgb_camera_optical_frame" />
+  <!-- link defined with inertial below -->
     <joint name="oak_rgb_camera_optical_joint" type="fixed">
       <origin rpy="-1.5707963267948966 0.0 -1.5707963267948966" xyz="0 0 0" />
       <parent link="oak_rgb_camera_frame" />
       <child link="oak_rgb_camera_optical_frame" />
     </joint> <!-- Left Camera -->
+    <!-- Minimal inertial to keep optical frame modeled in SDF -->
+    <link name="oak_rgb_camera_optical_frame">
+      <inertial>
+        <mass value="1e-6" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <inertia ixx="1e-9" ixy="0" ixz="0" iyy="1e-9" iyz="0" izz="1e-9" />
+      </inertial>
+    </link>
+    <!-- Preserve optical joint to avoid link lumping in Gazebo -->
+    <gazebo reference="oak_rgb_camera_optical_joint">
+      <preserveFixedJoint>true</preserveFixedJoint>
+    </gazebo>
     <link name="oak_left_camera_frame" />
     <joint name="oak_left_camera_joint" type="fixed">
       <parent link="oak" />
       <child link="oak_left_camera_frame" />
       <origin rpy="0 0 0" xyz="0 0.0375 0" />
     </joint>
-    <link name="oak_left_camera_optical_frame" />
+  <!-- link defined with inertial below -->
     <joint name="oak_left_camera_optical_joint" type="fixed">
       <origin rpy="-1.5707963267948966 0.0 -1.5707963267948966" xyz="0 0 0" />
       <parent link="oak_left_camera_frame" />
       <child link="oak_left_camera_optical_frame" />
     </joint> <!-- right Camera -->
+    <!-- Minimal inertial to keep optical frame modeled in SDF -->
+    <link name="oak_left_camera_optical_frame">
+      <inertial>
+        <mass value="1e-6" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <inertia ixx="1e-9" ixy="0" ixz="0" iyy="1e-9" iyz="0" izz="1e-9" />
+      </inertial>
+    </link>
+    <!-- Preserve optical joint to avoid link lumping in Gazebo -->
+    <gazebo reference="oak_left_camera_optical_joint">
+      <preserveFixedJoint>true</preserveFixedJoint>
+    </gazebo>
     <link name="oak_right_camera_frame" />
     <joint name="oak_right_camera_joint" type="fixed">
       <parent link="oak" />
       <child link="oak_right_camera_frame" />
       <origin rpy="0 0 0" xyz="0 -0.0375 0" />
     </joint>
-    <link name="oak_right_camera_optical_frame" />
+    <link name="oak_right_camera_optical_frame">
+      <!-- Optional inertial to future-proof if attaching sensors later -->
+      <inertial>
+        <mass value="1e-6" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <inertia ixx="1e-9" ixy="0" ixz="0" iyy="1e-9" iyz="0" izz="1e-9" />
+      </inertial>
+    </link>
     <joint name="oak_right_camera_optical_joint" type="fixed">
       <origin rpy="-1.5707963267948966 0.0 -1.5707963267948966" xyz="0 0 0" />
       <parent link="oak_right_camera_frame" />
       <child link="oak_right_camera_optical_frame" />
     </joint>
+
+        <!-- Gazebo-specific elements -->
+    <gazebo reference="oak_model_origin">
+      <material>Gazebo/DarkGrey</material>
+    </gazebo>
+
+    <!-- Attach sensors directly to optical frames with identity pose -->
+    <gazebo reference="oak_rgb_camera_optical_frame">
+      <sensor name="rgb_camera" type="camera">
+        <!-- Nudge sensor a bit forward along optical Z so it sees past the mount -->
+        <pose>0 0 0.05 0 0 0</pose>
+        <camera>
+          <horizontal_fov>1.089</horizontal_fov>
+          <image>
+            <width>640</width>
+            <height>480</height>
+            <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.1</near>
+            <far>100.0</far>
+          </clip>
+          <noise>
+            <type>gaussian</type>
+            <mean>0</mean>
+            <stddev>0.007</stddev>
+          </noise>
+        </camera>
+        <always_on>1</always_on>
+        <update_rate>30</update_rate>
+        <visualize>true</visualize>
+        <!-- Standard camera topic convention: base/image_raw and base/camera_info -->
+        <topic>oakd_top/color/image_raw</topic>
+        <!-- Ensure ROS frame_id is correct on the bridge -->
+        <gz_frame_id>oak_rgb_camera_optical_frame</gz_frame_id>
+      </sensor>
+    </gazebo>
+
+    <gazebo reference="oak_left_camera_optical_frame">
+      <!-- Depth + Point Cloud using single rgbd_camera sensor -->
+      <!-- rgbd_camera publishes: base/image, base/depth_image, base/points, base/camera_info -->
+      <sensor name="stereo_camera" type="rgbd_camera">
+        <!-- Nudge sensor forward to avoid self-occlusion by the mount -->
+        <pose>0 0 0.05 0 0 0</pose>
+        <camera>
+          <horizontal_fov>1.089</horizontal_fov>
+          <image>
+            <width>640</width>
+            <height>480</height>
+            <format>R8G8B8</format>
+          </image>
+          <depth_camera>
+            <clip>
+              <near>0.3</near>
+              <far>10.0</far>
+            </clip>
+          </depth_camera>
+          <clip>
+            <near>0.3</near>
+            <far>10.0</far>
+          </clip>
+          <noise>
+            <type>gaussian</type>
+            <mean>0</mean>
+            <stddev>0.1</stddev>
+          </noise>
+        </camera>
+        <always_on>1</always_on>
+        <update_rate>30</update_rate>
+        <visualize>false</visualize>
+        <!-- Base topic; Gazebo will append /image, /depth_image, /points, /camera_info -->
+        <topic>oakd_top/stereo</topic>
+        <gz_frame_id>oak_left_camera_optical_frame</gz_frame_id>
+      </sensor>
+    </gazebo>
   </xacro:macro>
 </robot>

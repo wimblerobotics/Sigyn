@@ -1,0 +1,157 @@
+<?xml version="1.0"?>
+<!-- Gazebo simulation-compatible OAK-D camera macro -->
+<robot name="oakd_sim" xmlns:xacro="http://ros.org/wiki/xacro">
+  
+  <xacro:macro name="oakd_sim_joint" params="mount_point *joint_pose">
+    <joint name="oakd_joint_${mount_point}" type="fixed">
+      <parent link="base_link" />
+      <child link="oak-d-base-frame" />
+      <xacro:insert_block name="joint_pose" />
+    </joint>
+
+        <link name="oak-d-base-frame">
+      <visual>
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <geometry>
+          <box size="0.098 0.030 0.025" />
+        </geometry>
+        <material name="oakd_material">
+          <color rgba="0.3 0.3 0.8 1.0" />
+        </material>
+      </visual>
+
+    <!-- RGB Camera Frame -->
+    <link name="oak_rgb_camera_frame" />
+    <joint name="oak_rgb_camera_joint" type="fixed">
+      <parent link="oak-d-base-frame" />
+      <child link="oak_rgb_camera_frame" />
+      <origin rpy="0 0 0" xyz="0 0 0" />
+    </joint>
+
+    <!-- RGB Camera Optical Frame -->
+    <link name="oak_rgb_camera_optical_frame" />
+    <joint name="oak_rgb_camera_optical_joint" type="fixed">
+      <origin rpy="-1.5707963267948966 0.0 -1.5707963267948966" xyz="0 0 0" />
+      <parent link="oak_rgb_camera_frame" />
+      <child link="oak_rgb_camera_optical_frame" />
+    </joint>
+
+    <!-- Left Camera Frame -->
+    <link name="oak_left_camera_frame" />
+    <joint name="oak_left_camera_joint" type="fixed">
+      <parent link="oak-d-base-frame" />
+      <child link="oak_left_camera_frame" />
+      <origin rpy="0 0 0" xyz="0 0.0375 0" />
+    </joint>
+
+    <!-- Left Camera Optical Frame -->
+    <link name="oak_left_camera_optical_frame" />
+    <joint name="oak_left_camera_optical_joint" type="fixed">
+      <origin rpy="-1.5707963267948966 0.0 -1.5707963267948966" xyz="0 0 0" />
+      <parent link="oak_left_camera_frame" />
+      <child link="oak_left_camera_optical_frame" />
+    </joint>
+
+    <!-- Right Camera Frame -->
+    <link name="oak_right_camera_frame" />
+    <joint name="oak_right_camera_joint" type="fixed">
+      <parent link="oak-d-base-frame" />
+      <child link="oak_right_camera_frame" />
+      <origin rpy="0 0 0" xyz="0 -0.0375 0" />
+    </joint>
+
+    <!-- Right Camera Optical Frame -->
+    <link name="oak_right_camera_optical_frame" />
+    <joint name="oak_right_camera_optical_joint" type="fixed">
+      <origin rpy="-1.5707963267948966 0.0 -1.5707963267948966" xyz="0 0 0" />
+      <parent link="oak_right_camera_frame" />
+      <child link="oak_right_camera_optical_frame" />
+    </joint>
+
+    <!-- Gazebo Simulation Components -->
+    <gazebo reference="oak-d-base-frame">
+      <material>Gazebo/DarkGrey</material>
+      
+      <!-- RGB Camera Sensor -->
+      <sensor name="rgb_camera" type="camera">
+        <camera>
+          <horizontal_fov>1.089</horizontal_fov>
+          <image>
+            <width>640</width>
+            <height>480</height>
+            <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.1</near>
+            <far>100.0</far>
+          </clip>
+          <noise>
+            <type>gaussian</type>
+            <mean>0</mean>
+            <stddev>0.007</stddev>
+          </noise>
+        </camera>
+        <always_on>1</always_on>
+        <update_rate>30</update_rate>
+        <visualize>true</visualize>
+        <topic>oakd_top/color/image_raw</topic>
+        <gz_frame_id>oak_rgb_camera_optical_frame</gz_frame_id>
+      </sensor>
+
+      <!-- Depth Camera Sensor -->
+      <sensor name="depth_camera" type="depth_camera">
+        <camera>
+          <horizontal_fov>1.089</horizontal_fov>
+          <image>
+            <width>640</width>
+            <height>480</height>
+            <format>R_FLOAT32</format>
+          </image>
+          <clip>
+            <near>0.3</near>
+            <far>10.0</far>
+          </clip>
+          <noise>
+            <type>gaussian</type>
+            <mean>0</mean>
+            <stddev>0.1</stddev>
+          </noise>
+        </camera>
+        <always_on>1</always_on>
+        <update_rate>30</update_rate>
+        <visualize>false</visualize>
+        <topic>oakd_top/stereo/depth</topic>
+        <gz_frame_id>oak_left_camera_optical_frame</gz_frame_id>
+      </sensor>
+
+      <!-- Point Cloud Sensor (Stereo) -->
+      <sensor name="stereo_camera" type="rgbd_camera">
+        <camera>
+          <horizontal_fov>1.089</horizontal_fov>
+          <image>
+            <width>640</width>
+            <height>480</height>
+            <format>R8G8B8</format>
+          </image>
+          <depth_camera>
+            <output>points</output>
+          </depth_camera>
+          <clip>
+            <near>0.3</near>
+            <far>10.0</far>
+          </clip>
+          <noise>
+            <type>gaussian</type>
+            <mean>0</mean>
+            <stddev>0.1</stddev>
+          </noise>
+        </camera>
+        <always_on>1</always_on>
+        <update_rate>30</update_rate>
+        <visualize>false</visualize>
+        <topic>stereo/points</topic>
+        <gz_frame_id>oak_left_camera_optical_frame</gz_frame_id>
+      </sensor>
+    </gazebo>
+  </xacro:macro>
+</robot>
