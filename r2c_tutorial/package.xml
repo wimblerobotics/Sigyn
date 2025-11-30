@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>r2c_tutorial</name>
+  <version>1.0.0</version>
+  <description>
+    ROS2 Control Tutorial Package - A comprehensive step-by-step tutorial for learning
+    ros2_control from basics to advanced topics, preparing for Sigyn robot integration.
+  </description>
+  <maintainer email="your_email@example.com">Your Name</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Core dependencies -->
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+
+  <!-- ros2_control dependencies -->
+  <depend>ros2_control</depend>
+  <depend>ros2_controllers</depend>
+  <depend>controller_manager</depend>
+  <depend>joint_state_broadcaster</depend>
+  <depend>diff_drive_controller</depend>
+  <depend>joint_trajectory_controller</depend>
+  <depend>hardware_interface</depend>
+
+  <!-- Simulation dependencies -->
+  <depend>gz_ros2_control</depend>
+  <depend>gazebo_ros</depend>
+
+  <!-- Robot description -->
+  <depend>robot_state_publisher</depend>
+  <depend>xacro</depend>
+  <depend>urdf</depend>
+
+  <!-- Visualization -->
+  <depend>rviz2</depend>
+  <depend>joint_state_publisher_gui</depend>
+
+  <!-- Teleoperation -->
+  <depend>teleop_twist_keyboard</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

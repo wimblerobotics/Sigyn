@@ -1,0 +1,118 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Gazebo-specific configurations for materials, physics, and sensors -->
+
+  <!-- Gazebo material definitions -->
+  <gazebo reference="chassis">
+    <material>Gazebo/Blue</material>
+  </gazebo>
+
+  <gazebo reference="left_wheel">
+    <material>Gazebo/Black</material>
+    <mu1>1.0</mu1>  <!-- Friction coefficient -->
+    <mu2>1.0</mu2>
+    <kp>1000000.0</kp>  <!-- Contact stiffness -->
+    <kd>100.0</kd>      <!-- Contact damping -->
+    <minDepth>0.001</minDepth>
+    <maxVel>1.0</maxVel>
+  </gazebo>
+
+  <gazebo reference="right_wheel">
+    <material>Gazebo/Black</material>
+    <mu1>1.0</mu1>
+    <mu2>1.0</mu2>
+    <kp>1000000.0</kp>
+    <kd>100.0</kd>
+    <minDepth>0.001</minDepth>
+    <maxVel>1.0</maxVel>
+  </gazebo>
+
+  <gazebo reference="caster_wheel">
+    <material>Gazebo/Grey</material>
+    <mu1>0.01</mu1>  <!-- Low friction for free rolling -->
+    <mu2>0.01</mu2>
+    <kp>1000000.0</kp>
+    <kd>100.0</kd>
+    <minDepth>0.001</minDepth>
+  </gazebo>
+
+  <gazebo reference="vertical_pole">
+    <material>Gazebo/White</material>
+  </gazebo>
+
+  <gazebo reference="arm">
+    <material>Gazebo/White</material>
+  </gazebo>
+
+  <gazebo reference="temperature_sensor">
+    <material>Gazebo/Red</material>
+  </gazebo>
+
+  <!-- Custom temperature sensor plugin for Gazebo -->
+  <!-- This allows us to simulate heating/cooling of the sensor -->
+  <gazebo reference="temperature_sensor">
+    <sensor name="temperature_sensor" type="thermal">
+      <always_on>true</always_on>
+      <update_rate>10.0</update_rate>
+      <topic>/temperature_sensor/raw</topic>
+      <thermal>
+        <temperature>298.15</temperature>  <!-- 25°C in Kelvin -->
+        <resolution>0.1</resolution>
+      </thermal>
+    </sensor>
+  </gazebo>
+
+  <!-- Alternative: Use IMU sensor as temperature proxy (more widely supported) -->
+  <!-- This is a workaround since not all Gazebo versions support thermal sensors -->
+  <gazebo reference="temperature_sensor">
+    <sensor name="temperature_imu_proxy" type="imu">
+      <always_on>true</always_on>
+      <update_rate>10.0</update_rate>
+      <topic>/temperature_sensor/imu_proxy</topic>
+      <imu>
+        <angular_velocity>
+          <x>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>0.0</stddev>
+            </noise>
+          </x>
+          <y>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>0.0</stddev>
+            </noise>
+          </y>
+          <z>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>0.0</stddev>
+            </noise>
+          </z>
+        </angular_velocity>
+        <linear_acceleration>
+          <x>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>0.0</stddev>
+            </noise>
+          </x>
+          <y>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>0.0</stddev>
+            </noise>
+          </y>
+          <z>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>0.0</stddev>
+            </noise>
+          </z>
+        </linear_acceleration>
+      </imu>
+    </sensor>
+  </gazebo>
+
+</robot>

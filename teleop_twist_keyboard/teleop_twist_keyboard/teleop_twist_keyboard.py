@@ -169,6 +169,9 @@ class PublishThread(threading.Thread):
             has_movement = (self.x != 0 or self.y != 0 or self.z != 0 or self.th != 0)
             if has_movement or (self.timeout is not None and has_movement):
                 self.publisher.publish(twist_msg)
+            elif not self.stop_published:
+                self.publisher.publish(twist_msg)
+                self.stop_published = True
 
         # Publish stop message when thread exits.
         twist.linear.x = 0.0

@@ -1,0 +1,110 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- This file contains ros2_control hardware interface definitions -->
+  <!-- It supports both simulation (Gazebo) and fake hardware modes -->
+
+  <xacro:arg name="sim_mode" default="true"/>
+  <xacro:arg name="use_fake_hardware" default="false"/>
+
+  <!-- SIMULATION MODE: Use Gazebo System -->
+  <xacro:if value="$(arg sim_mode)">
+    <ros2_control name="r2c_test_system" type="system">
+      <hardware>
+        <!-- Gazebo provides the physics simulation -->
+        <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+      </hardware>
+
+      <!-- LEFT WHEEL - Velocity controlled, continuous rotation -->
+      <joint name="left_wheel_joint">
+        <command_interface name="velocity">
+          <param name="min">-10.0</param>  <!-- rad/s -->
+          <param name="max">10.0</param>
+        </command_interface>
+        <state_interface name="position"/>  <!-- radians -->
+        <state_interface name="velocity"/>  <!-- rad/s -->
+      </joint>
+
+      <!-- RIGHT WHEEL - Velocity controlled, continuous rotation -->
+      <joint name="right_wheel_joint">
+        <command_interface name="velocity">
+          <param name="min">-10.0</param>  <!-- rad/s -->
+          <param name="max">10.0</param>
+        </command_interface>
+        <state_interface name="position"/>  <!-- radians -->
+        <state_interface name="velocity"/>  <!-- rad/s -->
+      </joint>
+
+      <!-- ARM JOINT - Position controlled, revolute joint -->
+      <joint name="arm_joint">
+        <command_interface name="position">
+          <param name="min">-3.14159</param>  <!-- -pi radians -->
+          <param name="max">3.14159</param>   <!-- +pi radians -->
+        </command_interface>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <!-- TEMPERATURE SENSOR - Custom sensor interface -->
+      <sensor name="temperature_sensor">
+        <state_interface name="temperature"/>  <!-- degrees Celsius -->
+        <param name="frame_id">temperature_sensor</param>
+        <param name="lower_limit">-40.0</param>
+        <param name="upper_limit">125.0</param>
+        <param name="initial_value">25.0</param>  <!-- Room temperature -->
+      </sensor>
+
+    </ros2_control>
+  </xacro:if>
+
+  <!-- FAKE HARDWARE MODE: For testing without Gazebo -->
+  <xacro:unless value="$(arg sim_mode)">
+    <xacro:if value="$(arg use_fake_hardware)">
+      <ros2_control name="r2c_test_system" type="system">
+        <hardware>
+          <!-- Mock hardware for testing controllers without real hardware or simulation -->
+          <plugin>mock_components/GenericSystem</plugin>
+          <param name="fake_sensor_commands">true</param>
+          <param name="state_following_offset">0.0</param>
+        </hardware>
+
+        <joint name="left_wheel_joint">
+          <command_interface name="velocity"/>
+          <state_interface name="position"/>
+          <state_interface name="velocity"/>
+        </joint>
+
+        <joint name="right_wheel_joint">
+          <command_interface name="velocity"/>
+          <state_interface name="position"/>
+          <state_interface name="velocity"/>
+        </joint>
+
+        <joint name="arm_joint">
+          <command_interface name="position"/>
+          <state_interface name="position"/>
+          <state_interface name="velocity"/>
+        </joint>
+
+        <sensor name="temperature_sensor">
+          <state_interface name="temperature"/>
+          <param name="initial_value">25.0</param>
+        </sensor>
+
+      </ros2_control>
+    </xacro:if>
+  </xacro:unless>
+
+  <!-- Gazebo ros2_control plugin configuration -->
+  <xacro:if value="$(arg sim_mode)">
+    <gazebo>
+      <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+        <parameters>$(find r2c_tutorial)/config/controllers.yaml</parameters>
+        <ros>
+          <remapping>~/robot_description:=robot_description</remapping>
+        </ros>
+      </plugin>
+    </gazebo>
+  </xacro:if>
+
+</robot>

@@ -1,0 +1,268 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="r2c_test_robot">
+  
+  <!-- ARGUMENTS -->
+  <xacro:arg name="sim_mode" default="true" />
+  <xacro:arg name="use_fake_hardware" default="false" />
+  
+  <!-- PROPERTIES - Robot dimensions and physical properties -->
+  <xacro:property name="body_radius" value="0.25"/>
+  <xacro:property name="body_height" value="0.15"/>
+  <xacro:property name="body_mass" value="10.0"/>
+  
+  <xacro:property name="wheel_radius" value="0.05"/>
+  <xacro:property name="wheel_width" value="0.04"/>
+  <xacro:property name="wheel_mass" value="0.5"/>
+  <xacro:property name="wheel_separation" value="0.40"/>  <!-- Distance between wheels -->
+  
+  <xacro:property name="caster_radius" value="0.03"/>
+  <xacro:property name="caster_width" value="0.02"/>
+  <xacro:property name="caster_mass" value="0.2"/>
+  <xacro:property name="caster_offset_x" value="-0.15"/>  <!-- Behind center -->
+  
+  <xacro:property name="pole_height" value="0.5"/>
+  <xacro:property name="pole_radius" value="0.02"/>
+  <xacro:property name="pole_mass" value="0.5"/>
+  
+  <xacro:property name="arm_length" value="0.25"/>
+  <xacro:property name="arm_radius" value="0.015"/>
+  <xacro:property name="arm_mass" value="0.3"/>
+  
+  <xacro:property name="sensor_size" value="0.01"/>  <!-- 10mm cube -->
+  <xacro:property name="sensor_mass" value="0.01"/>
+  
+  <!-- Include macros for inertial calculations -->
+  <xacro:include filename="$(find r2c_tutorial)/urdf/inertial_macros.xacro"/>
+  
+  <!-- Include ros2_control description -->
+  <xacro:include filename="$(find r2c_tutorial)/urdf/r2c_test.ros2_control.xacro"/>
+  
+  <!-- Include Gazebo-specific configurations -->
+  <xacro:include filename="$(find r2c_tutorial)/urdf/r2c_test.gazebo.xacro"/>
+  
+  <!-- MATERIALS -->
+  <material name="blue">
+    <color rgba="0.2 0.2 0.8 1.0"/>
+  </material>
+  
+  <material name="black">
+    <color rgba="0.1 0.1 0.1 1.0"/>
+  </material>
+  
+  <material name="gray">
+    <color rgba="0.7 0.7 0.7 1.0"/>
+  </material>
+  
+  <material name="red">
+    <color rgba="0.9 0.1 0.1 1.0"/>
+  </material>
+  
+  <material name="white">
+    <color rgba="0.95 0.95 0.95 1.0"/>
+  </material>
+  
+  <!-- BASE LINK (required by ROS conventions) -->
+  <link name="base_link"/>
+  
+  <!-- BASE FOOTPRINT (ground contact point) -->
+  <link name="base_footprint"/>
+  
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="base_footprint"/>
+    <origin xyz="0 0 ${-wheel_radius}" rpy="0 0 0"/>
+  </joint>
+  
+  <!-- CHASSIS (main body) -->
+  <link name="chassis">
+    <visual>
+      <origin xyz="0 0 ${body_height/2}" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="${body_radius}" length="${body_height}"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    
+    <collision>
+      <origin xyz="0 0 ${body_height/2}" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="${body_radius}" length="${body_height}"/>
+      </geometry>
+    </collision>
+    
+    <xacro:inertial_cylinder mass="${body_mass}" length="${body_height}" radius="${body_radius}">
+      <origin xyz="0 0 ${body_height/2}" rpy="0 0 0"/>
+    </xacro:inertial_cylinder>
+  </link>
+  
+  <joint name="base_to_chassis" type="fixed">
+    <parent link="base_link"/>
+    <child link="chassis"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+  
+  <!-- LEFT WHEEL -->
+  <link name="left_wheel">
+    <visual>
+      <geometry>
+        <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    
+    <collision>
+      <geometry>
+        <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+      </geometry>
+    </collision>
+    
+    <xacro:inertial_cylinder mass="${wheel_mass}" length="${wheel_width}" radius="${wheel_radius}">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:inertial_cylinder>
+  </link>
+  
+  <joint name="left_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="left_wheel"/>
+    <origin xyz="0 ${wheel_separation/2} 0" rpy="${-pi/2} 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  
+  <!-- RIGHT WHEEL -->
+  <link name="right_wheel">
+    <visual>
+      <geometry>
+        <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    
+    <collision>
+      <geometry>
+        <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+      </geometry>
+    </collision>
+    
+    <xacro:inertial_cylinder mass="${wheel_mass}" length="${wheel_width}" radius="${wheel_radius}">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:inertial_cylinder>
+  </link>
+  
+  <joint name="right_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="right_wheel"/>
+    <origin xyz="0 ${-wheel_separation/2} 0" rpy="${-pi/2} 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  
+  <!-- CASTER WHEEL (fixed, non-actuated) -->
+  <link name="caster_wheel">
+    <visual>
+      <geometry>
+        <sphere radius="${caster_radius}"/>
+      </geometry>
+      <material name="gray"/>
+    </visual>
+    
+    <collision>
+      <geometry>
+        <sphere radius="${caster_radius}"/>
+      </geometry>
+    </collision>
+    
+    <xacro:inertial_sphere mass="${caster_mass}" radius="${caster_radius}">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:inertial_sphere>
+  </link>
+  
+  <joint name="caster_wheel_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="caster_wheel"/>
+    <origin xyz="${caster_offset_x} 0 ${-wheel_radius + caster_radius}" rpy="0 0 0"/>
+  </joint>
+  
+  <!-- VERTICAL POLE (for arm mounting) -->
+  <link name="vertical_pole">
+    <visual>
+      <origin xyz="0 0 ${pole_height/2}" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="${pole_radius}" length="${pole_height}"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+    
+    <collision>
+      <origin xyz="0 0 ${pole_height/2}" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="${pole_radius}" length="${pole_height}"/>
+      </geometry>
+    </collision>
+    
+    <xacro:inertial_cylinder mass="${pole_mass}" length="${pole_height}" radius="${pole_radius}">
+      <origin xyz="0 0 ${pole_height/2}" rpy="0 0 0"/>
+    </xacro:inertial_cylinder>
+  </link>
+  
+  <joint name="pole_to_chassis" type="fixed">
+    <parent link="chassis"/>
+    <child link="vertical_pole"/>
+    <origin xyz="0.05 0 ${body_height}" rpy="0 0 0"/>
+  </joint>
+  
+  <!-- ARM LINK (1-DOF rotational actuator) -->
+  <link name="arm">
+    <visual>
+      <origin xyz="${arm_length/2} 0 0" rpy="0 ${pi/2} 0"/>
+      <geometry>
+        <cylinder radius="${arm_radius}" length="${arm_length}"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+    
+    <collision>
+      <origin xyz="${arm_length/2} 0 0" rpy="0 ${pi/2} 0"/>
+      <geometry>
+        <cylinder radius="${arm_radius}" length="${arm_length}"/>
+      </geometry>
+    </collision>
+    
+    <xacro:inertial_cylinder mass="${arm_mass}" length="${arm_length}" radius="${arm_radius}">
+      <origin xyz="${arm_length/2} 0 0" rpy="0 ${pi/2} 0"/>
+    </xacro:inertial_cylinder>
+  </link>
+  
+  <joint name="arm_joint" type="revolute">
+    <parent link="vertical_pole"/>
+    <child link="arm"/>
+    <origin xyz="0 0 ${pole_height}" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>  <!-- Rotates around Z (vertical) axis -->
+    <limit effort="10.0" lower="${-pi}" upper="${pi}" velocity="2.0"/>
+  </joint>
+  
+  <!-- TEMPERATURE SENSOR (at end of arm) -->
+  <link name="temperature_sensor">
+    <visual>
+      <geometry>
+        <box size="${sensor_size} ${sensor_size} ${sensor_size}"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+    
+    <collision>
+      <geometry>
+        <box size="${sensor_size} ${sensor_size} ${sensor_size}"/>
+      </geometry>
+    </collision>
+    
+    <xacro:inertial_box mass="${sensor_mass}" x="${sensor_size}" y="${sensor_size}" z="${sensor_size}">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:inertial_box>
+  </link>
+  
+  <joint name="sensor_to_arm" type="fixed">
+    <parent link="arm"/>
+    <child link="temperature_sensor"/>
+    <origin xyz="${arm_length} 0 0" rpy="0 0 0"/>
+  </joint>
+
+</robot>
