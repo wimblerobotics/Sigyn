@@ -11,6 +11,14 @@ controller_manager:
 
     arm_position_controller:
       type: joint_trajectory_controller/JointTrajectoryController
+    
+    # Sensor state broadcaster - reads sensor states and publishes ROS messages
+    sensor_state_broadcaster:
+      type: r2c_tutorial/SensorStateBroadcaster
+    
+    # Sensor command controller - writes commands to sensor interfaces (simulation only)
+    sensor_command_controller:
+      type: r2c_tutorial/SensorCommandController
 
     # For manual testing with joint_state_publisher_gui
     forward_position_controller:
@@ -136,4 +144,40 @@ forward_position_controller:
       - right_wheel_joint
       - arm_joint
     interface_name: position
+
+# =============================================================================
+# SENSOR STATE BROADCASTER
+# Reads sensor state interfaces and publishes as ROS messages
+# State interfaces: temperature, voltage, current, range
+# Publications: ~/temperature, ~/battery, ~/range
+# =============================================================================
+sensor_state_broadcaster:
+  ros__parameters:
+    # Sensor names (must match hardware interface)
+    temperature_sensor_name: "temperature_sensor"
+    battery_sensor_name: "battery_sensor"      # Combined voltage + current
+    range_sensor_name: "range_sensor"
+    
+    # Frame IDs for published messages
+    temperature_frame_id: "temperature_sensor"
+    battery_frame_id: "base_link"
+    range_frame_id: "temperature_sensor"  # Mounted on arm tip
+    
+    # Publishing rate
+    publish_rate: 10.0  # Hz
+
+# =============================================================================
+# SENSOR COMMAND CONTROLLER (SIMULATION ONLY)
+# Writes commands to sensor command interfaces for testing
+# Subscribed topics: ~/temperature_cmd, ~/voltage_cmd, ~/current_cmd, ~/range_cmd
+# Command interfaces: temperature, voltage, current, range
+# =============================================================================
+sensor_command_controller:
+  ros__parameters:
+    # Sensor names (must match hardware interface)
+    temperature_sensor_name: "temperature_sensor"
+    battery_sensor_name: "battery_sensor"      # Combined voltage + current
+    range_sensor_name: "range_sensor"
+
+
 

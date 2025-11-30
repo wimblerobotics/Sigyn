@@ -1,0 +1,9 @@
+<library path="sensor_command_controller">
+  <class name="r2c_tutorial/SensorCommandController" type="r2c_tutorial::SensorCommandController" base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Controller that writes commands to sensor command interfaces for testing in simulation.
+      Subscribes to command topics and writes values to hardware interface command interfaces.
+      WARNING: Only use in simulation mode - sensors are read-only in real hardware.
+    </description>
+  </class>
+</library>

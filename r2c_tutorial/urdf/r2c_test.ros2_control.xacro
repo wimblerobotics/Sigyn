@@ -9,6 +9,7 @@
 
   <!-- SIMULATION MODE: Use Gazebo System -->
   <xacro:if value="$(arg sim_mode)">
+    <!-- Joints are controlled by Gazebo -->
     <ros2_control name="r2c_test_system" type="system">
       <hardware>
         <!-- Gazebo provides the physics simulation -->
@@ -44,18 +45,98 @@
         <state_interface name="position"/>
         <state_interface name="velocity"/>
       </joint>
+    </ros2_control>
 
-      <!-- TEMPERATURE SENSOR - Custom sensor interface -->
+    <!-- SIMULATION MODE: Use Gazebo-compatible sensor hardware interface -->
+    <ros2_control name="sensor_system" type="system">
+      <hardware>
+        <plugin>r2c_tutorial/SensorHardwareInterfaceSim</plugin>
+        <param name="sim_mode">true</param>
+      </hardware>
+
+      <!-- TEMPERATURE SENSOR - Simulated temperature with thermal dynamics -->
       <sensor name="temperature_sensor">
         <state_interface name="temperature"/>  <!-- degrees Celsius -->
+        <command_interface name="temperature"/>  <!-- For test injection -->
         <param name="frame_id">temperature_sensor</param>
         <param name="lower_limit">-40.0</param>
         <param name="upper_limit">125.0</param>
         <param name="initial_value">25.0</param>  <!-- Room temperature -->
       </sensor>
 
+      <!-- BATTERY SENSOR - Simulated voltage and current -->
+      <sensor name="battery_sensor">
+        <state_interface name="voltage"/>  <!-- volts -->
+        <state_interface name="current"/>  <!-- amperes -->
+        <command_interface name="voltage"/>  <!-- For test injection -->
+        <command_interface name="current"/>  <!-- For test injection -->
+        <param name="frame_id">base_link</param>
+        <param name="voltage_lower_limit">0.0</param>
+        <param name="voltage_upper_limit">24.0</param>
+        <param name="current_lower_limit">0.0</param>
+        <param name="current_upper_limit">50.0</param>
+        <param name="initial_voltage">12.0</param>  <!-- 12V nominal -->
+        <param name="initial_current">2.0</param>   <!-- 2A typical load -->
+      </sensor>
+
+      <!-- VL53L0X DISTANCE SENSOR - Simulated time-of-flight range -->
+      <sensor name="range_sensor">
+        <state_interface name="range"/>  <!-- meters -->
+        <command_interface name="range"/>  <!-- For test injection -->
+        <param name="frame_id">temperature_sensor</param>  <!-- Mounted on arm tip -->
+        <param name="lower_limit">0.03</param>  <!-- 30mm min range -->
+        <param name="upper_limit">2.0</param>    <!-- 2m max range -->
+        <param name="initial_value">1.0</param>  <!-- 1m default -->
+      </sensor>
     </ros2_control>
+
   </xacro:if>
+
+  <!-- REAL HARDWARE MODE: Use custom sensor hardware interface -->
+  <xacro:unless value="$(arg sim_mode)">
+    <!-- Sensors handled by custom hardware interface (subscribes to Teensy topics) -->
+    <ros2_control name="sensor_system" type="system">
+      <hardware>
+        <plugin>r2c_tutorial/SensorHardwareInterface</plugin>
+        <param name="sim_mode">false</param>
+      </hardware>
+
+      <!-- TEMPERATURE SENSOR - Custom sensor interface -->
+      <sensor name="temperature_sensor">
+        <state_interface name="temperature"/>  <!-- degrees Celsius -->
+        <command_interface name="temperature"/>  <!-- For test injection -->
+        <param name="frame_id">temperature_sensor</param>
+        <param name="lower_limit">-40.0</param>
+        <param name="upper_limit">125.0</param>
+        <param name="initial_value">25.0</param>  <!-- Room temperature -->
+      </sensor>
+
+      <!-- BATTERY SENSOR - Battery/power monitoring (combined voltage + current) -->
+      <sensor name="battery_sensor">
+        <state_interface name="voltage"/>  <!-- volts -->
+        <state_interface name="current"/>  <!-- amperes -->
+        <command_interface name="voltage"/>  <!-- For test injection -->
+        <command_interface name="current"/>  <!-- For test injection -->
+        <param name="frame_id">base_link</param>
+        <param name="voltage_lower_limit">0.0</param>
+        <param name="voltage_upper_limit">24.0</param>
+        <param name="current_lower_limit">0.0</param>
+        <param name="current_upper_limit">10.0</param>
+        <param name="initial_voltage">12.0</param>  <!-- 12V nominal -->
+        <param name="initial_current">0.5</param>   <!-- 500mA idle -->
+      </sensor>
+
+      <!-- VL53L0X DISTANCE SENSOR - Time-of-flight range -->
+      <sensor name="range_sensor">
+        <state_interface name="range"/>  <!-- meters -->
+        <command_interface name="range"/>  <!-- For test injection -->
+        <param name="frame_id">temperature_sensor</param>  <!-- Mounted on arm tip -->
+        <param name="lower_limit">0.03</param>  <!-- 30mm min range -->
+        <param name="upper_limit">2.0</param>    <!-- 2m max range -->
+        <param name="initial_value">0.5</param>  <!-- 50cm default -->
+      </sensor>
+    </ros2_control>
+  </xacro:unless>
 
   <!-- FAKE HARDWARE MODE: For testing without Gazebo -->
   <xacro:unless value="$(arg sim_mode)">
@@ -89,6 +170,21 @@
         <sensor name="temperature_sensor">
           <state_interface name="temperature"/>
           <param name="initial_value">25.0</param>
+        </sensor>
+
+        <sensor name="voltage_sensor">
+          <state_interface name="voltage"/>
+          <param name="initial_value">12.0</param>
+        </sensor>
+
+        <sensor name="current_sensor">
+          <state_interface name="current"/>
+          <param name="initial_value">0.5</param>
+        </sensor>
+
+        <sensor name="vl53l0x_sensor">
+          <state_interface name="range"/>
+          <param name="initial_value">0.5</param>
         </sensor>
 
       </ros2_control>

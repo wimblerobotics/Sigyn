@@ -1,0 +1,8 @@
+<library path="sensor_state_broadcaster">
+  <class name="r2c_tutorial/SensorStateBroadcaster" type="r2c_tutorial::SensorStateBroadcaster" base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Controller that reads sensor state interfaces and publishes them as ROS messages.
+      Broadcasts temperature, voltage, current, and range sensor data.
+    </description>
+  </class>
+</library>

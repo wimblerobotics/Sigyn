@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<library path="sensor_hardware_interface">
+  <class name="r2c_tutorial/SensorHardwareInterface" 
+         type="r2c_tutorial::SensorHardwareInterface" 
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Hardware interface for sensor data from real hardware (Teensy).
+      Subscribes to sensor topics and exposes values through ros2_control state interfaces.
+      Use this plugin when sim_mode:=false (real hardware mode).
+    </description>
+  </class>
+</library>
+
+<library path="sensor_hardware_interface_sim">
+  <class name="r2c_tutorial/SensorHardwareInterfaceSim" 
+         type="r2c_tutorial::SensorHardwareInterfaceSim" 
+         base_class_type="gz_ros2_control::GazeboSimSystemInterface">
+    <description>
+      Hardware interface for simulated sensor data in Gazebo.
+      Generates synthetic sensor values and integrates with gz_ros2_control.
+      Use this plugin when sim_mode:=true (Gazebo simulation mode).
+      Supports command interfaces for test value injection.
+    </description>
+  </class>
+</library>

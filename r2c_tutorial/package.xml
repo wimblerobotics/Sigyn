@@ -22,14 +22,18 @@
   <depend>ros2_control</depend>
   <depend>ros2_controllers</depend>
   <depend>controller_manager</depend>
+  <depend>controller_interface</depend>
   <depend>joint_state_broadcaster</depend>
   <depend>diff_drive_controller</depend>
   <depend>joint_trajectory_controller</depend>
   <depend>hardware_interface</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp_lifecycle</depend>
 
   <!-- Simulation dependencies -->
   <depend>gz_ros2_control</depend>
   <depend>gazebo_ros</depend>
+  <depend>gz-sim8</depend>
 
   <!-- Robot description -->
   <depend>robot_state_publisher</depend>
@@ -45,5 +49,8 @@
 
   <export>
     <build_type>ament_cmake</build_type>
+    <hardware_interface plugin="${prefix}/sensor_hardware_interface_plugin.xml"/>
+    <controller_interface plugin="${prefix}/sensor_state_broadcaster_plugin.xml"/>
+    <controller_interface plugin="${prefix}/sensor_command_controller_plugin.xml"/>
   </export>
 </package>

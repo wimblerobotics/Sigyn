@@ -147,8 +147,27 @@ def generate_launch_description():
         output='screen',
         parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}]
     )
+    
+    # Sensor state broadcaster spawner
+    sensor_state_broadcaster_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=['sensor_state_broadcaster'],
+        output='screen',
+        parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}]
+    )
+    
+    # Sensor command controller spawner (for test value injection)
+    sensor_command_controller_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=['sensor_command_controller'],
+        output='screen',
+        parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}]
+    )
 
-    # Temperature sensor simulator (publishes sensor_msgs/Temperature)
+    # Temperature sensor simulator - DEPRECATED, kept for backward compatibility
+    # Use sensor_command_controller for test value injection instead
     temperature_sensor_node = Node(
         package='r2c_tutorial',
         executable='temperature_sensor_sim.py',
@@ -160,6 +179,9 @@ def generate_launch_description():
             {'publish_rate': 10.0},
         ]
     )
+    
+    # NOTE: sensor_simulator.py is no longer needed - 
+    # SensorHardwareInterfaceSim generates sensor data directly in the hardware interface
     
     # Twist to TwistStamped converter (for teleop compatibility)
     twist_converter_node = Node(
@@ -205,6 +227,16 @@ def generate_launch_description():
         actions=[arm_controller_spawner]
     )
     
+    delayed_sensor_state_broadcaster = TimerAction(
+        period=10.0,
+        actions=[sensor_state_broadcaster_spawner]
+    )
+    
+    delayed_sensor_command_controller = TimerAction(
+        period=10.0,
+        actions=[sensor_command_controller_spawner]
+    )
+    
     return LaunchDescription([
         # Environment variables
         gz_plugin_path,
@@ -222,7 +254,8 @@ def generate_launch_description():
         delayed_joint_state_broadcaster,
         delayed_diff_drive_controller,
         delayed_arm_controller,
-        temperature_sensor_node,
+        delayed_sensor_state_broadcaster,
+        delayed_sensor_command_controller,
         twist_converter_node,
         foxglove_bridge_node,
     ])

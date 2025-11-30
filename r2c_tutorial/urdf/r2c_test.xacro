@@ -40,6 +40,9 @@
   <!-- Include Gazebo-specific configurations -->
   <xacro:include filename="$(find r2c_tutorial)/urdf/r2c_test.gazebo.xacro"/>
   
+  <!-- Include sensor macros -->
+  <xacro:include filename="$(find r2c_tutorial)/urdf/sensors.xacro"/>
+  
   <!-- MATERIALS -->
   <material name="blue">
     <color rgba="0.2 0.2 0.8 1.0"/>

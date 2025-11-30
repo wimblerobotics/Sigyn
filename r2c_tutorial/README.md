@@ -6,6 +6,7 @@ A comprehensive, hands-on tutorial for learning ros2_control from basics to adva
 
 - **Fundamentals:** ros2_control architecture, hardware interfaces, controllers, and the controller manager
 - **Practical Skills:** Configure differential drive robots, position-controlled arms, and sensor integration
+- **Sensor Testing:** Inject test values to validate safety systems in simulation
 - **Real-World Application:** Step-by-step guide to migrate Sigyn from custom control to ros2_control
 - **Best Practices:** Real-time performance, error handling, testing, and debugging
 
@@ -14,8 +15,9 @@ A comprehensive, hands-on tutorial for learning ros2_control from basics to adva
 The tutorial uses a simplified robot with:
 - **Differential drive base:** 2 driven wheels + 1 caster wheel
 - **1-DOF arm:** Revolute joint for learning position control
-- **Temperature sensor:** Read-only sensor for learning sensor integration
-- **Gazebo simulation:** Test in simulation before real hardware
+- **Multiple sensors:** Temperature, battery (voltage/current), range sensor
+- **Gazebo simulation:** Full ros2_control integration with test command injection
+- **Dual mode:** Same controllers work in both simulation and real hardware
 
 ## 📖 Documentation Structure
 
@@ -26,7 +28,15 @@ Complete tutorial from basics to advanced:
 - **Phase 3:** Creating Custom Hardware Interfaces
 - **Phase 4:** Integration with Sigyn (planning and strategy)
 
-### 2. **[ADVANCED_TOPICS.md](docs/ADVANCED_TOPICS.md)**
+### 2. **[SENSOR_TESTING_GUIDE.md](docs/SENSOR_TESTING_GUIDE.md)** - Testing Safety Systems
+Complete guide for testing safety systems:
+- **Architecture:** How sensor command injection works
+- **Python Examples:** Ready-to-use test scripts
+- **C++ Examples:** Production-quality test code
+- **Test Scenarios:** Thermal, battery, overcurrent, collision tests
+- **Best Practices:** Test automation and validation
+
+### 3. **[ADVANCED_TOPICS.md](docs/ADVANCED_TOPICS.md)**
 Deep dives into:
 - Real-time performance optimization
 - Custom controller development
@@ -35,7 +45,7 @@ Deep dives into:
 - Error handling and recovery
 - Performance tuning
 
-### 3. **[MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md)**
+### 4. **[MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md)**
 Sigyn-specific migration plan:
 - Current system analysis
 - Target architecture
@@ -57,25 +67,41 @@ source install/setup.bash
 
 ```bash
 # Terminal 1: Launch Gazebo simulation with robot and controllers
-ros2 launch r2c_tutorial gazebo_sim.launch.py
+ros2 launch r2c_tutorial gazebo_foxglove.launch.py
 
-# Terminal 2: Drive the robot with keyboard
+# Terminal 2: Monitor sensor data
+ros2 run r2c_tutorial sensor_reader.py
+
+# Terminal 3: Drive the robot with keyboard
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
 
-# Terminal 3: Monitor robot state
-ros2 run r2c_tutorial monitor_robot.py
+# Terminal 4: Test safety systems by injecting sensor values
+ros2 run r2c_tutorial sensor_writer.py --ros-args -p temperature_cmd:=93.0
+```
 
-# Terminal 4: Control the arm
-ros2 topic pub /arm_position_controller/joint_trajectory \
-  trajectory_msgs/msg/JointTrajectory \
-  "{joint_names: ['arm_joint'], points: [{positions: [1.57], time_from_start: {sec: 2}}]}" \
-  --once
+### Test Safety Systems
+
+```bash
+# Inject high temperature to test thermal protection
+ros2 run r2c_tutorial sensor_writer.py --ros-args -p temperature_cmd:=93.0
+
+# Test low battery protection
+ros2 run r2c_tutorial sensor_writer.py --ros-args -p voltage_cmd:=9.5
+
+# Test overcurrent protection
+ros2 run r2c_tutorial sensor_writer.py --ros-args -p current_cmd:=10.0
+
+# Reset to normal simulation
+ros2 run r2c_tutorial sensor_writer.py --ros-args -p temperature_cmd:=0.0
+
+# See SENSOR_TESTING_GUIDE.md for complete testing documentation
 ```
 
 ### Expected Output
 
 - **Gazebo:** Robot model moving in empty world
-- **RViz:** Visualization with TF frames and odometry trail
+- **Sensor Reader:** Live sensor data with safety warnings
+- **RViz (via Foxglove):** Visualization with TF frames and odometry trail
 - **Terminal:** Real-time joint states, odometry, and sensor readings
 
 ## 📁 Package Structure
@@ -87,14 +113,27 @@ r2c_tutorial/
 │   └── r2c_tutorial.rviz        # RViz visualization config
 ├── docs/
 │   ├── TUTORIAL.md              # Main tutorial (START HERE)
+│   ├── SENSOR_TESTING_GUIDE.md  # Testing safety systems
 │   ├── ADVANCED_TOPICS.md       # Advanced concepts
-│   └── MIGRATION_GUIDE.md       # Sigyn migration plan
+│   ├── MIGRATION_GUIDE.md       # Sigyn migration plan
+│   └── SENSOR_INTEGRATION_GUIDE.md  # Complete sensor architecture
+├── include/r2c_tutorial/
+│   ├── sensor_hardware_interface.hpp       # Real hardware interface
+│   ├── sensor_hardware_interface_sim.hpp   # Simulation interface
+│   ├── sensor_state_broadcaster.hpp        # Reads & publishes sensors
+│   └── sensor_command_controller.hpp       # Injects test values
 ├── launch/
-│   ├── gazebo_sim.launch.py     # Full simulation launch
-│   └── manual_control.launch.py # URDF testing without Gazebo
+│   ├── gazebo_foxglove.launch.py    # Full simulation with Foxglove
+│   └── manual_control.launch.py     # URDF testing without Gazebo
 ├── scripts/
-│   ├── temperature_heater.py    # Simulates heating sensor
+│   ├── sensor_reader.py         # Monitor sensor data
+│   ├── sensor_writer.py         # Inject test values
 │   └── monitor_robot.py         # Real-time monitoring tool
+├── src/
+│   ├── sensor_hardware_interface.cpp       # Real hardware implementation
+│   ├── sensor_hardware_interface_sim.cpp   # Simulation implementation
+│   ├── sensor_state_broadcaster.cpp        # State publisher
+│   └── sensor_command_controller.cpp       # Command subscriber
 ├── urdf/
 │   ├── r2c_test.xacro           # Robot description
 │   ├── r2c_test.ros2_control.xacro  # ros2_control interfaces
