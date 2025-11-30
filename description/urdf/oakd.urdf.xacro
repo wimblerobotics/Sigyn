@@ -135,11 +135,18 @@ https://github.com/jetdillo/tenacity_rover/tree/0945115d723c82f1d72bb4542ab3540b
       <material>Gazebo/DarkGrey</material>
     </gazebo>
 
-    <!-- Attach sensors directly to optical frames with identity pose -->
-    <gazebo reference="oak_rgb_camera_optical_frame">
+    <!-- Attach sensors directly to optical frames -->
+    <!-- Optical frame already handles the mount orientation via sigyn.urdf.xacro -->
+    <!-- Gazebo sensor: +X=forward; ROS optical: +Z=forward; need rotation alignment -->
+    <gazebo reference="oak_rgb_camera_frame">
       <sensor name="rgb_camera" type="camera">
-        <!-- Nudge sensor a bit forward along optical Z so it sees past the mount -->
-        <pose>0 0 0.05 0 0 0</pose>
+        <!--
+          Moved sensor to physical frame. Pose now includes both the
+          optical rotation (-90 roll, 0 pitch, -90 yaw) and the
+          alignment correction (-90 roll, -90 pitch, 0 yaw).
+          Combined RPY: [-180, -90, -90]
+        -->
+        <pose>0 0 0 -3.14159 -1.5707 -1.5707</pose>
         <camera>
           <horizontal_fov>1.089</horizontal_fov>
           <image>
@@ -167,14 +174,12 @@ https://github.com/jetdillo/tenacity_rover/tree/0945115d723c82f1d72bb4542ab3540b
       </sensor>
     </gazebo>
 
-    <gazebo reference="oak_left_camera_optical_frame">
-      <!-- Depth + Point Cloud using single rgbd_camera sensor -->
-      <!-- rgbd_camera publishes: base/image, base/depth_image, base/points, base/camera_info -->
+    <gazebo reference="oak_left_camera_frame">
       <sensor name="stereo_camera" type="rgbd_camera">
-        <!-- Nudge sensor forward to avoid self-occlusion by the mount -->
-        <pose>0 0 0.05 0 0 0</pose>
+        <!-- Apply the same correction to the depth sensor -->
+        <pose>0 0 0 -3.14159 -1.5707 -1.5707</pose>
         <camera>
-          <horizontal_fov>1.089</horizontal_fov>
+          <horizontal_fov>1.22173</horizontal_fov>
           <image>
             <width>640</width>
             <height>480</height>
