@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Temperature Sensor Macro -->
+  <xacro:macro name="temperature_sensor" params="name parent *origin update_rate:=1">
+    
+    <!-- Sensor Link (visual representation) -->
+    <link name="${name}_temperature_link">
+      <visual>
+        <geometry>
+          <cylinder radius="0.01" length="0.02"/>
+        </geometry>
+        <material name="temperature_sensor_material">
+          <color rgba="0.8 0.2 0.2 1.0"/>
+        </material>
+      </visual>
+      <inertial>
+        <mass value="0.001"/>
+        <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000001"/>
+      </inertial>
+    </link>
+
+    <!-- Fixed Joint to Parent -->
+    <joint name="${name}_temperature_joint" type="fixed">
+      <xacro:insert_block name="origin"/>
+      <parent link="${parent}"/>
+      <child link="${name}__temperature_link"/>
+    </joint>
+
+    <!-- Gazebo Temperature Sensor Plugin -->
+    <gazebo reference="${name}_temperature_link">
+      <sensor name="${name}_temperature" type="thermal">
+        <always_on>true</always_on>
+        <update_rate>${update_rate}</update_rate>
+        <visualize>false</visualize>
+        
+        <!-- Temperature sensor configuration -->
+        <thermal>
+          <temperature_range>
+            <min>0</min>
+            <max>100</max>
+          </temperature_range>
+          <temperature_resolution>0.1</temperature_resolution>
+        </thermal>
+        
+        <!-- Plugin to publish to ROS -->
+        <plugin filename="gz-sim-thermal-sensor-system" name="gz::sim::systems::ThermalSensor">
+          <topic>/sigyn/teensy_bridge/temperature/${name}</topic>
+          <frame_id>${name}_temperature_link</frame_id>
+        </plugin>
+      </sensor>
+    </gazebo>
+
+  </xacro:macro>
+
+</robot>

@@ -728,7 +728,7 @@ namespace sigyn_to_sensor_v2 {
         // Create individual sensor message
         sensor_msgs::msg::Temperature temp_msg;
         temp_msg.header.stamp = timestamp;
-        temp_msg.header.frame_id = "motor_" + std::to_string(i);
+        temp_msg.header.frame_id = "motor_" + std::to_string(i) + "_temperature_link";
         temp_msg.temperature = temp_value;
         temp_msg.variance = 0.1;  // Conservative variance estimate
 
