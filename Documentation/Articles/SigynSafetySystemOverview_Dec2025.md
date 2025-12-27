@@ -3,10 +3,10 @@ version 1, December 2025
 Copyright 2025 by Michael Wimble
 
 Sigyn is my personal, assistive robot. It's a work in progress.
-Eventually Sigyn will roam the house, looking for things that need attention, taking care of things that it can and summoning help when it needs help. It will look after me and perform chores for me.
+Eventually, Sigyn will roam the house, looking for things that need attention, taking care of things that it can, and summoning help when it needs help. It will look after me and perform chores for me.
 Each iteration of the hardware and software gets a bit closer to achieving those goals, but it's been a long road getting here.
 
-The previous version of Sigyn, "Raven", had the goal of improving safety, reliability and robustness. If you cannot trust your robot, it has very little value. This paper is just a brief overview of where the robot is now in terms of intent, architecture and implementation and a description of where it will evolve next.
+The previous version of Sigyn, "Raven", had the goal of improving safety, reliability, and robustness. If you cannot trust your robot, it has very little value. This paper is just a brief overview of where the robot is now in terms of intent, architecture, and implementation and a description of where it will evolve next.
 
 ## Safety Issues
 
@@ -15,17 +15,17 @@ There are a lot of hardware components in Sigyn.
 1. There is a honking big battery powering the system.
    
    There is a 10-cell LIPO battery. It must not discharge to the point where it damages the cells.
-   In my robot, the charging is handled by a built-in battery management chip and an external charger and this iteration of the robot doesn't deal with charging safety. I just need to deal with making sure the robot gets to the charging station before the battery discharges too deeply.
+   In my robot, the charging is handled by a built-in battery management chip and an external charger, and this iteration of the robot doesn't deal with charging safety. I just need to deal with making sure the robot gets to the charging station before the battery discharges too deeply.
 
    I do need to monitor the voltage and current to all of the electronic subsystems, though. Each subsystem has its own power supply to convert the 36 volts from the battery to the needed voltage for the subsystem. I need a recording of the historical power usage that will survive power failure so I can  debug what went wrong and why.
 
 1. There are two powerful motors to move the robot.
    
-   If the robot runs into an obstacle, it's possible for the motors to overheat or to draw too much current which could permanently damage the expensive motors. The safety system needs to detect the motors drawing too much power or running at an unexpected velocity and the motors must be very quickly shut down until the problem is resolved.
+   If the robot runs into an obstacle, it's possible for the motors to overheat or to draw too much current, which could permanently damage the expensive motors. The safety system needs to detect the motors drawing too much power or running at an unexpected velocity, and the motors must be very quickly shut down until the problem is resolved.
 
 1. The motors are controlled by a motor controller.
    
-   The motor controller can detect some forms of unexpected or unsafe state, but it has its limitations. And, it's possible that the motor controller itself is not responding properly to motor commands. Especially worrisome is that if the wheel encoder signals stop working correctly, the motor controller will just speed up the robot as it tries to get the robot to run at the expected speed. This puts the robot in a runaway state that will eventually cause the robot to crash into something. The safety system's biggest response to any bad situation is to first signal "e-stop", emergency stop, which immediately stops drops power to the motors. 
+   The motor controller can detect some forms of unexpected or unsafe state, but it has its limitations. And, it's possible that the motor controller itself is not responding properly to motor commands. Especially worrisome is that if the wheel encoder signals stop working correctly, the motor controller will just speed up the robot as it tries to get the robot to run at the expected speed. This puts the robot in a runaway state that will eventually cause the robot to crash into something. The safety system's biggest response to any bad situation is to first signal "e-stop", emergency stop, which immediately stops and drops power to the motors. 
 
 1. Temperatures can rise for several components, risking their safety or proper operation.
    
@@ -101,11 +101,11 @@ If a ***system_shutdown*** condition where detected, the error would be broadcas
 
 Also missing is code to use various fallback communication mechanisms to send me some sort of notification about failures I need to know about. That could be a tone from a speaker, a voice from a synthesizer, a text message sent to my phone, an e-mail message and so on.
 
-## Safety failures detected
+## Safety Failures Detected
 
 Since this is an overview, I'm going to stop going into a lot more detail about the safety system. Instead, let me give you examples of failures that are detected by my code, and maybe some that are awaiting implementation but are planned.
 
-### Motor safety
+### Motor Safety
 
 1. Communication failure
    
@@ -120,4 +120,51 @@ Since this is an overview, I'm going to stop going into a lot more detail about 
    
    The RoboClaw can be set up to measure out of range motor currents, out of range power supply voltages, message failures and a handful of other problems. Some of these, if configured to be detected, require that the motor controller be powered off to recover.
 
-1. 
+1. Overcurrent
+   
+   If the motors are commanded to move and something restricts the wheels from turning, the windings look like short circuits to the power circuits and a huge amount of current can surge into the motors. This can literally cause the wires to melt into pools of copper in a short period of time.  My normal operation is specifically configured so that the robot should never enter a stall condition. If that current surge is detected, the motor controller will get signaled to emergency stop very quickly before I have to buy a very expensive replacement motor.
+
+1. Runaway
+   
+   If the signals from the wheel encoders fail, usually because the connectors come loose from vibration, the controller will try to keep the commanded motor velocity by signaling the motors to go faster and faster. The safety system currently only looks for a velocity larger than a configured maximum, but in the future, the system will also look at the last commanded speed, acceleration and timing and detect if the robot is moving significantly differently than expected.
+
+1. Thermal runaway
+   
+   Currently I ignore the available temperature sensors on the motor controller board, but in the future I will include them in the safety system.
+
+### Battery Safety
+
+Currently the battery modules detect not only the current and voltage of the main battery but also of the 4 power supplies for the 24, 12, 5 and 3.3 volt systems. 
+The current code does not yet report problems to the safety system.
+My battery charger does not have a port that reports cell health, so I also don't deal with that, but a future hardware upgrade might deal with that.
+
+### IMU Safety
+
+Currently, if both IMUs are failing, the safety system is notified. 
+I have two IMUs in the robot.
+Originally I wanted to use two to cancel out the rate gyroscope noise inherent in the sensors, but it turns out the the localization software currently works better with only one sensor. Eventually I may add code that switches to the backup IMU if the primary fails and there will then be a warning safety report for a single failing sensor.
+
+### Temperature Safety
+
+Each temperature sensor has a minimum and maximum range that is considered safe. 
+There is also code to check for the rate of temperature change and report thermal runaway.
+
+### Time of Flight Safety
+
+The code monitors sensor malfunction and also if an obstacle is within a critical distance as part of the rings of safety system.
+
+### Storage Safety
+
+If the SD card used for logging fails, that is reported.
+
+### Performance Safety
+
+Each hardware module has a performance goal.
+If the module is unable to report the sensor data or respond to a command as configured, 
+
+There is somewhat complicated logic for measuring performance, allowing for hystereses, consecutive failure test, whatever is needed to deal with specific sensors from specific vendors.
+
+The performance failures get bubbled up to the ***rosout*** log if they merit attention. 
+That lets me know that I need to pull out the SD card and see what the low-level logs say.
+This usually happens when I added some new hardware or change an algorithm.
+This is especially true when I deal with the tricky problem of getting proximity sensors (Time of Flight and SONAR) to report quickly enough and with low latency to be useful for the navigation algorithms. There is a lot of state machine fiddling in my many algorithms to make slow sensors appear to be fast.
