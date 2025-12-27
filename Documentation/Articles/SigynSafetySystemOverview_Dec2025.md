@@ -33,8 +33,8 @@ There are a lot of hardware components in Sigyn.
 
 1. The robot wants to implement a "rings of protection" strategy to deal with obstacles.
 
-   Normally, the various proximity sensors will detect if the robot is getting too close to something and it will issue motor commands to avoid it. 
-   The robot cannot see everything around it; it has blind spots. The robot doesn't always get notification in time to avoid hitting something--the robot has to deal with a lot of data all of the time and the responsible software can't always get notified in time or react in time to avoid hitting an obstacle.
+   Normally, the various proximity sensors will detect if the robot is getting too close to something and the navigation software will issue motor commands to avoid it. 
+   The robot cannot see everything around it; it has blind spots. The robot doesn't always get notification in time to avoid hitting something—the robot has to deal with a lot of data all of the time and the responsible software can't always get notified in time or react in time to avoid hitting an obstacle.
 
    Sigyn wants to have two or three rings at various distances, where if a sensor sees an obstacle in one of the rings, it takes special action. For instance, if the robot is designed to never get closer than, say, 5 inches from an object, and a sensor sees an object is 4 inches away, its first response might be to slow the robot down quite a bit in the hopes that the robot will then be able to catch up on all of the software computation to deal with the object. But if the sensor sees an object is 3 inches away, it might just quickly stop the robot until I can look at what is going on and help the robot deal with the problem.
 
@@ -54,15 +54,15 @@ Since my hardware cannot read all of the sensors and send control signals to all
 
 My microcontrollers aren't running ROS. They used to run Micro ROS but no longer do even that. Micro ROS introduced too much complexity into the system and too much uncertainty. This article is not going to deal with that decision; this article is about the safety system. So my microcontrollers talk to the main computer over high-speed USB.
 
-I designed a custom carrier/expander board that holds a Teensy 4.1 microcontroller. The Teensy runs at about 600 MHz, has about a megabyte of RAM, lots of ROM for the code, and with my board, there are a lot of signal pins and level converters to communicate with a lot of hardware devices.
+I designed a custom carrier/expander board that holds a Teensy 4.1 microcontroller. The Teensy runs at about 600 MHz, has about a megabyte of RAM, has lots of ROM for the code, and with my board, there are a lot of signal pins and level converters to communicate with a lot of hardware devices.
 
-There is a software package I wrote, ***sigyn_to_sensor_v2***, that provides the bridge between ROS2 and the three custom hardware boards. I won't particularly discuss that package. It communicates with the custom boards over high-speed, virtual USB ports, mostly passing JSON messages back and forth, and converts between compressed messages to and from the custom boards and the equivalent ROS2 messages.
+There is a software package I wrote, ***sigyn_to_sensor_v2***, that provides the bridge between ROS 2 and the three custom hardware boards. I won't particularly discuss that package. It communicates with the custom boards over high-speed, virtual USB ports, mostly passing JSON messages back and forth, and converts between compact messages to and from the custom boards and the equivalent ROS 2 messages.
 
 Pretty much all of the hardware and software needs that required predictable and high-speed timing happen on the custom boards, and the ***sigyn_to_sensor_v2*** package links all of those boards to the main computer.
 
 ## The Second Division of Responsibility
 
-Even a Teensy 4.1 running at 600 MHz cannot provide the needed functionality for all of the low-level hardware.  ROS 2 navigation relies on high frame rates from its sensors. Your slowest navigation-related sensor constrains how fast your robot can safely move. The localization and mapping algorithms rely on the robot not moving very far between calculations that update the map and locate the robot within the map. The control loop that moves the robot towards a goal relies is limited on how fast it can detect an obstacle, plan to avoid it, and can guarantee the robot will move or stop as needed in time. 
+Even a Teensy 4.1 running at 600 MHz cannot provide the needed functionality for all of the low-level hardware.  ROS 2 navigation relies on high frame rates from its sensors. Your slowest navigation-related sensor constrains how fast your robot can safely move. The localization and mapping algorithms rely on the robot not moving very far between calculations that update the map and locate the robot within the map. The control loop that moves the robot towards a goal is limited by how fast it can detect an obstacle, plan to avoid it, and can guarantee the robot will move or stop as needed in time. 
 
 This all only works well if the needed sensors and actuators are predictable and quick.
 
@@ -78,26 +78,26 @@ Why was the hardware distributed this way? Because with carefully crafted code, 
 
 The Teensy microcontroller uses a ***setup*** and ***loop*** function, just like an Arduino device.
 I have a ***Module*** class that essentially replaces those two functions.
-Any piece of hardware that wants to run on my board must derive from the ***Module** class, which is enough to register itself with the system. 
+Any piece of hardware that wants to run on my board must derive from the ***Module*** class, which is enough to register itself with the system. 
 When ***setup*** is called, ***Module*** will call the equivalent ***setup*** function for all registered hardware modules. The same for the ***loop*** function. 
 
 But ***Module*** wraps those calls, especially the ***loop*** function call, with a timer that keeps track of how long each piece of hardware takes to perform its function. ***Module*** then compares the performance with the required performance for each piece of hardware and provides statistics at the sub-millisecond level for the minimum, maximum, and average performance. Those statistics are logged, and messages are sent about performance and unexpected behavior.
 
-There is also a ***sd_logger*** module that performs efficient logging to an SD card on each board. This holds a lot of low-level messages about what is happening on each board. If nearly anything goes wrong with the low-level hardware, I can always power down the robot, pull out the SD card, mount it on another computer, and look at the details about what is going on with either the hardware or software on the custom board.
+There is also a ***sd_logger*** module that performs efficient logging to an SD card on each board. This holds a lot of low-level messages about what is happening on each board. If nearly anything goes wrong with the low-level hardware, I can always power down the robot, pull out the SD card, mount it on another computer, and look at the details about what was going on with either the hardware or software on the custom board.
 
 There is also a ***serial_manager*** module that communicates, using compact, JSON messages, between the custom board and the main computer.
 
 ### The Safety Module.
 
-I'm going to diverge a bit from what is actually implemented in one of the branches of my code and talk about what the safety module is going to support.
+I'm going to not only talk about what is actually implemented by the safety system in one of the branches of my code, but also talk about what the safety system is going to support.
 
 Each registered module is interrogated by the ***Module*** class as to whether the hardware is safe. If not, the hardware will report that it is unsafe either at a ***warning*** level, a ***degraded*** level, an ***emergency_stop*** level, or a ***system_shutdown*** level. There can be multiple hardware failures going on at the same time. The safety module keeps a list of all outstanding safety issues, including the source of the failure and the level of the failure.
 
 Each failure can be resolved either internally, such as a temporary failure like a temperature sensor now reading a safe temperature when it was previously out of range, or it can be resolved externally, such as some user interface action by myself that says the condition is now okay. An example of the latter would be if the robot sensed that the wheels were turning but the localization software said the robot wasn't actually moving as expected. I could find that the robot was slipping on a towel, remove it, and then tell the robot that the condition is cleared.
 
-If the safety system detects that someone has reported an ***emergency_stop*** or ***system_shutdown*** level of failure, the safety system relays that condition to the custom board that talks to the motor controller and it issues a hardware e-stop signal to power down the motors.
+If the safety system detects that someone has reported an ***emergency_stop*** or ***system_shutdown*** level of failure, the safety system relays that condition to the custom board that talks to the motor controller which then issues a hardware e-stop signal to power down the motors.
 
-If a ***system_shutdown*** condition were detected, the error would be broadcast system wide and every component would attempt to shut itself down before the robot was forced to power down. Well, that's the plan--that code isn't implemented yet.
+If a ***system_shutdown*** condition were detected, the error would be broadcast system wide and every component would attempt to shut itself down before the robot was forced to power down. Well, that's the plan—that code isn't implemented yet.
 
 Also missing is code to use various fallback communication mechanisms to send me some sort of notification about failures I need to know about. That could be a tone from a speaker, a voice from a synthesizer, a text message sent to my phone, an e-mail message, and so on.
 
@@ -122,7 +122,7 @@ Since this is an overview, I'm going to stop going into a lot more detail about 
 
 1. Overcurrent
    
-   If the motors are commanded to move and something restricts the wheels from turning, the windings look like short circuits to the power supply, and a huge amount of current can surge into the motors. This can literally cause the wires to melt into pools of copper in a short period of time.  My normal operation is specifically configured so that the robot should never enter a stall condition. If that current surge is detected, the motor controller will get signaled to emergency stop very quickly before I have to buy a very expensive replacement motor.
+   If the motors are commanded to move and something restricts the wheels from turning, the windings look like short circuits to the power supply, and a huge amount of current can surge into the motors. This can literally cause the wires to melt into pools of copper in a short period of time.  My software is specifically configured so that the robot should never enter a stall condition. If that current surge is detected, though, the motor controller will get signaled to emergency stop very quickly before I have to buy a very expensive replacement motor.
 
 1. Runaway
    
@@ -159,12 +159,22 @@ If the SD card used for logging fails, that is reported.
 
 ### Performance Safety
 
-Each hardware module has a performance goal.
-If the module is unable to report the sensor data or respond to a command as configured. 
+Each hardware module has a performance goal and messages are sent if the expected performance cannot be met. Intermittent failures versus longer term failures are detected.
+If a module is unable to report the sensor data or respond to a command as configured, that is reported to the safety system. Most modules deal nicely with short term hardware failures and recover once the issue disappears. 
 
-There is somewhat complicated logic for measuring performance, allowing for hysteresis, consecutive failure test, whatever is needed to deal with specific sensors from specific vendors.
+There is somewhat complicated logic for measuring performance, allowing for hysteresis, consecutive failure tests, whatever is needed to deal with specific sensors from specific vendors. This code is custom for each kind of hardware component.
 
 The performance failures get bubbled up to the ***rosout*** log if they merit attention. 
 That lets me know that I need to pull out the SD card and see what the low-level logs say.
-This usually happens when I add some new hardware or change an algorithm.
-This is especially true when I deal with the tricky problem of getting proximity sensors (Time of Flight and SONAR) to report quickly enough and with low latency to be useful for the navigation algorithms. There is a lot of state machine fiddling in my many algorithms to make slow sensors appear to be fast.
+This usually happens when I add some new hardware or change an algorithm and suddenly the performance guarantees or no longer being met.
+This is especially true when I deal with the tricky problem of getting proximity sensors (Time of Flight and SONAR) to report quickly enough and with low enough latency to be useful for the navigation algorithms. There is a lot of state machine fiddling in my many algorithms to make slow sensors appear to be fast.
+
+### Final Thoughts
+
+Most of my sensors don't use the open source software available from the Arduino libraries. Those libraries almost never are concerned with robust error detection and handling and they almost never concern themselves with either optimum performance nor consider how to play nicely when a collection of hardware devices are all being handled by a single microcontroller.
+
+The currently deployed library, for instance, doesn't have SONAR device support enabled (though it use to). But think about the problems you need to deal with when you have multiple SONAR devices. What happens with there isn't a nearby obstacle; how long will you wait for a return echo? What if you've stopped listening for an echo, started a new ping, and the old echo finally returns? What happens if a ping from one SONAR device gets picked up as an echo on another SONAR device? What happens if you get multiple echos? What happens if noise from tiny objects at floor level cause chaotic distance reporting and the SONAR quickly reports distances altering from 0.1 meter and 1.5 meters at a high frequency?
+
+The design of the safety system cannot be done without giving thought to the macroscopic behavior of the robot. Especially important in a ROS 2-based robot is what your behavior tree looks like. Once your robot does more than just follow a set of markers, you need to think about reactive behavior. How will you deal with the battery becoming unexpectedly, or even predictably, running out of power? What will you do when the robot gets tangled up in a power cord? What will you do if a towel falls across the camera? What will you do if the robot falls over? What if the batter suddenly goes up in flames?
+
+There is quite a difference between designing a robot that just needs to drive across a table and return and it's okay if the robot occasionally falls to the floor, and building a robot that you are relying on to age by yourself in your house. Then the robot is not a toy, engineering decisions have real life consequences. You need to design for safety and have a plan to deal with both expected and unexpected problems.
