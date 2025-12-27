@@ -135,7 +135,7 @@ alias sim='clear;ros2 launch base sigyn.launch.py use_sim_time:=true do_rviz:=tr
 alias sp='ssh -YC signpi'
 alias sr='ssh -YC sigyn7900a'
 alias sv='ssh -YC sigynVision'
-alias stele='ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=/cmd_vel_teleop'
+alias stele='ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=/cmd_vel_nav'
 alias teensy='ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/teensy_sensor'
 alias tele='ros2 run teleop_twist_keyboard teleop_twist_keyboard'
 alias teles='ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=/diff_cont/cmd_vel_unstamped'

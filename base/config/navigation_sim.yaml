@@ -275,7 +275,7 @@ local_costmap:
           topic: /stereo/points2 # Topic of data.
 
       range_sensor_layer:
-        enabled: True
+        enabled: False  # Disabled in simulation - VL53L0X sensors not available
         plugin: "nav2_costmap_2d::RangeSensorLayer"
         combination_method: 1   # Max combine so marked cells persist
         topics: [
