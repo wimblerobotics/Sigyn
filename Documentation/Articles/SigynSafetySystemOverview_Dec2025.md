@@ -6,7 +6,7 @@ Sigyn is my personal, assistive robot. It's a work in progress.
 Eventually, Sigyn will roam the house, looking for things that need attention, taking care of things that it can, and summoning help when it needs help. It will look after me and perform chores for me.
 Each iteration of the hardware and software gets a bit closer to achieving those goals, but it's been a long road getting here.
 
-The previous version of Sigyn, "Raven", had the goal of improving safety, reliability, and robustness. If you cannot trust your robot, it has very little value. This paper is just a brief overview of where the robot is now in terms of intent, architecture, and implementation and a description of where it will evolve next.
+The previous version of Sigyn, "Raven", had the goal of improving safety, reliability, and robustness. If you cannot trust your robot, it has very little value. This paper is just a brief overview of where the robot is now in terms of intent, architecture, and implementation.
 
 ## Safety Issues
 
@@ -34,72 +34,72 @@ There are a lot of hardware components in Sigyn.
 1. The robot wants to implement a "rings of protection" strategy to deal with obstacles.
 
    Normally, the various proximity sensors will detect if the robot is getting too close to something and it will issue motor commands to avoid it. 
-   The robot cannot see everything around it, it has blind spots. The robot doesn't always get notification in time to avoid hitting something--the robot has to deal with a lot of data all of the time and the responsible software can't always get notified in time or react in time to avoid hitting an obstacle.
+   The robot cannot see everything around it; it has blind spots. The robot doesn't always get notification in time to avoid hitting something--the robot has to deal with a lot of data all of the time and the responsible software can't always get notified in time or react in time to avoid hitting an obstacle.
 
-   Sigyn wants to have two or three rings at various distances where if a sensor sees an obstacle in one of the rings it takes special action. For instance, if the robot is designed to never get closer than, say, 5 inches from an object and a sensor sees an object is 4 inches away, its first response might be to slow the robot down quite a bit in the hopes that the robot will then be able to catch up on all of the software computation to deal with the object. But if the sensor sees an object is 3 inches away it might just quickly stop the robot until I can look at what is going on and help the robot deal with the problem.
+   Sigyn wants to have two or three rings at various distances, where if a sensor sees an obstacle in one of the rings, it takes special action. For instance, if the robot is designed to never get closer than, say, 5 inches from an object, and a sensor sees an object is 4 inches away, its first response might be to slow the robot down quite a bit in the hopes that the robot will then be able to catch up on all of the software computation to deal with the object. But if the sensor sees an object is 3 inches away, it might just quickly stop the robot until I can look at what is going on and help the robot deal with the problem.
 
 1. The ROS 2 navigational system relies on sensor data that is reasonably truthful and timely.
    
    The safety system needs to check to see that sensor data is being published at a rate needed for proper navigation. When the robot is moving, if the sensor data is late, the robot cannot figure out where it actually is at the moment nor whether there is any imminent danger. The safety system needs to also know if the sensors are all healthy and acting as expected. There needs to be a plan of action if a sensor fails or if the readings become unreliable.
 
-There a more safety issues. This is motivation, though, for the kinds of things that Sigyn needs to be able to deal with. The safety system is all about trying to be a bit paranoid, to be constantly looking at the state of the robot from multiple different perspectives and to have a plan for dealing with expected problems or, ultimately, just go into a fail safe state and wait for help.
+There are more safety issues. This is motivation, though, for the kinds of things that Sigyn needs to be able to deal with. The safety system is all about trying to be a bit paranoid, to be constantly looking at the state of the robot from multiple different perspectives, and to have a plan for dealing with expected problems or, ultimately, just go into a fail-safe state and wait for help.
 
 ## A Division of Responsibilities
 
-Sigyn uses ROS 2 as a basis for it's operation. That has a lot of implications. For Sigyn, there are limits to how fast the main computer can run the software algorithms, for how fast the robot can move and still be able to react in a timely manner. There are limits as to what kind of expected problems can be dealt with.  There are problems introduced by that fact that Linux, with its preemptive time scheduling algorithm, causes uncertainty in what computations will occur and when.
+Sigyn uses ROS 2 as a basis for its operation. That has a lot of implications. For Sigyn, there are limits to how fast the main computer can run the software algorithms, for how fast the robot can move and still be able to react in a timely manner. There are limits as to what kind of expected problems can be dealt with.  There are problems introduced by the fact that Linux, with its preemptive time scheduling algorithm, causes uncertainty in what computations will occur and when.
 
-Since my hardware cannot read all of the sensors and send control signals to all of the actuators in a way that will work well if all of the software is run on my main computer, I've had to split up the hardware and software into several components. In particular, the main computer, a fast, 12-cpu, 24 thread computer with lots of fast memory, deals with all of the high level, complex algorithms. The sensors and actuators are handled by several microcontrollers that are designed to deliver guaranteed performance. And the safety system sits over it all to make sure that things don't go wrong.
+Since my hardware cannot read all of the sensors and send control signals to all of the actuators in a way that will work well if all of the software is run on my main computer, I've had to split up the hardware and software into several components. In particular, the main computer, a fast, 12-CPU, 24-thread computer with lots of fast memory, deals with all of the high-level, complex algorithms. The sensors and actuators are handled by several microcontrollers that are designed to deliver guaranteed performance. And the safety system sits over it all to make sure that things don't go wrong.
 
 ## The First Division of Responsibility
 
-My microcontrollers aren't running ROS. They used to run Micro ROS but no longer do even that. Micro ROS introduced too much complexity into the system and too much uncertainty. This article is not going to deal with that decision, this article is about the safety system. So my microcontrollers talk to the main computer over high speed USB.
+My microcontrollers aren't running ROS. They used to run Micro ROS but no longer do even that. Micro ROS introduced too much complexity into the system and too much uncertainty. This article is not going to deal with that decision; this article is about the safety system. So my microcontrollers talk to the main computer over high-speed USB.
 
-I designed a custom carrier/expander board that holds a Teensy 4.1 microcontroller. The Teensy runs at about 600 MHz, has about a megabyte of RAM, lots of ROM for the code, and with my board there are a lot of signal pins and level converters to communicate with a lot of hardware devices.
+I designed a custom carrier/expander board that holds a Teensy 4.1 microcontroller. The Teensy runs at about 600 MHz, has about a megabyte of RAM, lots of ROM for the code, and with my board, there are a lot of signal pins and level converters to communicate with a lot of hardware devices.
 
-There is a software package I wrote, ***sigyn_to_sensor_v2***, that provides the bridge between ROS2 and the three, custom hardware boards. I won't particularly discuss that package. It communicates with the custom boards over high speed, virtual USB ports, mostly passing JSON messages back and forth, and converts between compressed messages to and from the custom boards and the equivalent ROS2 messages.
+There is a software package I wrote, ***sigyn_to_sensor_v2***, that provides the bridge between ROS2 and the three custom hardware boards. I won't particularly discuss that package. It communicates with the custom boards over high-speed, virtual USB ports, mostly passing JSON messages back and forth, and converts between compressed messages to and from the custom boards and the equivalent ROS2 messages.
 
-Pretty much all of the hardware and software needs that required predictable and high speed timing happen on the custom boards and the ***sigyn_to_sensor_v2*** package links all of those boards to the main computer.
+Pretty much all of the hardware and software needs that required predictable and high-speed timing happen on the custom boards, and the ***sigyn_to_sensor_v2*** package links all of those boards to the main computer.
 
 ## The Second Division of Responsibility
 
-Even a Teensy 4.1 running at 600 MHz cannot provide the needed functionality for all of the low level hardware.  ROS 2 navigation relies on high frame rates from its sensors. Your slowest navigation-related sensor constrains how fast your robot can safely move. The localization and mapping algorithms rely on the robot not moving very far between calculations that update the map and locate the robot within the map. The control loop that moves the robot towards a goal relies is limited by how fast it can detect an obstacle, plan to avoid it, and can guarantee the robot will move or stop as needed in time. 
+Even a Teensy 4.1 running at 600 MHz cannot provide the needed functionality for all of the low-level hardware.  ROS 2 navigation relies on high frame rates from its sensors. Your slowest navigation-related sensor constrains how fast your robot can safely move. The localization and mapping algorithms rely on the robot not moving very far between calculations that update the map and locate the robot within the map. The control loop that moves the robot towards a goal relies is limited on how fast it can detect an obstacle, plan to avoid it, and can guarantee the robot will move or stop as needed in time. 
 
 This all only works well if the needed sensors and actuators are predictable and quick.
 
-My closest ring of protection sensors are time of flight sensors. There are 8 of them and it takes at least 30 milliseconds to read any one of them. If you were to naively read one sensor after another, it would take about a quarter of a second to read them all. If you're trying to move a heavy robot at any speed and you know your obstacle detector can only tell you where an obstacle was a quarter of a second ago, you probably have to creep your robot at a fairly slow speed to be sure you can stop the robot in time to avoid smacking into something.
+My closest ring of protection sensors are time-of-flight sensors. There are 8 of them, and it takes at least 30 milliseconds to read any one of them. If you were to naively read one sensor after another, it would take about a quarter of a second to read them all. If you're trying to move a heavy robot at any speed and you know your obstacle detector can only tell you where an obstacle was a quarter of a second ago, you probably have to creep your robot at a fairly slow speed to be sure you can stop the robot in time to avoid smacking into something.
 
-One of my custom boards deals with communicating with the motor controller, 2 temperature sensors and 8 time of flight sensors. 
+One of my custom boards deals with communicating with the motor controller, 2 temperature sensors, and 8 time-of-flight sensors. 
 A second board handles 5 voltage and current sensors for the battery and 4 power supplies and also manages two IMU sensors. 
 The third board controls the gripper assembly with stepper motors and servo motors.
 
-Why was the hardware distributed this way? Because with carefully crafted code I was able to measure and guarantee the needed performance.
+Why was the hardware distributed this way? Because with carefully crafted code, I was able to measure and guarantee the needed performance.
 
 ## The Big Pieces of the Teensy Software
 
 The Teensy microcontroller uses a ***setup*** and ***loop*** function, just like an Arduino device.
 I have a ***Module*** class that essentially replaces those two functions.
-Any piece of hardware that wants run on my board must derive from the ***Module** class, which is enough to register itself with the system. 
+Any piece of hardware that wants to run on my board must derive from the ***Module** class, which is enough to register itself with the system. 
 When ***setup*** is called, ***Module*** will call the equivalent ***setup*** function for all registered hardware modules. The same for the ***loop*** function. 
 
-But ***Module*** wraps those calls, especially the ***loop*** function call with a timer that keeps track of how long each piece of hardware takes to perform its function. ***Module*** then compares the performance with the required performance for each piece of hardware and provides statistics at the sub-millisecond level for the minimum, maximum and average performance. Those statistics are logged and messages are sent about performance and unexpected behavior.
+But ***Module*** wraps those calls, especially the ***loop*** function call, with a timer that keeps track of how long each piece of hardware takes to perform its function. ***Module*** then compares the performance with the required performance for each piece of hardware and provides statistics at the sub-millisecond level for the minimum, maximum, and average performance. Those statistics are logged, and messages are sent about performance and unexpected behavior.
 
-There is also a ***sd_logger*** module that performs efficient logging to an SD card on each board. This holds a lot of low-level messages about what is happening on each board. If nearly anything goes wrong with the low level hardware, I can alway power down the robot, pull out the SD card, mount it on another computer and look at the details about what is going on with either the hardware or software on the custom board.
+There is also a ***sd_logger*** module that performs efficient logging to an SD card on each board. This holds a lot of low-level messages about what is happening on each board. If nearly anything goes wrong with the low-level hardware, I can always power down the robot, pull out the SD card, mount it on another computer, and look at the details about what is going on with either the hardware or software on the custom board.
 
-There is also a ***serial_manager*** module that communicates, using compact, JSON messages between the custom board that the main computer.
+There is also a ***serial_manager*** module that communicates, using compact, JSON messages, between the custom board and the main computer.
 
 ### The Safety Module.
 
 I'm going to diverge a bit from what is actually implemented in one of the branches of my code and talk about what the safety module is going to support.
 
-Each registered module is interrogated by the ***Module*** class as to whether the hardware is safe. If not, the hardware will report that it is unsafe either at a ***warning*** level, a ***degraded*** level, an ***emergency_stop*** level or a ***system_shutdown*** level. There can be multiple hardware failures going on at the same time. The safety module keeps a list of all outstanding safety issues, including the source of the failure and the level of the failure.
+Each registered module is interrogated by the ***Module*** class as to whether the hardware is safe. If not, the hardware will report that it is unsafe either at a ***warning*** level, a ***degraded*** level, an ***emergency_stop*** level, or a ***system_shutdown*** level. There can be multiple hardware failures going on at the same time. The safety module keeps a list of all outstanding safety issues, including the source of the failure and the level of the failure.
 
-Each failure be resolved either internally, such as a temporary failure like a temperature sensor now reading a safe temperature when it was previously out of range, or it can be resolved externally, such as some user interface action by myself that says the condition is now okay. An example of the later would be if the robot sensed that the wheels were turning but the localization software said the robot wasn't actually moving as expected. I could find that the robot what slipping on a towel, remove it, and then tell the robot that the condition is cleared.
+Each failure can be resolved either internally, such as a temporary failure like a temperature sensor now reading a safe temperature when it was previously out of range, or it can be resolved externally, such as some user interface action by myself that says the condition is now okay. An example of the latter would be if the robot sensed that the wheels were turning but the localization software said the robot wasn't actually moving as expected. I could find that the robot was slipping on a towel, remove it, and then tell the robot that the condition is cleared.
 
 If the safety system detects that someone has reported an ***emergency_stop*** or ***system_shutdown*** level of failure, the safety system relays that condition to the custom board that talks to the motor controller and it issues a hardware e-stop signal to power down the motors.
 
-If a ***system_shutdown*** condition where detected, the error would be broadcast system wide and every component would attempt to shut itself down before the robot was forced to power down. Well, that's the plan--that code isn't implemented yet.
+If a ***system_shutdown*** condition were detected, the error would be broadcast system wide and every component would attempt to shut itself down before the robot was forced to power down. Well, that's the plan--that code isn't implemented yet.
 
-Also missing is code to use various fallback communication mechanisms to send me some sort of notification about failures I need to know about. That could be a tone from a speaker, a voice from a synthesizer, a text message sent to my phone, an e-mail message and so on.
+Also missing is code to use various fallback communication mechanisms to send me some sort of notification about failures I need to know about. That could be a tone from a speaker, a voice from a synthesizer, a text message sent to my phone, an e-mail message, and so on.
 
 ## Safety Failures Detected
 
@@ -110,27 +110,27 @@ Since this is an overview, I'm going to stop going into a lot more detail about 
 1. Communication failure
    
    My motors are controlled by a RoboClaw controller. This gives me a lot of interesting functionality. Unfortunately, communicating with the RoboClaw can fail.
-   I've written my own driver that deals with various communication faults and failures very rarely are unrecoverable any more. But if can happen.
+   I've written my own driver that deals with various communication faults, and failures very rarely are unrecoverable anymore. But if can happen.
 
 1. Software version failure
    
-   Periodically I update the firmware on the controller with the vendor's latest code. Firmware updates sometimes cause small changes needed in my driver. Sometimes they require a major rewrite, though that hasn't happened in a while. On startup, my driver verifies that it knows how to deal with the firmware in the controller.
+   Periodically, I update the firmware on the controller with the vendor's latest code. Firmware updates sometimes cause small changes needed in my driver. Sometimes they require a major rewrite, though that hasn't happened in a while. On startup, my driver verifies that it knows how to deal with the firmware in the controller.
 
 1. Motor controller detected failure
    
-   The RoboClaw can be set up to measure out of range motor currents, out of range power supply voltages, message failures and a handful of other problems. Some of these, if configured to be detected, require that the motor controller be powered off to recover.
+   The RoboClaw can be set up to measure out-of-range motor currents, out-of-range power supply voltages, message failures, and a handful of other problems. Some of these, if configured to be detected, require that the motor controller be powered off to recover.
 
 1. Overcurrent
    
-   If the motors are commanded to move and something restricts the wheels from turning, the windings look like short circuits to the power circuits and a huge amount of current can surge into the motors. This can literally cause the wires to melt into pools of copper in a short period of time.  My normal operation is specifically configured so that the robot should never enter a stall condition. If that current surge is detected, the motor controller will get signaled to emergency stop very quickly before I have to buy a very expensive replacement motor.
+   If the motors are commanded to move and something restricts the wheels from turning, the windings look like short circuits to the power supply, and a huge amount of current can surge into the motors. This can literally cause the wires to melt into pools of copper in a short period of time.  My normal operation is specifically configured so that the robot should never enter a stall condition. If that current surge is detected, the motor controller will get signaled to emergency stop very quickly before I have to buy a very expensive replacement motor.
 
 1. Runaway
    
-   If the signals from the wheel encoders fail, usually because the connectors come loose from vibration, the controller will try to keep the commanded motor velocity by signaling the motors to go faster and faster. The safety system currently only looks for a velocity larger than a configured maximum, but in the future, the system will also look at the last commanded speed, acceleration and timing and detect if the robot is moving significantly differently than expected.
+   If the signals from the wheel encoders fail, usually because the connectors come loose from vibration, the controller will try to keep the commanded motor velocity by signaling the motors to go faster and faster. The safety system currently only looks for a velocity larger than a configured maximum, but in the future, the system will also look at the last commanded speed, acceleration, and timing and detect if the robot is moving significantly differently than expected.
 
 1. Thermal runaway
    
-   Currently I ignore the available temperature sensors on the motor controller board, but in the future I will include them in the safety system.
+   Currently, I ignore the available temperature sensors on the motor controller board, but in the future, I will include them in the safety system.
 
 ### Battery Safety
 
@@ -142,7 +142,7 @@ My battery charger does not have a port that reports cell health, so I also don'
 
 Currently, if both IMUs are failing, the safety system is notified. 
 I have two IMUs in the robot.
-Originally I wanted to use two to cancel out the rate gyroscope noise inherent in the sensors, but it turns out the the localization software currently works better with only one sensor. Eventually I may add code that switches to the backup IMU if the primary fails and there will then be a warning safety report for a single failing sensor.
+Originally, I wanted to use two to cancel out the rate gyroscope noise inherent in the sensors, but it turns out the localization software currently works better with only one sensor. Eventually, I may add code that switches to the backup IMU if the primary fails, and there will then be a warning safety report for a single failing sensor.
 
 ### Temperature Safety
 
@@ -160,11 +160,11 @@ If the SD card used for logging fails, that is reported.
 ### Performance Safety
 
 Each hardware module has a performance goal.
-If the module is unable to report the sensor data or respond to a command as configured, 
+If the module is unable to report the sensor data or respond to a command as configured. 
 
-There is somewhat complicated logic for measuring performance, allowing for hystereses, consecutive failure test, whatever is needed to deal with specific sensors from specific vendors.
+There is somewhat complicated logic for measuring performance, allowing for hysteresis, consecutive failure test, whatever is needed to deal with specific sensors from specific vendors.
 
 The performance failures get bubbled up to the ***rosout*** log if they merit attention. 
 That lets me know that I need to pull out the SD card and see what the low-level logs say.
-This usually happens when I added some new hardware or change an algorithm.
+This usually happens when I add some new hardware or change an algorithm.
 This is especially true when I deal with the tricky problem of getting proximity sensors (Time of Flight and SONAR) to report quickly enough and with low latency to be useful for the navigation algorithms. There is a lot of state machine fiddling in my many algorithms to make slow sensors appear to be fast.
