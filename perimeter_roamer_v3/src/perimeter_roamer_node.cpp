@@ -12,9 +12,11 @@
 #include "rclcpp/executors/multi_threaded_executor.hpp"
 #include "behaviortree_cpp_v3/bt_factory.h"
 #include "behaviortree_cpp_v3/loggers/bt_cout_logger.h"
+#include "behaviortree_cpp_v3/loggers/bt_zmq_publisher.h"
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "sensor_msgs/msg/battery_state.hpp"
 #include "geometry_msgs/msg/pose.hpp"
+#include "std_msgs/msg/string.hpp"
 
 #include "perimeter_roamer_v3/bt_nodes.hpp"
 
@@ -131,10 +133,18 @@ public:
 
     // Add a logger to print the tree status to the console
     logger_ = std::make_unique<BT::StdCoutLogger>(tree_);
+    
+    // Add ZMQ publisher for Groot2 monitoring on port 1666
+    zmq_publisher_ = std::make_unique<BT::PublisherZMQ>(tree_, 10, 1666, 1667);
+    RCLCPP_INFO(this->get_logger(), "ZMQ publisher started on ports 1666/1667 for Groot monitoring");
+
+    // Create ROS2 publisher for web-based monitoring
+    bt_status_pub_ = this->create_publisher<std_msgs::msg::String>(
+      "/sigyn/bt_status", 10);
 
     // Create a timer to tick the tree
     timer_ = this->create_wall_timer(
-      500ms,
+      100ms,
       std::bind(&PerimeterRoamerNode::tick_tree, this));
   }
 
@@ -149,6 +159,10 @@ private:
     }
     
     BT::NodeStatus status = tree_.tickRoot();
+    
+    // Publish tree status to ROS2 topic for web monitor
+    publish_tree_status();
+    
     if (status == BT::NodeStatus::SUCCESS) {
       RCLCPP_INFO(this->get_logger(), "Behavior Tree execution completed successfully. Continuing...");
       // Don't shutdown, keep running
@@ -194,10 +208,51 @@ private:
       tree_.rootBlackboard()->set("battery_time", last_battery_time_);
     }
   }
+  
+  void publish_tree_status()
+  {
+    // Publish node status as JSON for web monitor
+    std::stringstream json_stream;
+    json_stream << "{\"nodes\":[";
+    
+    bool first = true;
+    for (const auto& node : tree_.nodes) {
+      if (!first) json_stream << ",";
+      first = false;
+      
+      std::string node_name = node->name();
+      std::string status_str;
+      
+      switch (node->status()) {
+        case BT::NodeStatus::IDLE:
+          status_str = "idle";
+          break;
+        case BT::NodeStatus::RUNNING:
+          status_str = "running";
+          break;
+        case BT::NodeStatus::SUCCESS:
+          status_str = "success";
+          break;
+        case BT::NodeStatus::FAILURE:
+          status_str = "failure";
+          break;
+      }
+      
+      json_stream << "{\"name\":\"" << node_name << "\",\"status\":\"" << status_str << "\"}";
+    }
+    
+    json_stream << "]}";
+    
+    auto msg = std_msgs::msg::String();
+    msg.data = json_stream.str();
+    bt_status_pub_->publish(msg);
+  }
 
   BT::Tree tree_;
   rclcpp::TimerBase::SharedPtr timer_;
   std::unique_ptr<BT::StdCoutLogger> logger_;
+  std::unique_ptr<BT::PublisherZMQ> zmq_publisher_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr bt_status_pub_;
   
   // Sensor data
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
