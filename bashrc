@@ -121,9 +121,11 @@ alias clcm='ros2 service call /local_costmap/clear_entirely_local_costmap nav2_m
 alias dla="ros2 run --prefix 'gdbserver localhost:3000' line_finder laser_accumulator"
 alias fr='ros2 run tf2_tools view_frames'
 alias gripper='ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/teensy_gripper'
+alias groot='~/sigyn_ws/src/Sigyn/scripts/groot'
 alias map='clear;ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=true make_map:=true'
 alias mr='micro-ros-agent serial --dev /dev/ttyACM0 -b 115200'	
 alias nav='clear;ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=true'
+alias patrol='ros2 launch perimeter_roamer_v3 patrol_using_waypoints_launch.py'
 alias pm='ros2 topic pub --rate 10 /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.2}}"'
 alias rd='rosdep install --from-paths src --ignore-src -r -y'
 alias record='/home/ros/sigyn_ws/src/Sigyn/scripts/bag_record_sim.sh'
