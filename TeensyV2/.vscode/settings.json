@@ -64,8 +64,8 @@
     "C_Cpp.enhancedColorization": "enabled",
     "C_Cpp.autocomplete": "default",
     "C_Cpp.suggestSnippets": true,
-    "C_Cpp.default.configurationProvider": "",
     "C_Cpp.workspaceSymbols": "All",
     "C_Cpp.autocompleteAddParentheses": true,
-    "C_Cpp.activeConfigName": "TeensyV2"
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.configurationWarnings": "enabled"
 }

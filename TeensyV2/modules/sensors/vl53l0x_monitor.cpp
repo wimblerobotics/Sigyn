@@ -227,7 +227,7 @@ namespace sigyn_teensy {
   }
 
   bool VL53L0XMonitor::isUnsafe() {
-    return array_status_.any_obstacles && (array_status_.min_distance_mm < config_.obstacle_threshold_mm);
+    return false; //#####return array_status_.any_obstacles && (array_status_.min_distance_mm < config_.obstacle_threshold_mm);
   }
 
   void VL53L0XMonitor::resetSafetyFlags() {
