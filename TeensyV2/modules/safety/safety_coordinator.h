@@ -86,7 +86,7 @@ struct EstopCondition {
 struct SafetyConfig {
   // Hardware pins
   uint8_t hardware_estop_pin = 2;      ///< Hardware E-stop input pin
-  uint8_t estop_output_pin = 3;        ///< E-stop signal output pin
+  uint8_t estop_output_pin = 30;        ///< E-stop signal output pin
   uint8_t inter_board_input_pin = 4;   ///< Inter-board safety input
   uint8_t inter_board_output_pin = 5;  ///< Inter-board safety output
   

@@ -217,7 +217,7 @@ safety:
 ```cpp
 // Board 1 (Main Controller)
 constexpr uint8_t HARDWARE_ESTOP_PIN = 2;      // Input, active low
-constexpr uint8_t ESTOP_OUTPUT_PIN = 3;        // Output, active high
+constexpr uint8_t ESTOP_OUTPUT_PIN = 30;        // Output, active high
 constexpr uint8_t INTER_BOARD_INPUT_PIN = 4;   // Input from Board 2
 constexpr uint8_t INTER_BOARD_OUTPUT_PIN = 5;  // Output to Board 2
 constexpr uint8_t STATUS_LED_PIN = 13;         // Status indicator

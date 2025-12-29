@@ -218,10 +218,10 @@ void SafetyCoordinator::loop() {
   }
 
   // Optional: periodic status updates even when not in E-stop
-  // if (now - last_status_update_ms_ >= 5000) { // Every 5 seconds
-  //   SendStatusUpdate();
-  //   last_status_update_ms_ = now;
-  // }
+  if (now - last_status_update_ms_ >= 1000) { // Every 1 seconds
+    sendStatusUpdate();
+    last_status_update_ms_ = now;
+  }
 }
 
 const char* SafetyCoordinator::name() const { return "SafetyCoordinator"; }

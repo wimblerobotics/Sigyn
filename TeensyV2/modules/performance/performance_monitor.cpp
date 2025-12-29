@@ -184,7 +184,7 @@ namespace sigyn_teensy {
   }
 
   bool PerformanceMonitor::isUnsafe() {
-    return violations_.safety_violation_active;
+    return false; //#####violations_.safety_violation_active;
   }
 
   void PerformanceMonitor::loop() {

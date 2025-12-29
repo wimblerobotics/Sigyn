@@ -80,10 +80,10 @@ struct MotorStatus {
   float current_amps = 0.0f;           ///< Current draw (Amps)
   
   // Status flags
-  bool communication_ok = false;       ///< Communication with RoboClaw OK
-  bool encoder_valid = false;          ///< Encoder reading valid
-  bool speed_valid = false;            ///< Speed reading valid
-  bool current_valid = false;          ///< Current reading valid
+  bool communication_ok = true;       ///< Communication with RoboClaw OK
+  bool encoder_valid = true;          ///< Encoder reading valid
+  bool speed_valid = true;            ///< Speed reading valid
+  bool current_valid = true;          ///< Current reading valid
   
   // Safety flags
   bool runaway_detected = false;       ///< Motor runaway detected

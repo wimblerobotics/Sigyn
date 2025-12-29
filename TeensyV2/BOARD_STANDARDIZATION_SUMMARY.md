@@ -21,7 +21,7 @@ Successfully standardized `board1_main.cpp` and `board2_main.cpp` to look much m
 #define INTER_BOARD_SIGNAL_OUTPUT_PIN 10  // Pin to signal other boards
 #define INTER_BOARD_SIGNAL_INPUT_PIN  11  // Pin to receive signals from other boards
 #define HARDWARE_ESTOP_INPUT_PIN      2   // Hardware E-stop button
-#define ESTOP_OUTPUT_PIN              3   // E-stop relay output
+#define ESTOP_OUTPUT_PIN              30  // E-stop relay output
 ```
 
 #### Performance Monitoring Thresholds
