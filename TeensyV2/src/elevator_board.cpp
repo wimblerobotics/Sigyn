@@ -86,8 +86,8 @@ void setup() {
   SerialManager::getInstance().sendDiagnosticMessage("INFO", "elevator_board",
     "  - SD Logging");
 #endif
-#if ENABLE_MOTOR_CONTROL
-  SerialManager::getInstance().sendDiagnosticMessage("INFO", "elevator_board",
+#if BOARD_HAS_MOTOR_CONTROL
+  SerialManager::getInstance().sendDiagnosticMessage("INFO", "Board_has_motor_control",
     "  - Motor Control");
 #endif
 #if ENABLE_VL53L0X
@@ -105,10 +105,6 @@ void setup() {
 #if ENABLE_SAFETY
   SerialManager::getInstance().sendDiagnosticMessage("INFO", "elevator_board",
     "  - Safety Coordinator");
-#endif
-#if ENABLE_ROBOCLAW
-  SerialManager::getInstance().sendDiagnosticMessage(
-    "INFO", "elevator_board", "  - RoboClaw Motor Driver");
 #endif
 #if ENABLE_BATTERY
   SerialManager::getInstance().sendDiagnosticMessage("INFO", "elevator_board",

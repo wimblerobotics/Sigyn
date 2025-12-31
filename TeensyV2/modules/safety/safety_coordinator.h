@@ -85,10 +85,8 @@ struct EstopCondition {
  */
 struct SafetyConfig {
   // Hardware pins
-  uint8_t hardware_estop_pin = 2;      ///< Hardware E-stop input pin
-  uint8_t estop_output_pin = 30;        ///< E-stop signal output pin
-  uint8_t inter_board_input_pin = 4;   ///< Inter-board safety input
-  uint8_t inter_board_output_pin = 5;  ///< Inter-board safety output
+  // uint8_t inter_board_input_pin = 4;   ///< Inter-board safety input
+  // uint8_t inter_board_output_pin = 5;  ///< Inter-board safety output
   
   // Timing parameters
   uint32_t estop_check_interval_ms = 10;  ///< How often to check E-stop conditions
@@ -221,7 +219,7 @@ class SafetyCoordinator : public Module {
   /**
    * @brief Check for safety signals from other boards.
    */
-  void checkInterBoardSafety();
+  // void checkInterBoardSafety();
 
   /**
    * @brief Check for safety violations from other modules.

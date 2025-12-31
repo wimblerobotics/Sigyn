@@ -59,7 +59,11 @@
 #include <cstdint>
 #include <cstdio>
 
+#include "common/core/config.h"
 #include "common/core/serial_manager.h"
+#if ENABLE_MOTOR_CONTROL
+#include "modules/roboclaw/roboclaw_monitor.h"
+#endif
 
 namespace sigyn_teensy {
 
@@ -83,12 +87,14 @@ void SafetyCoordinator::activateEstop(EstopSource source, const String& descript
 
     // Assert hardware E-stop signal for immediate motor cutoff
     // HIGH signal indicates E-stop active (fail-safe design)
-    digitalWrite(config_.estop_output_pin, HIGH);
+#if ENABLE_MOTOR_CONTROL
+    RoboClawMonitor::getInstance().setEmergencyStop();
+#endif
 
-    // Notify other boards of E-stop condition if enabled
-    if (config_.enable_inter_board_safety) {
-      digitalWrite(config_.inter_board_output_pin, HIGH);
-    }
+    // // Notify other boards of E-stop condition if enabled
+    // if (config_.enable_inter_board_safety) {
+    //   digitalWrite(config_.inter_board_output_pin, HIGH);
+    // }
 
     // Send immediate status update for monitoring systems
     sendStatusUpdate();
@@ -103,13 +109,13 @@ void SafetyCoordinator::attemptRecovery() {
   switch (estop_condition_.source) {
     case EstopSource::HARDWARE_BUTTON:
       // Hardware button must be released (LOW = not pressed)
-      if (digitalRead(config_.hardware_estop_pin) == LOW) condition_cleared = false;
+      // if (digitalRead(config_.hardware_estop_pin) == LOW) condition_cleared = false;
       break;
 
-    case EstopSource::INTER_BOARD:
-      // Other board must clear its safety signal
-      if (digitalRead(config_.inter_board_input_pin) == LOW) condition_cleared = false;
-      break;
+    // case EstopSource::INTER_BOARD:
+    //   // Other board must clear its safety signal
+    //   if (digitalRead(config_.inter_board_input_pin) == LOW) condition_cleared = false;
+    //   break;
 
     // Software-triggered E-stops: check module safety states
     default:
@@ -129,16 +135,16 @@ void SafetyCoordinator::attemptRecovery() {
 }
 
 void SafetyCoordinator::checkHardwareEstop() {
-  if (digitalRead(config_.hardware_estop_pin) == LOW) {
-    activateEstop(EstopSource::HARDWARE_BUTTON, "Hardware E-stop pressed");
-  }
+  // if (digitalRead(config_.hardware_estop_pin) == LOW) {
+  //   activateEstop(EstopSource::HARDWARE_BUTTON, "Hardware E-stop pressed");
+  // }
 }
 
-void SafetyCoordinator::checkInterBoardSafety() {
-  if (config_.enable_inter_board_safety && digitalRead(config_.inter_board_input_pin) == LOW) {
-    activateEstop(EstopSource::INTER_BOARD, "Inter-board safety signal active");
-  }
-}
+// void SafetyCoordinator::checkInterBoardSafety() {
+//   if (config_.enable_inter_board_safety && digitalRead(config_.inter_board_input_pin) == LOW) {
+//     activateEstop(EstopSource::INTER_BOARD, "Inter-board safety signal active");
+//   }
+// }
 
 void SafetyCoordinator::checkModuleSafety() {
   if (Module::isAnyModuleUnsafe()) {
@@ -164,11 +170,11 @@ void SafetyCoordinator::checkSafetyStatus() {
     return;
   }
 
-  checkHardwareEstop();
-  if (isUnsafe()) return;
+  // checkHardwareEstop();
+  // if (isUnsafe()) return;
 
-  checkInterBoardSafety();
-  if (isUnsafe()) return;
+  // checkInterBoardSafety();
+  // if (isUnsafe()) return;
 
   checkModuleSafety();
 }
@@ -180,10 +186,13 @@ void SafetyCoordinator::deactivateEstop() {
   estop_condition_.description = "";
 
   // De-assert hardware E-stop signal
-  digitalWrite(config_.estop_output_pin, LOW);
-  if (config_.enable_inter_board_safety) {
-    digitalWrite(config_.inter_board_output_pin, LOW);
-  }
+#if ENABLE_MOTOR_CONTROL
+  RoboClawMonitor::getInstance().clearEmergencyStop();
+#endif
+
+  // if (config_.enable_inter_board_safety) {
+  //   digitalWrite(config_.inter_board_output_pin, LOW);
+  // }
 
   // Reset safety flags in all modules
   Module::resetAllSafetyFlags();

@@ -145,6 +145,8 @@ alias compileBoard1='platformio run -e board1 -d ~/sigyn_ws/src/Sigyn/TeensyV2'
 alias compileBoard2='platformio run -e board2 -d ~/sigyn_ws/src/Sigyn/TeensyV2'
 alias buildBoard1='platformio run -e board1 -d ~/sigyn_ws/src/Sigyn/TeensyV2 --target upload'
 alias buildBoard2='platformio run -e board2 -d ~/sigyn_ws/src/Sigyn/TeensyV2 --target upload'
+alias compileElevator='platformio run -e elevator_board -d ~/sigyn_ws/src/Sigyn/TeensyV2'
+alias buildElevator='platformio run -e elevator_board -d ~/sigyn_ws/src/Sigyn/TeensyV2 --target upload'
 export CYCLONEDDS_URI="
 
 <CycloneDDS>
