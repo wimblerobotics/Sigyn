@@ -94,7 +94,7 @@ struct MotorStatus {
 /**
  * @brief RoboClaw system status information.
  */
-struct RoboClawStatus {
+typedef struct RoboClawStatus {
   // System voltages
   float main_battery_voltage = 0.0f;   ///< Main battery voltage (V)
   float logic_battery_voltage = 0.0f; ///< Logic battery voltage (V)
@@ -112,7 +112,7 @@ struct RoboClawStatus {
   // Communication statistics
   uint32_t command_count = 0;          ///< Total commands sent
   uint32_t error_count = 0;            ///< Total communication errors
-};
+} RoboClawStatus;
 
 /**
  * @brief Velocity command structure for motor control.
@@ -175,7 +175,8 @@ private:
     DISCONNECTED,
     CONNECTING,
     CONNECTED,
-    ERROR_RECOVERY
+    ERROR_RECOVERY,
+    FAILED
   };
   
   enum class ReadingState {
@@ -274,29 +275,30 @@ private:
 
 // RoboClaw error status bit definitions
 enum class RoboClawError : uint32_t {
-  M1_OVERCURRENT = 0x000001,
-  M2_OVERCURRENT = 0x000002,
-  E_STOP = 0x000004,
-  TEMPERATURE_ERROR = 0x000008,
-  TEMPERATURE2_ERROR = 0x000010,
-  MAIN_BATTERY_HIGH = 0x000020,
-  LOGIC_BATTERY_HIGH = 0x000040,
-  LOGIC_BATTERY_LOW = 0x000080,
-  M1_DRIVER_FAULT = 0x000100,
-  M2_DRIVER_FAULT = 0x000200,
-  MAIN_BATTERY_LOW = 0x000400,
-  M1_SPEED_ERROR = 0x000800,
-  M2_SPEED_ERROR = 0x001000,
-  M1_POSITION_ERROR = 0x002000,
-  M2_POSITION_ERROR = 0x004000,
-  M1_CURRENT_ERROR = 0x008000,
-  M2_CURRENT_ERROR = 0x010000,
-  LOGIC_VOLTAGE_FAULT = 0x100000,
-  COMM_ERROR = 0x01000000,
-  M1_HOME = 0x10000000,
-  M2_HOME = 0x20000000,
-  S3_MODE = 0x40000000,
-  S4_MODE = 0x80000000
+  E_STOP                    = 0x0000'0001,
+  TEMPERATURE_ERROR         = 0x0000'0002,
+  TEMPERATURE2_ERROR        = 0x0000'0004,
+  MAIN_BATTERY_HIGH_ERROR         = 0x0000'0008,
+  LOGIC_VOLTAGE_HIGH_ERROR        = 0x0000'0010,
+  LOGIC_VOLTAGE_LOW_ERROR         = 0x0000'0020,
+  M1_DRIVER_FAULT_ERROR           = 0x0000'0040,
+  M2_DRIVER_FAULT_ERROR           = 0x0000'0080,
+  M1_SPEED_ERROR            = 0x0000'0100,
+  M2_SPEED_ERROR            = 0x0000'0200,
+  M1_POSITION_ERROR         = 0x0000'0400,
+  M2_POSITION_ERROR         = 0x0000'0800,
+  M1_CURRENT_ERROR          = 0x0000'1000,
+  M2_CURRENT_ERROR          = 0x0000'2000,
+  M1_OVERCURRENT_WARNING            = 0x0001'0000,
+  M2_OVERCURRENT_WARNING            = 0x0002'0000,
+  MAIN_VOLTAGE_HIGH_WARNING = 0x0004'0000,
+  MAIN_VOLTAGE_LOW_WARNING  = 0x0008'0000,
+  TEMPERATURE_WARNING       = 0x0010'0000,
+  TEMPERATURE_2_WARNING     = 0x0020'0000,
+  S4_SIGNAL_TRIGGERED       = 0x0040'0000,
+  S5_SIGNAL_TRIGGERED       = 0x0080'0000,
+  SPEED_ERROR_LIMIT_WARNING = 0x0100'0000,
+  POSITION_ERROR_LIMIT_WARNING = 0x0200'0000,
 };
 
 } // namespace sigyn_teensy
