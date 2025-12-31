@@ -36,7 +36,6 @@
 #define BOARD_HAS_TEMPERATURE    1
 #define BOARD_HAS_PERFORMANCE    1
 #define BOARD_HAS_SAFETY         1
-#define BOARD_HAS_ROBOCLAW       1
 #define BOARD_HAS_BATTERY        0
 #define BOARD_HAS_IMU            0
 
@@ -50,7 +49,6 @@
 #define BOARD_HAS_TEMPERATURE    0
 #define BOARD_HAS_PERFORMANCE    1
 #define BOARD_HAS_SAFETY         1
-#define BOARD_HAS_ROBOCLAW       0
 #define BOARD_HAS_BATTERY        1
 #define BOARD_HAS_IMU            1
 
@@ -64,7 +62,6 @@
 #define BOARD_HAS_TEMPERATURE    0
 #define BOARD_HAS_PERFORMANCE    1
 #define BOARD_HAS_SAFETY         0
-#define BOARD_HAS_ROBOCLAW       0
 #define BOARD_HAS_BATTERY        0
 #define BOARD_HAS_IMU            0
 
@@ -88,12 +85,10 @@
 // =============================================================================
 // These provide readable conditional compilation throughout the codebase
 #define ENABLE_SD_LOGGING    (BOARD_HAS_SD_LOGGING == 1)
-#define ENABLE_MOTOR_CONTROL (BOARD_HAS_MOTOR_CONTROL == 1)
 #define ENABLE_VL53L0X       (BOARD_HAS_VL53L0X == 1)
 #define ENABLE_TEMPERATURE   (BOARD_HAS_TEMPERATURE == 1)
 #define ENABLE_PERFORMANCE   (BOARD_HAS_PERFORMANCE == 1)
 #define ENABLE_SAFETY        (BOARD_HAS_SAFETY == 1)
-#define ENABLE_ROBOCLAW      (BOARD_HAS_ROBOCLAW == 1)
 #define ENABLE_BATTERY       (BOARD_HAS_BATTERY == 1)
 #define ENABLE_IMU           (BOARD_HAS_IMU == 1)
 

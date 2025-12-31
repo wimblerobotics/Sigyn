@@ -115,8 +115,8 @@ void RoboClawMonitor::setup() {
         // break;
       } else {
         snprintf(msg, sizeof(msg),
-                 "RoboClaw E-stop activation failed. valid: %d, error_status=0x%08X, ESTOP_OUTPUT_PIN=%d",
-                 valid, error_status, ESTOP_OUTPUT_PIN);
+                 "RoboClaw E-stop activation failed. valid: %d, error_status=0x%08X, ESTOP_OUTPUT_PIN=%d", valid,
+                 error_status, ESTOP_OUTPUT_PIN);
         SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), msg);
         connection_state_ = ConnectionState::FAILED;
         return;
@@ -318,14 +318,22 @@ void RoboClawMonitor::setMotorSpeeds(int32_t m1_qpps, int32_t m2_qpps) {
   total_commands_sent_++;
 }
 
-void RoboClawMonitor::emergencyStop() {
+
+void RoboClawMonitor::clearEmergencyStop() {
+  digitalWrite(ESTOP_OUTPUT_PIN, HIGH);  // Deactivate E-stop.
+  emergency_stop_active_ = false;
+  SerialManager::getInstance().sendDiagnosticMessage(
+      "ESTOP", name(),
+      ("active:false,source:ROBOCLAW,reason:Emergency stop cleared, time:" + String(millis())).c_str());
+}
+
+void RoboClawMonitor::setEmergencyStop() {
+  digitalWrite(ESTOP_OUTPUT_PIN, LOW);  // Activate E-stop.
   emergency_stop_active_ = true;
   setMotorSpeeds(0, 0);
-  SerialManager::getInstance().sendDiagnosticMessage("ESTOP", name(),
-                                                     ("active:true,source:ROBOCLAW,reason:Emergency stop "
-                                                      "activated,manual_reset:false,time:" +
-                                                      String(millis()))
-                                                         .c_str());
+  SerialManager::getInstance().sendDiagnosticMessage(
+      "ESTOP", name(),
+      ("active:true,source:ROBOCLAW,reason:Emergency stop activated, time:" + String(millis())).c_str());
 }
 
 void RoboClawMonitor::resetErrors() {

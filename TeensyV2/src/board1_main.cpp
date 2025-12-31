@@ -47,7 +47,7 @@
 #include "modules/safety/safety_coordinator.h"
 #endif
 
-#if ENABLE_ROBOCLAW
+#if BOARD_HAS_MOTOR_CONTROL
 #include "modules/roboclaw/roboclaw_monitor.h"
 #endif
 
@@ -94,7 +94,7 @@ PerformanceMonitor* performance_monitor;
 SafetyCoordinator* safety_coordinator;
 #endif
 
-#if ENABLE_ROBOCLAW
+#if BOARD_HAS_MOTOR_CONTROL
 RoboClawMonitor* roboclaw_monitor;
 #endif
 
@@ -198,7 +198,7 @@ void setup() {
     // Wait for serial connection
   }
 
-#if ENABLE_ROBOCLAW
+#if BOARD_HAS_MOTOR_CONTROL
   RoboClawConfig config_;
   start_time = millis();
   Serial7.begin(config_.baud_rate); // RoboClaw serial port
@@ -234,7 +234,7 @@ void setup() {
   safety_coordinator = &SafetyCoordinator::getInstance();
 #endif
 
-#if ENABLE_ROBOCLAW
+#if BOARD_HAS_MOTOR_CONTROL
   roboclaw_monitor = &RoboClawMonitor::getInstance();
 #endif
 
@@ -267,8 +267,8 @@ void setup() {
 #if ENABLE_SD_LOGGING
  SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - SD Logging");
 #endif
-#if ENABLE_MOTOR_CONTROL
- SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - Motor Control");
+#if BOARD_HAS_MOTOR_CONTROL
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - Board has Motor Control");
 #endif
 #if ENABLE_VL53L0X
  SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - VL53L0X Distance Sensors");
@@ -282,7 +282,7 @@ void setup() {
 #if ENABLE_SAFETY
  SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - Safety Coordinator");
 #endif
-#if ENABLE_ROBOCLAW
+#if BOARD_HAS_MOTOR_CONTROL
  SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - RoboClaw Motor Driver");
 #endif
 #if ENABLE_BATTERY
