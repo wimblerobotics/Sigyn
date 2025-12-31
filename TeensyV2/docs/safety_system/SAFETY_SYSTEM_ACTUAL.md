@@ -99,7 +99,7 @@ if (last_commanded_m1_qpps_ == 0 && abs(motor1_status_.speed_qpps) > 100) {
 
 #### Communication Safety  
 - **Timeout Detection**: Monitors communication with RoboClaw controller
-- **Error Status**: Checks RoboClaw internal error flags including `M1_OVERCURRENT`, `M2_OVERCURRENT`
+- **Error Status**: Checks RoboClaw internal error flags including `M1_OVERCURRENT_WARNING`, `M2_OVERCURRENT_WARNING`
 - **Response**: Communication failures and hardware errors trigger safety violations
 
 **Safety Interface**:
