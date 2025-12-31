@@ -67,5 +67,7 @@
     "C_Cpp.workspaceSymbols": "All",
     "C_Cpp.autocompleteAddParentheses": true,
     "C_Cpp.intelliSenseEngine": "default",
-    "C_Cpp.configurationWarnings": "enabled"
+    "C_Cpp.configurationWarnings": "enabled",
+    "C_Cpp.clang_format_style": "file",
+    "C_Cpp.formatting": "clangFormat"
 }
