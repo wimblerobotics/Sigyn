@@ -79,7 +79,7 @@ namespace sigyn_teensy {
 
         // Periodic maintenance
         if (current_time - last_maintenance_time_ms_ > 1000) {
-            uint32_t now = millis();
+            // uint32_t now = millis();
             performPeriodicMaintenance(); // Usually takes 1 ms, but I've seen as hight as 9 ms.
             last_maintenance_time_ms_ = current_time;
             // char msg[256];
@@ -89,7 +89,7 @@ namespace sigyn_teensy {
 
         // Cooperatively drain buffer within a small time budget to reduce blocking
         if (write_buffer_.length() > 0) {
-            uint32_t now = millis();
+            // uint32_t now = millis();
             drainWriteBufferWithBudget(config_.max_write_slice_ms);
         }
 
