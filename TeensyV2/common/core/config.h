@@ -118,20 +118,23 @@
 
 // --- Inter-Board E-Stop GPIO Pins ---
 #if BOARD_ID == 1
+#define CONTROLS_ROBOCLAW_ESTOP_PIN   1   ///< Board 1 controls RoboClaw E-stop
 #define INTER_BOARD_SIGNAL_OUTPUT_PIN 10  ///< Pin to signal other boards
 #define INTER_BOARD_SIGNAL_INPUT_PIN  11  ///< Pin to receive signals from other boards
 #define HARDWARE_ESTOP_INPUT_PIN      2   ///< Hardware E-stop button input
-#define ESTOP_OUTPUT_PIN              3   ///< E-stop relay output
+#define ESTOP_OUTPUT_PIN              30  ///< E-stop relay output
 #elif BOARD_ID == 2
+#define CONTROLS_ROBOCLAW_ESTOP_PIN   0   ///< Board 1 controls RoboClaw E-stop
 #define INTER_BOARD_SIGNAL_OUTPUT_PIN 10  ///< Pin to signal other boards
 #define INTER_BOARD_SIGNAL_INPUT_PIN  11  ///< Pin to receive signals from other boards
 #define HARDWARE_ESTOP_INPUT_PIN      2   ///< Hardware E-stop button input (if any)
-#define ESTOP_OUTPUT_PIN              3   ///< E-stop relay output (not used on Board 2)
+#define ESTOP_OUTPUT_PIN              30   ///< E-stop relay output (not used on Board 2)
 #elif BOARD_ID == 3
+#define CONTROLS_ROBOCLAW_ESTOP_PIN   0   ///< Board 1 controls RoboClaw E-stop
 #define INTER_BOARD_SIGNAL_OUTPUT_PIN 10  ///< Pin to signal other boards
 #define INTER_BOARD_SIGNAL_INPUT_PIN  11  ///< Pin to receive signals from other boards
 #define HARDWARE_ESTOP_INPUT_PIN      2   ///< Hardware E-stop button input (if any)
-#define ESTOP_OUTPUT_PIN              3   ///< E-stop relay output (not used on Board 3)
+#define ESTOP_OUTPUT_PIN              30   ///< E-stop relay output (not used on Board 3)
 #endif
 
 // --- Performance Monitoring Thresholds ---
