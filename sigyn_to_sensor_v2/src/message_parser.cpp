@@ -777,7 +777,7 @@ namespace sigyn_to_sensor_v2 {
   }
 
   bool MessageParser::ValidateMessage(const std::string& message) const {
-    if (message.empty() || message.length() > 2048) {
+    if (message.empty() || message.length() > 4096) {
       return false;
     }
 
