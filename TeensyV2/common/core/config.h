@@ -115,19 +115,20 @@
 #if BOARD_ID == 1
 #define CONTROLS_ROBOCLAW_ESTOP_PIN   1   ///< Board 1 controls RoboClaw E-stop
 #define INTER_BOARD_SIGNAL_OUTPUT_PIN 10  ///< Pin to signal other boards
-#define INTER_BOARD_SIGNAL_INPUT_PIN  11  ///< Pin to receive signals from other boards
+#define PIN_SAFETY_IN_BOARD2          11  ///< Pin to receive signals from Board 2
+#define PIN_SAFETY_IN_BOARD3          12  ///< Pin to receive signals from Board 3
 #define HARDWARE_ESTOP_INPUT_PIN      2   ///< Hardware E-stop button input
 #define ESTOP_OUTPUT_PIN              30  ///< E-stop relay output
+#define PIN_RELAY_ROBOCLAW_POWER      31  ///< Relay to cut power to RoboClaw
+#define PIN_RELAY_MAIN_BATTERY        32  ///< Relay to cut main battery power
 #elif BOARD_ID == 2
 #define CONTROLS_ROBOCLAW_ESTOP_PIN   0   ///< Board 1 controls RoboClaw E-stop
-#define INTER_BOARD_SIGNAL_OUTPUT_PIN 10  ///< Pin to signal other boards
-#define INTER_BOARD_SIGNAL_INPUT_PIN  11  ///< Pin to receive signals from other boards
+#define PIN_SAFETY_OUT_TO_MASTER      10  ///< Pin to signal Board 1
 #define HARDWARE_ESTOP_INPUT_PIN      2   ///< Hardware E-stop button input (if any)
 #define ESTOP_OUTPUT_PIN              30   ///< E-stop relay output (not used on Board 2)
 #elif BOARD_ID == 3
 #define CONTROLS_ROBOCLAW_ESTOP_PIN   0   ///< Board 1 controls RoboClaw E-stop
-#define INTER_BOARD_SIGNAL_OUTPUT_PIN 10  ///< Pin to signal other boards
-#define INTER_BOARD_SIGNAL_INPUT_PIN  11  ///< Pin to receive signals from other boards
+#define PIN_SAFETY_OUT_TO_MASTER      10  ///< Pin to signal Board 1
 #define HARDWARE_ESTOP_INPUT_PIN      2   ///< Hardware E-stop button input (if any)
 #define ESTOP_OUTPUT_PIN              30   ///< E-stop relay output (not used on Board 3)
 #endif
