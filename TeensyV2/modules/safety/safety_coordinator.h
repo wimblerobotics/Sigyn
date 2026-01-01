@@ -5,11 +5,11 @@
 /**
  * @file safety_coordinator.h
  * @brief Central safety coordination and E-stop management for TeensyV2
- * 
+ *
  * Coordinates safety across all system modules and manages E-stop conditions
  * from multiple sources. Provides centralized safety state management with
  * inter-board coordination and graceful recovery mechanisms.
- * 
+ *
  * E-stop Sources:
  * - Hardware E-stop button (immediate hardware cutoff)
  * - Software E-stop from ROS2 system
@@ -18,13 +18,13 @@
  * - Motor fault conditions (overcurrent, runaway)
  * - Sensor failures (critical sensors offline)
  * - Inter-board safety signals
- * 
+ *
  * Recovery Logic:
  * - Automatic recovery when transient conditions clear
  * - Manual recovery required for persistent conditions
  * - Graceful degradation for non-critical issues
  * - Full system shutdown for emergency conditions
- * 
+ *
  * @author Wimble Robotics
  * @date 2025
  */
@@ -32,9 +32,11 @@
 #pragma once
 
 #include <Arduino.h>
-#include <cstdint>
-#include <cstddef>
+
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+
 #include "../../common/core/module.h"
 #include "../../common/core/serial_manager.h"
 
@@ -43,68 +45,46 @@ namespace sigyn_teensy {
 /**
  * @brief E-stop sources enumeration for tracking and reporting.
  */
-enum class EstopSource {
-  HARDWARE_BUTTON,     ///< Physical E-stop button pressed
-  SOFTWARE_COMMAND,    ///< Software E-stop from ROS2
-  PERFORMANCE,         ///< Performance violation (timing/frequency)
-  BATTERY_LOW_VOLTAGE, ///< Battery voltage critically low
-  BATTERY_HIGH_CURRENT,///< Battery current critically high
-  MOTOR_OVERCURRENT,   ///< Motor drawing excessive current
-  MOTOR_RUNAWAY,       ///< Motor speed control failure
-  SENSOR_FAILURE,      ///< Critical sensor offline
-  INTER_BOARD,         ///< Safety signal from other board
-  UNKNOWN              ///< Undefined or multiple sources
-};
+typedef enum class FaultSource {
+  HARDWARE_BUTTON,       ///< Physical E-stop button pressed
+  SOFTWARE_COMMAND,      ///< Software E-stop from ROS2
+  PERFORMANCE,           ///< Performance violation (timing/frequency)
+  BATTERY_LOW_VOLTAGE,   ///< Battery voltage critically low
+  BATTERY_HIGH_CURRENT,  ///< Battery current critically high
+  MOTOR_OVERCURRENT,     ///< Motor drawing excessive current
+  MOTOR_RUNAWAY,         ///< Motor speed control failure
+  SENSOR_FAILURE,        ///< Critical sensor offline
+  INTER_BOARD_BOARD2,    ///< Safety signal from Board 2
+  INTER_BOARD_BOARD3,    ///< Safety signal from Board 3
+  UNKNOWN,               ///< Undefined or multiple sources
+  NUMBER_FAULT_SOURCES
+} FaultSource;
 
 /**
  * @brief Safety state enumeration for system status.
  */
-enum class SafetyState {
-  NORMAL,              ///< All systems operational
-  WARNING,             ///< Minor issues detected, monitoring
-  DEGRADED,            ///< Operating with reduced functionality
-  EMERGENCY_STOP,      ///< Emergency stop active
-  SYSTEM_SHUTDOWN      ///< Complete system shutdown required
-};
+typedef enum class FaultSeverity {
+  NORMAL,          ///< All systems operational
+  WARNING,         ///< Minor issues detected, monitoring
+  DEGRADED,        ///< Operating with reduced functionality
+  EMERGENCY_STOP,  ///< Emergency stop active
+  SYSTEM_SHUTDOWN  ///< Complete system shutdown required
+} FaultSeverity;
 
-/**
- * @brief E-stop condition tracking structure.
- */
-struct EstopCondition {
-  EstopSource source;           ///< Source of the E-stop condition
-  bool active;                  ///< Current active status
-  bool requires_manual_reset;   ///< Requires manual reset to clear
-  uint32_t activation_time;     ///< Timestamp when condition became active
-  uint32_t last_check_time;     ///< Last time condition was evaluated
-  String description;           ///< Human-readable description
-  float trigger_value;          ///< Value that triggered condition (if applicable)
-};
-
-/**
- * @brief Safety configuration parameters.
- */
-struct SafetyConfig {
-  // Hardware pins
-  // uint8_t inter_board_input_pin = 4;   ///< Inter-board safety input
-  // uint8_t inter_board_output_pin = 5;  ///< Inter-board safety output
-  
-  // Timing parameters
-  uint32_t estop_check_interval_ms = 10;  ///< How often to check E-stop conditions
-  uint32_t recovery_delay_ms = 1000;      ///< Delay before allowing recovery
-  uint32_t heartbeat_timeout_ms = 5000;   ///< Inter-board heartbeat timeout
-  
-  // Safety thresholds
-  uint8_t max_consecutive_violations = 3; ///< Max violations before E-stop
-  bool enable_auto_recovery = true;       ///< Enable automatic recovery
-  bool enable_inter_board_safety = true;  ///< Enable inter-board coordination
+struct Fault {
+  bool active;             ///< Is the fault currently active
+  FaultSource source;      ///< Source of the fault
+  FaultSeverity severity;  ///< Severity level of the fault
+  String description;      ///< Human-readable description
+  uint32_t timestamp;      ///< Time when fault was detected
 };
 
 /**
  * @brief Central safety coordinator for TeensyV2 system.
- * 
+ *
  * Manages E-stop conditions from multiple sources, coordinates safety
  * state across all modules, and provides graceful recovery mechanisms.
- * 
+ *
  * Key responsibilities:
  * - Monitor hardware and software E-stop signals
  * - Aggregate safety status from all registered modules
@@ -112,7 +92,7 @@ struct SafetyConfig {
  * - Coordinate safety state with other Teensy boards
  * - Manage graceful recovery from transient faults
  * - Provide detailed diagnostic information for safety events
- * 
+ *
  * Example usage:
  * @code
  *   SafetyCoordinator& safety = SafetyCoordinator::GetInstance();
@@ -130,41 +110,49 @@ class SafetyCoordinator : public Module {
    */
   static SafetyCoordinator& getInstance();
 
-  // --- Public API ---
+  // // --- Public API ---
   /**
-   * @brief Check all safety conditions and update system state.
-   * 
-   * This method is called automatically by the main loop and should not be
-   * called directly by other modules.
+   * @brief Activate the E-stop state.
+   * @param severity The severity level of the fault
+   * @param source The source of the E-stop
+   * @param description A description of the reason
    */
-  void checkSafetyStatus();
+  void activateFault(FaultSeverity severity, FaultSource source, const String& description);
 
   /**
-   * @brief Trigger an emergency stop from a software source.
-   * @param source The source of the E-stop request
-   * @param description A human-readable description of the reason
+   * @brief Deactivate the E-stop state.
    */
-  void triggerEstop(EstopSource source, const String& description);
+  void deactivateFault(FaultSource source);
 
-  /**
-   * @brief Attempt to recover from an E-stop condition.
-   * 
-   * This method will only succeed if all underlying safety conditions have
-   * been cleared.
-   */
-  void attemptRecovery();
+  void setEstopCommand(String command);
+
+  // /**
+  //  * @brief Check all safety conditions and update system state.
+  //  *
+  //  * This method is called automatically by the main loop and should not be
+  //  * called directly by other modules.
+  //  */
+  // void checkSafetyStatus();
+
+  // /**
+  //  * @brief Attempt to recover from an E-stop condition.
+  //  *
+  //  * This method will only succeed if all underlying safety conditions have
+  //  * been cleared.
+  //  */
+  // void attemptRecovery();
 
   /**
    * @brief Get the current safety state of the system.
    * @return The current safety state
    */
-  SafetyState getSafetyState() const;
+  // FaultSeverity getSafetyState() const;
 
-  /**
-   * @brief Get the current E-stop condition.
-   * @return Const reference to the current E-stop condition
-   */
-  const EstopCondition& getEstopCondition() const;
+  // /**
+  //  * @brief Get the current E-stop condition.
+  //  * @return Const reference to the current E-stop condition
+  //  */
+  // const EstopCondition& getEstopCondition() const;
 
   // --- Module Overrides ---
   /**
@@ -188,14 +176,14 @@ class SafetyCoordinator : public Module {
   // --- Module Overrides ---
   /**
    * @brief Initialize safety coordinator module.
-   * 
+   *
    * This method is called once at startup to initialize the module.
    */
   void setup() override;
 
   /**
    * @brief Main loop for safety coordination.
-   * 
+   *
    * This method is called automatically by the main loop. It checks all
    * safety conditions and manages the system's safety state.
    */
@@ -210,33 +198,25 @@ class SafetyCoordinator : public Module {
   SafetyCoordinator(const SafetyCoordinator&) = delete;
   SafetyCoordinator& operator=(const SafetyCoordinator&) = delete;
 
+  // Relays
+  void setRoboClawPower(bool on);
+  void setMainBatteryPower(bool on);
+
   // --- Private Methods ---
-  /**
-   * @brief Check for hardware E-stop button press.
-   */
-  void checkHardwareEstop();
+  // /**
+  //  * @brief Check for hardware E-stop button press.
+  //  */
+  // void checkHardwareEstop();
 
   /**
    * @brief Check for safety signals from other boards.
    */
   // void checkInterBoardSafety();
 
-  /**
-   * @brief Check for safety violations from other modules.
-   */
-  void checkModuleSafety();
-
-  /**
-   * @brief Activate the E-stop state.
-   * @param source The source of the E-stop
-   * @param description A description of the reason
-   */
-  void activateEstop(EstopSource source, const String& description);
-
-  /**
-   * @brief Deactivate the E-stop state.
-   */
-  void deactivateEstop();
+  // /**
+  //  * @brief Check for safety violations from other modules.
+  //  */
+  // void checkModuleSafety();
 
   /**
    * @brief Send a status update via SerialManager.
@@ -244,11 +224,53 @@ class SafetyCoordinator : public Module {
   void sendStatusUpdate();
 
   // --- Member Variables ---
-  SafetyConfig config_;                   ///< Safety configuration
-  SafetyState current_state_;             ///< Current safety state
-  EstopCondition estop_condition_;        ///< Current E-stop condition
-  uint32_t last_check_time_ms_ = 0;       ///< Timestamp of last safety check
-  uint32_t last_status_update_ms_ = 0;    ///< Timestamp of last status update
+  uint8_t active_estop_count_ = 0;
+  Fault faults_[static_cast<size_t>(FaultSource::NUMBER_FAULT_SOURCES)];  ///< Active faults
 };
+
+static const char* faultSourceToString(FaultSource source) {
+  switch (source) {
+    case FaultSource::HARDWARE_BUTTON:
+      return "HARDWARE_BUTTON";
+    case FaultSource::SOFTWARE_COMMAND:
+      return "SOFTWARE_COMMAND";
+    case FaultSource::PERFORMANCE:
+      return "PERFORMANCE";
+    case FaultSource::BATTERY_LOW_VOLTAGE:
+      return "BATTERY_LOW_VOLTAGE";
+    case FaultSource::BATTERY_HIGH_CURRENT:
+      return "BATTERY_HIGH_CURRENT";
+    case FaultSource::MOTOR_OVERCURRENT:
+      return "MOTOR_OVERCURRENT";
+    case FaultSource::MOTOR_RUNAWAY:
+      return "MOTOR_RUNAWAY";
+    case FaultSource::SENSOR_FAILURE:
+      return "SENSOR_FAILURE";
+    case FaultSource::INTER_BOARD_BOARD2:
+      return "INTER_BOARD_BOARD2";
+    case FaultSource::INTER_BOARD_BOARD3:
+      return "INTER_BOARD_BOARD3";
+    case FaultSource::UNKNOWN:
+    default:
+      return "UNKNOWN";
+  }
+}
+
+static const char* faultSeverityToString(FaultSeverity severity) {
+  switch (severity) {
+    case FaultSeverity::NORMAL:
+      return "NORMAL";
+    case FaultSeverity::WARNING:
+      return "WARNING";
+    case FaultSeverity::DEGRADED:
+      return "DEGRADED";
+    case FaultSeverity::EMERGENCY_STOP:
+      return "EMERGENCY_STOP";
+    case FaultSeverity::SYSTEM_SHUTDOWN:
+      return "SYSTEM_SHUTDOWN";
+    default:
+      return "UNKNOWN";
+  }
+}
 
 }  // namespace sigyn_teensy

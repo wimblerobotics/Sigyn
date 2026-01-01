@@ -51,6 +51,7 @@ namespace sigyn_to_sensor_v2 {
     ODOM,         ///< Odometry data (position, orientation, velocity)
     ESTOP,        ///< E-stop notifications
     DIAGNOSTIC,   ///< Diagnostic and error messages
+    FAULT,        ///< System fault messages
     CONFIG,       ///< Configuration responses
     INIT,         ///< Initialization messages
     CRITICAL,     ///< Critical system messages
@@ -146,6 +147,17 @@ namespace sigyn_to_sensor_v2 {
     std::string module = "";              ///< Source module name
     std::string message = "";             ///< Diagnostic message
     std::string details = "";             ///< Additional details
+    uint64_t timestamp = 0;               ///< Message timestamp
+    bool valid = false;                   ///< Data validity flag
+  };
+
+  /**
+   * @brief Fault data structure parsed from FAULT messages.
+   */
+  struct FaultData {
+    std::string source = "";              ///< Fault source
+    std::string severity = "";            ///< Fault severity
+    std::string description = "";         ///< Fault description
     uint64_t timestamp = 0;               ///< Message timestamp
     bool valid = false;                   ///< Data validity flag
   };
@@ -308,6 +320,14 @@ namespace sigyn_to_sensor_v2 {
      * @return DiagnosticData structure with parsed values
      */
     DiagnosticData ParseDiagnosticData(const MessageData& data) const;
+
+    /**
+     * @brief Parse fault data from message.
+     *
+     * @param[in] data Parsed key-value data
+     * @return FaultData structure with parsed values
+     */
+    FaultData ParseFaultData(const MessageData& data) const;
 
     /**
      * @brief Parse temperature data from TEMP or TEMPERATURE message.
