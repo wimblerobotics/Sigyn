@@ -74,6 +74,7 @@ namespace sigyn_to_sensor_v2 {
     void HandleIMUMessage(const MessageData& data, rclcpp::Time timestamp);
     void HandleEstopMessage(const MessageData& data, rclcpp::Time timestamp);
     void HandleDiagnosticMessage(const MessageData& data, rclcpp::Time timestamp);
+    void HandleFaultMessage(const MessageData& data, rclcpp::Time timestamp);
     void HandleTemperatureMessage(const MessageData& data, rclcpp::Time timestamp);
     void HandleVL53L0XMessage(const MessageData& data, rclcpp::Time timestamp);
     void HandleRoboClawMessage(const MessageData& data, rclcpp::Time timestamp);
@@ -117,7 +118,7 @@ namespace sigyn_to_sensor_v2 {
     // Publishers
     rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr battery_pub_;
     rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_pub_;
-    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr estop_status_pub_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr estop_status_pub_;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_sensor0_pub_;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_sensor1_pub_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
