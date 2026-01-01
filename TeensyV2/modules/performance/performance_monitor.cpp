@@ -297,8 +297,8 @@ namespace sigyn_teensy {
     char stats_json[3072];
     getPerformanceStats(stats_json, sizeof(stats_json));
 
-    // Enforce payload cap to avoid SerialManager (768) overflow and SD truncation
-    const size_t MAX_SERIAL_PAYLOAD = 740; // allow for prefix and terminator
+    // Enforce payload cap to avoid SerialManager (2048) overflow and SD truncation
+    const size_t MAX_SERIAL_PAYLOAD = 2000; // allow for prefix and terminator
     if (strlen(stats_json) > MAX_SERIAL_PAYLOAD) {
       stats_json[MAX_SERIAL_PAYLOAD - 3] = ']';
       stats_json[MAX_SERIAL_PAYLOAD - 2] = '}';
