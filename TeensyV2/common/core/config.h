@@ -26,6 +26,12 @@
 #error "BOARD_ID must be defined in platformio.ini build flags"
 #endif
 
+// Override certain features during unit testing
+#ifdef UNIT_TEST
+// Disable RoboClaw dependencies during unit testing
+#define UNIT_TEST_DISABLE_ROBOCLAW 1
+#endif
+
 // =============================================================================
 // BOARD 1: Navigation and Safety Board
 // =============================================================================
@@ -113,7 +119,11 @@
 
 // --- Inter-Board E-Stop GPIO Pins ---
 #if BOARD_ID == 1
+#ifdef UNIT_TEST_DISABLE_ROBOCLAW
+#define CONTROLS_ROBOCLAW_ESTOP_PIN   0   ///< Disabled for unit testing
+#else
 #define CONTROLS_ROBOCLAW_ESTOP_PIN   1   ///< Board 1 controls RoboClaw E-stop
+#endif
 #define INTER_BOARD_SIGNAL_OUTPUT_PIN 10  ///< Pin to signal other boards
 #define PIN_SAFETY_IN_BOARD2          11  ///< Pin to receive signals from Board 2
 #define PIN_SAFETY_IN_BOARD3          12  ///< Pin to receive signals from Board 3

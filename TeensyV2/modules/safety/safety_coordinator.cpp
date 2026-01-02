@@ -82,30 +82,44 @@ SafetyCoordinator::SafetyCoordinator() {
 void SafetyCoordinator::activateFault(FaultSeverity severity, FaultSource source, const String& description) {
   char msg[256];
   int idx = static_cast<int>(source);
-  if (!faults_[idx].active) {
-    faults_[idx].active = true;
-    faults_[idx].source = source;
-    faults_[idx].severity = severity;
-    faults_[idx].description = description;
-    faults_[idx].timestamp = millis();
-    active_estop_count_++;
+  const bool new_is_estop = (severity == FaultSeverity::EMERGENCY_STOP || severity == FaultSeverity::SYSTEM_SHUTDOWN);
+  const bool was_active = faults_[idx].active;
+  const bool was_estop = (faults_[idx].severity == FaultSeverity::EMERGENCY_STOP ||
+                          faults_[idx].severity == FaultSeverity::SYSTEM_SHUTDOWN);
 
-    // If this is the FIRST fault, trigger the physical safeties
-    if (active_estop_count_ == 1) {
-#if CONTROLS_ROBOCLAW_ESTOP_PIN
-      RoboClawMonitor::getInstance().setEmergencyStop();
-#else
-      digitalWrite(PIN_SAFETY_OUT_TO_MASTER, HIGH);
-#endif
-      snprintf(msg, sizeof(msg), "Fault activated: source=%s, severity=%s description=%s, active_estop_count_=%d",
-               faultSourceToString(source), faultSeverityToString(severity), description.c_str(), active_estop_count_);
-      SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
+  // Always update the fault record (so WARNING can upgrade to EMERGENCY_STOP, etc.)
+  faults_[idx].active = true;
+  faults_[idx].source = source;
+  faults_[idx].severity = severity;
+  faults_[idx].description = description;
+  faults_[idx].timestamp = millis();
+
+  // Update E-stop count based on severity transitions
+  if (!was_active && new_is_estop) {
+    active_estop_count_++;
+  } else if (was_active && !was_estop && new_is_estop) {
+    // Upgrade WARNING/DEGRADED -> EMERGENCY_STOP
+    active_estop_count_++;
+  } else if (was_active && was_estop && !new_is_estop) {
+    // Downgrade EMERGENCY_STOP -> WARNING/DEGRADED
+    if (active_estop_count_ > 0) {
+      active_estop_count_--;
     }
-  } else {
-    snprintf(msg, sizeof(msg), "Fault already active: source=%s, severity=%s description=%s, active_estop_count_=%d",
-             faultSourceToString(source), faultSeverityToString(severity), description.c_str(), active_estop_count_);
-    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
   }
+
+  // Trigger physical safeties only when entering E-stop state
+  if (new_is_estop && active_estop_count_ == 1) {
+#if CONTROLS_ROBOCLAW_ESTOP_PIN
+    RoboClawMonitor::getInstance().setEmergencyStop();
+#elif defined(PIN_SAFETY_OUT_TO_MASTER)
+    digitalWrite(PIN_SAFETY_OUT_TO_MASTER, HIGH);
+#endif
+  }
+
+  snprintf(msg, sizeof(msg), "%s: source=%s, severity=%s description=%s, active_estop_count_=%d",
+           was_active ? "Fault updated" : "Fault activated", faultSourceToString(source),
+           faultSeverityToString(severity), description.c_str(), active_estop_count_);
+  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
 }
 
 void SafetyCoordinator::deactivateFault(FaultSource source) {
@@ -115,14 +129,18 @@ void SafetyCoordinator::deactivateFault(FaultSource source) {
                                                        "Attempted to deactivate a fault that is not active");
     return;
   } else {
+    const bool was_estop = (faults_[idx].severity == FaultSeverity::EMERGENCY_STOP ||
+                            faults_[idx].severity == FaultSeverity::SYSTEM_SHUTDOWN);
     faults_[idx].active = false;
-    active_estop_count_--;
+    if (was_estop && active_estop_count_ > 0) {
+      active_estop_count_--;
+    }
 
     // If this was the LAST active fault, clear the physical safeties
     if (active_estop_count_ == 0) {
 #if CONTROLS_ROBOCLAW_ESTOP_PIN
       RoboClawMonitor::getInstance().clearEmergencyStop();
-#else
+#elif defined(PIN_SAFETY_OUT_TO_MASTER)
       digitalWrite(PIN_SAFETY_OUT_TO_MASTER, LOW);
 #endif
       char msg[256];
@@ -142,8 +160,8 @@ SafetyCoordinator& SafetyCoordinator::getInstance() {
 // FaultSeverity SafetyCoordinator::getSafetyState() const { return current_state_; }
 
 bool SafetyCoordinator::isUnsafe() {
-  // return current_state_ == FaultSeverity::EMERGENCY_STOP;
-  return false;
+  // Unsafe == E-stop level fault active
+  return active_estop_count_ > 0;
 }
 
 void SafetyCoordinator::loop() {
@@ -160,9 +178,13 @@ void SafetyCoordinator::loop() {
 const char* SafetyCoordinator::name() const { return "SafetyCoordinator"; }
 
 void SafetyCoordinator::resetSafetyFlags() {
-  // if (current_state_ == FaultSeverity::EMERGENCY_STOP) {
-  //   attemptRecovery();
-  // }
+  // Clear all active faults
+  for (int i = 0; i < static_cast<int>(FaultSource::NUMBER_FAULT_SOURCES); i++) {
+    if (faults_[i].active) {
+      deactivateFault(static_cast<FaultSource>(i));
+    }
+  }
+  active_estop_count_ = 0;
 }
 
 void SafetyCoordinator::setup() {
@@ -194,12 +216,16 @@ void SafetyCoordinator::setEstopCommand(String command) {
 void SafetyCoordinator::setRoboClawPower(bool on) {
 #if CONTROLS_ROBOCLAW_ESTOP_PIN
   digitalWrite(PIN_RELAY_ROBOCLAW_POWER, on ? HIGH : LOW);
+#else
+  (void)on;  // Suppress unused parameter warning
 #endif
 }
 
 void SafetyCoordinator::setMainBatteryPower(bool on) {
 #if CONTROLS_ROBOCLAW_ESTOP_PIN
   digitalWrite(PIN_RELAY_MAIN_BATTERY, on ? HIGH : LOW);
+#else
+  (void)on;  // Suppress unused parameter warning
 #endif
 }
 
@@ -283,6 +309,10 @@ void SafetyCoordinator::setMainBatteryPower(bool on) {
 
 // const EstopCondition& SafetyCoordinator::getEstopCondition() const { return estop_condition_; }
 
+const Fault& SafetyCoordinator::getFault(FaultSource source) const {
+  return faults_[static_cast<size_t>(source)];
+}
+
 void SafetyCoordinator::sendStatusUpdate() {
   char status_msg[512];
   bool any_active = false;
@@ -292,7 +322,7 @@ void SafetyCoordinator::sendStatusUpdate() {
       snprintf(status_msg, sizeof(status_msg),
                "{\"active_fault\":\"true\",\"source\":\"%s\",\"severity\":\"%s\",\"description\":\"%s\",\"timestamp\":%lu}",
                faultSourceToString(faults_[i].source), faultSeverityToString(faults_[i].severity),
-               faults_[i].description.c_str(), faults_[i].timestamp);
+               faults_[i].description.c_str(), static_cast<unsigned long>(faults_[i].timestamp));
       SerialManager::getInstance().sendMessage("FAULT", status_msg);
     }
   }

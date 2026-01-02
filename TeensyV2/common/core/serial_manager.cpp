@@ -51,7 +51,9 @@
 #if ENABLE_SD_LOGGING
 #include "modules/storage/sd_logger.h"
 #endif
+#if ENABLE_SAFETY
 #include "modules/safety/safety_coordinator.h"
+#endif
 
 namespace sigyn_teensy {
 
@@ -102,7 +104,9 @@ void SerialManager::handleCommand(const char* command, const char* args) {
 
   } else if (cmd_type == "ESTOP") {
     sendDiagnosticMessage("DEBUG", "SerialManager", ("ESTOP command received: " + String(args)).c_str());
+#if ENABLE_SAFETY
     SafetyCoordinator::getInstance().setEstopCommand(String(args));
+#endif
   } else if (cmd_type == "CALIBRATE") {
     sendDiagnosticMessage("DEBUG", "SerialManager", ("CALIBRATE command received: " + String(args)).c_str());
     // TODO: Route to appropriate sensor module
