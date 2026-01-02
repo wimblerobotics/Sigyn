@@ -54,6 +54,7 @@
 #include "common/core/module.h"
 #include "common/core/config.h" // Ensure BOARD_* macros are available
 #include <limits>
+#include <cstring>
 
 namespace sigyn_teensy {
 

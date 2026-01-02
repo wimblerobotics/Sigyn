@@ -11,6 +11,7 @@
  */
 
 #include "temperature_monitor.h"
+#include "analog_reader_hw.h"
 
 namespace sigyn_teensy {
 
@@ -22,6 +23,9 @@ constexpr uint32_t ADC_MAX_VALUE = 4096;   // 2^12 for 12-bit resolution
 // TMP36 sensor constants
 constexpr float TMP36_OFFSET_MV = 500.0f;      // TMP36 offset in millivolts (500mV at 0°C)
 constexpr float TMP36_SCALE_MV_PER_C = 10.0f;  // TMP36 scale factor (10mV/°C)
+
+// Static hardware reader for production use (no heap allocation)
+static AnalogReaderHW hardware_reader;
 
 TemperatureMonitor& TemperatureMonitor::getInstance() {
   static TemperatureMonitor instance;
@@ -43,7 +47,8 @@ TemperatureMonitor::TemperatureMonitor()
       system_start_time_ms_(0),
       total_system_readings_(0),
       total_system_errors_(0),
-      last_performance_update_ms_(0) {
+      last_performance_update_ms_(0),
+      analog_reader_(&hardware_reader) {  // Initialize with hardware reader
   // Configure for analog sensors instead of OneWire
   config_.max_sensors = kMaxTemperatureSensors;  // Support up to max analog temperature sensors
 
@@ -53,6 +58,8 @@ TemperatureMonitor::TemperatureMonitor()
   sensor_configs_[0].analog_pin = 25;  // Left motor temperature pin
   sensor_configs_[0].critical_high_temp = 85.0f;
   sensor_configs_[0].warning_high_temp = 70.0f;
+  sensor_configs_[0].warning_low_temp = 5.0f;
+  sensor_configs_[0].critical_low_temp = 0.0f;
   sensor_configs_[0].enabled = true;
   sensor_configs_[0].safety_critical = true;
   sensor_configured_[0] = true;
@@ -62,6 +69,8 @@ TemperatureMonitor::TemperatureMonitor()
   sensor_configs_[1].analog_pin = 26;  // Right motor temperature pin
   sensor_configs_[1].critical_high_temp = 85.0f;
   sensor_configs_[1].warning_high_temp = 70.0f;
+  sensor_configs_[1].warning_low_temp = 5.0f;
+  sensor_configs_[1].critical_low_temp = 0.0f;
   sensor_configs_[1].enabled = true;
   sensor_configs_[1].safety_critical = true;
   sensor_configured_[1] = true;
@@ -82,7 +91,7 @@ void TemperatureMonitor::setup() {
   system_start_time_ms_ = millis();
 
   // Set analog resolution for all analog pins
-  analogReadResolution(ANALOG_RESOLUTION);
+  analog_reader_->setAnalogResolution(ANALOG_RESOLUTION);
 
   // Configure temperature sensor pins as inputs
   for (uint8_t i = 0; i < config_.max_sensors && i < kMaxTemperatureSensors; i++) {
@@ -354,7 +363,7 @@ bool TemperatureMonitor::readSingleSensor(uint8_t sensor_index) {
   const uint8_t num_samples = 8;
 
   for (uint8_t sample = 0; sample < num_samples; sample++) {
-    raw_sum += analogRead(pin);
+    raw_sum += analog_reader_->readAnalog(pin);
     delayMicroseconds(100);  // Small delay between samples
   }
 
@@ -378,7 +387,8 @@ bool TemperatureMonitor::readSingleSensor(uint8_t sensor_index) {
   float filtered_temp = temperature_c;
   if (sensor_status_[sensor_index].reading_valid) {
     // Simple exponential moving average: new_value = alpha * new_reading + (1 - alpha) * old_value
-    float alpha = 0.3f;  // Adjust this value: higher = more responsive, lower = more filtered
+    // Alpha = 0.7 for fast response (~2 seconds to converge at 1Hz sampling)
+    float alpha = 0.7f;
     filtered_temp = alpha * temperature_c + (1.0f - alpha) * sensor_status_[sensor_index].temperature_c;
   }
 
@@ -530,15 +540,28 @@ void TemperatureMonitor::detectThermalRunaway() {
     sensor_status_[i].temperature_trend = trend;
 
     // Check for thermal runaway (rapid temperature rise)
-    if (trend > sensor_configs_[i].thermal_runaway_rate && !sensor_status_[i].thermal_runaway) {
-      sensor_status_[i].thermal_runaway = true;
+    if (trend > sensor_configs_[i].thermal_runaway_rate) {
+      if (!sensor_status_[i].thermal_runaway) {
+        sensor_status_[i].thermal_runaway = true;
 
-      // Rate limit thermal runaway messages (max once per 500ms)
+        // Rate limit thermal runaway messages (max once per 500ms)
+        if (now - last_thermal_message_time >= 500) {
+          String msg = "active:true,source:THERMAL_RUNAWAY,reason:" + sensor_configs_[i].sensor_name +
+                       " thermal runaway detected,value:" + String(sensor_status_[i].temperature_c, 1) +
+                       ",rate:" + String(trend, 1) + "C_per_min" + ",manual_reset:false,time:" + String(millis());
+          SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg.c_str());
+          last_thermal_message_time = now;
+        }
+      }
+    } else if (sensor_status_[i].thermal_runaway) {
+      // Self-healing: Clear thermal runaway when trend returns to safe levels
+      sensor_status_[i].thermal_runaway = false;
+      
       if (now - last_thermal_message_time >= 500) {
-        String msg = "active:true,source:THERMAL_RUNAWAY,reason:" + sensor_configs_[i].sensor_name +
-                     " thermal runaway detected,value:" + String(sensor_status_[i].temperature_c, 1) +
-                     ",rate:" + String(trend, 1) + "C_per_min" + ",manual_reset:false,time:" + String(millis());
-        SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg.c_str());
+        String msg = "active:false,source:THERMAL_RUNAWAY,reason:" + sensor_configs_[i].sensor_name +
+                     " thermal runaway cleared,value:" + String(sensor_status_[i].temperature_c, 1) +
+                     ",rate:" + String(trend, 1) + "C_per_min" + ",time:" + String(millis());
+        SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg.c_str());
         last_thermal_message_time = now;
       }
     }
@@ -552,7 +575,7 @@ void TemperatureMonitor::updateTemperatureHistory(uint8_t sensor_index, float te
 
   TemperatureSensorStatus& status = sensor_status_[sensor_index];
   status.temperature_history[status.history_index] = temperature;
-  status.history_index = (status.history_index + 1) % 10;
+  status.history_index = (status.history_index + 1) % 50;
 }
 
 float TemperatureMonitor::calculateTemperatureTrend(uint8_t sensor_index) {
@@ -564,10 +587,10 @@ float TemperatureMonitor::calculateTemperatureTrend(uint8_t sensor_index) {
 
   // Determine if buffer is full or filling
   bool buffer_full = !isnan(status.temperature_history[status.history_index]);
-  uint32_t count = buffer_full ? 10 : status.history_index;
+  uint32_t count = buffer_full ? 50 : status.history_index;
 
-  // Need at least 5 data points (5 seconds) to calculate trend reliably and avoid startup noise
-  if (count < 5) {
+  // Need at least 10 data points (1 second at 10Hz) to calculate trend reliably
+  if (count < 10) {
     return 0.0f;
   }
 
@@ -578,7 +601,7 @@ float TemperatureMonitor::calculateTemperatureTrend(uint8_t sensor_index) {
     // Buffer is full, oldest is at history_index
     oldest_temp = status.temperature_history[status.history_index];
     // Newest is at (history_index - 1) wrapped
-    uint8_t newest_idx = (status.history_index + 9) % 10;
+    uint8_t newest_idx = (status.history_index + 49) % 50;
     newest_temp = status.temperature_history[newest_idx];
   } else {
     // Buffer filling, oldest is at 0
