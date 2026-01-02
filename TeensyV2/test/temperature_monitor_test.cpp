@@ -76,6 +76,7 @@ protected:
                        const float* temps, 
                        size_t count,
                        bool wrap_around = false) {
+    (void)wrap_around;
     // Initialize history to NAN
     for (int i = 0; i < 10; i++) {
       status.temperature_history[i] = NAN;

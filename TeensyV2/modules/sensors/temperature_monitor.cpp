@@ -12,6 +12,8 @@
 
 #include "temperature_monitor.h"
 #include "analog_reader_hw.h"
+#include "../../common/core/serial_manager.h"
+#include "../../modules/safety/safety_coordinator.h"
 
 namespace sigyn_teensy {
 
@@ -466,6 +468,10 @@ void TemperatureMonitor::updateSystemStatus() {
 }
 
 void TemperatureMonitor::checkSafetyConditions() {
+  bool any_warning = false;
+  bool any_critical = false;
+  bool thermal_runaway_detected = false;
+
   for (uint8_t i = 0; i < config_.max_sensors && i < kMaxTemperatureSensors; i++) {
     if (!sensor_configured_[i] || !sensor_status_[i].reading_valid) {
       continue;
@@ -479,6 +485,12 @@ void TemperatureMonitor::checkSafetyConditions() {
     sensor_status_[i].warning_high = (temp >= config.warning_high_temp && temp < config.critical_high_temp);
     sensor_status_[i].warning_low = (temp <= config.warning_low_temp && temp > config.critical_low_temp);
     sensor_status_[i].critical_low = (temp <= config.critical_low_temp);
+    if (sensor_status_[i].warning_high || sensor_status_[i].warning_low) {
+      any_warning = true;
+    }
+    if (sensor_status_[i].critical_high || sensor_status_[i].critical_low) {
+      any_critical = true;
+    }
 
     // Log safety violations
     if ((sensor_status_[i].critical_high || sensor_status_[i].critical_low)) {
@@ -503,6 +515,25 @@ void TemperatureMonitor::checkSafetyConditions() {
 
   // Detect thermal runaway
   detectThermalRunaway();
+  for (uint8_t i = 0; i < config_.max_sensors && i < kMaxTemperatureSensors; i++) {
+    if (sensor_configured_[i] && sensor_status_[i].thermal_runaway) {
+      thermal_runaway_detected = true;
+      break;
+    }
+  }
+
+  system_status_.system_thermal_warning = any_warning;
+  system_status_.system_thermal_critical = any_critical || thermal_runaway_detected;
+
+  if (any_critical || thermal_runaway_detected) {
+    SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), "System thermal critical state active");
+    SafetyCoordinator::getInstance().activateFault(sigyn_teensy::FaultSeverity::EMERGENCY_STOP, sigyn_teensy::FaultSource::TEMPERATURE_FAULT, "Temperature critical or runaway");
+  } else if (any_warning) {
+    SerialManager::getInstance().sendDiagnosticMessage("WARNING", name(), "System thermal warning state active");
+    SafetyCoordinator::getInstance().activateFault(sigyn_teensy::FaultSeverity::WARNING, sigyn_teensy::FaultSource::TEMPERATURE_FAULT, "Temperature warning");
+  } else {
+    SafetyCoordinator::getInstance().deactivateFault(FaultSource::TEMPERATURE_FAULT);
+  }
 
   // Update timing for warning/critical states
   uint32_t now = millis();

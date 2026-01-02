@@ -255,24 +255,25 @@ protected:
   bool sensor_configured_[kMaxTemperatureSensors];
   
   // Safety state tracking
-  uint32_t warning_start_time_ms_;
-  uint32_t critical_start_time_ms_;
-  bool thermal_protection_engaged_;
+  uint32_t warning_start_time_ms_ = 0;
+  uint32_t critical_start_time_ms_ = 0;
+  bool thermal_protection_engaged_ = false;
   
   // Timing for periodic operations
-  uint32_t last_status_report_time_ms_;
-  uint32_t last_diagnostic_report_time_ms_;
-  uint32_t last_sensor_scan_time_ms_;
-  uint32_t last_safety_check_time_ms_;
+  uint32_t last_status_report_time_ms_ = 0;
+  uint32_t last_diagnostic_report_time_ms_ = 0;
+  uint32_t last_sensor_scan_time_ms_ = 0;
+  uint32_t last_safety_check_time_ms_ = 0;
   
   // Performance tracking
-  uint32_t system_start_time_ms_;
+  uint32_t system_start_time_ms_ = 0;
   
+  uint32_t total_system_readings_ = 0;
+  uint32_t total_system_errors_ = 0;
+  uint32_t last_performance_update_ms_ = 0;
+
   // Hardware abstraction for testing
   IAnalogReader* analog_reader_;  // Non-owning pointer, no heap allocation
-  uint32_t total_system_readings_;
-  uint32_t total_system_errors_;
-  uint32_t last_performance_update_ms_;
 };
 
 } // namespace sigyn_teensy

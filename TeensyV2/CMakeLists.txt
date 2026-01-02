@@ -35,8 +35,8 @@ set(TEENSY_SOURCES
   # Sensors
   modules/sensors/temperature_monitor.cpp
   
-  # Safety - PHASE 2 (needs RoboClaw interface)
-  # modules/safety/safety_coordinator.cpp
+  # Safety - enabled for SafetyCoordinator tests
+  modules/safety/safety_coordinator.cpp
   
   # Motors/RoboClaw - PHASE 2 (needs interface abstraction)
   # modules/roboclaw/roboclaw_monitor.cpp
@@ -81,10 +81,19 @@ if(BUILD_TESTING)
     )
   endif()
   
-  # Add more tests here as they are developed
-  # ament_add_gtest(test_safety_coordinator
-  #   test/safety_coordinator_test.cpp
-  # )
+  # Safety coordinator tests
+  ament_add_gtest(test_safety_coordinator
+    test/safety_coordinator_test.cpp
+  )
+  
+  if(TARGET test_safety_coordinator)
+    target_link_libraries(test_safety_coordinator
+      ${PROJECT_NAME}_core
+    )
+    target_include_directories(test_safety_coordinator PUBLIC
+      ${CMAKE_CURRENT_SOURCE_DIR}/test/mocks
+    )
+  endif()
   
 endif()
 

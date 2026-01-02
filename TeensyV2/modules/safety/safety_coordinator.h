@@ -56,6 +56,7 @@ typedef enum class FaultSource {
   SENSOR_FAILURE,        ///< Critical sensor offline
   INTER_BOARD_BOARD2,    ///< Safety signal from Board 2
   INTER_BOARD_BOARD3,    ///< Safety signal from Board 3
+  TEMPERATURE_FAULT,      ///< Transient fault condition
   UNKNOWN,               ///< Undefined or multiple sources
   NUMBER_FAULT_SOURCES
 } FaultSource;
@@ -103,6 +104,9 @@ struct Fault {
  */
 class SafetyCoordinator : public Module {
  public:
+  // --- Test Access ---
+  friend class SafetyCoordinatorTest;
+  
   // --- Singleton Access ---
   /**
    * @brief Get singleton instance of SafetyCoordinator.
@@ -125,6 +129,13 @@ class SafetyCoordinator : public Module {
   void deactivateFault(FaultSource source);
 
   void setEstopCommand(String command);
+
+  /**
+   * @brief Get a specific fault by source.
+   * @param source The fault source to query
+   * @return Const reference to the fault
+   */
+  const Fault& getFault(FaultSource source) const;
 
   // /**
   //  * @brief Check all safety conditions and update system state.
@@ -171,6 +182,12 @@ class SafetyCoordinator : public Module {
    * @brief Reset all safety flags and attempt recovery.
    */
   void resetSafetyFlags() override;
+
+#ifdef UNIT_TEST
+  // Public wrappers for testing
+  void testSetup() { setup(); }
+  void testLoop() { loop(); }
+#endif
 
  protected:
   // --- Module Overrides ---
@@ -228,7 +245,7 @@ class SafetyCoordinator : public Module {
   Fault faults_[static_cast<size_t>(FaultSource::NUMBER_FAULT_SOURCES)];  ///< Active faults
 };
 
-static const char* faultSourceToString(FaultSource source) {
+[[maybe_unused]] static const char* faultSourceToString(FaultSource source) {
   switch (source) {
     case FaultSource::HARDWARE_BUTTON:
       return "HARDWARE_BUTTON";
@@ -250,13 +267,15 @@ static const char* faultSourceToString(FaultSource source) {
       return "INTER_BOARD_BOARD2";
     case FaultSource::INTER_BOARD_BOARD3:
       return "INTER_BOARD_BOARD3";
+    case FaultSource::TEMPERATURE_FAULT:
+      return "TEMPERATURE_FAULT";
     case FaultSource::UNKNOWN:
     default:
       return "UNKNOWN";
   }
 }
 
-static const char* faultSeverityToString(FaultSeverity severity) {
+[[maybe_unused]] static const char* faultSeverityToString(FaultSeverity severity) {
   switch (severity) {
     case FaultSeverity::NORMAL:
       return "NORMAL";
