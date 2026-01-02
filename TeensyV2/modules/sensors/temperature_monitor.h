@@ -30,12 +30,18 @@
 
 #pragma once
 
-#include <Arduino.h>
+#ifdef UNIT_TEST
+#include "Arduino.h"  // Mock Arduino for testing
+#else
+#include <Arduino.h>  // Real Arduino SDK
+#endif
+
 #include <cstdint>
 #include <cmath>
 
 #include "../../common/core/module.h"
 #include "../../common/core/serial_manager.h"
+#include "interfaces/i_analog_reader.h"
 
 namespace sigyn_teensy {
 
@@ -56,18 +62,18 @@ struct TemperatureSensorConfig {
   // Temperature thresholds (Celsius)
   float critical_high_temp = 85.0f;         ///< Critical high temperature (°C)
   float warning_high_temp = 70.0f;          ///< Warning high temperature (°C)
-  float warning_low_temp = -10.0f;          ///< Warning low temperature (°C)
-  float critical_low_temp = -20.0f;         ///< Critical low temperature (°C)
+  float warning_low_temp = 5.0f;            ///< Warning low temperature (°C)
+  float critical_low_temp = 0.0f;           ///< Critical low temperature (°C)
   
   // Operational parameters
   bool enabled = true;                      ///< Sensor enabled for monitoring
-  uint32_t read_interval_ms = 1000;         ///< Reading interval (ms)
+  uint32_t read_interval_ms = 100;          ///< Reading interval (ms) - 10Hz for fast response
   uint8_t resolution_bits = 12;             ///< Temperature resolution (9-12 bits)
   
   // Safety parameters
   bool safety_critical = true;              ///< Sensor participates in safety system
   uint32_t fault_timeout_ms = 5000;         ///< Time before sensor fault triggers safety
-  float thermal_runaway_rate = 5.0f;        ///< Temperature rise rate for runaway (°C/min)
+  float thermal_runaway_rate = 100.0f;      ///< Temperature rise rate for runaway (°C/min) - detects stalled motors
 };
 
 /**
@@ -122,7 +128,7 @@ struct TemperatureSensorStatus {
   float reading_frequency_hz = 0.0f;        ///< Current reading frequency
   
   // Temperature history for trend analysis
-  float temperature_history[10];            ///< Recent temperature history
+  float temperature_history[50];            ///< Recent temperature history (5s at 10Hz)
   uint8_t history_index = 0;                ///< Current history index
   float temperature_trend = 0.0f;           ///< Temperature trend (°C/min)
   float max_temperature = -273.15f;         ///< Maximum recorded temperature
@@ -184,14 +190,16 @@ public:
   const TemperatureMonitorConfig& getConfig() const { return config_; }
   void configureSensor(uint8_t sensor_index, const TemperatureSensorConfig& sensor_config);
   
+  // Dependency injection for testing
+  void setAnalogReader(IAnalogReader* reader) { analog_reader_ = reader; }
+  
   // Control interface
   void scanForSensors();
   void calibrateSensor(uint8_t sensor_index, float reference_temp);
   void resetSensorStatistics(uint8_t sensor_index);
   void resetSystemStatistics();
-
-protected:
-  // Module interface implementation
+  
+  // Module interface - public for testing
   void setup() override;
   void loop() override;
   const char* name() const override { return "TemperatureMonitor"; }
@@ -200,7 +208,7 @@ protected:
   bool isUnsafe() override;
   void resetSafetyFlags() override;
 
-private:
+protected:
   // Singleton constructor
   TemperatureMonitor();
   
@@ -259,6 +267,9 @@ private:
   
   // Performance tracking
   uint32_t system_start_time_ms_;
+  
+  // Hardware abstraction for testing
+  IAnalogReader* analog_reader_;  // Non-owning pointer, no heap allocation
   uint32_t total_system_readings_;
   uint32_t total_system_errors_;
   uint32_t last_performance_update_ms_;
