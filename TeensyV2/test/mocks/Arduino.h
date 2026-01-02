@@ -270,6 +270,10 @@ class HardwareSerial {
 public:
   void begin(unsigned long baud) { (void)baud; }
   void end() {}
+  operator bool() const { return true; }
+  size_t print(const char* str) {
+    return str ? std::strlen(str) : 0;
+  }
   size_t write(uint8_t c) { (void)c; return 1; }
   size_t write(const uint8_t* buffer, size_t size) { (void)buffer; (void)size; return size; }
   int available() { return 0; }

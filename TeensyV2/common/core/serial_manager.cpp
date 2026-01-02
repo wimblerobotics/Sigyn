@@ -57,7 +57,10 @@
 
 namespace sigyn_teensy {
 
-SerialManager::SerialManager() : buffer_pos_(0), queue_head_(0), queue_tail_(0), queue_count_(0) {}
+SerialManager::SerialManager() : buffer_pos_(0), queue_head_(0), queue_tail_(0), queue_count_(0) {
+  memset(incoming_buffer_, 0, sizeof(incoming_buffer_));
+  memset(message_queue_, 0, sizeof(message_queue_));
+}
 
 SerialManager& SerialManager::getInstance() {
   static SerialManager instance;
@@ -212,7 +215,7 @@ void SerialManager::sendDiagnosticMessage(const char* level, const char* module,
   // Create JSON diagnostic message
   snprintf(json_payload, sizeof(json_payload),
            "{\"level\":\"%s\",\"module\":\"%s\",\"message\":\"%s\",\"timestamp\":%lu}", level, module, escaped_message,
-           millis());
+           static_cast<unsigned long>(millis()));
 
   sendMessage("DIAG", json_payload);
 }

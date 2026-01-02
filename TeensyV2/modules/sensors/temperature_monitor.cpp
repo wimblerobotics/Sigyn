@@ -54,6 +54,16 @@ TemperatureMonitor::TemperatureMonitor()
   // Configure for analog sensors instead of OneWire
   config_.max_sensors = kMaxTemperatureSensors;  // Support up to max analog temperature sensors
 
+  // Ensure sensor status structs start in a deterministic state
+  for (uint8_t i = 0; i < kMaxTemperatureSensors; i++) {
+    sensor_status_[i] = TemperatureSensorStatus{};
+    for (float& t : sensor_status_[i].temperature_history) {
+      t = NAN;
+    }
+    sensor_status_[i].max_temperature = -273.15f;
+    sensor_status_[i].min_temperature = 1000.0f;
+  }
+
   // Initialize sensor configurations for left and right motor
   sensor_configs_[0].sensor_name = "LeftMotor";
   sensor_configs_[0].location = "Left Motor";

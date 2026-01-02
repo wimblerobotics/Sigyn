@@ -206,7 +206,6 @@ namespace sigyn_teensy {
     // I2C multiplexer control
     void selectSensorChannel(uint8_t sensor_index);
     bool testMultiplexer();
-    void resetMultiplexer();
 
     // Recovery and error handling
     void scheduleRecovery(uint8_t sensor_index, uint32_t now_ms);

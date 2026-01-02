@@ -608,14 +608,6 @@ namespace sigyn_teensy {
     return (error == 0);
   }
 
-  void VL53L0XMonitor::resetMultiplexer() {
-    digitalWrite(kI2CMultiplexerEnablePin, LOW);
-    delay(10);
-    digitalWrite(kI2CMultiplexerEnablePin, HIGH);
-    delay(10);
-    multiplexer_available_ = testMultiplexer();
-  }
-
   void VL53L0XMonitor::scheduleRecovery(uint8_t sensor_index, uint32_t now_ms) {
     sensors_[sensor_index].stopContinuous();
     sensor_states_[sensor_index] = SensorState::ERROR_RECOVERY;
