@@ -137,12 +137,6 @@ class SafetyCoordinator : public Module {
    */
   const Fault& getFault(FaultSource source) const;
 
-  // /**
-  //  * @brief Get the current E-stop condition.
-  //  * @return Const reference to the current E-stop condition
-  //  */
-  // const EstopCondition& getEstopCondition() const;
-
   // --- Module Overrides ---
   /**
    * @brief Get the name of this module.
