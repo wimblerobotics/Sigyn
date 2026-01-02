@@ -111,8 +111,6 @@ void SafetyCoordinator::activateFault(FaultSeverity severity, FaultSource source
   if (new_is_estop && active_estop_count_ == 1) {
 #if CONTROLS_ROBOCLAW_ESTOP_PIN
     RoboClawMonitor::getInstance().setEmergencyStop();
-#elif defined(PIN_SAFETY_OUT_TO_MASTER)
-    digitalWrite(PIN_SAFETY_OUT_TO_MASTER, HIGH);
 #endif
   }
 
@@ -140,8 +138,6 @@ void SafetyCoordinator::deactivateFault(FaultSource source) {
     if (active_estop_count_ == 0) {
 #if CONTROLS_ROBOCLAW_ESTOP_PIN
       RoboClawMonitor::getInstance().clearEmergencyStop();
-#elif defined(PIN_SAFETY_OUT_TO_MASTER)
-      digitalWrite(PIN_SAFETY_OUT_TO_MASTER, LOW);
 #endif
       char msg[256];
       snprintf(msg, sizeof(msg), "Fault deactivated: source=%s, severity=%s, description=%s, active_faults=%d",
@@ -188,17 +184,6 @@ void SafetyCoordinator::resetSafetyFlags() {
 }
 
 void SafetyCoordinator::setup() {
-  // #if CONTROLS_ROBOCLAW_ESTOP_PIN
-  //   pinMode(PIN_SAFETY_IN_BOARD2, INPUT_PULLUP);
-  //   pinMode(PIN_SAFETY_IN_BOARD3, INPUT_PULLUP);
-  //   pinMode(PIN_RELAY_ROBOCLAW_POWER, OUTPUT);
-  //   pinMode(PIN_RELAY_MAIN_BATTERY, OUTPUT);
-  //   digitalWrite(PIN_RELAY_ROBOCLAW_POWER, LOW);
-  //   digitalWrite(PIN_RELAY_MAIN_BATTERY, LOW);
-  // #else
-  //   pinMode(PIN_SAFETY_OUT_TO_MASTER, OUTPUT);
-  //   digitalWrite(PIN_SAFETY_OUT_TO_MASTER, LOW);
-  // #endif
 }
 
 void SafetyCoordinator::setEstopCommand(String command) {
@@ -228,86 +213,6 @@ void SafetyCoordinator::setMainBatteryPower(bool on) {
   (void)on;  // Suppress unused parameter warning
 #endif
 }
-
-// void SafetyCoordinator::attemptRecovery() {
-//   // Verify that the original trigger condition has been resolved
-//   // Different E-stop sources require different verification methods
-//   bool condition_cleared = true;
-
-//   switch (estop_condition_.source) {
-//     case FaultSource::HARDWARE_BUTTON:
-//       // Hardware button must be released (LOW = not pressed)
-//       // if (digitalRead(config_.hardware_estop_pin) == LOW) condition_cleared = false;
-//       break;
-
-//     // case EstopSource::INTER_BOARD:
-//     //   // Other board must clear its safety signal
-//     //   if (digitalRead(config_.inter_board_input_pin) == LOW) condition_cleared = false;
-//     //   break;
-
-//     // Software-triggered E-stops: check module safety states
-//     default:
-//       // For module-based safety violations, verify all modules are now safe
-//       if (Module::isAnyModuleUnsafe()) {
-//         condition_cleared = false;
-//       }
-//       break;
-//   }
-
-//   if (condition_cleared) {
-//     deactivateEstop();
-//   } else {
-//     // Optional: log that recovery failed
-//     SerialManager::getInstance().sendDiagnosticMessage("SAFETY", name(), "recovery_failed");
-//   }
-// }
-
-// void SafetyCoordinator::checkHardwareEstop() {
-//   // if (digitalRead(config_.hardware_estop_pin) == LOW) {
-//   //   activateEstop(EstopSource::HARDWARE_BUTTON, "Hardware E-stop pressed");
-//   // }
-// }
-
-// void SafetyCoordinator::checkInterBoardSafety() {
-//   if (config_.enable_inter_board_safety && digitalRead(config_.inter_board_input_pin) == LOW) {
-//     activateEstop(EstopSource::INTER_BOARD, "Inter-board safety signal active");
-//   }
-// }
-
-// void SafetyCoordinator::checkModuleSafety() {
-//   if (Module::isAnyModuleUnsafe()) {
-//     // Find which module is unsafe for a better description
-//     for (uint16_t i = 0; i < Module::getModuleCount(); ++i) {
-//       Module* mod = Module::getModule(i);
-//       if (mod && mod->isUnsafe()) {
-//         String desc = "Module unsafe: ";
-//         desc += mod->name();
-//         // This logic might need refinement if multiple modules are unsafe
-//         activateEstop(FaultSource::UNKNOWN,
-//                       desc);  // TODO: Better source mapping
-//         break;
-//       }
-//     }
-//   }
-// }
-
-// void SafetyCoordinator::checkSafetyStatus() {
-//   if (current_state_ == FaultSeverity::EMERGENCY_STOP) {
-//     // If in E-stop, don't check for new triggers, just wait for recovery
-//     // attempt
-//     return;
-//   }
-
-//   // checkHardwareEstop();
-//   // if (isUnsafe()) return;
-
-//   // checkInterBoardSafety();
-//   // if (isUnsafe()) return;
-
-//   checkModuleSafety();
-// }
-
-// const EstopCondition& SafetyCoordinator::getEstopCondition() const { return estop_condition_; }
 
 const Fault& SafetyCoordinator::getFault(FaultSource source) const {
   return faults_[static_cast<size_t>(source)];

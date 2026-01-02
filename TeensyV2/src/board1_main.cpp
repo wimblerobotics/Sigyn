@@ -191,30 +191,19 @@ void serialEvent() {
 }
 
 void setup() {
-  // Initialize serial communication first
-  uint32_t start_time = millis();
+  // Ensure physical safety outputs are deterministic immediately on boot.
+#if CONTROLS_ROBOCLAW_ESTOP_PIN
+  pinMode(ESTOP_OUTPUT_PIN, OUTPUT);
+  digitalWrite(ESTOP_OUTPUT_PIN, HIGH);  // Deactivate E-stop (active LOW)
+#endif
+
+  // Initialize serial communication (do not block waiting for USB).
   Serial.begin(BOARD_SERIAL_BAUD_RATE);
-  while (!Serial && (start_time - millis() < BOARD_SERIAL_WAIT_MS)) {
-    // Wait for serial connection
-  }
 
 #if BOARD_HAS_MOTOR_CONTROL
   RoboClawConfig config_;
-  start_time = millis();
   Serial7.begin(config_.baud_rate); // RoboClaw serial port
-  while (!Serial7 && (start_time - millis() < BOARD_SERIAL_WAIT_MS)) {
-    // Wait for serial connection
-  }
 #endif
-
-  // TODO: Setup inter-board communication pins (commented out for now)
-  // pinMode(INTER_BOARD_SIGNAL_OUTPUT_PIN, OUTPUT);
-  // pinMode(INTER_BOARD_SIGNAL_INPUT_PIN, INPUT_PULLUP);
-  // digitalWrite(INTER_BOARD_SIGNAL_OUTPUT_PIN, LOW);  // Default to no signal
-  // 
-  // Setup interrupt for inter-board signal reception
-  // attachInterrupt(digitalPinToInterrupt(INTER_BOARD_SIGNAL_INPUT_PIN), 
-  //                 interBoardSignalReceived, RISING);
 
   // Initialize SD logger first if enabled (required for other modules)
 #if ENABLE_SD_LOGGING

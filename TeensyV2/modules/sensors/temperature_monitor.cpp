@@ -112,9 +112,10 @@ void TemperatureMonitor::setup() {
       sensor_status_[i].sensor_present = true;
       sensor_status_[i].communication_ok = true;
       sensor_status_[i].resolution = ANALOG_RESOLUTION;
+      sensor_status_[i].last_valid_reading_time_ms = 0;
 
       // Initialize temperature history
-      for (uint8_t j = 0; j < 10; j++) {
+      for (uint8_t j = 0; j < 50; j++) {
         sensor_status_[i].temperature_history[j] = NAN;
       }
       sensor_status_[i].history_index = 0;
@@ -295,9 +296,10 @@ void TemperatureMonitor::resetSensorStatistics(uint8_t sensor_index) {
   sensor_status_[sensor_index].max_temperature = -273.15f;
   sensor_status_[sensor_index].min_temperature = 1000.0f;
   sensor_status_[sensor_index].reading_frequency_hz = 0.0f;
+  sensor_status_[sensor_index].last_valid_reading_time_ms = 0;
 
   // Clear temperature history
-  for (uint8_t i = 0; i < 10; i++) {
+  for (uint8_t i = 0; i < 50; i++) {
     sensor_status_[sensor_index].temperature_history[i] = NAN;
   }
   sensor_status_[sensor_index].history_index = 0;
@@ -338,6 +340,7 @@ void TemperatureMonitor::updateTemperatureReadings() {
       updateTemperatureHistory(i, sensor_status_[i].temperature_c);
       total_system_readings_++;
       sensor_status_[i].total_readings++;
+      sensor_status_[i].last_valid_reading_time_ms = now;
     } else {
       total_system_errors_++;
       sensor_status_[i].error_count++;
@@ -468,10 +471,52 @@ void TemperatureMonitor::updateSystemStatus() {
 }
 
 void TemperatureMonitor::checkSafetyConditions() {
+  static uint32_t last_safety_diag_time_ms = 0;
+  const uint32_t now = millis();
+  const bool can_log = (now - last_safety_diag_time_ms) >= 1000;
+  if (can_log) {
+    last_safety_diag_time_ms = now;
+  }
+
   bool any_warning = false;
   bool any_critical = false;
+  bool any_degraded = false;
   bool thermal_runaway_detected = false;
 
+  int8_t first_warning_idx = -1;
+  int8_t first_critical_idx = -1;
+  int8_t first_degraded_idx = -1;
+
+  // Sensor timeout / invalid handling: temperature sensor failures are DEGRADED (not E-stop).
+  for (uint8_t i = 0; i < config_.max_sensors && i < kMaxTemperatureSensors; i++) {
+    if (!sensor_configured_[i]) {
+      continue;
+    }
+    if (!sensor_configs_[i].enabled || !sensor_configs_[i].safety_critical) {
+      continue;
+    }
+    const uint32_t timeout_ms = sensor_configs_[i].fault_timeout_ms;
+    if (timeout_ms == 0) {
+      continue;
+    }
+    const uint32_t last_valid = sensor_status_[i].last_valid_reading_time_ms;
+    const bool never_valid = (last_valid == 0);
+    const uint32_t age_ms = never_valid ? (now - system_start_time_ms_) : (now - last_valid);
+    if (age_ms >= timeout_ms) {
+      any_degraded = true;
+      if (first_degraded_idx < 0) {
+        first_degraded_idx = static_cast<int8_t>(i);
+      }
+      if (can_log) {
+        char msg[256];
+        snprintf(msg, sizeof(msg), "DEGRADED temp sensor: sensor=%s idx=%u age_ms=%lu timeout_ms=%lu", 
+                 sensor_configs_[i].sensor_name.c_str(), i, (unsigned long)age_ms, (unsigned long)timeout_ms);
+        SerialManager::getInstance().sendDiagnosticMessage("WARNING", name(), msg);
+      }
+    }
+  }
+
+  // Threshold checks (only for valid readings)
   for (uint8_t i = 0; i < config_.max_sensors && i < kMaxTemperatureSensors; i++) {
     if (!sensor_configured_[i] || !sensor_status_[i].reading_valid) {
       continue;
@@ -485,39 +530,44 @@ void TemperatureMonitor::checkSafetyConditions() {
     sensor_status_[i].warning_high = (temp >= config.warning_high_temp && temp < config.critical_high_temp);
     sensor_status_[i].warning_low = (temp <= config.warning_low_temp && temp > config.critical_low_temp);
     sensor_status_[i].critical_low = (temp <= config.critical_low_temp);
+
     if (sensor_status_[i].warning_high || sensor_status_[i].warning_low) {
       any_warning = true;
+      if (first_warning_idx < 0) {
+        first_warning_idx = static_cast<int8_t>(i);
+      }
     }
     if (sensor_status_[i].critical_high || sensor_status_[i].critical_low) {
       any_critical = true;
+      if (first_critical_idx < 0) {
+        first_critical_idx = static_cast<int8_t>(i);
+      }
     }
 
-    // Log safety violations
-    if ((sensor_status_[i].critical_high || sensor_status_[i].critical_low)) {
+    // Log safety violations (rate-limited)
+    if (can_log && (sensor_status_[i].critical_high || sensor_status_[i].critical_low)) {
       char msg[256];
-      snprintf(
-          msg, sizeof(msg),
-          "Temperature of: %s with a temperature of: %.1f°C is either critical high (>= %.3f) or critical low (<= %.3f)",
-          config.sensor_name.c_str(), temp, config.critical_high_temp, config.critical_low_temp);
+      snprintf(msg, sizeof(msg), "CRITICAL temp: sensor=%s idx=%u temp=%.1fC (crit_high>=%.1fC crit_low<=%.1fC)",
+               config.sensor_name.c_str(), i, temp, config.critical_high_temp, config.critical_low_temp);
       SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg);
     }
 
-    if ((sensor_status_[i].warning_high || sensor_status_[i].warning_low) &&
+    if (can_log && (sensor_status_[i].warning_high || sensor_status_[i].warning_low) &&
         !(sensor_status_[i].critical_high || sensor_status_[i].critical_low)) {
       char msg[256];
-      snprintf(
-          msg, sizeof(msg),
-          "Temperature of: %s with a temperature of: %.1f°C is either warning high (>= %.3f) or warning low (<= %.3f)",
-          config.sensor_name.c_str(), temp, config.warning_high_temp, config.warning_low_temp);
+      snprintf(msg, sizeof(msg), "WARN temp: sensor=%s idx=%u temp=%.1fC (warn_high>=%.1fC warn_low<=%.1fC)",
+               config.sensor_name.c_str(), i, temp, config.warning_high_temp, config.warning_low_temp);
       SerialManager::getInstance().sendDiagnosticMessage("WARNING", name(), msg);
     }
   }
 
-  // Detect thermal runaway
+  // Detect thermal runaway (E-stop level)
   detectThermalRunaway();
+  int8_t runaway_idx = -1;
   for (uint8_t i = 0; i < config_.max_sensors && i < kMaxTemperatureSensors; i++) {
     if (sensor_configured_[i] && sensor_status_[i].thermal_runaway) {
       thermal_runaway_detected = true;
+      runaway_idx = static_cast<int8_t>(i);
       break;
     }
   }
@@ -525,18 +575,81 @@ void TemperatureMonitor::checkSafetyConditions() {
   system_status_.system_thermal_warning = any_warning;
   system_status_.system_thermal_critical = any_critical || thermal_runaway_detected;
 
-  if (any_critical || thermal_runaway_detected) {
-    SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), "System thermal critical state active");
-    SafetyCoordinator::getInstance().activateFault(sigyn_teensy::FaultSeverity::EMERGENCY_STOP, sigyn_teensy::FaultSource::TEMPERATURE_FAULT, "Temperature critical or runaway");
+  FaultSeverity desired_severity = FaultSeverity::NORMAL;
+  String desired_description;
+
+  if (thermal_runaway_detected || any_critical) {
+    desired_severity = FaultSeverity::EMERGENCY_STOP;
+    const int8_t idx = (runaway_idx >= 0) ? runaway_idx : first_critical_idx;
+    if (idx >= 0) {
+      const TemperatureSensorConfig& config = sensor_configs_[idx];
+      const TemperatureSensorStatus& status = sensor_status_[idx];
+      if (runaway_idx >= 0) {
+        desired_description = "Thermal runaway: sensor=" + config.sensor_name + " idx=" + String(idx) +
+                              " temp=" + String(status.temperature_c, 1) + "C trend=" +
+                              String(status.temperature_trend, 1) + "C/min thr=" +
+                              String(config.thermal_runaway_rate, 1) + "C/min";
+      } else {
+        desired_description = "Temp critical: sensor=" + config.sensor_name + " idx=" + String(idx) +
+                              " temp=" + String(status.temperature_c, 1) + "C (crit_high>=" +
+                              String(config.critical_high_temp, 1) + "C crit_low<=" +
+                              String(config.critical_low_temp, 1) + "C)";
+      }
+    } else {
+      desired_description = "Temperature critical";
+    }
+    if (can_log) {
+      SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), "System thermal CRITICAL (E-stop) active");
+    }
   } else if (any_warning) {
-    SerialManager::getInstance().sendDiagnosticMessage("WARNING", name(), "System thermal warning state active");
-    SafetyCoordinator::getInstance().activateFault(sigyn_teensy::FaultSeverity::WARNING, sigyn_teensy::FaultSource::TEMPERATURE_FAULT, "Temperature warning");
+    desired_severity = FaultSeverity::WARNING;
+    const int8_t idx = first_warning_idx;
+    if (idx >= 0) {
+      const TemperatureSensorConfig& config = sensor_configs_[idx];
+      const TemperatureSensorStatus& status = sensor_status_[idx];
+      desired_description = "Temp warning: sensor=" + config.sensor_name + " idx=" + String(idx) +
+                            " temp=" + String(status.temperature_c, 1) + "C (warn_high>=" +
+                            String(config.warning_high_temp, 1) + "C warn_low<=" +
+                            String(config.warning_low_temp, 1) + "C)";
+    } else {
+      desired_description = "Temperature warning";
+    }
+    if (can_log) {
+      SerialManager::getInstance().sendDiagnosticMessage("WARNING", name(), "System thermal WARNING active");
+    }
+  } else if (any_degraded) {
+    desired_severity = FaultSeverity::DEGRADED;
+    const int8_t idx = first_degraded_idx;
+    if (idx >= 0) {
+      const TemperatureSensorConfig& config = sensor_configs_[idx];
+      const uint32_t timeout_ms = config.fault_timeout_ms;
+      const uint32_t last_valid = sensor_status_[idx].last_valid_reading_time_ms;
+      const bool never_valid = (last_valid == 0);
+      const uint32_t age_ms = never_valid ? (now - system_start_time_ms_) : (now - last_valid);
+      desired_description = "Temp sensor stale: sensor=" + config.sensor_name + " idx=" + String(idx) +
+                            " age_ms=" + String(age_ms) + " timeout_ms=" + String(timeout_ms);
+    } else {
+      desired_description = "Temperature sensor stale";
+    }
+    if (can_log) {
+      SerialManager::getInstance().sendDiagnosticMessage("WARNING", name(), "System thermal DEGRADED (sensor timeout) active");
+    }
+  }
+
+  // Avoid spamming SafetyCoordinator: only update when state/description changes.
+  SafetyCoordinator& safety = SafetyCoordinator::getInstance();
+  const Fault& current = safety.getFault(FaultSource::TEMPERATURE_FAULT);
+  if (desired_severity == FaultSeverity::NORMAL) {
+    if (current.active) {
+      safety.deactivateFault(FaultSource::TEMPERATURE_FAULT);
+    }
   } else {
-    SafetyCoordinator::getInstance().deactivateFault(FaultSource::TEMPERATURE_FAULT);
+    if (!current.active || current.severity != desired_severity || current.description != desired_description) {
+      safety.activateFault(desired_severity, FaultSource::TEMPERATURE_FAULT, desired_description);
+    }
   }
 
   // Update timing for warning/critical states
-  uint32_t now = millis();
   if (system_status_.system_thermal_warning && warning_start_time_ms_ == 0) {
     warning_start_time_ms_ = now;
   } else if (!system_status_.system_thermal_warning) {
@@ -575,8 +688,8 @@ void TemperatureMonitor::detectThermalRunaway() {
       if (!sensor_status_[i].thermal_runaway) {
         sensor_status_[i].thermal_runaway = true;
 
-        // Rate limit thermal runaway messages (max once per 500ms)
-        if (now - last_thermal_message_time >= 500) {
+        // Rate limit thermal runaway messages (max once per 1s)
+        if (now - last_thermal_message_time >= 1000) {
           String msg = "active:true,source:THERMAL_RUNAWAY,reason:" + sensor_configs_[i].sensor_name +
                        " thermal runaway detected,value:" + String(sensor_status_[i].temperature_c, 1) +
                        ",rate:" + String(trend, 1) + "C_per_min" + ",manual_reset:false,time:" + String(millis());
@@ -588,7 +701,7 @@ void TemperatureMonitor::detectThermalRunaway() {
       // Self-healing: Clear thermal runaway when trend returns to safe levels
       sensor_status_[i].thermal_runaway = false;
       
-      if (now - last_thermal_message_time >= 500) {
+      if (now - last_thermal_message_time >= 1000) {
         String msg = "active:false,source:THERMAL_RUNAWAY,reason:" + sensor_configs_[i].sensor_name +
                      " thermal runaway cleared,value:" + String(sensor_status_[i].temperature_c, 1) +
                      ",rate:" + String(trend, 1) + "C_per_min" + ",time:" + String(millis());
@@ -658,9 +771,8 @@ void TemperatureMonitor::updatePerformanceStatistics() {
 
     // Update individual sensor frequencies
     for (uint8_t i = 0; i < config_.max_sensors && i < kMaxTemperatureSensors; i++) {
-      if (sensor_status_[i].total_readings > 0 && sensor_status_[i].last_reading_time_ms > 0) {
-        float sensor_time_s = (now - system_status_.system_reading_rate_hz) / 1000.0f;
-        sensor_status_[i].reading_frequency_hz = sensor_status_[i].total_readings / sensor_time_s;
+      if (sensor_status_[i].total_readings > 0 && time_diff_s > 0.0f) {
+        sensor_status_[i].reading_frequency_hz = sensor_status_[i].total_readings / time_diff_s;
       }
     }
   }

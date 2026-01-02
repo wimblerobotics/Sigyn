@@ -125,6 +125,7 @@ struct TemperatureSensorStatus {
   uint32_t total_readings = 0;              ///< Total successful readings
   uint32_t error_count = 0;                 ///< Number of read errors
   uint32_t last_reading_time_ms = 0;        ///< Time of last reading
+  uint32_t last_valid_reading_time_ms = 0;  ///< Time of last successful/valid reading
   float reading_frequency_hz = 0.0f;        ///< Current reading frequency
   
   // Temperature history for trend analysis
