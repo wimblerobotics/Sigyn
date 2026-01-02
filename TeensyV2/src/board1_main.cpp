@@ -80,9 +80,6 @@ void loop();
 void serialEvent();
 void setup();
 
-// TODO: Uncomment when inter-board communication is implemented
-// void interBoardSignalReceived();
-
 // Module instances (created via singleton pattern, conditionally based on board config)
 SerialManager* serial_manager;
 
@@ -120,17 +117,12 @@ SDLogger* sd_logger;
  * This function is called by the Teensy runtime when critical errors occur.
  */
 void fault_handler() {
-  // Immediate safety response - signal other boards about the fault
-  // TODO: Uncomment when inter-board communication is implemented
-  // digitalWrite(INTER_BOARD_SIGNAL_OUTPUT_PIN, HIGH);  // Signal other boards
-  
-  String fault_msg = "CRITICAL FAULT: Board " + String(BOARD_ID) + " system fault detected, signaling Board 1";
-  serial_manager->sendDiagnosticMessage("FAULT", "board1_main", fault_msg.c_str());
-
-  // Try to send fault notification if possible
   if (serial_manager) {
-    String fault_msg = "type=system,board=" + String(BOARD_ID) + ",time=" + String(millis());
+    const String fault_msg = "CRITICAL FAULT: Board " + String(BOARD_ID) + " system fault detected";
     serial_manager->sendDiagnosticMessage("FAULT", "board1_main", fault_msg.c_str());
+
+    const String details = "type=system,board=" + String(BOARD_ID) + ",time=" + String(millis());
+    serial_manager->sendDiagnosticMessage("FATAL", "board1_main", details.c_str());
   }
 
   // Halt system
@@ -283,28 +275,3 @@ void setup() {
 
  SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "Ready for operation");
 }
-
-// TODO: Uncomment when inter-board communication is implemented
-// /**
-//  * @brief Interrupt handler for inter-board signal reception.
-//  * 
-//  * This function is called when another board signals an E-stop condition.
-//  * Different boards will have different responses to inter-board signals.
-//  */
-// void interBoardSignalReceived() {
-//   // Board-specific response to inter-board E-stop signal
-// #if BOARD_ID == 1
-//   // Board 1: Activate hardware E-stop
-//   digitalWrite(ESTOP_OUTPUT_PIN, HIGH);
-// #elif BOARD_ID == 2
-//   // Board 2: Enter safe mode, stop all sensors/monitoring
-//   // Implementation will be board-specific
-// #elif BOARD_ID == 3
-//   // Board 3: Future expansion board response
-//   // Implementation will be board-specific
-// #endif
-//   
-//   // Common response: Log the event
-//   // Note: Cannot use Serial or complex functions in interrupt handler
-//   // Set a flag for main loop to handle the logging
-// }
