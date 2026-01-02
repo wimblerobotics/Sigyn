@@ -176,12 +176,10 @@ private:
   uint32_t findNextLogFileNumber();
   String generateLogFilename(uint32_t file_number);
   bool openLogFile(const String& filename);
-  void rotateLogFile();
   
   // Buffer management
   void addToBuffer(const String& data);
   void writeBufferToFile();
-  void clearBuffer();
   void drainWriteBufferWithBudget(uint32_t max_ms);
   
   // Directory operations

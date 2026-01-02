@@ -103,25 +103,20 @@ void RoboClawMonitor::setup() {
         return;
       }
 
-      // for (int iteration = 0; iteration < 10; ++iteration) {
-      // static bool estop_activated = false;
       digitalWrite(ESTOP_OUTPUT_PIN, LOW);
-      // estop_activated = !estop_activated;
       delay(100);
       error_status = roboclaw_.ReadError(config_.address, &valid);
       if (valid && (error_status & static_cast<uint32_t>(RoboClawError::E_STOP))) {
         snprintf(msg, sizeof(msg), "RoboClaw E-stop activated successfully");
         SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
-        // break;
       } else {
         snprintf(msg, sizeof(msg),
                  "RoboClaw E-stop activation failed. valid: %d, error_status=0x%08lX, ESTOP_OUTPUT_PIN=%d", valid,
-                 error_status, ESTOP_OUTPUT_PIN);
+                 (unsigned long)error_status, ESTOP_OUTPUT_PIN);
         SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), msg);
         connection_state_ = ConnectionState::FAILED;
         return;
       }
-      // }
 
       digitalWrite(ESTOP_OUTPUT_PIN, HIGH);  // Leave E-stop deactivated
     }

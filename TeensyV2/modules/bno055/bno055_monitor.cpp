@@ -738,24 +738,6 @@ namespace sigyn_teensy {
     return true;
   }
 
-  bool BNO055Monitor::readEulerAngles(float& heading, float& roll, float& pitch) const {
-    uint8_t buffer[6];
-    if (!readRegister(kRegEulerH, buffer, 6)) {
-      return false;
-    }
-
-    int16_t raw_h = (buffer[1] << 8) | buffer[0];
-    int16_t raw_r = (buffer[3] << 8) | buffer[2];
-    int16_t raw_p = (buffer[5] << 8) | buffer[4];
-
-    // Convert to degrees (BNO055 scale factor is 16 LSB/°)
-    heading = static_cast<float>(raw_h) / kScaleEuler;
-    roll = static_cast<float>(raw_r) / kScaleEuler;
-    pitch = static_cast<float>(raw_p) / kScaleEuler;
-
-    return true;
-  }
-
   bool BNO055Monitor::readStatus(uint8_t& sys_status, uint8_t& sys_error, uint8_t& calib_status) const {
     if (!readRegister(kRegSysStatus, &sys_status, 1)) return false;
     if (!readRegister(kRegSysErr, &sys_error, 1)) return false;
@@ -833,7 +815,7 @@ namespace sigyn_teensy {
       if (success) success = readAccelWithRetry_(sensor_id, data.ax, data.ay, data.az);
       if (success) success = readStatus(data.system_status, data.system_error, data.calibration_status);
       uint32_t elapsed_time = micros() - start_time;
-      snprintf(debug_msg, sizeof(debug_msg), "prime_full: success=%d, time=%luus", success, elapsed_time);
+      snprintf(debug_msg, sizeof(debug_msg), "prime_full: success=%d, time=%luus", success, (unsigned long)elapsed_time);
       SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), debug_msg);
 
       if (!success) {
@@ -852,29 +834,6 @@ namespace sigyn_teensy {
     }
 
     return success;
-  }
-
-  bool BNO055Monitor::validateGyroscopeReadsDuringPriming(uint8_t sensor_id) {
-    for (int attempt = 0; attempt < 3; ++attempt) {
-      float gx, gy, gz;
-      if (readGyroscope(gx, gy, gz)) { // Corrected function call
-        return true;
-      }
-      char error_msg[64];
-      snprintf(error_msg, sizeof(error_msg), "Gyroscope read failed during priming for sensor %d", sensor_id);
-      SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), error_msg);
-      delay(50); // Retry delay
-    }
-    return false;
-  }
-
-  void BNO055Monitor::initializeMinValueIfUnset(uint8_t sensor_id, float value) {
-    if (performance_stats_[sensor_id].min == std::numeric_limits<float>::max()) {
-      performance_stats_[sensor_id].min = value;
-      char info_msg[64];
-      snprintf(info_msg, sizeof(info_msg), "Initialized min value for sensor %d with value %.2f", sensor_id, value);
-      SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), info_msg);
-    }
   }
 
   void BNO055Monitor::reselectSensor_(uint8_t mux_channel) const {
