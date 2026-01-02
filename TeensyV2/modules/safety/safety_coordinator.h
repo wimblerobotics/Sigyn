@@ -138,28 +138,6 @@ class SafetyCoordinator : public Module {
   const Fault& getFault(FaultSource source) const;
 
   // /**
-  //  * @brief Check all safety conditions and update system state.
-  //  *
-  //  * This method is called automatically by the main loop and should not be
-  //  * called directly by other modules.
-  //  */
-  // void checkSafetyStatus();
-
-  // /**
-  //  * @brief Attempt to recover from an E-stop condition.
-  //  *
-  //  * This method will only succeed if all underlying safety conditions have
-  //  * been cleared.
-  //  */
-  // void attemptRecovery();
-
-  /**
-   * @brief Get the current safety state of the system.
-   * @return The current safety state
-   */
-  // FaultSeverity getSafetyState() const;
-
-  // /**
   //  * @brief Get the current E-stop condition.
   //  * @return Const reference to the current E-stop condition
   //  */
@@ -220,21 +198,6 @@ class SafetyCoordinator : public Module {
   void setMainBatteryPower(bool on);
 
   // --- Private Methods ---
-  // /**
-  //  * @brief Check for hardware E-stop button press.
-  //  */
-  // void checkHardwareEstop();
-
-  /**
-   * @brief Check for safety signals from other boards.
-   */
-  // void checkInterBoardSafety();
-
-  // /**
-  //  * @brief Check for safety violations from other modules.
-  //  */
-  // void checkModuleSafety();
-
   /**
    * @brief Send a status update via SerialManager.
    */
