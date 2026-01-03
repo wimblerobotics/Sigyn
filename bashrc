@@ -140,7 +140,7 @@ alias teensy='ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/teensy_
 alias tele='ros2 run teleop_twist_keyboard teleop_twist_keyboard'
 alias teles='ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=/diff_cont/cmd_vel_unstamped'
 alias toggle='ros2 service call /rosbag2_player/toggle_paused rosbag2_interfaces/srv/TogglePaused'
-alias test_teensy='cd /home/ros/sigyn_ws/src/Sigyn/TeensyV2 && pio test -e test'
+alias test_teensy='cd /home/ros/sigyn_ws/src/Sigyn/TeensyV2 && pio test -e test && cd /home/ros/sigyn_ws && colcon build --symlink-install --packages-select teensy_v2 --cmake-args -DBUILD_TESTING=ON && colcon test --packages-select teensy_v2 && colcon test-result --test-result-base build/teensy_v2 --all'
 
 alias compileBoard1='platformio run -e board1 -d ~/sigyn_ws/src/Sigyn/TeensyV2'
 alias compileBoard2='platformio run -e board2 -d ~/sigyn_ws/src/Sigyn/TeensyV2'
