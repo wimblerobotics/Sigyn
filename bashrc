@@ -115,7 +115,7 @@ if ! shopt -oq posix; then
     . /etc/bash_completion
   fi
 fi
-alias cb='colcon build --symlink-install'
+alias cb='colcon build --symlink-install --allow-overriding teleop_twist_keyboard'
 alias cgcm='ros2 service call /global_costmap/clear_entirely_global_costmap nav2_msgs/srv/ClearEntireCostmap'
 alias clcm='ros2 service call /local_costmap/clear_entirely_local_costmap nav2_msgs/srv/ClearEntireCostmap'
 alias dla="ros2 run --prefix 'gdbserver localhost:3000' line_finder laser_accumulator"
