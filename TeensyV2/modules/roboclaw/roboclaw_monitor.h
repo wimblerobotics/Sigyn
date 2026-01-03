@@ -59,6 +59,7 @@ struct RoboClawConfig {
   uint8_t address = 0x80;        ///< RoboClaw device address
   uint32_t timeout_us = 100000;  ///< Communication timeout (microseconds)
   uint32_t baud_rate = 230400;   ///< Serial communication baud rate
+  uint8_t max_consecutive_comm_failures = 3;  ///< Escalate to E-stop after this many failed read cycles
 
   // Robot kinematics / encoder model
   float wheel_diameter_m = 0.102224144529039f;
@@ -70,6 +71,10 @@ struct RoboClawConfig {
   float max_current_m2 = 100.0f;    ///< Maximum current for motor 2 (Amps)
   float warning_current = 10.0f;    ///< Warning current threshold (Amps)
   uint32_t max_speed_qpps = 10000;  ///< Maximum speed (quad pulses per second)
+
+  // RoboClaw internal temperature thresholds (based on manual: warning around 85C, fault around 100C)
+  float roboclaw_temp_warning_c = 85.0f;
+  float roboclaw_temp_fault_c = 100.0f;
 
   // Command + control tuning
   uint32_t cmd_vel_timeout_ms = 200;              ///< Stop motors if cmd_vel is stale
@@ -177,6 +182,36 @@ class RoboClawMonitor : public Module {
   void setConnectedForTesting(bool connected) {
     connection_state_ = connected ? ConnectionState::CONNECTED : ConnectionState::DISCONNECTED;
   }
+
+  // Test helpers to exercise safety logic without hardware.
+  void setMotorCurrentsForTesting(float m1_amps, float m2_amps, bool valid = true) {
+    motor1_status_.current_amps = m1_amps;
+    motor2_status_.current_amps = m2_amps;
+    motor1_status_.current_valid = valid;
+    motor2_status_.current_valid = valid;
+  }
+
+  void setMotorSpeedFeedbackForTesting(int32_t m1_qpps, int32_t m2_qpps, bool valid = true) {
+    motor1_status_.speed_qpps = m1_qpps;
+    motor2_status_.speed_qpps = m2_qpps;
+    motor1_status_.speed_valid = valid;
+    motor2_status_.speed_valid = valid;
+  }
+
+  void setRunawayDetectionInitializedForTesting(bool initialized) { runaway_detection_initialized_ = initialized; }
+  void setLastCommandedQppsForTesting(int32_t m1_qpps, int32_t m2_qpps) {
+    last_commanded_m1_qpps_ = m1_qpps;
+    last_commanded_m2_qpps_ = m2_qpps;
+  }
+  void setSystemErrorStatusForTesting(uint32_t error_status) { system_status_.error_status = error_status; }
+  void setRoboClawTemperatureForTesting(float temp_c) { system_status_.temperature_c = temp_c; }
+  bool isEmergencyStopActiveForTesting() const { return emergency_stop_active_; }
+
+  void runSafetyChecksForTesting() { checkSafetyConditions(); }
+  bool testCommunicationForTesting() { return testCommunication(); }
+
+  // Allows tests to drive the read-failure retry logic.
+  void updateMotorStatusForTesting() { updateMotorStatus(); }
 #endif
 
   // E-STOP interface.
@@ -382,6 +417,9 @@ class RoboClawMonitor : public Module {
   uint32_t total_commands_sent_;
   uint32_t total_communication_errors_;
   uint32_t total_safety_violations_;
+
+  // Tracks consecutive read cycles where *no* readings were valid.
+  uint8_t consecutive_comm_failures_ = 0;
 };
 
 // RoboClaw error status bit definitions

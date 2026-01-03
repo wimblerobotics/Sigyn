@@ -17,12 +17,40 @@
 
 #include "common/core/config.h"
 #include "common/core/serial_manager.h"
+#include "safety/safety_coordinator.h"
 
 namespace sigyn_teensy {
 
 // Legacy defaults (kept here to preserve behavior while allowing overrides via RoboClawConfig)
 constexpr uint32_t DEFAULT_MAX_MOTOR_SPEED_QPPS = 1392;
 constexpr uint32_t DEFAULT_MAX_ACCELERATION_QPPS2 = 3000;
+
+namespace {
+constexpr uint32_t kFatalRoboclawErrorMask =
+    static_cast<uint32_t>(RoboClawError::E_STOP) |
+    static_cast<uint32_t>(RoboClawError::TEMPERATURE_ERROR) |
+    static_cast<uint32_t>(RoboClawError::TEMPERATURE2_ERROR) |
+    static_cast<uint32_t>(RoboClawError::MAIN_BATTERY_HIGH_ERROR) |
+    static_cast<uint32_t>(RoboClawError::LOGIC_VOLTAGE_HIGH_ERROR) |
+    static_cast<uint32_t>(RoboClawError::LOGIC_VOLTAGE_LOW_ERROR) |
+    static_cast<uint32_t>(RoboClawError::M1_DRIVER_FAULT_ERROR) |
+    static_cast<uint32_t>(RoboClawError::M2_DRIVER_FAULT_ERROR) |
+    static_cast<uint32_t>(RoboClawError::M1_SPEED_ERROR) |
+    static_cast<uint32_t>(RoboClawError::M2_SPEED_ERROR) |
+    static_cast<uint32_t>(RoboClawError::M1_POSITION_ERROR) |
+    static_cast<uint32_t>(RoboClawError::M2_POSITION_ERROR) |
+    static_cast<uint32_t>(RoboClawError::M1_CURRENT_ERROR) |
+    static_cast<uint32_t>(RoboClawError::M2_CURRENT_ERROR);
+
+bool isPowerCycleLikelyRequired(uint32_t error_status) {
+  // Based on RoboClaw manual behavior: E-stop may be configured as latching;
+  // driver faults suggest damage/latched shutdown.
+  // TODO(wimble): Confirm additional power-cycle-required error bits from the manual.
+  return (error_status & static_cast<uint32_t>(RoboClawError::E_STOP)) ||
+         (error_status & static_cast<uint32_t>(RoboClawError::M1_DRIVER_FAULT_ERROR)) ||
+         (error_status & static_cast<uint32_t>(RoboClawError::M2_DRIVER_FAULT_ERROR));
+}
+}  // namespace
 
 // Serial port (define this based on your hardware setup)
 #ifndef UNIT_TEST
@@ -291,6 +319,11 @@ void RoboClawMonitor::setVelocityCommand(float linear_x, float angular_z) {
   last_velocity_command_.angular_z = angular_z;
   last_velocity_command_.timestamp_ms = millis();
 
+  // TODO(wimble): Compare commanded cmd_vel vs measured wheel speeds/accel and
+  // signal WARNING/E-STOP if mismatch persists.
+  // TODO(wimble): Cross-check localization pose vs wheel odometry to detect
+  // slips/runaways and signal safety state.
+
   // Convert velocity to motor speeds
   int32_t m1_qpps, m2_qpps;
   velocityToMotorSpeeds(linear_x, angular_z, m1_qpps, m2_qpps);
@@ -328,9 +361,16 @@ void RoboClawMonitor::clearEmergencyStop() {
 }
 
 void RoboClawMonitor::setEmergencyStop() {
-  digitalWrite(ESTOP_OUTPUT_PIN, LOW);  // Activate E-stop.
+  // Prefer the physical E-stop output pin when available, rather than trying
+  // to send stop commands over a potentially-failing serial link.
+  pinMode(ESTOP_OUTPUT_PIN, OUTPUT);
+  digitalWrite(ESTOP_OUTPUT_PIN, LOW);
   emergency_stop_active_ = true;
+
+#if !CONTROLS_ROBOCLAW_ESTOP_PIN
+  // If we *can't* assert a real E-stop line to the RoboClaw, best-effort stop.
   setMotorSpeeds(0, 0);
+#endif
   SerialManager::getInstance().sendDiagnosticMessage("INFO", name(),
                                                      ("Emergency stop activated, time:" + String(millis())).c_str());
 }
@@ -454,10 +494,20 @@ bool RoboClawMonitor::testCommunication() {
     } else {
       String msg = "Unexpected version: " + String(version);
       SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg.c_str());
+
+      // Safety: if we can't positively identify the controller, stop motion.
+      SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::UNKNOWN,
+                                                     "RoboClaw communication failed (unexpected version)");
+      setEmergencyStop();
       return false;
     }
   } else {
     SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "Failed to read version");
+
+    // Safety: inability to communicate with the motor controller warrants E-stop.
+    SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::UNKNOWN,
+                                                   "RoboClaw communication failed (no version read)");
+    setEmergencyStop();
     return false;
   }
 }
@@ -469,6 +519,11 @@ void RoboClawMonitor::handleCommunicationError() {
   // Clear status flags
   motor1_status_.communication_ok = false;
   motor2_status_.communication_ok = false;
+
+  // Safety: communication errors mean we cannot reliably control motion.
+  SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::UNKNOWN,
+                                                 "RoboClaw communication error");
+  setEmergencyStop();
 
   SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "Communication error detected");
 }
@@ -599,8 +654,6 @@ void RoboClawMonitor::updateMotorStatus() {
       motor2_status_.communication_ok =
           motor2_status_.encoder_valid || motor2_status_.speed_valid || motor2_status_.current_valid;
 
-      // Track consecutive communication failures for error handling
-      static uint8_t consecutive_failures = 0;
       if (!any_valid) {
         char msg[300];
         snprintf(msg, sizeof(msg),
@@ -609,17 +662,20 @@ void RoboClawMonitor::updateMotorStatus() {
                  "motor1_status.speed_valid: %d, motor1_status.current_valid: %d, "
                  "motor2_status.encoder_valid: %d, motor2_status.speed_valid: %d, "
                  "motor2_status.current_valid: %d",
-                 config_.address, consecutive_failures, motor1_status_.encoder_valid, motor1_status_.speed_valid,
+                 config_.address, consecutive_comm_failures_, motor1_status_.encoder_valid, motor1_status_.speed_valid,
                  motor1_status_.current_valid, motor2_status_.encoder_valid, motor2_status_.speed_valid,
                  motor2_status_.current_valid);
         SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), msg);
-        consecutive_failures++;
-        if (consecutive_failures >= 5) {  // Only trigger error after 5 consecutive failures
+        consecutive_comm_failures_++;
+        if (consecutive_comm_failures_ >= config_.max_consecutive_comm_failures) {
+          SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::UNKNOWN,
+                                                         "RoboClaw read failures exceeded threshold");
+          setEmergencyStop();
           handleCommunicationError();
-          consecutive_failures = 0;
+          consecutive_comm_failures_ = 0;
         }
       } else {
-        consecutive_failures = 0;  // Reset on success
+        consecutive_comm_failures_ = 0;  // Reset on success
       }
 
       reading_state_ = ReadingState::READ_ENCODER_M1;  // Start next cycle
@@ -688,6 +744,8 @@ void RoboClawMonitor::updateSystemStatus() {
         uint16_t temp;
         if (roboclaw_->ReadTemp(config_.address, temp)) {
           system_status_.temperature_c = temp / 10.0f;
+
+          // TODO(wimble): Raise WARNING fault when temp exceeds roboclaw_temp_warning_c.
         }
       }
       break;
@@ -738,6 +796,9 @@ void RoboClawMonitor::updateCriticalMotorStatus() {
     if (encoder_fail_count_m1 > 0 || encoder_fail_count_m2 > 0) {
       String msg = "Encoder fails - M1:" + String(encoder_fail_count_m1) + " M2:" + String(encoder_fail_count_m2);
       SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg.c_str());
+
+      // TODO(wimble): Escalate encoder read failures via SafetyCoordinator.
+      // Example: small consecutive count => WARNING; larger => EMERGENCY_STOP.
       encoder_fail_count_m1 = 0;
       encoder_fail_count_m2 = 0;
     }
@@ -980,10 +1041,38 @@ void RoboClawMonitor::checkSafetyConditions() {
   static uint32_t last_estop_msg_time = 0;
   uint32_t now = millis();
 
+  // RoboClaw internal temperature safety.
+  if (!std::isnan(system_status_.temperature_c) && system_status_.temperature_c >= config_.roboclaw_temp_fault_c) {
+    SafetyCoordinator::getInstance().activateFault(
+        FaultSeverity::EMERGENCY_STOP, FaultSource::TEMPERATURE_FAULT,
+        ("RoboClaw over-temperature fault: " + String(system_status_.temperature_c, 1) + "C").c_str());
+    setEmergencyStop();
+  }
+
+  // RoboClaw fatal error bits.
+  if ((system_status_.error_status & kFatalRoboclawErrorMask) != 0) {
+    String decoded = decodeErrorStatus(system_status_.error_status);
+    SafetyCoordinator::getInstance().activateFault(
+        FaultSeverity::EMERGENCY_STOP, FaultSource::UNKNOWN,
+        ("RoboClaw reported fatal error bits: " + decoded).c_str());
+    setEmergencyStop();
+
+    if (isPowerCycleLikelyRequired(system_status_.error_status)) {
+      // TODO(wimble): Power-cycle RoboClaw via PIN_RELAY_ROBOCLAW_POWER to clear latching faults.
+    }
+  }
+
   // Check for overcurrent conditions
   if (motor1_status_.current_valid && std::abs(motor1_status_.current_amps) > config_.max_current_m1) {
+    const bool first_trip = !motor1_status_.overcurrent;
     motor1_status_.overcurrent = true;
     total_safety_violations_++;
+
+    if (first_trip) {
+      SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::MOTOR_OVERCURRENT,
+                                                     "Motor 1 overcurrent");
+      setEmergencyStop();
+    }
 
     // Rate-limited ESTOP message
     if (now - last_estop_msg_time >= config_.estop_msg_interval_ms) {
@@ -995,8 +1084,15 @@ void RoboClawMonitor::checkSafetyConditions() {
   }
 
   if (motor2_status_.current_valid && std::abs(motor2_status_.current_amps) > config_.max_current_m2) {
+    const bool first_trip = !motor2_status_.overcurrent;
     motor2_status_.overcurrent = true;
     total_safety_violations_++;
+
+    if (first_trip) {
+      SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::MOTOR_OVERCURRENT,
+                                                     "Motor 2 overcurrent");
+      setEmergencyStop();
+    }
 
     // Rate-limited ESTOP message
     if (now - last_estop_msg_time >= config_.estop_msg_interval_ms) {
@@ -1026,8 +1122,15 @@ void RoboClawMonitor::detectMotorRunaway() {
 
   // Check if motors are running away (moving when commanded to stop)
   if (last_commanded_m1_qpps_ == 0 && std::abs(motor1_status_.speed_qpps) > config_.runaway_speed_threshold_qpps) {
+    const bool first_trip = !motor1_status_.runaway_detected;
     motor1_status_.runaway_detected = true;
     total_safety_violations_++;
+
+    if (first_trip) {
+      SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::MOTOR_RUNAWAY,
+                                                     "Motor 1 runaway detected");
+      setEmergencyStop();
+    }
 
     // Rate-limited ESTOP message
     if (now - last_runaway_msg_time >= config_.runaway_msg_interval_ms) {
@@ -1039,8 +1142,15 @@ void RoboClawMonitor::detectMotorRunaway() {
   }
 
   if (last_commanded_m2_qpps_ == 0 && std::abs(motor2_status_.speed_qpps) > config_.runaway_speed_threshold_qpps) {
+    const bool first_trip = !motor2_status_.runaway_detected;
     motor2_status_.runaway_detected = true;
     total_safety_violations_++;
+
+    if (first_trip) {
+      SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::MOTOR_RUNAWAY,
+                                                     "Motor 2 runaway detected");
+      setEmergencyStop();
+    }
 
     // Rate-limited ESTOP message
     if (now - last_runaway_msg_time >= config_.runaway_msg_interval_ms) {

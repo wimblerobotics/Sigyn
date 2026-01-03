@@ -226,6 +226,8 @@ class SafetyCoordinator : public Module {
       return "INTER_BOARD_BOARD3";
     case FaultSource::TEMPERATURE_FAULT:
       return "TEMPERATURE_FAULT";
+    case FaultSource::NUMBER_FAULT_SOURCES:
+      return "NUMBER_FAULT_SOURCES";
     case FaultSource::UNKNOWN:
     default:
       return "UNKNOWN";
