@@ -4,8 +4,8 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription, launch_description_sources
 from launch.actions import IncludeLaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
-from launch.conditions import IfCondition, LaunchConfigurationEquals, LaunchConfigurationNotEquals
+from launch.substitutions import LaunchConfiguration, PythonExpression
+from launch.conditions import IfCondition, UnlessCondition
 import launch_ros.actions
 import launch_ros.descriptions
 
@@ -77,6 +77,23 @@ def generate_launch_description():
     floodLightIntensity       = LaunchConfiguration('floodLightIntensity', default = 0.5)
     enableRosBaseTimeUpdate       = LaunchConfiguration('enableRosBaseTimeUpdate', default = False)
     enableRviz         = LaunchConfiguration('enableRviz', default = False)
+
+    depth_aligned_true = PythonExpression(["'", depth_aligned, "'.lower() == 'true'"])
+    depth_aligned_false = PythonExpression(["'", depth_aligned, "'.lower() != 'true'"])
+    rectify_true = PythonExpression(["'", rectify, "'.lower() == 'true'"])
+    point_cloud_container_condition = IfCondition(rectify_true)
+    rviz_aligned_condition = IfCondition(
+        PythonExpression([
+            "'", enableRviz, "'.lower() == 'true' and '",
+            depth_aligned, "'.lower() == 'true'",
+        ])
+    )
+    rviz_rectify_condition = IfCondition(
+        PythonExpression([
+            "'", enableRviz, "'.lower() == 'true' and '",
+            depth_aligned, "'.lower() != 'true'",
+        ])
+    )
 
 
     declare_mxId_cmd = DeclareLaunchArgument(
@@ -378,56 +395,61 @@ def generate_launch_description():
                                             ('image', 'stereo/converted_depth')]
                                 )
     pointcloud_topic = '/stereo/points'
-    point_cloud_creator = None
-    rviz_node = None
-    if LaunchConfigurationEquals('depth_aligned', 'True'): 
-        point_cloud_creator = launch_ros.descriptions.ComposableNode(
-                    package='depth_image_proc',
-                    plugin='depth_image_proc::PointCloudXyzrgbNode',
-                    name='point_cloud_xyzrgb_node',
-                    remappings=[('depth_registered/image_rect', 'stereo/converted_depth'),
-                                ('rgb/image_rect_color', 'color/image'),
-                                ('rgb/camera_info', 'color/camera_info'),
-                                ('points', pointcloud_topic )]
-                )
+    point_cloud_creator_aligned = launch_ros.descriptions.ComposableNode(
+        package='depth_image_proc',
+        plugin='depth_image_proc::PointCloudXyzrgbNode',
+        name='point_cloud_xyzrgb_node',
+        remappings=[
+            ('depth_registered/image_rect', 'stereo/converted_depth'),
+            ('rgb/image_rect_color', 'color/image'),
+            ('rgb/camera_info', 'color/camera_info'),
+            ('points', pointcloud_topic),
+        ],
+        condition=IfCondition(depth_aligned_true),
+    )
 
-        rviz_node = launch_ros.actions.Node(
-            package='rviz2', executable='rviz2', output='screen',
-            arguments=['--display-config', aligned_rviz],
-            condition=IfCondition(enableRviz))
+    point_cloud_creator_unaligned = launch_ros.descriptions.ComposableNode(
+        package='depth_image_proc',
+        plugin='depth_image_proc::PointCloudXyziNode',
+        name='point_cloud_xyzi',
+        remappings=[
+            ('depth/image_rect', 'stereo/converted_depth'),
+            ('intensity/image_rect', 'right/image_rect'),
+            ('intensity/camera_info', 'right/camera_info'),
+            ('points', pointcloud_topic),
+        ],
+        condition=UnlessCondition(depth_aligned_true),
+    )
 
-    else:
-        point_cloud_creator = launch_ros.descriptions.ComposableNode(
-                    package='depth_image_proc',
-                    plugin='depth_image_proc::PointCloudXyziNode',
-                    name='point_cloud_xyzi',
+    point_cloud_container = launch_ros.actions.ComposableNodeContainer(
+        name='container',
+        namespace='',
+        package='rclcpp_components',
+        executable='component_container',
+        composable_node_descriptions=[
+            depth_metric_converter,
+            point_cloud_creator_aligned,
+            point_cloud_creator_unaligned,
+        ],
+        output='screen',
+        condition=point_cloud_container_condition,
+    )
 
-                    remappings=[('depth/image_rect', 'stereo/converted_depth'),
-                                ('intensity/image_rect', 'right/image_rect'),
-                                ('intensity/camera_info', 'right/camera_info'),
-                                ('points', pointcloud_topic)]
-                )
+    rviz_aligned_node = launch_ros.actions.Node(
+        package='rviz2',
+        executable='rviz2',
+        output='screen',
+        arguments=['--display-config', aligned_rviz],
+        condition=rviz_aligned_condition,
+    )
 
-
-        rviz_node = launch_ros.actions.Node(
-            package='rviz2', executable='rviz2', output='screen',
-            arguments=['--display-config', rectify_rviz],
-            condition=IfCondition(enableRviz))
-
-
-
-    if point_cloud_creator is not None:
-        point_cloud_container = launch_ros.actions.ComposableNodeContainer(
-                name='container',
-                namespace='',
-                package='rclcpp_components',
-                executable='component_container',
-                composable_node_descriptions=[
-                    # Driver itself
-                    depth_metric_converter,
-                    point_cloud_creator
-                ],
-                output='screen',)
+    rviz_rectify_node = launch_ros.actions.Node(
+        package='rviz2',
+        executable='rviz2',
+        output='screen',
+        arguments=['--display-config', rectify_rviz],
+        condition=rviz_rectify_condition,
+    )
     marker_node = launch_ros.actions.Node(
             package='depthai_examples', executable='rviz2', output='screen',
             arguments=['--display-config', rectify_rviz],
@@ -492,11 +514,8 @@ def generate_launch_description():
     ld.add_action(urdf_launch)
     ld.add_action(stereo_node)
 
-    if LaunchConfigurationEquals('depth_aligned', 'True') and LaunchConfigurationEquals('rectify', 'True'):
-        ld.add_action(point_cloud_container)
-    
-    # ld.add_action(point_cloud_node)
-    if LaunchConfigurationEquals('enableRviz', 'True') and rviz_node is not None:
-        ld.add_action(rviz_node)
+    ld.add_action(point_cloud_container)
+    ld.add_action(rviz_aligned_node)
+    ld.add_action(rviz_rectify_node)
     return ld
 
