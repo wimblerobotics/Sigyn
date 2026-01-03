@@ -29,12 +29,21 @@ constexpr float MAX_SECONDS_COMMANDED_TRAVEL = 0.05f;
 constexpr uint32_t MAX_MS_TO_WAIT_FOR_CMD_VEL_BEFORE_STOP_MOTORS = 200;
 
 // Serial port (define this based on your hardware setup)
+#ifndef UNIT_TEST
 #define ROBOCLAW_SERIAL Serial7
+#endif
 
 RoboClawMonitor::RoboClawMonitor()
     : Module(),
       config_(),
-      roboclaw_(&ROBOCLAW_SERIAL, config_.timeout_us),
+#ifndef UNIT_TEST
+  roboclaw_hw_(&ROBOCLAW_SERIAL, config_.timeout_us),
+  roboclaw_adapter_(roboclaw_hw_),
+  roboclaw_(&roboclaw_adapter_),
+#else
+  roboclaw_null_(),
+  roboclaw_(&roboclaw_null_),
+#endif
       connection_state_(ConnectionState::DISCONNECTED),
       reading_state_(ReadingState::READ_ENCODER_M1),
       last_reading_time_ms_(0),
@@ -76,7 +85,7 @@ void RoboClawMonitor::setup() {
   SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Starting initialization");
 
   // Initialize serial communication
-  // roboclaw_.begin(config_.baud_rate);
+  // roboclaw_->begin(config_.baud_rate);
 
   connection_state_ = ConnectionState::CONNECTING;
 
@@ -91,7 +100,7 @@ void RoboClawMonitor::setup() {
       bool valid = false;
       digitalWrite(ESTOP_OUTPUT_PIN, HIGH);  // Deactivate E-stop
       delay(100);
-      uint32_t error_status = roboclaw_.ReadError(config_.address, &valid);
+      uint32_t error_status = roboclaw_->ReadError(config_.address, &valid);
       if (valid && !(error_status & static_cast<uint32_t>(RoboClawError::E_STOP))) {
         snprintf(msg, sizeof(msg), "RoboClaw E-stop deactivated successfully");
         SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
@@ -105,7 +114,7 @@ void RoboClawMonitor::setup() {
 
       digitalWrite(ESTOP_OUTPUT_PIN, LOW);
       delay(100);
-      error_status = roboclaw_.ReadError(config_.address, &valid);
+      error_status = roboclaw_->ReadError(config_.address, &valid);
       if (valid && (error_status & static_cast<uint32_t>(RoboClawError::E_STOP))) {
         snprintf(msg, sizeof(msg), "RoboClaw E-stop activated successfully");
         SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
@@ -343,7 +352,7 @@ void RoboClawMonitor::resetErrors() {
     setMotorSpeeds(0, 0);
 
     // Method 2: Reset encoder counts (can clear some error states)
-    bool reset_success = roboclaw_.ResetEncoders(config_.address);
+    bool reset_success = roboclaw_->ResetEncoders(config_.address);
     if (reset_success) {
       SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Encoder reset successful");
       // Reinitialize encoder tracking
@@ -356,7 +365,7 @@ void RoboClawMonitor::resetErrors() {
 
     // Check if error cleared
     bool valid;
-    uint32_t error_status = roboclaw_.ReadError(config_.address, &valid);
+    uint32_t error_status = roboclaw_->ReadError(config_.address, &valid);
     if (valid) {
       if (error_status == 0) {
         SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Error cleared successfully");
@@ -395,15 +404,15 @@ bool RoboClawMonitor::initializeRoboClaw() {
   }
 
   // Set Max current limits (if applicable)
-  if (!roboclaw_.SetM1MaxCurrent(config_.address, config_.max_current_m1 * 100) ||
-      !roboclaw_.SetM2MaxCurrent(config_.address, config_.max_current_m2 * 100)) {
+    if (!roboclaw_->SetM1MaxCurrent(config_.address, config_.max_current_m1 * 100) ||
+      !roboclaw_->SetM2MaxCurrent(config_.address, config_.max_current_m2 * 100)) {
     SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "Failed to set max current limits");
     return false;
   } else {
     uint32_t m1_max_current;
     uint32_t m2_max_current;
-    roboclaw_.ReadM1MaxCurrent(config_.address, m1_max_current);
-    roboclaw_.ReadM2MaxCurrent(config_.address, m2_max_current);
+    roboclaw_->ReadM1MaxCurrent(config_.address, m1_max_current);
+    roboclaw_->ReadM2MaxCurrent(config_.address, m2_max_current);
     SerialManager::getInstance().sendDiagnosticMessage(
         "INFO", name(),
         ("Max current limits set - M1: " + String(m1_max_current / 100.0f) +
@@ -412,20 +421,20 @@ bool RoboClawMonitor::initializeRoboClaw() {
   }
 
   // Set PID values (ported from legacy code)
-  if (!roboclaw_.SetM1VelocityPID(config_.address, 7.26239f, 2.43f, 0.0f, 2437)) {
+  if (!roboclaw_->SetM1VelocityPID(config_.address, 7.26239f, 2.43f, 0.0f, 2437)) {
     SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "Failed to set M1 PID");
     return false;
   }
 
-  if (!roboclaw_.SetM2VelocityPID(config_.address, 7.26239f, 2.43f, 0.0f, 2437)) {
+  if (!roboclaw_->SetM2VelocityPID(config_.address, 7.26239f, 2.43f, 0.0f, 2437)) {
     SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "Failed to set M2 PID");
     return false;
   }
 
   // Initialize encoder readings for runaway detection
   bool valid1, valid2;
-  last_runaway_encoder_m1_ = roboclaw_.ReadEncM1(config_.address, nullptr, &valid1);
-  last_runaway_encoder_m2_ = roboclaw_.ReadEncM2(config_.address, nullptr, &valid2);
+  last_runaway_encoder_m1_ = roboclaw_->ReadEncM1(config_.address, nullptr, &valid1);
+  last_runaway_encoder_m2_ = roboclaw_->ReadEncM2(config_.address, nullptr, &valid2);
 
   if (valid1 && valid2) {
     runaway_detection_initialized_ = true;
@@ -438,7 +447,7 @@ bool RoboClawMonitor::initializeRoboClaw() {
 
 bool RoboClawMonitor::testCommunication() {
   char version[64];
-  bool success = roboclaw_.ReadVersion(config_.address, version);
+  bool success = roboclaw_->ReadVersion(config_.address, version);
 
   if (success) {
     // Check if version matches expected
@@ -490,7 +499,7 @@ void RoboClawMonitor::executeMotorCommand(int32_t m1_qpps, int32_t m2_qpps) {
   uint32_t m1_max_distance = abs(m1_qpps * MAX_SECONDS_COMMANDED_TRAVEL);
   uint32_t m2_max_distance = abs(m2_qpps * MAX_SECONDS_COMMANDED_TRAVEL);
 
-  bool success = roboclaw_.SpeedAccelDistanceM1M2(config_.address, config_.default_acceleration, m1_qpps,
+  bool success = roboclaw_->SpeedAccelDistanceM1M2(config_.address, config_.default_acceleration, m1_qpps,
                                                   m1_max_distance, m2_qpps, m2_max_distance,
                                                   1  // Flag: 1 = buffered mode
   );
@@ -525,28 +534,28 @@ void RoboClawMonitor::updateMotorStatus() {
   // State machine to spread serial reads across multiple loop cycles
   switch (reading_state_) {
     case ReadingState::READ_ENCODER_M1:
-      motor1_status_.encoder_count = roboclaw_.ReadEncM1(config_.address, &status, &valid);
+      motor1_status_.encoder_count = roboclaw_->ReadEncM1(config_.address, &status, &valid);
       motor1_status_.encoder_valid = valid;
       // Continue even if invalid to maintain performance
       reading_state_ = ReadingState::READ_SPEED_M1;
       break;
 
     case ReadingState::READ_SPEED_M1:
-      motor1_status_.speed_qpps = roboclaw_.ReadSpeedM1(config_.address, &status, &valid);
+      motor1_status_.speed_qpps = roboclaw_->ReadSpeedM1(config_.address, &status, &valid);
       motor1_status_.speed_valid = valid;
       // Continue even if invalid to maintain performance
       reading_state_ = ReadingState::READ_ENCODER_M2;
       break;
 
     case ReadingState::READ_ENCODER_M2:
-      motor2_status_.encoder_count = roboclaw_.ReadEncM2(config_.address, &status, &valid);
+      motor2_status_.encoder_count = roboclaw_->ReadEncM2(config_.address, &status, &valid);
       motor2_status_.encoder_valid = valid;
       // Continue even if invalid to maintain performance
       reading_state_ = ReadingState::READ_SPEED_M2;
       break;
 
     case ReadingState::READ_SPEED_M2:
-      motor2_status_.speed_qpps = roboclaw_.ReadSpeedM2(config_.address, &status, &valid);
+      motor2_status_.speed_qpps = roboclaw_->ReadSpeedM2(config_.address, &status, &valid);
       motor2_status_.speed_valid = valid;
       // Continue even if invalid to maintain performance
       reading_state_ = ReadingState::READ_CURRENTS;
@@ -554,7 +563,7 @@ void RoboClawMonitor::updateMotorStatus() {
 
     case ReadingState::READ_CURRENTS: {
       int16_t current1, current2;
-      bool current_valid = roboclaw_.ReadCurrents(config_.address, current1, current2);
+      bool current_valid = roboclaw_->ReadCurrents(config_.address, current1, current2);
 
       if (current_valid) {
         motor1_status_.current_amps = current1 / 100.0f;
@@ -577,7 +586,7 @@ void RoboClawMonitor::updateMotorStatus() {
 
     case ReadingState::READ_ERROR_STATUS:
       // Read error status directly here for better control
-      system_status_.error_status = roboclaw_.ReadError(config_.address, &valid);
+      system_status_.error_status = roboclaw_->ReadError(config_.address, &valid);
       reading_state_ = ReadingState::COMPLETE;
       break;
 
@@ -637,7 +646,7 @@ void RoboClawMonitor::updateSystemStatus() {
     case 0:
       // Read main battery voltage
       {
-        uint16_t main_voltage = roboclaw_.ReadMainBatteryVoltage(config_.address, &valid);
+        uint16_t main_voltage = roboclaw_->ReadMainBatteryVoltage(config_.address, &valid);
         if (valid) {
           system_status_.main_battery_voltage = main_voltage / 10.0f;
         }
@@ -650,7 +659,7 @@ void RoboClawMonitor::updateSystemStatus() {
 
     case 2:
       // Read error status (critical - read more frequently)
-      system_status_.error_status = roboclaw_.ReadError(config_.address, &valid);
+      system_status_.error_status = roboclaw_->ReadError(config_.address, &valid);
       break;
 
     case 3:
@@ -660,7 +669,7 @@ void RoboClawMonitor::updateSystemStatus() {
     case 4:
       // Read logic battery voltage (less frequent)
       {
-        uint16_t logic_voltage = roboclaw_.ReadLogicBatteryVoltage(config_.address, &valid);
+        uint16_t logic_voltage = roboclaw_->ReadLogicBatteryVoltage(config_.address, &valid);
         if (valid) {
           system_status_.logic_battery_voltage = logic_voltage / 10.0f;
         }
@@ -679,7 +688,7 @@ void RoboClawMonitor::updateSystemStatus() {
       // Read temperature if available (slowest, do least frequently)
       {
         uint16_t temp;
-        if (roboclaw_.ReadTemp(config_.address, temp)) {
+        if (roboclaw_->ReadTemp(config_.address, temp)) {
           system_status_.temperature_c = temp / 10.0f;
         }
       }
@@ -704,23 +713,23 @@ void RoboClawMonitor::updateCriticalMotorStatus() {
   static uint32_t encoder_fail_count_m1 = 0;
   static uint32_t encoder_fail_count_m2 = 0;
 
-  motor1_status_.encoder_count = roboclaw_.ReadEncM1(config_.address, &status, &valid);
+  motor1_status_.encoder_count = roboclaw_->ReadEncM1(config_.address, &status, &valid);
   motor1_status_.encoder_valid = valid;
   if (!valid) {
     encoder_fail_count_m1++;
     // Try one immediate retry for encoder reads (no delay to maintain
     // performance)
-    motor1_status_.encoder_count = roboclaw_.ReadEncM1(config_.address, &status, &valid);
+    motor1_status_.encoder_count = roboclaw_->ReadEncM1(config_.address, &status, &valid);
     motor1_status_.encoder_valid = valid;
   }
 
-  motor2_status_.encoder_count = roboclaw_.ReadEncM2(config_.address, &status, &valid);
+  motor2_status_.encoder_count = roboclaw_->ReadEncM2(config_.address, &status, &valid);
   motor2_status_.encoder_valid = valid;
   if (!valid) {
     encoder_fail_count_m2++;
     // Try one immediate retry for encoder reads (no delay to maintain
     // performance)
-    motor2_status_.encoder_count = roboclaw_.ReadEncM2(config_.address, &status, &valid);
+    motor2_status_.encoder_count = roboclaw_->ReadEncM2(config_.address, &status, &valid);
     motor2_status_.encoder_valid = valid;
   }
 
@@ -740,10 +749,10 @@ void RoboClawMonitor::updateCriticalMotorStatus() {
   // Read speeds less frequently to reduce serial load
   static uint8_t speed_read_counter = 0;
   if ((speed_read_counter % 3) == 0) {  // Read speeds every 3rd call (~23Hz)
-    motor1_status_.speed_qpps = roboclaw_.ReadSpeedM1(config_.address, &status, &valid);
+    motor1_status_.speed_qpps = roboclaw_->ReadSpeedM1(config_.address, &status, &valid);
     motor1_status_.speed_valid = valid;
 
-    motor2_status_.speed_qpps = roboclaw_.ReadSpeedM2(config_.address, &status, &valid);
+    motor2_status_.speed_qpps = roboclaw_->ReadSpeedM2(config_.address, &status, &valid);
     motor2_status_.speed_valid = valid;
   }
   speed_read_counter++;

@@ -27,6 +27,8 @@
 #include <cstdint>
 #include <cmath>
 #include <cstring>
+#include <sstream>
+#include <iomanip>
 #include <string>
 #include <map>
 
@@ -47,6 +49,20 @@ typedef uint8_t byte;
 #define DEFAULT 0
 #define INTERNAL 1
 #define EXTERNAL 2
+
+// Print base specifiers (Arduino compatibility)
+#ifndef DEC
+#define DEC 10
+#endif
+#ifndef HEX
+#define HEX 16
+#endif
+#ifndef OCT
+#define OCT 8
+#endif
+#ifndef BIN
+#define BIN 2
+#endif
 
 // Math constants (if not already defined)
 #ifndef PI
@@ -173,10 +189,16 @@ public:
   String() : data_() {}
   String(const char* str) : data_(str ? str : "") {}
   String(const std::string& str) : data_(str) {}
+  String(const String&) = default;
+  String(String&&) noexcept = default;
   String(int val) : data_(std::to_string(val)) {}
   String(unsigned int val) : data_(std::to_string(val)) {}
   String(long val) : data_(std::to_string(val)) {}
   String(unsigned long val) : data_(std::to_string(val)) {}
+  String(int32_t val, int base) { data_ = formatInteger(static_cast<unsigned long>(static_cast<uint32_t>(val)), base); }
+  String(uint32_t val, int base) { data_ = formatInteger(static_cast<unsigned long>(val), base); }
+  String(long val, int base) { data_ = formatInteger(static_cast<unsigned long>(val), base); }
+  String(unsigned long val, int base) { data_ = formatInteger(val, base); }
   String(float val, int decimals = 2) {
     char buffer[32];
     snprintf(buffer, sizeof(buffer), "%.*f", decimals, val);
@@ -193,6 +215,11 @@ public:
   
   String& operator=(const String& other) {
     data_ = other.data_;
+    return *this;
+  }
+
+  String& operator=(String&& other) noexcept {
+    data_ = std::move(other.data_);
     return *this;
   }
   
@@ -239,10 +266,23 @@ public:
     size_t pos = data_.find(c);
     return (pos == std::string::npos) ? -1 : static_cast<int>(pos);
   }
+
+  int indexOf(char c, int fromIndex) const {
+    if (fromIndex < 0) fromIndex = 0;
+    size_t pos = data_.find(c, static_cast<size_t>(fromIndex));
+    return (pos == std::string::npos) ? -1 : static_cast<int>(pos);
+  }
   
   int indexOf(const char* str) const {
     if (!str) return -1;
     size_t pos = data_.find(str);
+    return (pos == std::string::npos) ? -1 : static_cast<int>(pos);
+  }
+
+  int indexOf(const char* str, int fromIndex) const {
+    if (!str) return -1;
+    if (fromIndex < 0) fromIndex = 0;
+    size_t pos = data_.find(str, static_cast<size_t>(fromIndex));
     return (pos == std::string::npos) ? -1 : static_cast<int>(pos);
   }
   
@@ -260,8 +300,49 @@ public:
     if (end <= start) return String();
     return String(data_.substr(start, end - start));
   }
+
+  float toFloat() const {
+    // Arduino behavior: returns 0.0 if no valid conversion.
+    char* endptr = nullptr;
+    const char* s = data_.c_str();
+    float v = std::strtof(s, &endptr);
+    if (endptr == s) return 0.0f;
+    return v;
+  }
   
 private:
+  static std::string formatInteger(unsigned long val, int base) {
+    if (base == DEC) return std::to_string(val);
+    if (base == HEX) {
+      std::ostringstream oss;
+      oss << std::uppercase << std::hex << val;
+      return oss.str();
+    }
+    if (base == OCT) {
+      std::ostringstream oss;
+      oss << std::oct << val;
+      return oss.str();
+    }
+    if (base == BIN) {
+      std::string out;
+      do {
+        out.insert(out.begin(), (val & 1UL) ? '1' : '0');
+        val >>= 1U;
+      } while (val != 0);
+      return out;
+    }
+    // Generic base (2..36)
+    if (base < 2) base = 2;
+    if (base > 36) base = 36;
+    const char* digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    std::string out;
+    do {
+      out.insert(out.begin(), digits[val % static_cast<unsigned long>(base)]);
+      val /= static_cast<unsigned long>(base);
+    } while (val != 0);
+    return out;
+  }
+
   std::string data_;
 };
 

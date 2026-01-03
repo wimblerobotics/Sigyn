@@ -31,14 +31,23 @@
 
 #pragma once
 
-#include <Arduino.h>
+#ifdef UNIT_TEST
+#include "Arduino.h"  // Mock Arduino for testing
+#else
+#include <Arduino.h>  // Real Arduino SDK
+#endif
 
 #include <cmath>
 #include <cstdint>
 
 #include "../../common/core/module.h"
 #include "../../common/core/serial_manager.h"
+#include "interfaces/i_roboclaw.h"
+
+#ifndef UNIT_TEST
 #include "RoboClaw.h"
+#include "roboclaw_adapter.h"
+#endif
 
 namespace sigyn_teensy {
 
@@ -136,6 +145,16 @@ class RoboClawMonitor : public Module {
  public:
   static RoboClawMonitor& getInstance();
 
+#ifdef UNIT_TEST
+  // Allow unit tests to inject a controllable RoboClaw implementation.
+  void setRoboClawForTesting(IRoboClaw* roboclaw) { roboclaw_ = roboclaw; }
+
+  // Allow unit tests to bypass hardware init and enable command sending.
+  void setConnectedForTesting(bool connected) {
+    connection_state_ = connected ? ConnectionState::CONNECTED : ConnectionState::DISCONNECTED;
+  }
+#endif
+
   // E-STOP interface.
   void setEmergencyStop();
   void clearEmergencyStop();
@@ -173,6 +192,71 @@ class RoboClawMonitor : public Module {
  private:
   // Singleton constructor
   RoboClawMonitor();
+
+#ifdef UNIT_TEST
+  class NullRoboClaw final : public IRoboClaw {
+   public:
+    void begin(long) override {}
+    bool ResetEncoders(uint8_t) override { return false; }
+    uint32_t ReadError(uint8_t, bool* valid = nullptr) override {
+      if (valid) *valid = false;
+      return 0;
+    }
+    bool SetM1MaxCurrent(uint8_t, uint32_t) override { return false; }
+    bool SetM2MaxCurrent(uint8_t, uint32_t) override { return false; }
+    bool ReadM1MaxCurrent(uint8_t, uint32_t& max) override {
+      max = 0;
+      return false;
+    }
+    bool ReadM2MaxCurrent(uint8_t, uint32_t& max) override {
+      max = 0;
+      return false;
+    }
+    bool SetM1VelocityPID(uint8_t, float, float, float, uint32_t) override { return false; }
+    bool SetM2VelocityPID(uint8_t, float, float, float, uint32_t) override { return false; }
+    uint32_t ReadEncM1(uint8_t, uint8_t* status = nullptr, bool* valid = nullptr) override {
+      if (status) *status = 0;
+      if (valid) *valid = false;
+      return 0;
+    }
+    uint32_t ReadEncM2(uint8_t, uint8_t* status = nullptr, bool* valid = nullptr) override {
+      if (status) *status = 0;
+      if (valid) *valid = false;
+      return 0;
+    }
+    uint32_t ReadSpeedM1(uint8_t, uint8_t* status = nullptr, bool* valid = nullptr) override {
+      if (status) *status = 0;
+      if (valid) *valid = false;
+      return 0;
+    }
+    uint32_t ReadSpeedM2(uint8_t, uint8_t* status = nullptr, bool* valid = nullptr) override {
+      if (status) *status = 0;
+      if (valid) *valid = false;
+      return 0;
+    }
+    bool ReadCurrents(uint8_t, int16_t& current1, int16_t& current2) override {
+      current1 = 0;
+      current2 = 0;
+      return false;
+    }
+    uint16_t ReadMainBatteryVoltage(uint8_t, bool* valid = nullptr) override {
+      if (valid) *valid = false;
+      return 0;
+    }
+    uint16_t ReadLogicBatteryVoltage(uint8_t, bool* valid = nullptr) override {
+      if (valid) *valid = false;
+      return 0;
+    }
+    bool ReadTemp(uint8_t, uint16_t& temp) override {
+      temp = 0;
+      return false;
+    }
+    bool ReadVersion(uint8_t, char*) override { return false; }
+    bool SpeedAccelDistanceM1M2(uint8_t, uint32_t, int32_t, uint32_t, int32_t, uint32_t, uint8_t) override {
+      return false;
+    }
+  };
+#endif
 
   // State machine for connection management
   enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED, ERROR_RECOVERY, FAILED };
@@ -217,7 +301,13 @@ class RoboClawMonitor : public Module {
   RoboClawConfig config_;
 
   // Hardware interface
-  RoboClaw roboclaw_;
+#ifndef UNIT_TEST
+  RoboClaw roboclaw_hw_;
+  RoboClawAdapter roboclaw_adapter_;
+#else
+  NullRoboClaw roboclaw_null_;
+#endif
+  IRoboClaw* roboclaw_;
   ConnectionState connection_state_;
   ReadingState reading_state_;
   uint32_t last_reading_time_ms_;
