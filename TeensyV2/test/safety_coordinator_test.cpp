@@ -13,8 +13,10 @@
 
 #include "Arduino.h"  // Mock Arduino
 #include "mock_analog_reader.h"
+#include "modules/roboclaw/roboclaw_monitor.h"
 #include "modules/sensors/temperature_monitor.h"
 #include "modules/safety/safety_coordinator.h"
+#include "test/mocks/mock_roboclaw.h"
 
 using namespace sigyn_teensy;
 
@@ -67,6 +69,39 @@ protected:
   std::unique_ptr<MockAnalogReader> mock_reader;
   TemperatureMonitor* temp_monitor;
   SafetyCoordinator* safety;
+};
+
+class SafetyCoordinatorRoboClawIntegrationTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    arduino_mock::reset();
+    arduino_mock::setMillis(0);
+
+    safety_ = &SafetyCoordinator::getInstance();
+    monitor_ = &RoboClawMonitor::getInstance();
+
+    monitor_->setRoboClawForTesting(&mock_);
+    monitor_->setConnectedForTesting(true);
+
+    // Ensure a known config.
+    RoboClawConfig cfg = monitor_->getConfig();
+    cfg.max_current_m1 = 100.0f;
+    cfg.max_current_m2 = 100.0f;
+    cfg.runaway_check_interval_ms = 10;
+    cfg.runaway_speed_threshold_qpps = 50;
+    monitor_->updateConfig(cfg);
+
+    // Reset state so faults/pins don't leak between tests.
+    safety_->resetSafetyFlags();
+    monitor_->resetErrors();
+    monitor_->clearEmergencyStop();
+  }
+
+  void TearDown() override { arduino_mock::reset(); }
+
+  SafetyCoordinator* safety_ = nullptr;
+  RoboClawMonitor* monitor_ = nullptr;
+  MockRoboClaw mock_;
 };
 
 /**
@@ -127,6 +162,56 @@ TEST_F(SafetyCoordinatorTest, Integration_TemperatureWarningFault) {
 
   // Warnings should not trigger E-stop
   EXPECT_FALSE(safety->isUnsafe());
+}
+
+TEST_F(SafetyCoordinatorRoboClawIntegrationTest, Integration_RoboClawOvercurrent_ActivatesCoordinatorFault) {
+  RoboClawConfig cfg = monitor_->getConfig();
+  cfg.max_current_m1 = 1.0f;
+  cfg.max_current_m2 = 1.0f;
+  monitor_->updateConfig(cfg);
+
+  EXPECT_FALSE(safety_->getFault(FaultSource::MOTOR_OVERCURRENT).active);
+  EXPECT_FALSE(safety_->isUnsafe());
+
+  monitor_->setMotorCurrentsForTesting(/*m1_amps=*/2.0f, /*m2_amps=*/0.0f, /*valid=*/true);
+  monitor_->runSafetyChecksForTesting();
+
+  const Fault& f = safety_->getFault(FaultSource::MOTOR_OVERCURRENT);
+  EXPECT_TRUE(f.active);
+  EXPECT_EQ(f.severity, FaultSeverity::EMERGENCY_STOP);
+  EXPECT_TRUE(safety_->isUnsafe());
+  EXPECT_TRUE(monitor_->isEmergencyStopActiveForTesting());
+}
+
+TEST_F(SafetyCoordinatorRoboClawIntegrationTest, Integration_RoboClawRunaway_ActivatesCoordinatorFault) {
+  EXPECT_FALSE(safety_->getFault(FaultSource::MOTOR_RUNAWAY).active);
+
+  monitor_->setRunawayDetectionInitializedForTesting(true);
+  monitor_->setLastCommandedQppsForTesting(0, 0);
+  monitor_->setMotorSpeedFeedbackForTesting(/*m1_qpps=*/200, /*m2_qpps=*/0, /*valid=*/true);
+
+  arduino_mock::setMillis(monitor_->getConfig().runaway_check_interval_ms + 1);
+  monitor_->runSafetyChecksForTesting();
+
+  const Fault& f = safety_->getFault(FaultSource::MOTOR_RUNAWAY);
+  EXPECT_TRUE(f.active);
+  EXPECT_EQ(f.severity, FaultSeverity::EMERGENCY_STOP);
+  EXPECT_TRUE(safety_->isUnsafe());
+  EXPECT_TRUE(monitor_->isEmergencyStopActiveForTesting());
+}
+
+TEST_F(SafetyCoordinatorRoboClawIntegrationTest, Integration_RoboClawCommFail_ActivatesCoordinatorFault) {
+  EXPECT_FALSE(safety_->getFault(FaultSource::UNKNOWN).active);
+
+  mock_.state.read_version_ok = false;
+  const bool ok = monitor_->testCommunicationForTesting();
+  EXPECT_FALSE(ok);
+
+  const Fault& f = safety_->getFault(FaultSource::UNKNOWN);
+  EXPECT_TRUE(f.active);
+  EXPECT_EQ(f.severity, FaultSeverity::EMERGENCY_STOP);
+  EXPECT_TRUE(safety_->isUnsafe());
+  EXPECT_TRUE(monitor_->isEmergencyStopActiveForTesting());
 }
 
 /**
