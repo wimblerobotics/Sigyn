@@ -45,6 +45,7 @@ def generate_launch_description():
     slam = LaunchConfiguration('slam')
     map_yaml_file = LaunchConfiguration('map')
     use_sim_time = LaunchConfiguration('use_sim_time')
+    use_range_sensors = LaunchConfiguration('use_range_sensors')
     params_file = LaunchConfiguration('params_file')
     autostart = LaunchConfiguration('autostart')
     use_composition = LaunchConfiguration('use_composition')
@@ -72,8 +73,20 @@ def generate_launch_description():
 
     base_directory_path = get_package_share_directory("base")
     bt_xml_path = os.path.join(base_directory_path, "config", "nav_through_poses.xmlx")
+
+    # Range sensors:
+    # - default is 'auto': enabled on real robot, disabled in simulation
+    # - can be overridden with use_range_sensors:=true|false
+    range_sensor_layer_enabled = PythonExpression([
+        "'True' if '", use_range_sensors, "'.lower() == 'true' else (",
+        "'False' if '", use_range_sensors, "'.lower() == 'false' else (",
+        "'False' if '", use_sim_time, "'.lower() == 'true' else 'True'))"
+    ])
+
     param_substitutions = {
-      'bt_navigator.ros__parameters.default_nav_through_poses_bt_xml': bt_xml_path
+      'bt_navigator.ros__parameters.default_nav_through_poses_bt_xml': bt_xml_path,
+      # Disable VL53 RangeSensorLayer in simulation (no Teensy topics), enable on real robot.
+      'local_costmap.local_costmap.ros__parameters.range_sensor_layer.enabled': range_sensor_layer_enabled,
     }
 
     configured_params = ParameterFile(
@@ -81,7 +94,7 @@ def generate_launch_description():
             source_file=params_file,
             root_key=namespace,
             param_rewrites=param_substitutions,
-            convert_types=False,
+            convert_types=True,
         ),
         allow_substs=True,
     )
@@ -117,6 +130,14 @@ def generate_launch_description():
         'use_sim_time',
         default_value='false',
         description='Use simulation (Gazebo) clock if true',
+    )
+
+    declare_use_range_sensors_cmd = DeclareLaunchArgument(
+        'use_range_sensors',
+        default_value='auto',
+        description=(
+            "Enable VL53 range sensors in local costmap: 'auto' (default: off in sim, on real), 'true', or 'false'"
+        ),
     )
 
     declare_params_file_cmd = DeclareLaunchArgument(
@@ -219,6 +240,7 @@ def generate_launch_description():
     ld.add_action(declare_slam_cmd)
     ld.add_action(declare_map_yaml_cmd)
     ld.add_action(declare_use_sim_time_cmd)
+    ld.add_action(declare_use_range_sensors_cmd)
     ld.add_action(declare_params_file_cmd)
     ld.add_action(declare_autostart_cmd)
     ld.add_action(declare_use_composition_cmd)
