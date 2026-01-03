@@ -60,11 +60,35 @@ struct RoboClawConfig {
   uint32_t timeout_us = 100000;  ///< Communication timeout (microseconds)
   uint32_t baud_rate = 230400;   ///< Serial communication baud rate
 
+  // Robot kinematics / encoder model
+  float wheel_diameter_m = 0.102224144529039f;
+  float wheel_base_m = 0.3906f;
+  uint32_t quadrature_pulses_per_revolution = 1000;
+
   // Safety thresholds
   float max_current_m1 = 100.0f;    ///< Maximum current for motor 1 (Amps)
   float max_current_m2 = 100.0f;    ///< Maximum current for motor 2 (Amps)
   float warning_current = 10.0f;    ///< Warning current threshold (Amps)
   uint32_t max_speed_qpps = 10000;  ///< Maximum speed (quad pulses per second)
+
+  // Command + control tuning
+  uint32_t cmd_vel_timeout_ms = 200;              ///< Stop motors if cmd_vel is stale
+  uint32_t command_rate_limit_ms = 15;            ///< Max send rate to controller
+  int32_t significant_change_qpps = 10;           ///< Change threshold to resend
+  uint32_t force_update_ms = 100;                 ///< Periodic resend even without change
+  float max_seconds_commanded_travel_s = 0.05f;   ///< Distance = |qpps| * this
+
+  // Odometry tuning
+  float odom_min_dt_s = 0.010f;                   ///< Ignore tiny dt to reduce noise
+  float odom_max_dt_s = 0.100f;                   ///< Reset timing if dt too large
+  float odom_periodic_send_dt_s = 0.033f;         ///< Send at least this often when stationary
+  int32_t odom_movement_threshold_ticks = 2;       ///< Consider moving if delta ticks exceeds
+
+  // Safety tuning
+  int32_t runaway_speed_threshold_qpps = 100;      ///< Runaway if commanded 0 but speed exceeds
+  float overcurrent_recovery_current_amps = 0.5f;  ///< Auto-recover if latched but actual low
+  uint32_t estop_msg_interval_ms = 1000;           ///< Rate-limit estop messages
+  uint32_t runaway_msg_interval_ms = 1000;         ///< Rate-limit runaway messages
 
   // Runaway detection
   uint32_t runaway_check_interval_ms = 200;   ///< Runaway detection check interval (reduced for performance)
