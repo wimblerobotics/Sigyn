@@ -12,6 +12,7 @@
 
 #include "roboclaw_monitor.h"
 
+#include <cstdlib>
 #include <cstring>
 
 #include "common/core/config.h"
@@ -19,14 +20,9 @@
 
 namespace sigyn_teensy {
 
-// Configuration constants (ported from legacy config.h)
-constexpr float WHEEL_DIAMETER_M = 0.102224144529039f;
-constexpr float WHEEL_BASE_M = 0.3906f;
-constexpr uint32_t QUADRATURE_PULSES_PER_REVOLUTION = 1000;
-constexpr uint32_t MAX_MOTOR_SPEED_QPPS = 1392;
-constexpr uint32_t MAX_ACCELERATION_QPPS2 = 3000;
-constexpr float MAX_SECONDS_COMMANDED_TRAVEL = 0.05f;
-constexpr uint32_t MAX_MS_TO_WAIT_FOR_CMD_VEL_BEFORE_STOP_MOTORS = 200;
+// Legacy defaults (kept here to preserve behavior while allowing overrides via RoboClawConfig)
+constexpr uint32_t DEFAULT_MAX_MOTOR_SPEED_QPPS = 1392;
+constexpr uint32_t DEFAULT_MAX_ACCELERATION_QPPS2 = 3000;
 
 // Serial port (define this based on your hardware setup)
 #ifndef UNIT_TEST
@@ -72,8 +68,8 @@ RoboClawMonitor::RoboClawMonitor()
       total_communication_errors_(0),
       total_safety_violations_(0) {
   // Set hardware-specific defaults
-  config_.max_speed_qpps = MAX_MOTOR_SPEED_QPPS;
-  config_.default_acceleration = MAX_ACCELERATION_QPPS2;
+  config_.max_speed_qpps = DEFAULT_MAX_MOTOR_SPEED_QPPS;
+  config_.default_acceleration = DEFAULT_MAX_ACCELERATION_QPPS2;
 }
 
 RoboClawMonitor& RoboClawMonitor::getInstance() {
@@ -185,7 +181,7 @@ void RoboClawMonitor::loop() {
       }
 
       // Handle command timeouts (check every loop but lightweight)
-      if (now - last_velocity_command_.timestamp_ms > MAX_MS_TO_WAIT_FOR_CMD_VEL_BEFORE_STOP_MOTORS) {
+      if (now - last_velocity_command_.timestamp_ms > config_.cmd_vel_timeout_ms) {
         // Timeout - stop motors
         setMotorSpeeds(0, 0);
       }
@@ -479,16 +475,16 @@ void RoboClawMonitor::handleCommunicationError() {
 
 void RoboClawMonitor::velocityToMotorSpeeds(float linear_x, float angular_z, int32_t& m1_qpps, int32_t& m2_qpps) {
   // Convert twist to differential drive wheel speeds
-  float v_left_mps = linear_x - (angular_z * WHEEL_BASE_M / 2.0f);
-  float v_right_mps = linear_x + (angular_z * WHEEL_BASE_M / 2.0f);
+  float v_left_mps = linear_x - (angular_z * config_.wheel_base_m / 2.0f);
+  float v_right_mps = linear_x + (angular_z * config_.wheel_base_m / 2.0f);
 
   // Convert m/s to RPM
-  float rpm_left = (v_left_mps * 60.0f) / (M_PI * WHEEL_DIAMETER_M);
-  float rpm_right = (v_right_mps * 60.0f) / (M_PI * WHEEL_DIAMETER_M);
+  float rpm_left = (v_left_mps * 60.0f) / (M_PI * config_.wheel_diameter_m);
+  float rpm_right = (v_right_mps * 60.0f) / (M_PI * config_.wheel_diameter_m);
 
   // Convert RPM to QPPS
-  m1_qpps = static_cast<int32_t>((rpm_left / 60.0f) * QUADRATURE_PULSES_PER_REVOLUTION);
-  m2_qpps = static_cast<int32_t>((rpm_right / 60.0f) * QUADRATURE_PULSES_PER_REVOLUTION);
+  m1_qpps = static_cast<int32_t>((rpm_left / 60.0f) * config_.quadrature_pulses_per_revolution);
+  m2_qpps = static_cast<int32_t>((rpm_right / 60.0f) * config_.quadrature_pulses_per_revolution);
 }
 
 void RoboClawMonitor::executeMotorCommand(int32_t m1_qpps, int32_t m2_qpps) {
@@ -496,8 +492,10 @@ void RoboClawMonitor::executeMotorCommand(int32_t m1_qpps, int32_t m2_qpps) {
     return;
   }
 
-  uint32_t m1_max_distance = abs(m1_qpps * MAX_SECONDS_COMMANDED_TRAVEL);
-  uint32_t m2_max_distance = abs(m2_qpps * MAX_SECONDS_COMMANDED_TRAVEL);
+  uint32_t m1_max_distance =
+      static_cast<uint32_t>(static_cast<float>(std::abs(m1_qpps)) * config_.max_seconds_commanded_travel_s);
+  uint32_t m2_max_distance =
+      static_cast<uint32_t>(static_cast<float>(std::abs(m2_qpps)) * config_.max_seconds_commanded_travel_s);
 
   bool success = roboclaw_->SpeedAccelDistanceM1M2(config_.address, config_.default_acceleration, m1_qpps,
                                                   m1_max_distance, m2_qpps, m2_max_distance,
@@ -788,7 +786,7 @@ void RoboClawMonitor::updateOdometry() {
 
   // Skip if time delta is too small (avoid noise) or reset if too large (system
   // overload)
-  if (dt_s < 0.010f) {
+  if (dt_s < config_.odom_min_dt_s) {
     static uint32_t last_dt_log = 0;
     uint32_t now = millis();
     if (now - last_dt_log > 10000) {  // Log every 10 seconds
@@ -799,7 +797,7 @@ void RoboClawMonitor::updateOdometry() {
     return;
   }
 
-  if (dt_s > 0.1f) {
+  if (dt_s > config_.odom_max_dt_s) {
     // System overload - reset timing and continue (don't block ODOM
     // indefinitely)
     static uint32_t last_reset_log = 0;
@@ -851,8 +849,9 @@ void RoboClawMonitor::updateOdometry() {
   // Send odometry periodically even when stationary (like legacy
   // implementation) This ensures ROS navigation stack receives regular odometry
   // updates
-  bool has_movement = (abs(delta_encoder_m1) >= 2 || abs(delta_encoder_m2) >= 2);
-  bool should_send_periodic = (dt_s >= 0.033f);  // Send at least every 33ms (~30Hz) like legacy
+  bool has_movement = (std::abs(delta_encoder_m1) >= config_.odom_movement_threshold_ticks ||
+                       std::abs(delta_encoder_m2) >= config_.odom_movement_threshold_ticks);
+  bool should_send_periodic = (dt_s >= config_.odom_periodic_send_dt_s);
 
   if (!has_movement && !should_send_periodic) {
     return;  // Skip if no movement and not time for periodic update
@@ -864,13 +863,13 @@ void RoboClawMonitor::updateOdometry() {
   last_odom_update_time_us_ = current_time_us;
 
   // Convert encoder ticks to distances (meters)
-  float wheel_circumference = M_PI * WHEEL_DIAMETER_M;
-  float dist_m1 = (static_cast<float>(delta_encoder_m1) / QUADRATURE_PULSES_PER_REVOLUTION) * wheel_circumference;
-  float dist_m2 = (static_cast<float>(delta_encoder_m2) / QUADRATURE_PULSES_PER_REVOLUTION) * wheel_circumference;
+  float wheel_circumference = M_PI * config_.wheel_diameter_m;
+  float dist_m1 = (static_cast<float>(delta_encoder_m1) / config_.quadrature_pulses_per_revolution) * wheel_circumference;
+  float dist_m2 = (static_cast<float>(delta_encoder_m2) / config_.quadrature_pulses_per_revolution) * wheel_circumference;
 
   // Calculate robot motion
   float delta_distance = (dist_m1 + dist_m2) / 2.0f;
-  float delta_theta = (dist_m2 - dist_m1) / WHEEL_BASE_M;
+  float delta_theta = (dist_m2 - dist_m1) / config_.wheel_base_m;
 
   // Update pose (using midpoint integration) - only if there's actual movement
   if (has_movement) {
@@ -936,7 +935,7 @@ void RoboClawMonitor::processVelocityCommands() {
   uint32_t now = millis();
 
   // Check for command timeout
-  if (now - last_velocity_command_.timestamp_ms > MAX_MS_TO_WAIT_FOR_CMD_VEL_BEFORE_STOP_MOTORS) {
+  if (now - last_velocity_command_.timestamp_ms > config_.cmd_vel_timeout_ms) {
     // Timeout - ensure motors are stopped
     if (last_commanded_m1_qpps_ != 0 || last_commanded_m2_qpps_ != 0) {
       setMotorSpeeds(0, 0);
@@ -947,7 +946,7 @@ void RoboClawMonitor::processVelocityCommands() {
   // Rate limit motor commands to prevent overwhelming the controller
   // But still allow high frequency for responsiveness
   static uint32_t last_command_time = 0;
-  if (now - last_command_time < 15) {  // ~67Hz max command rate
+  if (now - last_command_time < config_.command_rate_limit_ms) {
     return;
   }
   last_command_time = now;
@@ -959,14 +958,16 @@ void RoboClawMonitor::processVelocityCommands() {
   // Only send command if it changed significantly or periodically
   static uint32_t last_forced_update = 0;
   bool significant_change =
-      (abs(m1_qpps - last_commanded_m1_qpps_) > 10) || (abs(m2_qpps - last_commanded_m2_qpps_) > 10);
-  bool force_update = (now - last_forced_update > 100);  // Force update every 100ms
+      (std::abs(static_cast<int64_t>(m1_qpps) - static_cast<int64_t>(last_commanded_m1_qpps_)) >
+       config_.significant_change_qpps) ||
+      (std::abs(static_cast<int64_t>(m2_qpps) - static_cast<int64_t>(last_commanded_m2_qpps_)) >
+       config_.significant_change_qpps);
+    bool force_update = (now - last_forced_update > config_.force_update_ms);
 
   if (significant_change || force_update) {
-    executeMotorCommand(m1_qpps, m2_qpps);
-    last_commanded_m1_qpps_ = m1_qpps;
-    last_commanded_m2_qpps_ = m2_qpps;
-    last_command_time_ms_ = now;
+    // Route all motor commands through setMotorSpeeds() so clamping and
+    // emergency-stop behavior is applied consistently.
+    setMotorSpeeds(m1_qpps, m2_qpps);
 
     if (force_update) {
       last_forced_update = now;
@@ -977,16 +978,15 @@ void RoboClawMonitor::processVelocityCommands() {
 void RoboClawMonitor::checkSafetyConditions() {
   // Rate limiting for ESTOP messages
   static uint32_t last_estop_msg_time = 0;
-  const uint32_t ESTOP_MSG_INTERVAL = 1000;  // 1 second between ESTOP messages
   uint32_t now = millis();
 
   // Check for overcurrent conditions
-  if (motor1_status_.current_valid && abs(motor1_status_.current_amps) > config_.max_current_m1) {
+  if (motor1_status_.current_valid && std::abs(motor1_status_.current_amps) > config_.max_current_m1) {
     motor1_status_.overcurrent = true;
     total_safety_violations_++;
 
     // Rate-limited ESTOP message
-    if (now - last_estop_msg_time >= ESTOP_MSG_INTERVAL) {
+    if (now - last_estop_msg_time >= config_.estop_msg_interval_ms) {
       String msg = "active:true,source:ROBOCLAW_CURRENT,reason:Motor 1 overcurrent," + String("value:") +
                    String(motor1_status_.current_amps) + ",manual_reset:false,time:" + String(millis());
       SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", "RoboClaw", msg.c_str());
@@ -994,12 +994,12 @@ void RoboClawMonitor::checkSafetyConditions() {
     }
   }
 
-  if (motor2_status_.current_valid && abs(motor2_status_.current_amps) > config_.max_current_m2) {
+  if (motor2_status_.current_valid && std::abs(motor2_status_.current_amps) > config_.max_current_m2) {
     motor2_status_.overcurrent = true;
     total_safety_violations_++;
 
     // Rate-limited ESTOP message
-    if (now - last_estop_msg_time >= ESTOP_MSG_INTERVAL) {
+    if (now - last_estop_msg_time >= config_.estop_msg_interval_ms) {
       String msg = "active:true,source:ROBOCLAW_CURRENT,reason:Motor 2 overcurrent," + String("value:") +
                    String(motor2_status_.current_amps) + ",manual_reset:false,time:" + String(millis());
       SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", "RoboClaw", msg.c_str());
@@ -1023,15 +1023,14 @@ void RoboClawMonitor::detectMotorRunaway() {
 
   // Rate limiting for runaway ESTOP messages
   static uint32_t last_runaway_msg_time = 0;
-  const uint32_t RUNAWAY_MSG_INTERVAL = 1000;  // 1 second between runaway messages
 
   // Check if motors are running away (moving when commanded to stop)
-  if (last_commanded_m1_qpps_ == 0 && abs(motor1_status_.speed_qpps) > 100) {
+  if (last_commanded_m1_qpps_ == 0 && std::abs(motor1_status_.speed_qpps) > config_.runaway_speed_threshold_qpps) {
     motor1_status_.runaway_detected = true;
     total_safety_violations_++;
 
     // Rate-limited ESTOP message
-    if (now - last_runaway_msg_time >= RUNAWAY_MSG_INTERVAL) {
+    if (now - last_runaway_msg_time >= config_.runaway_msg_interval_ms) {
       String msg = "active:true,source:MOTOR_RUNAWAY,reason:Motor 1 runaway detected," + String("value:") +
                    String(motor1_status_.speed_qpps) + ",manual_reset:false,time:" + String(millis());
       SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg.c_str());
@@ -1039,12 +1038,12 @@ void RoboClawMonitor::detectMotorRunaway() {
     }
   }
 
-  if (last_commanded_m2_qpps_ == 0 && abs(motor2_status_.speed_qpps) > 100) {
+  if (last_commanded_m2_qpps_ == 0 && std::abs(motor2_status_.speed_qpps) > config_.runaway_speed_threshold_qpps) {
     motor2_status_.runaway_detected = true;
     total_safety_violations_++;
 
     // Rate-limited ESTOP message
-    if (now - last_runaway_msg_time >= RUNAWAY_MSG_INTERVAL) {
+    if (now - last_runaway_msg_time >= config_.runaway_msg_interval_ms) {
       String msg = "active:true,source:MOTOR_RUNAWAY,reason:Motor 2 runaway detected," + String("value:") +
                    String(motor2_status_.speed_qpps) + ",manual_reset:false,time:" + String(millis());
       SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg.c_str());
@@ -1079,8 +1078,10 @@ void RoboClawMonitor::sendStatusReports() {
 
     // If overcurrent error is flagged but actual current is low, attempt
     // auto-recovery
-    if ((m1_overcurrent && motor1_status_.current_valid && abs(motor1_status_.current_amps) < 0.5f) ||
-        (m2_overcurrent && motor2_status_.current_valid && abs(motor2_status_.current_amps) < 0.5f)) {
+    if ((m1_overcurrent && motor1_status_.current_valid &&
+       std::abs(motor1_status_.current_amps) < config_.overcurrent_recovery_current_amps) ||
+      (m2_overcurrent && motor2_status_.current_valid &&
+       std::abs(motor2_status_.current_amps) < config_.overcurrent_recovery_current_amps)) {
       static uint32_t last_auto_recovery = 0;
       uint32_t now = millis();
 
