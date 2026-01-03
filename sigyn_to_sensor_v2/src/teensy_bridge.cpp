@@ -77,6 +77,11 @@ namespace sigyn_to_sensor_v2 {
         HandleDiagnosticMessage(data, timestamp);
       });
 
+    message_parser_->RegisterCallback(MessageType::FAULT,
+      [this](const MessageData& data, rclcpp::Time timestamp) {
+        HandleFaultMessage(data, timestamp);
+      });
+
     message_parser_->RegisterCallback(MessageType::TEMPERATURE,
       [this](const MessageData& data, rclcpp::Time timestamp) {
         HandleTemperatureMessage(data, timestamp);
@@ -165,7 +170,7 @@ namespace sigyn_to_sensor_v2 {
     diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
       "~/diagnostics", 10);
 
-    estop_status_pub_ = this->create_publisher<std_msgs::msg::Bool>(
+    estop_status_pub_ = this->create_publisher<std_msgs::msg::String>(
       "~/safety/estop_status", 10);
 
     // IMU publishers for dual sensors
@@ -616,8 +621,8 @@ namespace sigyn_to_sensor_v2 {
       bool estop_active = (state_it->second == "ESTOP" || state_it->second == "SHUTDOWN") ||
         (conditions_it->second == "true");
 
-      auto msg = std_msgs::msg::Bool();
-      msg.data = estop_active;
+      auto msg = std_msgs::msg::String();
+      msg.data = "{\"active_fault\":\"" + std::string(estop_active ? "true" : "false") + "\"}";
       estop_status_pub_->publish(msg);
     }
   }
@@ -684,8 +689,8 @@ namespace sigyn_to_sensor_v2 {
             source.c_str(), reason.c_str());
 
           // Publish ESTOP status
-          auto estop_msg = std_msgs::msg::Bool();
-          estop_msg.data = true;
+          auto estop_msg = std_msgs::msg::String();
+          estop_msg.data = "{\"active_fault\":\"true\",\"source\":\"" + source + "\",\"reason\":\"" + reason + "\"}";
           estop_status_pub_->publish(estop_msg);
         }
       }
@@ -707,6 +712,65 @@ namespace sigyn_to_sensor_v2 {
     }
     else {
       RCLCPP_DEBUG(this->get_logger(), "ParseDiagnosticData returned invalid data, not publishing");
+    }
+  }
+
+  void TeensyBridge::HandleFaultMessage(const MessageData& data, rclcpp::Time timestamp) {
+    // Construct JSON string for estop_status
+    std::string json_str = "{";
+    
+    // Check for active_fault first to ensure it's at the beginning
+    auto active_it = data.find("active_fault");
+    if (active_it != data.end()) {
+      json_str += "\"active_fault\":\"" + active_it->second + "\"";
+    }
+
+    // Add other fields
+    for (const auto& kv : data) {
+      if (kv.first == "active_fault") continue; // Already added
+      if (kv.first == "json") continue; // Skip raw json
+      
+      if (json_str.length() > 1) json_str += ",";
+      json_str += "\"" + kv.first + "\":\"" + kv.second + "\"";
+    }
+    json_str += "}";
+
+    auto estop_msg = std_msgs::msg::String();
+    estop_msg.data = json_str;
+    estop_status_pub_->publish(estop_msg);
+
+    auto fault_data = message_parser_->ParseFaultData(data);
+    if (fault_data.valid) {
+      // Convert fault to diagnostic message
+      diagnostic_msgs::msg::DiagnosticArray msg;
+      msg.header.stamp = timestamp;
+
+      diagnostic_msgs::msg::DiagnosticStatus status;
+      status.name = fault_data.source;
+      status.message = fault_data.description;
+      status.hardware_id = "teensy_v2_board_" + std::to_string(current_board_id);
+
+      if (fault_data.severity == "EMERGENCY_STOP" || fault_data.severity == "CRITICAL") {
+        status.level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
+        
+        // Also trigger ESTOP if severity is EMERGENCY_STOP
+        if (fault_data.severity == "EMERGENCY_STOP") {
+           RCLCPP_WARN(this->get_logger(), "E-STOP TRIGGERED (from FAULT): %s - %s",
+            fault_data.source.c_str(), fault_data.description.c_str());
+        }
+      } else if (fault_data.severity == "WARNING") {
+        status.level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
+      } else {
+        status.level = diagnostic_msgs::msg::DiagnosticStatus::OK;
+      }
+
+      diagnostic_msgs::msg::KeyValue kv_severity;
+      kv_severity.key = "severity";
+      kv_severity.value = fault_data.severity;
+      status.values.push_back(kv_severity);
+
+      msg.status.push_back(status);
+      diagnostics_pub_->publish(msg);
     }
   }
 

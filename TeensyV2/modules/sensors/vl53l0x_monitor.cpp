@@ -227,7 +227,7 @@ namespace sigyn_teensy {
   }
 
   bool VL53L0XMonitor::isUnsafe() {
-    return array_status_.any_obstacles && (array_status_.min_distance_mm < config_.obstacle_threshold_mm);
+    return false; //#####return array_status_.any_obstacles && (array_status_.min_distance_mm < config_.obstacle_threshold_mm);
   }
 
   void VL53L0XMonitor::resetSafetyFlags() {
@@ -606,14 +606,6 @@ namespace sigyn_teensy {
     Wire.beginTransmission(config_.i2c_multiplexer_address);
     uint8_t error = Wire.endTransmission();
     return (error == 0);
-  }
-
-  void VL53L0XMonitor::resetMultiplexer() {
-    digitalWrite(kI2CMultiplexerEnablePin, LOW);
-    delay(10);
-    digitalWrite(kI2CMultiplexerEnablePin, HIGH);
-    delay(10);
-    multiplexer_available_ = testMultiplexer();
   }
 
   void VL53L0XMonitor::scheduleRecovery(uint8_t sensor_index, uint32_t now_ms) {

@@ -389,7 +389,7 @@ ROBOCLAW:<json_object>
 ```
 ROBOCLAW:{"LogicVoltage":4.1,"MainVoltage":27.0,"Encoder_Left":12345,"Encoder_Right":12340,"LeftMotorCurrent":2.150,"RightMotorCurrent":2.200,"LeftMotorSpeed":850,"RightMotorSpeed":855,"Error":0,"ErrorDecoded":"No errors"}
 
-ROBOCLAW:{"LogicVoltage":4.0,"MainVoltage":26.8,"Encoder_Left":15678,"Encoder_Right":15680,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":0,"Error":1,"ErrorDecoded":"M1_OVERCURRENT"}
+ROBOCLAW:{"LogicVoltage":4.0,"MainVoltage":26.8,"Encoder_Left":15678,"Encoder_Right":15680,"LeftMotorCurrent":0.000,"RightMotorCurrent":0.000,"LeftMotorSpeed":0,"RightMotorSpeed":0,"Error":1,"ErrorDecoded":"M1_OVERCURRENT_WARNING"}
 ```
 
 **Frequency:** ~3Hz (optimized for minimal performance impact)

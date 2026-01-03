@@ -94,12 +94,15 @@ namespace sigyn_teensy {
 
   BatteryMonitor::BatteryMonitor()
     : multiplexer_available_(false), setup_completed_(false) {
+    config_ = g_battery_config_[0];
+
     // Initialize EMA arrays
     for (size_t i = 0; i < kNumberOfBatteries; i++) {
       voltage_ema_[i] = 0.0f;
       current_ema_[i] = 0.0f;
       state_[i] = BatteryState::UNKNOWN;
       total_readings_[i] = 0;
+      ina226_[i] = &g_ina226_[i];
     }
   }
 
@@ -217,8 +220,8 @@ namespace sigyn_teensy {
       // Debug: Report what we're trying to initialize
       char debug_msg[128];
       snprintf(debug_msg, sizeof(debug_msg),
-        "Initializing device %d: mux_channel=%d, i2c_addr=0x%02X", device,
-        gINA226_DeviceIndexes_[device], 0x40);
+        "Initializing device %zu: mux_channel=%u, i2c_addr=0x%02X", device,
+        (unsigned)gINA226_DeviceIndexes_[device], 0x40);
       SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(),
         debug_msg);
 
@@ -234,7 +237,7 @@ namespace sigyn_teensy {
 
       g_ina226_[device].setMaxCurrentShunt(20, 0.002);  // 20A max, 2mΩ shunt
 
-      snprintf(debug_msg, sizeof(debug_msg), "Successfully initialized device %d",
+      snprintf(debug_msg, sizeof(debug_msg), "Successfully initialized device %zu",
         device);
       SerialManager::getInstance().sendDiagnosticMessage("INFO", name(),
         debug_msg);
@@ -268,7 +271,6 @@ namespace sigyn_teensy {
   }
 
   void BatteryMonitor::updateBatteryState(size_t idx) {
-    static bool last_critical_state = false;
     char msg[256];
     float voltage = getVoltage(idx);
     float current = getCurrent(idx);

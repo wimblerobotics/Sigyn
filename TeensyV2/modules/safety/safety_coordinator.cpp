@@ -5,48 +5,48 @@
 /**
  * @file safety_coordinator.cpp
  * @brief Implementation of central safety coordination system
- * 
+ *
  * This file implements the SafetyCoordinator module that provides centralized
  * safety management, E-stop coordination, and emergency response for the
  * TeensyV2 system. The implementation handles multiple E-stop sources with
  * appropriate recovery logic and inter-board safety communication.
- * 
+ *
  * Key Implementation Features:
- * 
+ *
  * **E-stop Management:**
  * - Multiple trigger sources (hardware, software, performance, battery)
  * - Automatic hardware signal assertion for immediate motor cutoff
  * - Inter-board safety communication for system-wide coordination
  * - Configurable manual vs. automatic recovery modes
- * 
+ *
  * **Safety State Machine:**
  * - NORMAL: All systems operational, continuous monitoring active
  * - WARNING: Non-critical issues detected, degraded operation possible
  * - EMERGENCY_STOP: Critical safety violation, all motion disabled
  * - RECOVERY: Attempting to clear E-stop conditions and return to normal
- * 
+ *
  * **Recovery Logic:**
  * - Automatic recovery when transient conditions clear (e.g., performance)
  * - Manual recovery required for persistent conditions (e.g., hardware button)
  * - Comprehensive condition verification before recovery completion
  * - Configurable recovery delays to prevent oscillation
- * 
+ *
  * **Communication Integration:**
  * - Real-time status updates via SerialManager
  * - Structured message format for ROS2 integration
  * - Emergency priority messaging during safety events
  * - Diagnostic logging for post-incident analysis
- * 
+ *
  * **Hardware Integration:**
  * - Direct GPIO control for hardware E-stop output signals
  * - Interrupt-driven monitoring of hardware E-stop inputs
  * - Inter-board safety signals for multi-controller coordination
  * - Fail-safe design with active-high safety signals
- * 
+ *
  * The implementation prioritizes safety above all other considerations,
  * ensuring that any safety violation results in immediate protective
  * action while maintaining system visibility and recovery capabilities.
- * 
+ *
  * @author Wimble Robotics
  * @date 2025
  * @version 2.0
@@ -55,146 +55,97 @@
 #include "safety_coordinator.h"
 
 #include <Arduino.h>
+
 #include <cstdint>
-#include <cstdio>
+// #include <cstdio>
+#include <cstring>
+
+#include "common/core/config.h"
 #include "common/core/serial_manager.h"
+#if CONTROLS_ROBOCLAW_ESTOP_PIN
+#include "modules/roboclaw/roboclaw_monitor.h"
+#endif
 
 namespace sigyn_teensy {
 
-SafetyCoordinator::SafetyCoordinator()
-    : current_state_(SafetyState::NORMAL) {
-  // Initialize E-stop condition to safe defaults
-  // All E-stop fields start in known, safe states
-  estop_condition_.active = false;
-  estop_condition_.source = EstopSource::UNKNOWN;
-  estop_condition_.requires_manual_reset = false;
-}
-
-void SafetyCoordinator::activateEstop(EstopSource source,
-                                      const String& description) {
-  // Prevent duplicate E-stop activations from causing state confusion
-  if (current_state_ != SafetyState::EMERGENCY_STOP) {
-    // Update safety state and record E-stop details
-    current_state_ = SafetyState::EMERGENCY_STOP;
-    estop_condition_.active = true;
-    estop_condition_.source = source;
-    estop_condition_.description = description;
-    estop_condition_.activation_time = millis();
-
-    // Assert hardware E-stop signal for immediate motor cutoff
-    // HIGH signal indicates E-stop active (fail-safe design)
-    digitalWrite(config_.estop_output_pin, HIGH);
-    
-    // Notify other boards of E-stop condition if enabled
-    if (config_.enable_inter_board_safety) {
-      digitalWrite(config_.inter_board_output_pin, HIGH);
-    }
-
-    // Send immediate status update for monitoring systems
-    sendStatusUpdate();
+SafetyCoordinator::SafetyCoordinator() {
+  // Initialize faults array
+  for (int i = 0; i < static_cast<int>(FaultSource::NUMBER_FAULT_SOURCES); i++) {
+    faults_[i].active = false;
+    faults_[i].source = static_cast<FaultSource>(i);
+    faults_[i].severity = FaultSeverity::NORMAL;
+    faults_[i].description = "";
+    faults_[i].timestamp = 0;
   }
 }
 
-void SafetyCoordinator::attemptRecovery() {
-  // Verify that the original trigger condition has been resolved
-  // Different E-stop sources require different verification methods
-  bool condition_cleared = true;
-  
-  switch (estop_condition_.source) {
-    case EstopSource::HARDWARE_BUTTON:
-      // Hardware button must be released (LOW = not pressed)
-      if (digitalRead(config_.hardware_estop_pin) == LOW)
-        condition_cleared = false;
-      break;
-      
-    case EstopSource::INTER_BOARD:
-      // Other board must clear its safety signal
-      if (digitalRead(config_.inter_board_input_pin) == LOW)
-        condition_cleared = false;
-      break;
-      
-    // Software-triggered E-stops: check module safety states
-    default:
-      // For module-based safety violations, verify all modules are now safe
-      if (Module::isAnyModuleUnsafe()) {
-        condition_cleared = false;
-      }
-      break;
-  }
+void SafetyCoordinator::activateFault(FaultSeverity severity, FaultSource source, const String& description) {
+  char msg[256];
+  int idx = static_cast<int>(source);
+  const bool new_is_estop = (severity == FaultSeverity::EMERGENCY_STOP || severity == FaultSeverity::SYSTEM_SHUTDOWN);
+  const bool was_active = faults_[idx].active;
+  const bool was_estop = (faults_[idx].severity == FaultSeverity::EMERGENCY_STOP ||
+                          faults_[idx].severity == FaultSeverity::SYSTEM_SHUTDOWN);
 
-  if (condition_cleared) {
-    deactivateEstop();
-  } else {
-    // Optional: log that recovery failed
-    SerialManager::getInstance().sendDiagnosticMessage("SAFETY", name(), "recovery_failed");
-  }
-}
+  // Always update the fault record (so WARNING can upgrade to EMERGENCY_STOP, etc.)
+  faults_[idx].active = true;
+  faults_[idx].source = source;
+  faults_[idx].severity = severity;
+  faults_[idx].description = description;
+  faults_[idx].timestamp = millis();
 
-void SafetyCoordinator::checkHardwareEstop() {
-  if (digitalRead(config_.hardware_estop_pin) == LOW) {
-    activateEstop(EstopSource::HARDWARE_BUTTON, "Hardware E-stop pressed");
-  }
-}
-
-void SafetyCoordinator::checkInterBoardSafety() {
-  if (config_.enable_inter_board_safety &&
-      digitalRead(config_.inter_board_input_pin) == LOW) {
-    activateEstop(EstopSource::INTER_BOARD, "Inter-board safety signal active");
-  }
-}
-
-void SafetyCoordinator::checkModuleSafety() {
-  if (Module::isAnyModuleUnsafe()) {
-    // Find which module is unsafe for a better description
-    for (uint16_t i = 0; i < Module::getModuleCount(); ++i) {
-      Module* mod = Module::getModule(i);
-      if (mod && mod->isUnsafe()) {
-        String desc = "Module unsafe: ";
-        desc += mod->name();
-        // This logic might need refinement if multiple modules are unsafe
-        activateEstop(EstopSource::UNKNOWN, desc); // TODO: Better source mapping
-        break;
-      }
+  // Update E-stop count based on severity transitions
+  if (!was_active && new_is_estop) {
+    active_estop_count_++;
+  } else if (was_active && !was_estop && new_is_estop) {
+    // Upgrade WARNING/DEGRADED -> EMERGENCY_STOP
+    active_estop_count_++;
+  } else if (was_active && was_estop && !new_is_estop) {
+    // Downgrade EMERGENCY_STOP -> WARNING/DEGRADED
+    if (active_estop_count_ > 0) {
+      active_estop_count_--;
     }
   }
+
+  // Trigger physical safeties only when entering E-stop state
+  if (new_is_estop && active_estop_count_ == 1) {
+#if CONTROLS_ROBOCLAW_ESTOP_PIN
+    RoboClawMonitor::getInstance().setEmergencyStop();
+#endif
+  }
+
+  snprintf(msg, sizeof(msg), "%s: source=%s, severity=%s description=%s, active_estop_count_=%d",
+           was_active ? "Fault updated" : "Fault activated", faultSourceToString(source),
+           faultSeverityToString(severity), description.c_str(), active_estop_count_);
+  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
 }
 
-void SafetyCoordinator::checkSafetyStatus() {
-  if (current_state_ == SafetyState::EMERGENCY_STOP) {
-    // If in E-stop, don't check for new triggers, just wait for recovery
-    // attempt
+void SafetyCoordinator::deactivateFault(FaultSource source) {
+  int idx = static_cast<int>(source);
+  if (!faults_[idx].active) {
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(),
+                                                       "Attempted to deactivate a fault that is not active");
     return;
+  } else {
+    const bool was_estop = (faults_[idx].severity == FaultSeverity::EMERGENCY_STOP ||
+                            faults_[idx].severity == FaultSeverity::SYSTEM_SHUTDOWN);
+    faults_[idx].active = false;
+    if (was_estop && active_estop_count_ > 0) {
+      active_estop_count_--;
+    }
+
+    // If this was the LAST active fault, clear the physical safeties
+    if (active_estop_count_ == 0) {
+#if CONTROLS_ROBOCLAW_ESTOP_PIN
+      RoboClawMonitor::getInstance().clearEmergencyStop();
+#endif
+      char msg[256];
+      snprintf(msg, sizeof(msg), "Fault deactivated: source=%s, severity=%s, description=%s, active_faults=%d",
+               faultSourceToString(source), faultSeverityToString(faults_[idx].severity),
+               faults_[idx].description.c_str(), active_estop_count_);
+      SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
+    }
   }
-
-  checkHardwareEstop();
-  if (isUnsafe()) return;
-
-  checkInterBoardSafety();
-  if (isUnsafe()) return;
-
-  checkModuleSafety();
-}
-
-void SafetyCoordinator::deactivateEstop() {
-  current_state_ = SafetyState::NORMAL;
-  estop_condition_.active = false;
-  estop_condition_.source = EstopSource::UNKNOWN;
-  estop_condition_.description = "";
-
-  // De-assert hardware E-stop signal
-  digitalWrite(config_.estop_output_pin, LOW);
-  if (config_.enable_inter_board_safety) {
-    digitalWrite(config_.inter_board_output_pin, LOW);
-  }
-
-  // Reset safety flags in all modules
-  Module::resetAllSafetyFlags();
-
-  sendStatusUpdate();
-}
-
-const EstopCondition& SafetyCoordinator::getEstopCondition() const {
-  return estop_condition_;
 }
 
 SafetyCoordinator& SafetyCoordinator::getInstance() {
@@ -202,64 +153,90 @@ SafetyCoordinator& SafetyCoordinator::getInstance() {
   return instance;
 }
 
-SafetyState SafetyCoordinator::getSafetyState() const {
-  return current_state_;
-}
+// FaultSeverity SafetyCoordinator::getSafetyState() const { return current_state_; }
 
 bool SafetyCoordinator::isUnsafe() {
-  return current_state_ == SafetyState::EMERGENCY_STOP;
+  // Unsafe == E-stop level fault active
+  return active_estop_count_ > 0;
 }
 
 void SafetyCoordinator::loop() {
-  uint32_t now = millis();
-  if (now - last_check_time_ms_ >= config_.estop_check_interval_ms) {
-    checkSafetyStatus();
-    last_check_time_ms_ = now;
+#if CONTROLS_ROBOCLAW_ESTOP_PIN
+  static uint32_t last_check_ms = 0;
+  uint32_t now_ms = millis();
+  if (now_ms - last_check_ms >= 1000) {
+    last_check_ms = now_ms;
+    sendStatusUpdate();
   }
-
-  // Optional: periodic status updates even when not in E-stop
-  // if (now - last_status_update_ms_ >= 5000) { // Every 5 seconds
-  //   SendStatusUpdate();
-  //   last_status_update_ms_ = now;
-  // }
+#endif
 }
 
 const char* SafetyCoordinator::name() const { return "SafetyCoordinator"; }
 
 void SafetyCoordinator::resetSafetyFlags() {
-  if (current_state_ == SafetyState::EMERGENCY_STOP) {
-    attemptRecovery();
+  // Clear all active faults
+  for (int i = 0; i < static_cast<int>(FaultSource::NUMBER_FAULT_SOURCES); i++) {
+    if (faults_[i].active) {
+      deactivateFault(static_cast<FaultSource>(i));
+    }
   }
-}
-
-void SafetyCoordinator::sendStatusUpdate() {
-  char status_msg[128];
-  snprintf(status_msg, sizeof(status_msg),
-           "{\"state\":%d,\"estop_active\":%d,\"source\":\"%s\"}",
-           static_cast<int>(current_state_), estop_condition_.active,
-           estop_condition_.description.c_str());
-  SerialManager::getInstance().sendMessage("SAFETY", status_msg);
-  last_status_update_ms_ = millis();
+  active_estop_count_ = 0;
 }
 
 void SafetyCoordinator::setup() {
-  pinMode(config_.hardware_estop_pin, INPUT_PULLUP);
-  pinMode(config_.estop_output_pin, OUTPUT);
-  digitalWrite(config_.estop_output_pin, LOW);
-
-  if (config_.enable_inter_board_safety) {
-    pinMode(config_.inter_board_input_pin, INPUT_PULLUP);
-    pinMode(config_.inter_board_output_pin, OUTPUT);
-    digitalWrite(config_.inter_board_output_pin, LOW);
-  }
-
-  last_check_time_ms_ = millis();
-  last_status_update_ms_ = millis();
 }
 
-void SafetyCoordinator::triggerEstop(EstopSource source,
-                                     const String& description) {
-  activateEstop(source, description);
+void SafetyCoordinator::setEstopCommand(String command) {
+  if (command.indexOf("trigger=true") >= 0) {
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(),
+                                                       "Software E-stop command received, activating E-stop");
+    activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::SOFTWARE_COMMAND, "Software E-stop command received");
+  } else if (command.indexOf("reset=true") >= 0) {
+    SerialManager::getInstance().sendDiagnosticMessage(
+        "INFO", name(), "Software E-stop reset command received, attempting to clear E-stop");
+    deactivateFault(FaultSource::SOFTWARE_COMMAND);
+  }
+}
+
+void SafetyCoordinator::setRoboClawPower(bool on) {
+#if CONTROLS_ROBOCLAW_ESTOP_PIN
+  digitalWrite(PIN_RELAY_ROBOCLAW_POWER, on ? HIGH : LOW);
+#else
+  (void)on;  // Suppress unused parameter warning
+#endif
+}
+
+void SafetyCoordinator::setMainBatteryPower(bool on) {
+#if CONTROLS_ROBOCLAW_ESTOP_PIN
+  digitalWrite(PIN_RELAY_MAIN_BATTERY, on ? HIGH : LOW);
+#else
+  (void)on;  // Suppress unused parameter warning
+#endif
+}
+
+const Fault& SafetyCoordinator::getFault(FaultSource source) const {
+  return faults_[static_cast<size_t>(source)];
+}
+
+void SafetyCoordinator::sendStatusUpdate() {
+  char status_msg[512];
+  bool any_active = false;
+  for (size_t i = 0; i < static_cast<size_t>(FaultSource::NUMBER_FAULT_SOURCES); i++) {
+    if (faults_[i].active) {
+      any_active = true;
+      snprintf(status_msg, sizeof(status_msg),
+               "{\"active_fault\":\"true\",\"source\":\"%s\",\"severity\":\"%s\",\"description\":\"%s\",\"timestamp\":%lu}",
+               faultSourceToString(faults_[i].source), faultSeverityToString(faults_[i].severity),
+               faults_[i].description.c_str(), static_cast<unsigned long>(faults_[i].timestamp));
+      SerialManager::getInstance().sendMessage("FAULT", status_msg);
+    }
+  }
+
+  if (!any_active) {
+    snprintf(status_msg, sizeof(status_msg), "{\"active_fault\":\"false\"}");
+    SerialManager::getInstance().sendMessage("FAULT", status_msg);
+    return;
+  }
 }
 
 }  // namespace sigyn_teensy

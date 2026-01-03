@@ -26,6 +26,12 @@
 #error "BOARD_ID must be defined in platformio.ini build flags"
 #endif
 
+// Override certain features during unit testing
+#ifdef UNIT_TEST
+// Disable RoboClaw dependencies during unit testing
+#define UNIT_TEST_DISABLE_ROBOCLAW 1
+#endif
+
 // =============================================================================
 // BOARD 1: Navigation and Safety Board
 // =============================================================================
@@ -36,7 +42,6 @@
 #define BOARD_HAS_TEMPERATURE    1
 #define BOARD_HAS_PERFORMANCE    1
 #define BOARD_HAS_SAFETY         1
-#define BOARD_HAS_ROBOCLAW       1
 #define BOARD_HAS_BATTERY        0
 #define BOARD_HAS_IMU            0
 
@@ -50,7 +55,6 @@
 #define BOARD_HAS_TEMPERATURE    0
 #define BOARD_HAS_PERFORMANCE    1
 #define BOARD_HAS_SAFETY         1
-#define BOARD_HAS_ROBOCLAW       0
 #define BOARD_HAS_BATTERY        1
 #define BOARD_HAS_IMU            1
 
@@ -64,7 +68,19 @@
 #define BOARD_HAS_TEMPERATURE    0
 #define BOARD_HAS_PERFORMANCE    1
 #define BOARD_HAS_SAFETY         0
-#define BOARD_HAS_ROBOCLAW       0
+#define BOARD_HAS_BATTERY        0
+#define BOARD_HAS_IMU            0
+
+// =============================================================================
+// BOARD 99: RoboClaw Timing Test (standalone)
+// =============================================================================
+#elif BOARD_ID == 99
+#define BOARD_HAS_SD_LOGGING     0
+#define BOARD_HAS_MOTOR_CONTROL  1
+#define BOARD_HAS_VL53L0X        0
+#define BOARD_HAS_TEMPERATURE    0
+#define BOARD_HAS_PERFORMANCE    0
+#define BOARD_HAS_SAFETY         0
 #define BOARD_HAS_BATTERY        0
 #define BOARD_HAS_IMU            0
 
@@ -88,12 +104,10 @@
 // =============================================================================
 // These provide readable conditional compilation throughout the codebase
 #define ENABLE_SD_LOGGING    (BOARD_HAS_SD_LOGGING == 1)
-#define ENABLE_MOTOR_CONTROL (BOARD_HAS_MOTOR_CONTROL == 1)
 #define ENABLE_VL53L0X       (BOARD_HAS_VL53L0X == 1)
 #define ENABLE_TEMPERATURE   (BOARD_HAS_TEMPERATURE == 1)
 #define ENABLE_PERFORMANCE   (BOARD_HAS_PERFORMANCE == 1)
 #define ENABLE_SAFETY        (BOARD_HAS_SAFETY == 1)
-#define ENABLE_ROBOCLAW      (BOARD_HAS_ROBOCLAW == 1)
 #define ENABLE_BATTERY       (BOARD_HAS_BATTERY == 1)
 #define ENABLE_IMU           (BOARD_HAS_IMU == 1)
 
@@ -114,24 +128,45 @@
 #define BOARD_SERIAL_BAUD_RATE        1000000
 #define BOARD_SERIAL_TIMEOUT_MS       5000
 #define BOARD_SERIAL_WAIT_MS          3000
+#elif BOARD_ID == 99
+#define BOARD_SERIAL_BAUD_RATE        1000000
+#define BOARD_SERIAL_TIMEOUT_MS       5000
+#define BOARD_SERIAL_WAIT_MS          3000
 #endif
 
 // --- Inter-Board E-Stop GPIO Pins ---
 #if BOARD_ID == 1
+#ifdef UNIT_TEST_DISABLE_ROBOCLAW
+#define CONTROLS_ROBOCLAW_ESTOP_PIN   0   ///< Disabled for unit testing
+#else
+#define CONTROLS_ROBOCLAW_ESTOP_PIN   1   ///< Board 1 controls RoboClaw E-stop
+#endif
 #define INTER_BOARD_SIGNAL_OUTPUT_PIN 10  ///< Pin to signal other boards
-#define INTER_BOARD_SIGNAL_INPUT_PIN  11  ///< Pin to receive signals from other boards
+#define PIN_SAFETY_IN_BOARD2          11  ///< Pin to receive signals from Board 2
+#define PIN_SAFETY_IN_BOARD3          12  ///< Pin to receive signals from Board 3
 #define HARDWARE_ESTOP_INPUT_PIN      2   ///< Hardware E-stop button input
-#define ESTOP_OUTPUT_PIN              3   ///< E-stop relay output
+#define ESTOP_OUTPUT_PIN              30  ///< E-stop relay output
+#define PIN_RELAY_ROBOCLAW_POWER      31  ///< Relay to cut power to RoboClaw
+#define PIN_RELAY_MAIN_BATTERY        32  ///< Relay to cut main battery power
 #elif BOARD_ID == 2
-#define INTER_BOARD_SIGNAL_OUTPUT_PIN 10  ///< Pin to signal other boards
-#define INTER_BOARD_SIGNAL_INPUT_PIN  11  ///< Pin to receive signals from other boards
+#define CONTROLS_ROBOCLAW_ESTOP_PIN   0   ///< Board 1 controls RoboClaw E-stop
+#define PIN_SAFETY_OUT_TO_MASTER      10  ///< Pin to signal Board 1
 #define HARDWARE_ESTOP_INPUT_PIN      2   ///< Hardware E-stop button input (if any)
-#define ESTOP_OUTPUT_PIN              3   ///< E-stop relay output (not used on Board 2)
+#define ESTOP_OUTPUT_PIN              30   ///< E-stop relay output (not used on Board 2)
 #elif BOARD_ID == 3
-#define INTER_BOARD_SIGNAL_OUTPUT_PIN 10  ///< Pin to signal other boards
-#define INTER_BOARD_SIGNAL_INPUT_PIN  11  ///< Pin to receive signals from other boards
+#define CONTROLS_ROBOCLAW_ESTOP_PIN   0   ///< Board 1 controls RoboClaw E-stop
+#define PIN_SAFETY_OUT_TO_MASTER      10  ///< Pin to signal Board 1
 #define HARDWARE_ESTOP_INPUT_PIN      2   ///< Hardware E-stop button input (if any)
-#define ESTOP_OUTPUT_PIN              3   ///< E-stop relay output (not used on Board 3)
+#define ESTOP_OUTPUT_PIN              30   ///< E-stop relay output (not used on Board 3)
+#elif BOARD_ID == 99
+#define CONTROLS_ROBOCLAW_ESTOP_PIN   1   ///< Timing test board controls RoboClaw E-stop
+#define INTER_BOARD_SIGNAL_OUTPUT_PIN 10  ///< Unused in test, keep defined
+#define PIN_SAFETY_IN_BOARD2          11  ///< Unused in test, keep defined
+#define PIN_SAFETY_IN_BOARD3          12  ///< Unused in test, keep defined
+#define HARDWARE_ESTOP_INPUT_PIN      2   ///< Hardware E-stop button input
+#define ESTOP_OUTPUT_PIN              30  ///< E-stop relay output
+#define PIN_RELAY_ROBOCLAW_POWER      31  ///< Relay to cut power to RoboClaw
+#define PIN_RELAY_MAIN_BATTERY        32  ///< Relay to cut main battery power
 #endif
 
 // --- Performance Monitoring Thresholds ---
@@ -156,6 +191,13 @@
 #define BOARD_CRITICAL_EXECUTION_TIME_US  20000  ///< Critical execution time warning
 #define BOARD_CRITICAL_FREQUENCY_HZ       10.0f  ///< Critical frequency warning
 #define BOARD_SAFETY_EXECUTION_TIME_US    30000  ///< Safety trigger execution time
+#elif BOARD_ID == 99
+  // Board 99: RoboClaw timing test - focus on motor driver comms
+#define BOARD_MAX_MODULE_TIME_MS          2.0f
+#define BOARD_MIN_LOOP_FREQUENCY_HZ       50.0f
+#define BOARD_CRITICAL_EXECUTION_TIME_US  10000
+#define BOARD_CRITICAL_FREQUENCY_HZ       50.0f
+#define BOARD_SAFETY_EXECUTION_TIME_US    20000
 #endif
 
 // --- Safety Monitoring Intervals ---
@@ -168,4 +210,7 @@
 #elif BOARD_ID == 3
 #define SAFETY_CHECK_INTERVAL_US      500000  ///< Safety check every 500ms (2Hz)
 #define VL53L0X_CHECK_INTERVAL_US     500000  ///< VL53L0X check every 500ms (2Hz)
+#elif BOARD_ID == 99
+#define SAFETY_CHECK_INTERVAL_US      100000  ///< Safety check every 100ms (10Hz)
+#define VL53L0X_CHECK_INTERVAL_US     100000  ///< Unused in test, keep defined
 #endif
