@@ -128,13 +128,24 @@ TEST_F(RoboClawMonitorTest, EmergencyStop_ForcesZeroAndBlocksFurtherCommands) {
 
   monitor_->setEmergencyStop();
 
+#if CONTROLS_ROBOCLAW_ESTOP_PIN
+  // When a real E-stop line is available, we avoid attempting additional
+  // serial commands during E-stop activation.
+  ASSERT_EQ(mock_.state.speed_accel_distance_calls, 1u);
+#else
   ASSERT_EQ(mock_.state.speed_accel_distance_calls, 2u);
   EXPECT_EQ(mock_.state.last_cmd.speed1, 0);
   EXPECT_EQ(mock_.state.last_cmd.speed2, 0);
+#endif
 
   // While E-stop is active, even explicit motor commands should be forced to 0.
   monitor_->setMotorSpeeds(200, 200);
+
+#if CONTROLS_ROBOCLAW_ESTOP_PIN
+  ASSERT_EQ(mock_.state.speed_accel_distance_calls, 2u);
+#else
   ASSERT_EQ(mock_.state.speed_accel_distance_calls, 3u);
+#endif
   EXPECT_EQ(mock_.state.last_cmd.speed1, 0);
   EXPECT_EQ(mock_.state.last_cmd.speed2, 0);
 
@@ -145,9 +156,54 @@ TEST_F(RoboClawMonitorTest, EmergencyStop_ForcesZeroAndBlocksFurtherCommands) {
   EXPECT_EQ(arduino_mock::digital_pins[ESTOP_OUTPUT_PIN], HIGH);
 
   monitor_->setMotorSpeeds(50, 60);
+
+#if CONTROLS_ROBOCLAW_ESTOP_PIN
+  ASSERT_EQ(mock_.state.speed_accel_distance_calls, 3u);
+#else
   ASSERT_EQ(mock_.state.speed_accel_distance_calls, 4u);
+#endif
   EXPECT_EQ(mock_.state.last_cmd.speed1, 50);
   EXPECT_EQ(mock_.state.last_cmd.speed2, 60);
+}
+
+TEST_F(RoboClawMonitorTest, TestCommunication_Failure_TriggersEmergencyStop) {
+  mock_.reset();
+  mock_.state.read_version_ok = false;
+
+  const bool ok = monitor_->testCommunicationForTesting();
+  EXPECT_FALSE(ok);
+  EXPECT_TRUE(monitor_->isEmergencyStopActiveForTesting());
+  EXPECT_EQ(arduino_mock::digital_pins[ESTOP_OUTPUT_PIN], LOW);
+}
+
+TEST_F(RoboClawMonitorTest, Safety_Overcurrent_TriggersEmergencyStop) {
+  RoboClawConfig cfg = monitor_->getConfig();
+  cfg.max_current_m1 = 1.0f;
+  cfg.max_current_m2 = 1.0f;
+  monitor_->updateConfig(cfg);
+
+  monitor_->setMotorCurrentsForTesting(/*m1_amps=*/2.0f, /*m2_amps=*/0.0f, /*valid=*/true);
+  monitor_->runSafetyChecksForTesting();
+
+  EXPECT_TRUE(monitor_->isEmergencyStopActiveForTesting());
+  EXPECT_EQ(arduino_mock::digital_pins[ESTOP_OUTPUT_PIN], LOW);
+}
+
+TEST_F(RoboClawMonitorTest, Safety_Runaway_TriggersEmergencyStop) {
+  RoboClawConfig cfg = monitor_->getConfig();
+  cfg.runaway_check_interval_ms = 10;
+  cfg.runaway_speed_threshold_qpps = 50;
+  monitor_->updateConfig(cfg);
+
+  monitor_->setRunawayDetectionInitializedForTesting(true);
+  monitor_->setLastCommandedQppsForTesting(0, 0);
+  monitor_->setMotorSpeedFeedbackForTesting(/*m1_qpps=*/200, /*m2_qpps=*/0, /*valid=*/true);
+
+  arduino_mock::setMillis(cfg.runaway_check_interval_ms + 1);
+  monitor_->runSafetyChecksForTesting();
+
+  EXPECT_TRUE(monitor_->isEmergencyStopActiveForTesting());
+  EXPECT_EQ(arduino_mock::digital_pins[ESTOP_OUTPUT_PIN], LOW);
 }
 
 TEST_F(RoboClawMonitorTest, HandleTwistMessage_ParsesAndCommandsMotorSpeeds) {
