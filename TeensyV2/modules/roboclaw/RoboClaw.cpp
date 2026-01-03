@@ -18,6 +18,7 @@
 RoboClaw::RoboClaw(HardwareSerial *serial, uint32_t tout) {
   timeout = tout;
   hserial = serial;
+  crc = 0;
 #ifdef __AVR__
   sserial = 0;
 #endif
@@ -28,6 +29,7 @@ RoboClaw::RoboClaw(SoftwareSerial *serial, uint32_t tout) {
   timeout = tout;
   sserial = serial;
   hserial = 0;
+  crc = 0;
 }
 #endif
 

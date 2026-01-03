@@ -12,7 +12,7 @@ This document captures the intent, constraints, and interfaces for the Sigyn rob
   - Use only messages where `header.frame_id == '36VLIPO'`.
   - Client coloring: `v <= 32.0 → red`, `v <= 34.0 → yellow`, else green.
 - Diagnostics: `/sigyn/teensy_bridge/diagnostics` (`diagnostic_msgs/DiagnosticArray`)
-  - Extract RoboClaw error bits. For MVP, publish booleans for `M1_OVERCURRENT`, `M2_OVERCURRENT`, `E_STOP`.
+  - Extract RoboClaw error bits. For MVP, publish booleans for `M1_OVERCURRENT_WARNING`, `M2_OVERCURRENT_WARNING`, `E_STOP`.
 - LIDAR: `/scan` (`sensor_msgs/LaserScan`) ~10 Hz, ~450 points, range up to ~12 m.
   - Plan: uint16 millimeters per reading in a binary CBOR frame, optional RLE for max-range.
 - Map (static): `/map` (`nav_msgs/OccupancyGrid`), once per session.

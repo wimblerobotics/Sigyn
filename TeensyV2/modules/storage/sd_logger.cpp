@@ -79,17 +79,12 @@ namespace sigyn_teensy {
 
         // Periodic maintenance
         if (current_time - last_maintenance_time_ms_ > 1000) {
-            uint32_t now = millis();
             performPeriodicMaintenance(); // Usually takes 1 ms, but I've seen as hight as 9 ms.
             last_maintenance_time_ms_ = current_time;
-            // char msg[256];
-            // snprintf(msg, sizeof(msg), "Periodic maintenance took %u ms", millis() - now);
-            // SerialManager::getInstance().sendMessage("DEBUG", msg);
         }
 
         // Cooperatively drain buffer within a small time budget to reduce blocking
         if (write_buffer_.length() > 0) {
-            uint32_t now = millis();
             drainWriteBufferWithBudget(config_.max_write_slice_ms);
         }
 
@@ -480,7 +475,7 @@ namespace sigyn_teensy {
 
     String SDLogger::generateLogFilename(uint32_t file_number) {
         char filename[16];
-        snprintf(filename, sizeof(filename), "LOG%05lu.TXT", file_number);
+        snprintf(filename, sizeof(filename), "LOG%05lu.TXT", (unsigned long)file_number);
         return String(filename);
     }
 
@@ -492,11 +487,6 @@ namespace sigyn_teensy {
             return true;
         }
         return false;
-    }
-
-    void SDLogger::rotateLogFile() {
-        closeCurrentFile();
-        createNewLogFile();
     }
 
     void SDLogger::addToBuffer(const String& data) {
@@ -557,10 +547,6 @@ namespace sigyn_teensy {
                 break;
             }
         }
-    }
-
-    void SDLogger::clearBuffer() {
-        write_buffer_ = "";
     }
 
     void SDLogger::updateDirectoryCache() {

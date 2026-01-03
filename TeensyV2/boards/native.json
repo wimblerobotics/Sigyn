@@ -1,0 +1,24 @@
+{
+  "build": {
+    "core": "native",
+    "cpu": "x86_64",
+    "f_cpu": "0",
+    "mcu": "x86_64"
+  },
+  "connectivity": [],
+  "debug": {
+    "tools": {}
+  },
+  "frameworks": [
+    ""
+  ],
+  "name": "Native (host)",
+  "platform": "native",
+  "upload": {
+    "maximum_ram_size": 1073741824,
+    "maximum_size": 1073741824,
+    "protocol": "custom"
+  },
+  "url": "",
+  "vendor": "local"
+}

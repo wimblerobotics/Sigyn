@@ -481,6 +481,41 @@ namespace sigyn_to_sensor_v2 {
     return diag;
   }
 
+  FaultData MessageParser::ParseFaultData(const MessageData& data) const {
+    FaultData fault;
+
+    try {
+      auto source_it = data.find("source");
+      auto severity_it = data.find("severity");
+      auto description_it = data.find("description");
+      auto timestamp_it = data.find("timestamp");
+
+      if (source_it != data.end()) {
+        fault.source = source_it->second;
+      }
+
+      if (severity_it != data.end()) {
+        fault.severity = severity_it->second;
+      }
+
+      if (description_it != data.end()) {
+        fault.description = description_it->second;
+      }
+
+      if (timestamp_it != data.end()) {
+        fault.timestamp = static_cast<uint64_t>(SafeStringToInt(timestamp_it->second, 0));
+      }
+
+      fault.valid = true;
+    }
+    catch (const std::exception& e) {
+      RCLCPP_WARN(logger_, "Error parsing fault data: %s", e.what());
+      fault.valid = false;
+    }
+
+    return fault;
+  }
+
   sensor_msgs::msg::BatteryState MessageParser::ToBatteryStateMsg(const BatteryData& data,
     rclcpp::Time timestamp) const {
     sensor_msgs::msg::BatteryState msg;
@@ -742,7 +777,7 @@ namespace sigyn_to_sensor_v2 {
   }
 
   bool MessageParser::ValidateMessage(const std::string& message) const {
-    if (message.empty() || message.length() > 2048) {
+    if (message.empty() || message.length() > 4096) {
       return false;
     }
 
@@ -788,6 +823,7 @@ namespace sigyn_to_sensor_v2 {
     if (type_str == "ODOM") return MessageType::ODOM;
     if (type_str == "ESTOP") return MessageType::ESTOP;
     if (type_str == "DIAG") return MessageType::DIAGNOSTIC;
+    if (type_str == "FAULT") return MessageType::FAULT;
     if (type_str == "CONFIG") return MessageType::CONFIG;
     if (type_str == "INIT") return MessageType::INIT;
     if (type_str == "CRITICAL") return MessageType::CRITICAL;

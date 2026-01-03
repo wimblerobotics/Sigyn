@@ -31,9 +31,15 @@
 
 #pragma once
 
-#include <Arduino.h>
+#ifdef UNIT_TEST
+#include "Arduino.h"  // Mock Arduino for testing
+#else
+#include <Arduino.h>  // Real Arduino SDK
+#endif
+
 #include <cstdint>
 #include <cstddef>
+#include <cstring>
 #include <cmath>
 
 namespace sigyn_teensy {
@@ -74,14 +80,15 @@ namespace sigyn_teensy {
   public:
     /**
      * @brief Maximum length of a single message including terminator.
-     * Increased to 768 to support larger PERF JSON messages with all module details.
+     * Increased to 2048 to support larger PERF JSON messages with all module details.
      */
-    static constexpr size_t kMaxMessageLength = 768;
+    static constexpr size_t kMaxMessageLength = 2048;
 
     /**
      * @brief Maximum size of the outgoing message queue.
+     * Reduced to 16 to balance RAM usage with larger message size.
      */
-    static constexpr size_t kMaxQueueSize = 32;
+    static constexpr size_t kMaxQueueSize = 4;
 
     /**
      * @brief Serial baud rate for communication.

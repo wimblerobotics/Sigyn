@@ -57,7 +57,11 @@
 
 #pragma once
 
-#include "Arduino.h"
+#ifdef UNIT_TEST
+#include "Arduino.h"  // Mock Arduino for testing
+#else
+#include <Arduino.h>  // Real Arduino SDK
+#endif
 #include <cstdint>
 #include <cstddef>
 #include <cmath>

@@ -47,7 +47,7 @@
 #include "modules/safety/safety_coordinator.h"
 #endif
 
-#if ENABLE_ROBOCLAW
+#if BOARD_HAS_MOTOR_CONTROL
 #include "modules/roboclaw/roboclaw_monitor.h"
 #endif
 
@@ -80,9 +80,6 @@ void loop();
 void serialEvent();
 void setup();
 
-// TODO: Uncomment when inter-board communication is implemented
-// void interBoardSignalReceived();
-
 // Module instances (created via singleton pattern, conditionally based on board config)
 SerialManager* serial_manager;
 
@@ -94,7 +91,7 @@ PerformanceMonitor* performance_monitor;
 SafetyCoordinator* safety_coordinator;
 #endif
 
-#if ENABLE_ROBOCLAW
+#if BOARD_HAS_MOTOR_CONTROL
 RoboClawMonitor* roboclaw_monitor;
 #endif
 
@@ -120,17 +117,12 @@ SDLogger* sd_logger;
  * This function is called by the Teensy runtime when critical errors occur.
  */
 void fault_handler() {
-  // Immediate safety response - signal other boards about the fault
-  // TODO: Uncomment when inter-board communication is implemented
-  // digitalWrite(INTER_BOARD_SIGNAL_OUTPUT_PIN, HIGH);  // Signal other boards
-  
-  String fault_msg = "CRITICAL FAULT: Board " + String(BOARD_ID) + " system fault detected, signaling Board 1";
-  serial_manager->sendDiagnosticMessage("FAULT", "board1_main", fault_msg.c_str());
-
-  // Try to send fault notification if possible
   if (serial_manager) {
-    String fault_msg = "type=system,board=" + String(BOARD_ID) + ",time=" + String(millis());
+    const String fault_msg = "CRITICAL FAULT: Board " + String(BOARD_ID) + " system fault detected";
     serial_manager->sendDiagnosticMessage("FAULT", "board1_main", fault_msg.c_str());
+
+    const String details = "type=system,board=" + String(BOARD_ID) + ",time=" + String(millis());
+    serial_manager->sendDiagnosticMessage("FATAL", "board1_main", details.c_str());
   }
 
   // Halt system
@@ -191,30 +183,19 @@ void serialEvent() {
 }
 
 void setup() {
-  // Initialize serial communication first
-  uint32_t start_time = millis();
-  Serial.begin(BOARD_SERIAL_BAUD_RATE);
-  while (!Serial && (start_time - millis() < BOARD_SERIAL_WAIT_MS)) {
-    // Wait for serial connection
-  }
-
-#if ENABLE_ROBOCLAW
-  RoboClawConfig config_;
-  start_time = millis();
-  Serial7.begin(config_.baud_rate); // RoboClaw serial port
-  while (!Serial7 && (start_time - millis() < BOARD_SERIAL_WAIT_MS)) {
-    // Wait for serial connection
-  }
+  // Ensure physical safety outputs are deterministic immediately on boot.
+#if CONTROLS_ROBOCLAW_ESTOP_PIN
+  pinMode(ESTOP_OUTPUT_PIN, OUTPUT);
+  digitalWrite(ESTOP_OUTPUT_PIN, HIGH);  // Deactivate E-stop (active LOW)
 #endif
 
-  // TODO: Setup inter-board communication pins (commented out for now)
-  // pinMode(INTER_BOARD_SIGNAL_OUTPUT_PIN, OUTPUT);
-  // pinMode(INTER_BOARD_SIGNAL_INPUT_PIN, INPUT_PULLUP);
-  // digitalWrite(INTER_BOARD_SIGNAL_OUTPUT_PIN, LOW);  // Default to no signal
-  // 
-  // Setup interrupt for inter-board signal reception
-  // attachInterrupt(digitalPinToInterrupt(INTER_BOARD_SIGNAL_INPUT_PIN), 
-  //                 interBoardSignalReceived, RISING);
+  // Initialize serial communication (do not block waiting for USB).
+  Serial.begin(BOARD_SERIAL_BAUD_RATE);
+
+#if BOARD_HAS_MOTOR_CONTROL
+  RoboClawConfig config_;
+  Serial7.begin(config_.baud_rate); // RoboClaw serial port
+#endif
 
   // Initialize SD logger first if enabled (required for other modules)
 #if ENABLE_SD_LOGGING
@@ -234,7 +215,7 @@ void setup() {
   safety_coordinator = &SafetyCoordinator::getInstance();
 #endif
 
-#if ENABLE_ROBOCLAW
+#if BOARD_HAS_MOTOR_CONTROL
   roboclaw_monitor = &RoboClawMonitor::getInstance();
 #endif
 
@@ -267,8 +248,8 @@ void setup() {
 #if ENABLE_SD_LOGGING
  SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - SD Logging");
 #endif
-#if ENABLE_MOTOR_CONTROL
- SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - Motor Control");
+#if BOARD_HAS_MOTOR_CONTROL
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - Board has Motor Control");
 #endif
 #if ENABLE_VL53L0X
  SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - VL53L0X Distance Sensors");
@@ -282,7 +263,7 @@ void setup() {
 #if ENABLE_SAFETY
  SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - Safety Coordinator");
 #endif
-#if ENABLE_ROBOCLAW
+#if BOARD_HAS_MOTOR_CONTROL
  SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "  - RoboClaw Motor Driver");
 #endif
 #if ENABLE_BATTERY
@@ -294,28 +275,3 @@ void setup() {
 
  SerialManager::getInstance().sendDiagnosticMessage("INFO", "board1", "Ready for operation");
 }
-
-// TODO: Uncomment when inter-board communication is implemented
-// /**
-//  * @brief Interrupt handler for inter-board signal reception.
-//  * 
-//  * This function is called when another board signals an E-stop condition.
-//  * Different boards will have different responses to inter-board signals.
-//  */
-// void interBoardSignalReceived() {
-//   // Board-specific response to inter-board E-stop signal
-// #if BOARD_ID == 1
-//   // Board 1: Activate hardware E-stop
-//   digitalWrite(ESTOP_OUTPUT_PIN, HIGH);
-// #elif BOARD_ID == 2
-//   // Board 2: Enter safe mode, stop all sensors/monitoring
-//   // Implementation will be board-specific
-// #elif BOARD_ID == 3
-//   // Board 3: Future expansion board response
-//   // Implementation will be board-specific
-// #endif
-//   
-//   // Common response: Log the event
-//   // Note: Cannot use Serial or complex functions in interrupt handler
-//   // Set a flag for main loop to handle the logging
-// }

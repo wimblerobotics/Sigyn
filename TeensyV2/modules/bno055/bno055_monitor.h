@@ -392,15 +392,6 @@ namespace sigyn_teensy {
      */
     bool readLinearAcceleration(float& x, float& y, float& z) const;
 
-    /**
-     * @brief Read Euler angles from the sensor.
-     *
-     * @param[out] heading Heading angle (degrees)
-     * @param[out] roll Roll angle (degrees)
-     * @param[out] pitch Pitch angle (degrees)
-     * @return true if read successful
-     */
-    bool readEulerAngles(float& heading, float& roll, float& pitch) const;
 
     /**
      * @brief Read status registers from the sensor.
@@ -479,27 +470,6 @@ namespace sigyn_teensy {
     };
 
     PerformanceStats performance_stats_[kMaxSensors];
-
-    /**
-     * @brief Validate gyroscope reads during priming.
-     *
-     * Ensures that gyroscope reads are successful before completing priming.
-     * Logs failures and retries if necessary.
-     *
-     * @param sensor_id The ID of the sensor to validate (0 or 1).
-     * @return True if gyroscope reads are successful, false otherwise.
-     */
-    bool validateGyroscopeReadsDuringPriming(uint8_t sensor_id);
-
-    /**
-     * @brief Initialize min value in performance stats on first successful read.
-     *
-     * Ensures that the min value is set correctly during the first valid sensor read.
-     *
-     * @param sensor_id The ID of the sensor to update (0 or 1).
-     * @param value The value to initialize the min field with.
-     */
-    void initializeMinValueIfUnset(uint8_t sensor_id, float value);
 
     // Watchdog helpers
     void checkWatchdog_();
