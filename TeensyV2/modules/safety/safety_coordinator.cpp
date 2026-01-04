@@ -94,7 +94,6 @@ int SafetyCoordinator::getOrAllocateFaultIndex(const char* source) {
   // Prefer an unused slot.
   for (size_t i = 0; i < kMaxFaults; i++) {
     if (faults_[i].source[0] == '\0') {
-      faults_[i].setSource(source);
       return static_cast<int>(i);
     }
   }
@@ -103,7 +102,6 @@ int SafetyCoordinator::getOrAllocateFaultIndex(const char* source) {
   for (size_t i = 0; i < kMaxFaults; i++) {
     if (!faults_[i].active) {
       faults_[i].clear();
-      faults_[i].setSource(source);
       return static_cast<int>(i);
     }
   }
@@ -118,7 +116,6 @@ int SafetyCoordinator::getOrAllocateFaultIndex(const char* source) {
     }
   }
   faults_[oldest_idx].clear();
-  faults_[oldest_idx].setSource(source);
   return static_cast<int>(oldest_idx);
 }
 
