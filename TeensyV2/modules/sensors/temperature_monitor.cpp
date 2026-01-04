@@ -648,14 +648,14 @@ void TemperatureMonitor::checkSafetyConditions() {
 
   // Avoid spamming SafetyCoordinator: only update when state/description changes.
   SafetyCoordinator& safety = SafetyCoordinator::getInstance();
-  const Fault& current = safety.getFault(FaultSource::TEMPERATURE_FAULT);
+  const Fault& current = safety.getFault(name());
   if (desired_severity == FaultSeverity::NORMAL) {
     if (current.active) {
-      safety.deactivateFault(FaultSource::TEMPERATURE_FAULT);
+      safety.deactivateFault(name());
     }
   } else {
-    if (!current.active || current.severity != desired_severity || current.description != desired_description) {
-      safety.activateFault(desired_severity, FaultSource::TEMPERATURE_FAULT, desired_description);
+    if (!current.active || current.severity != desired_severity || strcmp(current.description, desired_description.c_str()) != 0) {
+      safety.activateFault(desired_severity, name(), desired_description.c_str());
     }
   }
 
