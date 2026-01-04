@@ -35,6 +35,8 @@ namespace sigyn_teensy {
   private:
     StepperMotor();
 
+    SerialManager& serial_;
+
     // Inner motor class
     class Motor {
     public:
@@ -86,14 +88,9 @@ namespace sigyn_teensy {
       const float travel_m_per_pulse_;
     };
 
-    // Factory
-    Motor* createMotor(bool elevator);
-
-    // Instances
-    Motor* elevator_ = nullptr;
-    Motor* extender_ = nullptr;
-
-    SerialManager& serial_;
+    // Instances (fixed storage; avoids heap allocation)
+    Motor elevator_;
+    Motor extender_;
   };
 
 }  // namespace sigyn_teensy

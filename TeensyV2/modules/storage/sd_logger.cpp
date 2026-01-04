@@ -64,13 +64,17 @@ namespace sigyn_teensy {
 
         if (serial_mgr.hasNewSDDirCommand()) {
             String dir_command = String(serial_mgr.getLatestSDDirCommand());
-            SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), ("SDDIR command received: " + dir_command).c_str());
+            char msg[192] = {0};
+            snprintf(msg, sizeof(msg), "SDDIR command received: %s", dir_command.c_str());
+            SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), msg);
             handleDirMessage(dir_command);
         }
 
         if (serial_mgr.hasNewSDFileCommand()) {
             String file_command = String(serial_mgr.getLatestSDFileCommand());
-            SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), ("SDFILE command received: " + file_command).c_str());
+            char msg[192] = {0};
+            snprintf(msg, sizeof(msg), "SDFILE command received: %s", file_command.c_str());
+            SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), msg);
             handleFileDumpMessage(file_command);
         }
 
@@ -114,8 +118,9 @@ namespace sigyn_teensy {
                 dump_file_.close();
                 dump_state_ = DumpState::COMPLETE;
 
-                String msg = "Completed dumping file: " + dump_filename_;
-                SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg.c_str());
+                char msg[192] = {0};
+                snprintf(msg, sizeof(msg), "Completed dumping file: %s", dump_filename_.c_str());
+                SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
 
                 dump_filename_ = "";
                 dump_bytes_sent_ = 0;
@@ -200,7 +205,11 @@ namespace sigyn_teensy {
         uint32_t next_file_number = findNextLogFileNumber();
         String filename = generateLogFilename(next_file_number);
 
-        SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), ("Creating log file: " + filename).c_str());
+        {
+            char msg[192] = {0};
+            snprintf(msg, sizeof(msg), "Creating log file: %s", filename.c_str());
+            SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), msg);
+        }
 
         if (openLogFile(filename)) {
             status_.current_file_number = next_file_number;
@@ -214,7 +223,11 @@ namespace sigyn_teensy {
             }
             cached_directory_listing_ += filename;
 
-            SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), ("Created log file: " + filename).c_str());
+            {
+                char msg[192] = {0};
+                snprintf(msg, sizeof(msg), "Created log file: %s", filename.c_str());
+                SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
+            }
 
             // Log startup message
             log("SDLogger started");
@@ -222,7 +235,11 @@ namespace sigyn_teensy {
             return true;
         }
 
-        SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), ("Failed to create log file: " + filename).c_str());
+        {
+            char msg[192] = {0};
+            snprintf(msg, sizeof(msg), "Failed to create log file: %s", filename.c_str());
+            SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), msg);
+        }
         return false;
     }
 
@@ -268,8 +285,9 @@ namespace sigyn_teensy {
         // Try to open the file
         dump_file_ = sd_card_.open(filename.c_str(), O_RDONLY);
         if (!dump_file_) {
-            String error_msg = "ERROR: Could not open file '" + filename + "'";
-            SerialManager::getInstance().sendDiagnosticMessage("SDLINE", name(), error_msg.c_str());
+            char error_msg[192] = {0};
+            snprintf(error_msg, sizeof(error_msg), "ERROR: Could not open file '%s'", filename.c_str());
+            SerialManager::getInstance().sendDiagnosticMessage("SDLINE", name(), error_msg);
             SerialManager::getInstance().sendDiagnosticMessage("SDEOF", name(), "");
             return false;
         }
@@ -279,8 +297,11 @@ namespace sigyn_teensy {
         dump_filename_ = filename;
         dump_bytes_sent_ = 0;
 
-        String msg = "Started dumping file: " + filename;
-        SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg.c_str());
+        {
+            char msg[192] = {0};
+            snprintf(msg, sizeof(msg), "Started dumping file: %s", filename.c_str());
+            SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
+        }
 
         return true;
     }
@@ -312,8 +333,9 @@ namespace sigyn_teensy {
     }
 
     void SDLogger::handleFileDumpMessage(const String& message) {
-        String msg = "Received file dump request: " + message;
-        SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg.c_str());
+        char msg[256] = {0};
+        snprintf(msg, sizeof(msg), "Received file dump request: %s", message.c_str());
+        SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
 
         // Extract filename from message (should be just the filename)
         String filename = message;
@@ -327,10 +349,14 @@ namespace sigyn_teensy {
         filename.trim();
 
         if (deleteFile(filename)) {
-            SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), ("Deleted file: " + filename).c_str());
+            char msg[192] = {0};
+            snprintf(msg, sizeof(msg), "Deleted file: %s", filename.c_str());
+            SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
         }
         else {
-            SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), ("Failed to delete file: " + filename).c_str());
+            char msg[192] = {0};
+            snprintf(msg, sizeof(msg), "Failed to delete file: %s", filename.c_str());
+            SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), msg);
         }
     }
 
@@ -591,8 +617,9 @@ namespace sigyn_teensy {
             cached_directory_listing_ += String(fileSize);
 
             if (kVerboseDirScan) {
-                String dbg = String("Found file: ") + String(fileName) + String(" size: ") + String(fileSize);
-                SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), dbg.c_str());
+                char dbg[192] = {0};
+                snprintf(dbg, sizeof(dbg), "Found file: %s size: %lu", fileName, (unsigned long)fileSize);
+                SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), dbg);
             }
             fileCount++;
         }
@@ -601,8 +628,8 @@ namespace sigyn_teensy {
 
         if (kVerboseDirScan) {
             // Potentially very long, only emit when verbose
-            String dbg = String("Directory listing: '") + cached_directory_listing_ + String("'");
-            SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), dbg.c_str());
+            SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), "Directory listing:");
+            SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), cached_directory_listing_.c_str());
         }
         else {
             char msg[96];

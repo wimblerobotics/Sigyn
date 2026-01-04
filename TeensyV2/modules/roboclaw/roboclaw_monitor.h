@@ -236,7 +236,7 @@ class RoboClawMonitor : public Module {
   void handleTwistMessage(const char* data);
 
   // Error decoding
-  String decodeErrorStatus(uint32_t error_status) const;
+  void decodeErrorStatus(uint32_t error_status, char* out, size_t out_len) const;
 
  protected:
   // Module interface implementation

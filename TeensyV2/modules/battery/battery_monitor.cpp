@@ -190,15 +190,14 @@ namespace sigyn_teensy {
 
   void BatteryMonitor::sendStatusMessage(size_t idx) {
     // Create a JSON string for the battery status
-    String message =
-      "{\"idx\":" + String(idx) + ",\"V\":" + String(getVoltage(idx), 2) +
-      ",\"A\":" + String(getCurrent(idx), 2) +
-      ",\"charge\":" + String(estimateChargePercentage(getVoltage(idx))) +
-      ",\"state\":\"" + String(batteryStateToString(state_[idx])) +
-      "\",\"location\":\"" + String(g_battery_config_[idx].battery_name) +
-      "\"}";
+    char message[256];
+    snprintf(message, sizeof(message),
+             "{\"idx\":%u,\"V\":%.2f,\"A\":%.2f,\"charge\":%.0f,\"state\":\"%s\",\"location\":\"%s\"}",
+             static_cast<unsigned>(idx), static_cast<double>(getVoltage(idx)), static_cast<double>(getCurrent(idx)),
+             static_cast<double>(estimateChargePercentage(getVoltage(idx))), batteryStateToString(state_[idx]),
+             g_battery_config_[idx].battery_name);
 
-    SerialManager::getInstance().sendMessage("BATT", message.c_str());
+    SerialManager::getInstance().sendMessage("BATT", message);
   }
 
   void BatteryMonitor::setup() {
@@ -228,11 +227,11 @@ namespace sigyn_teensy {
       selectSensor(device);
 
       if (!g_ina226_[device].begin()) {
-        String message =
-          "INA226 sensor initialization failed for device " + String(device) +
-          " (mux_channel=" + String(gINA226_DeviceIndexes_[device]) + ")";
+        char message[128];
+        snprintf(message, sizeof(message), "INA226 sensor initialization failed for device %u (mux_channel=%u)",
+                 static_cast<unsigned>(device), static_cast<unsigned>(gINA226_DeviceIndexes_[device]));
         SerialManager::getInstance().sendDiagnosticMessage("FATAL", name(),
-          message.c_str());
+          message);
       }
 
       g_ina226_[device].setMaxCurrentShunt(20, 0.002);  // 20A max, 2mΩ shunt

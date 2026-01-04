@@ -222,16 +222,20 @@ TEST_F(RoboClawMonitorTest, HandleTwistMessage_ParsesAndCommandsMotorSpeeds) {
 }
 
 TEST_F(RoboClawMonitorTest, DecodeErrorStatus_FormatsKnownAndUnknownBits) {
-  EXPECT_STREQ(monitor_->decodeErrorStatus(0).c_str(), "No errors");
+  char decoded0[64] = {0};
+  monitor_->decodeErrorStatus(0, decoded0, sizeof(decoded0));
+  EXPECT_STREQ(decoded0, "No errors");
 
   const uint32_t error = static_cast<uint32_t>(RoboClawError::E_STOP) |
                          static_cast<uint32_t>(RoboClawError::M1_DRIVER_FAULT_ERROR) |
                          0x80000000u;
 
-  const std::string decoded = monitor_->decodeErrorStatus(error).c_str();
-  EXPECT_NE(decoded.find("E_STOP"), std::string::npos);
-  EXPECT_NE(decoded.find("M1_DRIVER_FAULT_ERROR"), std::string::npos);
-  EXPECT_NE(decoded.find("UNKNOWN_ERROR_BITS:0x"), std::string::npos);
+  char decoded[256] = {0};
+  monitor_->decodeErrorStatus(error, decoded, sizeof(decoded));
+  const std::string decoded_str(decoded);
+  EXPECT_NE(decoded_str.find("E_STOP"), std::string::npos);
+  EXPECT_NE(decoded_str.find("M1_DRIVER_FAULT_ERROR"), std::string::npos);
+  EXPECT_NE(decoded_str.find("UNKNOWN_ERROR_BITS:0x"), std::string::npos);
 }
 
 TEST_F(RoboClawMonitorTest, ResetErrors_WhenDisconnected_DoesNotCallRoboClaw) {

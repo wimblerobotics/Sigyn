@@ -285,7 +285,7 @@ namespace sigyn_teensy {
     /**
      * @brief Convert BatteryState enum to string representation.
      * @param state Battery state enum value
-     * @return String representation of battery state
+     * @return Battery state
      */
     const char* batteryStateToString(BatteryState state) const;
 
