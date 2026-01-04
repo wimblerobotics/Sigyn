@@ -55,6 +55,9 @@
 #include "modules/safety/safety_coordinator.h"
 #endif
 
+#include <cstdio>
+#include <cstring>
+
 namespace sigyn_teensy {
 
 SerialManager::SerialManager() : buffer_pos_(0), queue_head_(0), queue_tail_(0), queue_count_(0) {
@@ -68,54 +71,75 @@ SerialManager& SerialManager::getInstance() {
 }
 
 void SerialManager::handleCommand(const char* command, const char* args) {
-  // Parse incoming commands and route them to appropriate modules
-  String full_command(command);
-  String cmd_type = full_command;
-
-  // Remove the colon and everything after to get just the command type
-  int colon_pos = cmd_type.indexOf(':');
-  if (colon_pos >= 0) {
-    cmd_type = cmd_type.substring(0, colon_pos);
+  if (!command) {
+    return;
   }
 
-  if (cmd_type == "TWIST") {
+  // Parse incoming commands and route them to appropriate modules
+  const char* colon = strchr(command, ':');
+  const size_t cmd_len = colon ? static_cast<size_t>(colon - command) : strlen(command);
+
+  char cmd_type[16] = {0};
+  const size_t cmd_copy_len = (cmd_len < (sizeof(cmd_type) - 1)) ? cmd_len : (sizeof(cmd_type) - 1);
+  if (cmd_copy_len > 0) {
+    memcpy(cmd_type, command, cmd_copy_len);
+    cmd_type[cmd_copy_len] = '\0';
+  }
+
+  if ((cmd_len == 5) && (strncmp(command, "TWIST", 5) == 0)) {
     // Store TWIST command for RoboClawMonitor to process
     // Use a simple approach: send the command data as a special message type
-    sendDiagnosticMessage("DEBUG", "SerialManager", ("TWIST command received: " + String(args)).c_str());
+    char diag[256] = {0};
+    snprintf(diag, sizeof(diag), "TWIST command received: %s", args ? args : "");
+    sendDiagnosticMessage("DEBUG", "SerialManager", diag);
 
     // We'll create a mechanism for modules to check for commands
     // For now, set a static variable that RoboClawMonitor can check
-    setLatestTwistCommand(String(args));
+    setLatestTwistCommand(args ? args : "");
 
-  } else if (cmd_type == "SDDIR") {
-    sendDiagnosticMessage("DEBUG", "SerialManager", ("SDDIR command received: " + String(args)).c_str());
+  } else if ((cmd_len == 5) && (strncmp(command, "SDDIR", 5) == 0)) {
+    char diag[256] = {0};
+    snprintf(diag, sizeof(diag), "SDDIR command received: %s", args ? args : "");
+    sendDiagnosticMessage("DEBUG", "SerialManager", diag);
     // Store SDDIR command for SDLogger to process
-    setLatestSDDirCommand(String(args));
+    setLatestSDDirCommand(args ? args : "");
 
-  } else if (cmd_type == "SDFILE") {
-    sendDiagnosticMessage("DEBUG", "SerialManager", ("SDFILE command received: " + String(args)).c_str());
+  } else if ((cmd_len == 6) && (strncmp(command, "SDFILE", 6) == 0)) {
+    char diag[256] = {0};
+    snprintf(diag, sizeof(diag), "SDFILE command received: %s", args ? args : "");
+    sendDiagnosticMessage("DEBUG", "SerialManager", diag);
     // Store SDFILE command for SDLogger to process
-    setLatestSDFileCommand(String(args));
+    setLatestSDFileCommand(args ? args : "");
 
-  } else if (cmd_type == "CONFIG") {
-    sendDiagnosticMessage("DEBUG", "SerialManager", ("CONFIG command received: " + String(args)).c_str());
+  } else if ((cmd_len == 6) && (strncmp(command, "CONFIG", 6) == 0)) {
+    char diag[256] = {0};
+    snprintf(diag, sizeof(diag), "CONFIG command received: %s", args ? args : "");
+    sendDiagnosticMessage("DEBUG", "SerialManager", diag);
     // TODO: Implement configuration updates
 
-  } else if (cmd_type == "STATUS") {
-    sendDiagnosticMessage("DEBUG", "SerialManager", ("STATUS request received: " + String(args)).c_str());
+  } else if ((cmd_len == 6) && (strncmp(command, "STATUS", 6) == 0)) {
+    char diag[256] = {0};
+    snprintf(diag, sizeof(diag), "STATUS request received: %s", args ? args : "");
+    sendDiagnosticMessage("DEBUG", "SerialManager", diag);
     // TODO: Send comprehensive status report
 
-  } else if (cmd_type == "ESTOP") {
-    sendDiagnosticMessage("DEBUG", "SerialManager", ("ESTOP command received: " + String(args)).c_str());
+  } else if ((cmd_len == 5) && (strncmp(command, "ESTOP", 5) == 0)) {
+    char diag[256] = {0};
+    snprintf(diag, sizeof(diag), "ESTOP command received: %s", args ? args : "");
+    sendDiagnosticMessage("DEBUG", "SerialManager", diag);
 #if ENABLE_SAFETY
     SafetyCoordinator::getInstance().setEstopCommand(args);
 #endif
-  } else if (cmd_type == "CALIBRATE") {
-    sendDiagnosticMessage("DEBUG", "SerialManager", ("CALIBRATE command received: " + String(args)).c_str());
+  } else if ((cmd_len == 9) && (strncmp(command, "CALIBRATE", 9) == 0)) {
+    char diag[256] = {0};
+    snprintf(diag, sizeof(diag), "CALIBRATE command received: %s", args ? args : "");
+    sendDiagnosticMessage("DEBUG", "SerialManager", diag);
     // TODO: Route to appropriate sensor module
 
   } else {
-    sendDiagnosticMessage("ERROR", "SerialManager", ("Unknown command type: " + cmd_type).c_str());
+    char diag[64] = {0};
+    snprintf(diag, sizeof(diag), "Unknown command type: %s", cmd_type);
+    sendDiagnosticMessage("ERROR", "SerialManager", diag);
   }
 }
 
@@ -224,12 +248,12 @@ void SerialManager::sendQueuedMessages() {
   // No-op: immediate send path (queue disabled)
 }
 
-void SerialManager::setLatestTwistCommand(const String& twist_data) {
-  latest_twist_command_ = twist_data;
+void SerialManager::setLatestTwistCommand(const char* twist_data) {
+  snprintf(latest_twist_command_, sizeof(latest_twist_command_), "%s", twist_data ? twist_data : "");
   has_new_twist_command_ = true;
 }
 
-String SerialManager::getLatestTwistCommand() { return latest_twist_command_; }
+const char* SerialManager::getLatestTwistCommand() const { return latest_twist_command_; }
 
 bool SerialManager::hasNewTwistCommand() {
   if (has_new_twist_command_) {
@@ -239,12 +263,12 @@ bool SerialManager::hasNewTwistCommand() {
   return false;
 }
 
-void SerialManager::setLatestSDDirCommand(const String& sddir_data) {
-  latest_sddir_command_ = sddir_data;
+void SerialManager::setLatestSDDirCommand(const char* sddir_data) {
+  snprintf(latest_sddir_command_, sizeof(latest_sddir_command_), "%s", sddir_data ? sddir_data : "");
   has_new_sddir_command_ = true;
 }
 
-String SerialManager::getLatestSDDirCommand() { return latest_sddir_command_; }
+const char* SerialManager::getLatestSDDirCommand() const { return latest_sddir_command_; }
 
 bool SerialManager::hasNewSDDirCommand() {
   if (has_new_sddir_command_) {
@@ -254,12 +278,12 @@ bool SerialManager::hasNewSDDirCommand() {
   return false;
 }
 
-void SerialManager::setLatestSDFileCommand(const String& sdfile_data) {
-  latest_sdfile_command_ = sdfile_data;
+void SerialManager::setLatestSDFileCommand(const char* sdfile_data) {
+  snprintf(latest_sdfile_command_, sizeof(latest_sdfile_command_), "%s", sdfile_data ? sdfile_data : "");
   has_new_sdfile_command_ = true;
 }
 
-String SerialManager::getLatestSDFileCommand() { return latest_sdfile_command_; }
+const char* SerialManager::getLatestSDFileCommand() const { return latest_sdfile_command_; }
 
 bool SerialManager::hasNewSDFileCommand() {
   if (has_new_sdfile_command_) {

@@ -13,16 +13,18 @@
 
 #include "../../common/core/serial_manager.h"
 
+#include <cstdio>
+
 namespace sigyn_teensy {
 
 namespace {
-String g_latest_twist;
+char g_latest_twist[SerialManager::kMaxMessageLength] = {0};
 bool g_has_new_twist = false;
 
-String g_latest_sddir;
+char g_latest_sddir[SerialManager::kMaxMessageLength] = {0};
 bool g_has_new_sddir = false;
 
-String g_latest_sdfile;
+char g_latest_sdfile[SerialManager::kMaxMessageLength] = {0};
 bool g_has_new_sdfile = false;
 }  // namespace
 
@@ -50,14 +52,12 @@ void SerialManager::processIncomingMessages() {
   // No-op for unit tests
 }
 
-void SerialManager::setLatestTwistCommand(const String& twist_data) {
-  g_latest_twist = twist_data;
+void SerialManager::setLatestTwistCommand(const char* twist_data) {
+  snprintf(g_latest_twist, sizeof(g_latest_twist), "%s", twist_data ? twist_data : "");
   g_has_new_twist = true;
 }
 
-String SerialManager::getLatestTwistCommand() {
-  return g_latest_twist;
-}
+const char* SerialManager::getLatestTwistCommand() const { return g_latest_twist; }
 
 bool SerialManager::hasNewTwistCommand() {
   if (g_has_new_twist) {
@@ -67,14 +67,12 @@ bool SerialManager::hasNewTwistCommand() {
   return false;
 }
 
-void SerialManager::setLatestSDDirCommand(const String& sddir_data) {
-  g_latest_sddir = sddir_data;
+void SerialManager::setLatestSDDirCommand(const char* sddir_data) {
+  snprintf(g_latest_sddir, sizeof(g_latest_sddir), "%s", sddir_data ? sddir_data : "");
   g_has_new_sddir = true;
 }
 
-String SerialManager::getLatestSDDirCommand() {
-  return g_latest_sddir;
-}
+const char* SerialManager::getLatestSDDirCommand() const { return g_latest_sddir; }
 
 bool SerialManager::hasNewSDDirCommand() {
   if (g_has_new_sddir) {
@@ -84,14 +82,12 @@ bool SerialManager::hasNewSDDirCommand() {
   return false;
 }
 
-void SerialManager::setLatestSDFileCommand(const String& sdfile_data) {
-  g_latest_sdfile = sdfile_data;
+void SerialManager::setLatestSDFileCommand(const char* sdfile_data) {
+  snprintf(g_latest_sdfile, sizeof(g_latest_sdfile), "%s", sdfile_data ? sdfile_data : "");
   g_has_new_sdfile = true;
 }
 
-String SerialManager::getLatestSDFileCommand() {
-  return g_latest_sdfile;
-}
+const char* SerialManager::getLatestSDFileCommand() const { return g_latest_sdfile; }
 
 bool SerialManager::hasNewSDFileCommand() {
   if (g_has_new_sdfile) {

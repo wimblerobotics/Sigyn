@@ -210,7 +210,7 @@ TEST_F(RoboClawMonitorTest, HandleTwistMessage_ParsesAndCommandsMotorSpeeds) {
   const float linear_x = 0.10f;
   const float angular_z = 0.20f;
 
-  monitor_->handleTwistMessage(String("linear_x:0.10,angular_z:0.20"));
+  monitor_->handleTwistMessage("linear_x:0.10,angular_z:0.20");
 
   ASSERT_EQ(mock_.state.speed_accel_distance_calls, 1u);
   ASSERT_TRUE(mock_.state.last_cmd.was_called);

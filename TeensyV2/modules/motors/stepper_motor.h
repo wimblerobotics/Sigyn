@@ -30,7 +30,7 @@ namespace sigyn_teensy {
     void resetSafetyFlags() override {}
 
     // Command handling
-    void handleTwistMessage(const String& data);
+    void handleTwistMessage(const char* data);
 
   private:
     StepperMotor();
