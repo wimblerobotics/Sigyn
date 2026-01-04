@@ -108,7 +108,7 @@ void SerialManager::handleCommand(const char* command, const char* args) {
   } else if (cmd_type == "ESTOP") {
     sendDiagnosticMessage("DEBUG", "SerialManager", ("ESTOP command received: " + String(args)).c_str());
 #if ENABLE_SAFETY
-    SafetyCoordinator::getInstance().setEstopCommand(String(args));
+    SafetyCoordinator::getInstance().setEstopCommand(args);
 #endif
   } else if (cmd_type == "CALIBRATE") {
     sendDiagnosticMessage("DEBUG", "SerialManager", ("CALIBRATE command received: " + String(args)).c_str());

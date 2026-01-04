@@ -496,7 +496,7 @@ bool RoboClawMonitor::testCommunication() {
       SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg.c_str());
 
       // Safety: if we can't positively identify the controller, stop motion.
-      SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::UNKNOWN,
+      SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, name(),
                                                      "RoboClaw communication failed (unexpected version)");
       setEmergencyStop();
       return false;
@@ -505,7 +505,7 @@ bool RoboClawMonitor::testCommunication() {
     SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), "Failed to read version");
 
     // Safety: inability to communicate with the motor controller warrants E-stop.
-    SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::UNKNOWN,
+    SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, name(),
                                                    "RoboClaw communication failed (no version read)");
     setEmergencyStop();
     return false;
@@ -521,7 +521,7 @@ void RoboClawMonitor::handleCommunicationError() {
   motor2_status_.communication_ok = false;
 
   // Safety: communication errors mean we cannot reliably control motion.
-  SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::UNKNOWN,
+  SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, name(),
                                                  "RoboClaw communication error");
   setEmergencyStop();
 
@@ -668,7 +668,7 @@ void RoboClawMonitor::updateMotorStatus() {
         SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), msg);
         consecutive_comm_failures_++;
         if (consecutive_comm_failures_ >= config_.max_consecutive_comm_failures) {
-          SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::UNKNOWN,
+          SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, name(),
                                                          "RoboClaw read failures exceeded threshold");
           setEmergencyStop();
           handleCommunicationError();
@@ -1044,7 +1044,7 @@ void RoboClawMonitor::checkSafetyConditions() {
   // RoboClaw internal temperature safety.
   if (!std::isnan(system_status_.temperature_c) && system_status_.temperature_c >= config_.roboclaw_temp_fault_c) {
     SafetyCoordinator::getInstance().activateFault(
-        FaultSeverity::EMERGENCY_STOP, FaultSource::TEMPERATURE_FAULT,
+        FaultSeverity::EMERGENCY_STOP, name(),
         ("RoboClaw over-temperature fault: " + String(system_status_.temperature_c, 1) + "C").c_str());
     setEmergencyStop();
   }
@@ -1053,7 +1053,7 @@ void RoboClawMonitor::checkSafetyConditions() {
   if ((system_status_.error_status & kFatalRoboclawErrorMask) != 0) {
     String decoded = decodeErrorStatus(system_status_.error_status);
     SafetyCoordinator::getInstance().activateFault(
-        FaultSeverity::EMERGENCY_STOP, FaultSource::UNKNOWN,
+        FaultSeverity::EMERGENCY_STOP, name(),
         ("RoboClaw reported fatal error bits: " + decoded).c_str());
     setEmergencyStop();
 
@@ -1069,7 +1069,7 @@ void RoboClawMonitor::checkSafetyConditions() {
     total_safety_violations_++;
 
     if (first_trip) {
-      SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::MOTOR_OVERCURRENT,
+      SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, name(),
                                                      "Motor 1 overcurrent");
       setEmergencyStop();
     }
@@ -1089,7 +1089,7 @@ void RoboClawMonitor::checkSafetyConditions() {
     total_safety_violations_++;
 
     if (first_trip) {
-      SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::MOTOR_OVERCURRENT,
+      SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, name(),
                                                      "Motor 2 overcurrent");
       setEmergencyStop();
     }
@@ -1127,7 +1127,7 @@ void RoboClawMonitor::detectMotorRunaway() {
     total_safety_violations_++;
 
     if (first_trip) {
-      SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::MOTOR_RUNAWAY,
+      SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, name(),
                                                      "Motor 1 runaway detected");
       setEmergencyStop();
     }
@@ -1147,7 +1147,7 @@ void RoboClawMonitor::detectMotorRunaway() {
     total_safety_violations_++;
 
     if (first_trip) {
-      SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::MOTOR_RUNAWAY,
+      SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, name(),
                                                      "Motor 2 runaway detected");
       setEmergencyStop();
     }
