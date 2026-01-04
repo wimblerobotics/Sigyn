@@ -4,6 +4,9 @@
 
 #include "stepper_motor.h"
 
+#include <cstdlib>
+#include <cstring>
+
 namespace sigyn_teensy {
 
   static StepperMotor* g_instance = nullptr;
@@ -36,7 +39,7 @@ namespace sigyn_teensy {
 
     // Check for TWIST command "linear_x,angular_z"
     if (serial_.hasNewTwistCommand()) {
-      String twist_data = SerialManager::getInstance().getLatestTwistCommand();
+      const char* twist_data = SerialManager::getInstance().getLatestTwistCommand();
       handleTwistMessage(twist_data);
     }
 
@@ -44,19 +47,23 @@ namespace sigyn_teensy {
     if (extender_) extender_->continueOutstandingMovementRequests();
   }
 
-  void StepperMotor::handleTwistMessage(const String& data) {
+  void StepperMotor::handleTwistMessage(const char* data) {
     // Parse twist message: "linear_x:<value>,angular_z:<value>"
-    float linear_x = 0.0f, angular_z = 0.0f;
+    float linear_x = 0.0f;
+    float angular_z = 0.0f;
 
-    int linear_start = data.indexOf("linear_x:") + 9;
-    int linear_end = data.indexOf(",", linear_start);
-    if (linear_start > 8 && linear_end > linear_start) {
-      linear_x = data.substring(linear_start, linear_end).toFloat();
-    }
+    if (data) {
+      const char* linear_start = strstr(data, "linear_x:");
+      if (linear_start) {
+        linear_start += strlen("linear_x:");
+        linear_x = strtof(linear_start, nullptr);
+      }
 
-    int angular_start = data.indexOf("angular_z:") + 10;
-    if (angular_start > 9) {
-      angular_z = data.substring(angular_start).toFloat();
+      const char* angular_start = strstr(data, "angular_z:");
+      if (angular_start) {
+        angular_start += strlen("angular_z:");
+        angular_z = strtof(angular_start, nullptr);
+      }
     }
 
     // Move in very small increments per command

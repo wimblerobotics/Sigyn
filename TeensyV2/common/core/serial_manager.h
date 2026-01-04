@@ -150,14 +150,14 @@ namespace sigyn_teensy {
      *
      * @param[in] twist_data The TWIST command data
      */
-    void setLatestTwistCommand(const String& twist_data);
+    void setLatestTwistCommand(const char* twist_data);
 
     /**
      * @brief Get the latest TWIST command data.
      *
-     * @return Latest TWIST command data, or empty string if none
+      * @return Pointer to internal TWIST command buffer (never null)
      */
-    String getLatestTwistCommand();
+     const char* getLatestTwistCommand() const;
 
     /**
      * @brief Check if there's a new TWIST command and mark it as processed.
@@ -172,13 +172,13 @@ namespace sigyn_teensy {
      * @brief Set the latest SDDIR command.
      * @param[in] sddir_data The SDDIR command data
      */
-    void setLatestSDDirCommand(const String& sddir_data);
+    void setLatestSDDirCommand(const char* sddir_data);
 
     /**
      * @brief Get the latest SDDIR command.
-     * @return String containing the SDDIR command data
+      * @return Pointer to internal SDDIR command buffer (never null)
      */
-    String getLatestSDDirCommand();
+     const char* getLatestSDDirCommand() const;
 
     /**
      * @brief Check if there's a new SDDIR command available.
@@ -190,13 +190,13 @@ namespace sigyn_teensy {
      * @brief Set the latest SDFILE command.
      * @param[in] sdfile_data The SDFILE command data
      */
-    void setLatestSDFileCommand(const String& sdfile_data);
+    void setLatestSDFileCommand(const char* sdfile_data);
 
     /**
      * @brief Get the latest SDFILE command.
-     * @return String containing the SDFILE command data
+      * @return Pointer to internal SDFILE command buffer (never null)
      */
-    String getLatestSDFileCommand();
+     const char* getLatestSDFileCommand() const;
 
     /**
      * @brief Check if there's a new SDFILE command available.
@@ -294,10 +294,14 @@ namespace sigyn_teensy {
 
     // --- Command Storage ---
 
+    static constexpr size_t kMaxTwistCommandLen = 256;
+    static constexpr size_t kMaxSDDirCommandLen = 256;
+    static constexpr size_t kMaxSDFileCommandLen = 256;
+
     /**
      * @brief Storage for the latest TWIST command.
      */
-    String latest_twist_command_;
+    char latest_twist_command_[kMaxTwistCommandLen] = {0};
 
     /**
      * @brief Flag indicating if there's a new TWIST command.
@@ -307,7 +311,7 @@ namespace sigyn_teensy {
     /**
      * @brief Storage for the latest SDDIR command.
      */
-    String latest_sddir_command_;
+    char latest_sddir_command_[kMaxSDDirCommandLen] = {0};
 
     /**
      * @brief Flag indicating if there's a new SDDIR command.
@@ -317,7 +321,7 @@ namespace sigyn_teensy {
     /**
      * @brief Storage for the latest SDFILE command.
      */
-    String latest_sdfile_command_;
+    char latest_sdfile_command_[kMaxSDFileCommandLen] = {0};
 
     /**
      * @brief Flag indicating if there's a new SDFILE command.

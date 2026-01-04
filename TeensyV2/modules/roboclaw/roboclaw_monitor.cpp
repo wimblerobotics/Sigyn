@@ -414,19 +414,23 @@ void RoboClawMonitor::resetErrors() {
   }
 }
 
-void RoboClawMonitor::handleTwistMessage(const String& data) {
+void RoboClawMonitor::handleTwistMessage(const char* data) {
   // Parse twist message: "linear_x:<value>,angular_z:<value>"
-  float linear_x = 0.0f, angular_z = 0.0f;
+  float linear_x = 0.0f;
+  float angular_z = 0.0f;
 
-  int linear_start = data.indexOf("linear_x:") + 9;
-  int linear_end = data.indexOf(",", linear_start);
-  if (linear_start > 8 && linear_end > linear_start) {
-    linear_x = data.substring(linear_start, linear_end).toFloat();
-  }
+  if (data) {
+    const char* linear_start = strstr(data, "linear_x:");
+    if (linear_start) {
+      linear_start += strlen("linear_x:");
+      linear_x = strtof(linear_start, nullptr);
+    }
 
-  int angular_start = data.indexOf("angular_z:") + 10;
-  if (angular_start > 9) {
-    angular_z = data.substring(angular_start).toFloat();
+    const char* angular_start = strstr(data, "angular_z:");
+    if (angular_start) {
+      angular_start += strlen("angular_z:");
+      angular_z = strtof(angular_start, nullptr);
+    }
   }
 
   setVelocityCommand(linear_x, angular_z);
@@ -989,7 +993,7 @@ void RoboClawMonitor::processVelocityCommands() {
 
   // Check for new TWIST commands from SerialManager
   if (SerialManager::getInstance().hasNewTwistCommand()) {
-    String twist_data = SerialManager::getInstance().getLatestTwistCommand();
+    const char* twist_data = SerialManager::getInstance().getLatestTwistCommand();
     handleTwistMessage(twist_data);
   }
 

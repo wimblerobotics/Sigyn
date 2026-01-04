@@ -233,7 +233,7 @@ class RoboClawMonitor : public Module {
   const RoboClawConfig& getConfig() const { return config_; }
 
   // Message handling
-  void handleTwistMessage(const String& data);
+  void handleTwistMessage(const char* data);
 
   // Error decoding
   String decodeErrorStatus(uint32_t error_status) const;

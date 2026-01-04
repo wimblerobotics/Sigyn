@@ -63,13 +63,13 @@ namespace sigyn_teensy {
         SerialManager& serial_mgr = SerialManager::getInstance();
 
         if (serial_mgr.hasNewSDDirCommand()) {
-            String dir_command = serial_mgr.getLatestSDDirCommand();
+            String dir_command = String(serial_mgr.getLatestSDDirCommand());
             SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), ("SDDIR command received: " + dir_command).c_str());
             handleDirMessage(dir_command);
         }
 
         if (serial_mgr.hasNewSDFileCommand()) {
-            String file_command = serial_mgr.getLatestSDFileCommand();
+            String file_command = String(serial_mgr.getLatestSDFileCommand());
             SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), ("SDFILE command received: " + file_command).c_str());
             handleFileDumpMessage(file_command);
         }
