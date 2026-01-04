@@ -12,10 +12,31 @@
 
 #include "vl53l0x_monitor.h"
 
+#include <cstdarg>
+
 namespace {
   constexpr uint8_t kMaxSensors = 8;
   constexpr uint8_t kI2CMultiplexerEnablePin = 8;
   constexpr uint32_t kI2CClockFrequency = 400000;
+
+  void snappend(char* buf, size_t buf_size, size_t& offset, const char* fmt, ...) {
+    if (!buf || buf_size == 0 || offset >= buf_size) {
+      return;
+    }
+
+    va_list args;
+    va_start(args, fmt);
+    const int written = vsnprintf(buf + offset, buf_size - offset, fmt, args);
+    va_end(args);
+
+    if (written <= 0) {
+      return;
+    }
+
+    const size_t remaining = buf_size - offset;
+    const size_t advance = (static_cast<size_t>(written) < remaining) ? static_cast<size_t>(written) : (remaining - 1);
+    offset += advance;
+  }
 
   inline uint32_t deltaMicros(uint32_t now, uint32_t earlier) {
     return now - earlier;
@@ -350,8 +371,9 @@ namespace sigyn_teensy {
 
     // Initialize sensor
     if (!sensor.init()) {
-      String msg = "init failed sensor=" + String(sensor_index);
-      SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), msg.c_str());
+      char msg[96] = {0};
+      snprintf(msg, sizeof(msg), "init failed sensor=%u", static_cast<unsigned int>(sensor_index));
+      SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), msg);
       sensor_status_[sensor_index].initialized = false;
       sensor_states_[sensor_index] = SensorState::ERROR_RECOVERY;
       return false;
@@ -364,8 +386,9 @@ namespace sigyn_teensy {
 
     // Set timing budget
     if (!sensor.setMeasurementTimingBudget(config_.measurement_timing_budget_us)) {
-      String msg = "Failed to set timing budget for sensor " + String(sensor_index);
-      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg.c_str());
+      char msg[96] = {0};
+      snprintf(msg, sizeof(msg), "Failed to set timing budget for sensor %u", static_cast<unsigned int>(sensor_index));
+      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg);
       // Continue anyway - not fatal
     }
 
@@ -378,8 +401,9 @@ namespace sigyn_teensy {
     // Test reading
     uint16_t test_distance = sensor.readRangeContinuousMillimeters();
     if (sensor.timeoutOccurred()) {
-      String msg = "Sensor " + String(sensor_index) + " test reading failed - timeout";
-      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg.c_str());
+      char msg[128] = {0};
+      snprintf(msg, sizeof(msg), "Sensor %u test reading failed - timeout", static_cast<unsigned int>(sensor_index));
+      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg);
       sensor_status_[sensor_index].initialized = false;
       sensor_states_[sensor_index] = SensorState::ERROR_RECOVERY;
       return false;
@@ -397,8 +421,10 @@ namespace sigyn_teensy {
     next_poll_due_us_[sensor_index] = micros() + config_.poll_interval_us;
     next_reinit_attempt_ms_[sensor_index] = millis() + config_.reinitialize_backoff_ms;
 
-    String msg = "sensor=" + String(sensor_index) + ",init=success,test_dist=" + String(test_distance);
-    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg.c_str());
+    char msg[128] = {0};
+    snprintf(msg, sizeof(msg), "sensor=%u,init=success,test_dist=%u", static_cast<unsigned int>(sensor_index),
+             static_cast<unsigned int>(test_distance));
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
     return true;
   }
 
@@ -460,94 +486,69 @@ namespace sigyn_teensy {
   void VL53L0XMonitor::sendStatusReports() {
     const uint32_t now_us = micros();
 
-    String payload;
-    payload.reserve(512);
+    char payload[1024] = {0};
+    size_t off = 0;
 
-    payload += "{";
-    payload += "\"total_sensors\":";
-    payload += array_status_.total_sensors;
-    payload += ",\"active_sensors\":";
-    payload += array_status_.active_sensors;
-    payload += ",\"min_distance\":";
-    payload += array_status_.min_distance_mm;
-    payload += ",\"max_distance\":";
-    payload += array_status_.max_distance_mm;
-    payload += ",\"obstacles\":";
-    payload += array_status_.any_obstacles ? "true" : "false";
-    payload += ",\"distances\":[";
+    snappend(payload, sizeof(payload), off,
+             "{\"total_sensors\":%u,\"active_sensors\":%u,\"min_distance\":%u,\"max_distance\":%u,\"obstacles\":%s,\"distances\":[",
+             static_cast<unsigned int>(array_status_.total_sensors), static_cast<unsigned int>(array_status_.active_sensors),
+             static_cast<unsigned int>(array_status_.min_distance_mm), static_cast<unsigned int>(array_status_.max_distance_mm),
+             array_status_.any_obstacles ? "true" : "false");
 
     for (uint8_t i = 0; i < config_.enabled_sensors; ++i) {
       if (i > 0) {
-        payload += ",";
+        snappend(payload, sizeof(payload), off, ",");
       }
 
       const SensorStatus& status = sensor_status_[i];
-      payload += "{\"id\":";
-      payload += i;
-      payload += ",\"mm\":";
+      snappend(payload, sizeof(payload), off, "{\"id\":%u,\"mm\":", static_cast<unsigned int>(i));
+
       if (status.measurement_valid && status.filtered_valid) {
-        payload += status.filtered_distance_mm;
-      }
-      else {
-        payload += "null";
+        snappend(payload, sizeof(payload), off, "%u", static_cast<unsigned int>(status.filtered_distance_mm));
+      } else {
+        snappend(payload, sizeof(payload), off, "null");
       }
 
-      payload += ",\"raw\":";
+      snappend(payload, sizeof(payload), off, ",\"raw\":");
       if (status.measurement_valid || status.degraded_quality) {
-        payload += status.raw_distance_mm;
-      }
-      else {
-        payload += "null";
+        snappend(payload, sizeof(payload), off, "%u", static_cast<unsigned int>(status.raw_distance_mm));
+      } else {
+        snappend(payload, sizeof(payload), off, "null");
       }
 
-      payload += ",\"age_us\":";
-      payload += deltaMicros(now_us, status.last_measurement_us);
-
-      payload += ",\"degraded\":";
-      payload += status.degraded_quality ? "true" : "false";
-      payload += "}";
+      snappend(payload, sizeof(payload), off, ",\"age_us\":%lu,\"degraded\":%s}",
+               static_cast<unsigned long>(deltaMicros(now_us, status.last_measurement_us)),
+               status.degraded_quality ? "true" : "false");
     }
 
-    payload += "]}";
+    snappend(payload, sizeof(payload), off, "]}");
 
-    SerialManager::getInstance().sendMessage("VL53L0X", payload.c_str());
+    SerialManager::getInstance().sendMessage("VL53L0X", payload);
   }
 
   void VL53L0XMonitor::sendDiagnosticReports() {
-    String payload;
-    payload.reserve(640);
+    char payload[1024] = {0};
+    size_t off = 0;
 
-    payload += "{";
-    payload += "\"window_ms\":";
-    payload += config_.diagnostic_report_interval_ms;
-    payload += ",\"multiplexer_ok\":";
-    payload += multiplexer_available_ ? "true" : "false";
-    payload += ",\"sensors\":[";
+    snappend(payload, sizeof(payload), off, "{\"window_ms\":%lu,\"multiplexer_ok\":%s,\"sensors\":[",
+             static_cast<unsigned long>(config_.diagnostic_report_interval_ms), multiplexer_available_ ? "true" : "false");
 
     for (uint8_t i = 0; i < config_.enabled_sensors; ++i) {
       if (i > 0) {
-        payload += ",";
+        snappend(payload, sizeof(payload), off, ",");
       }
 
-      // Report simple diagnostics from sensor_status
-      payload += "{\"id\":";
-      payload += i;
-      payload += ",\"total_measurements\":";
-      payload += sensor_status_[i].total_measurements;
-      payload += ",\"valid_measurements\":";
-      payload += sensor_status_[i].total_valid_measurements;
-      payload += ",\"errors\":";
-      payload += sensor_status_[i].total_errors;
-      payload += ",\"consecutive_failures\":";
-      payload += sensor_status_[i].consecutive_failures;
-      payload += ",\"initialized\":";
-      payload += sensor_status_[i].initialized ? "true" : "false";
-      payload += "}";
+      snappend(payload, sizeof(payload), off,
+               "{\"id\":%u,\"total_measurements\":%lu,\"valid_measurements\":%lu,\"errors\":%lu,\"consecutive_failures\":%u,\"initialized\":%s}",
+               static_cast<unsigned int>(i), static_cast<unsigned long>(sensor_status_[i].total_measurements),
+               static_cast<unsigned long>(sensor_status_[i].total_valid_measurements),
+               static_cast<unsigned long>(sensor_status_[i].total_errors),
+               static_cast<unsigned int>(sensor_status_[i].consecutive_failures),
+               sensor_status_[i].initialized ? "true" : "false");
     }
 
-    payload += "]}";
-
-    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), payload.c_str());
+    snappend(payload, sizeof(payload), off, "]}");
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), payload);
   }
 
   void VL53L0XMonitor::detectObstacles() {
@@ -566,10 +567,11 @@ namespace sigyn_teensy {
 
       if (status.filtered_distance_mm < config_.obstacle_threshold_mm) {
         if (deltaMicros(now_us, last_alert_us) > 200000U) {
-          String message = "active=true,source=VL53L0X_OBSTACLE,sensor=" + String(i) +
-            ",distance_mm=" + String(status.filtered_distance_mm) +
-            ",degraded=" + String(status.degraded_quality ? "true" : "false");
-          SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), message.c_str());
+          char message[160] = {0};
+          snprintf(message, sizeof(message), "active=true,source=VL53L0X_OBSTACLE,sensor=%u,distance_mm=%u,degraded=%s",
+                   static_cast<unsigned int>(i), static_cast<unsigned int>(status.filtered_distance_mm),
+                   status.degraded_quality ? "true" : "false");
+          SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), message);
           last_alert_us = now_us;
         }
       }
@@ -614,8 +616,9 @@ namespace sigyn_teensy {
     sensor_status_[sensor_index].initialized = false;
     sensor_status_[sensor_index].communication_ok = false;
     next_reinit_attempt_ms_[sensor_index] = now_ms + config_.reinitialize_backoff_ms;
-    String msg = "sensor=" + String(sensor_index) + ",recovery_scheduled=true";
-    SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg.c_str());
+    char msg[96] = {0};
+    snprintf(msg, sizeof(msg), "sensor=%u,recovery_scheduled=true", static_cast<unsigned int>(sensor_index));
+    SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg);
   }
 
 }  // namespace sigyn_teensy

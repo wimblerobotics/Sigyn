@@ -232,42 +232,53 @@ void RoboClawMonitor::loop() {
 }
 
 bool RoboClawMonitor::isUnsafe() {
-  String safety_reasons = "";
+  char safety_reasons[256] = {0};
   bool unsafe = false;
+
+  auto append_reason = [&](const char* reason) {
+    if (!reason) {
+      return;
+    }
+    const size_t len = strlen(safety_reasons);
+    if (len >= (sizeof(safety_reasons) - 1)) {
+      return;
+    }
+    snprintf(safety_reasons + len, sizeof(safety_reasons) - len, "%s ", reason);
+  };
 
   // Check local safety flags
   if (emergency_stop_active_) {
-    safety_reasons += "emergency_stop_active ";
+    append_reason("emergency_stop_active");
     unsafe = true;
   }
 
   if (motor1_status_.runaway_detected) {
-    safety_reasons += "motor1_runaway ";
+    append_reason("motor1_runaway");
     unsafe = true;
   }
 
   if (motor2_status_.runaway_detected) {
-    safety_reasons += "motor2_runaway ";
+    append_reason("motor2_runaway");
     unsafe = true;
   }
 
   if (motor1_status_.overcurrent) {
-    safety_reasons += "motor1_overcurrent ";
+    append_reason("motor1_overcurrent");
     unsafe = true;
   }
 
   if (motor2_status_.overcurrent) {
-    safety_reasons += "motor2_overcurrent ";
+    append_reason("motor2_overcurrent");
     unsafe = true;
   }
 
   if (!motor1_status_.communication_ok) {
-    safety_reasons += "motor1_comm_fail ";
+    append_reason("motor1_comm_fail");
     unsafe = true;
   }
 
   if (!motor2_status_.communication_ok) {
-    safety_reasons += "motor2_comm_fail ";
+    append_reason("motor2_comm_fail");
     unsafe = true;
   }
 
@@ -288,15 +299,28 @@ bool RoboClawMonitor::isUnsafe() {
                          (error & static_cast<uint32_t>(RoboClawError::M2_CURRENT_ERROR));
 
   if (roboclaw_unsafe) {
-    String error_details = decodeErrorStatus(error);
-    safety_reasons += "roboclaw_hw_error[" + error_details + "] ";
+    char error_details[256] = {0};
+    decodeErrorStatus(error, error_details, sizeof(error_details));
+    const size_t len = strlen(safety_reasons);
+    if (len < (sizeof(safety_reasons) - 1)) {
+      const size_t remaining = sizeof(safety_reasons) - len - 1;
+      const char* prefix = "roboclaw_hw_error[";
+      const char* suffix = "] ";
+      const size_t overhead = strlen(prefix) + strlen(suffix);
+
+      const int max_detail = (remaining > overhead) ? static_cast<int>(remaining - overhead) : 0;
+      if (max_detail > 0) {
+        snprintf(safety_reasons + len, remaining + 1, "roboclaw_hw_error[%.*s] ", max_detail, error_details);
+      }
+    }
     unsafe = true;
   }
 
   // Log safety status if unsafe condition detected
-  if (unsafe && safety_reasons.length() > 0) {
-    SerialManager::getInstance().sendDiagnosticMessage(
-        "WARN", name(), ("Unsafe condition detected - reasons: " + safety_reasons).c_str());
+  if (unsafe && (safety_reasons[0] != '\0')) {
+    char msg[320] = {0};
+    snprintf(msg, sizeof(msg), "Unsafe condition detected - reasons: %s", safety_reasons);
+    SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg);
   }
 
   return unsafe;
@@ -356,8 +380,10 @@ void RoboClawMonitor::clearEmergencyStop() {
       "INFO", name(), "Clearing emergency stop command received, attempting to clear E-stop");
   digitalWrite(ESTOP_OUTPUT_PIN, HIGH);  // Deactivate E-stop.
   emergency_stop_active_ = false;
-  SerialManager::getInstance().sendDiagnosticMessage(
-      "INFO", name(), ("active:false,source:ROBOCLAW,reason:Emergency stop cleared, time:" + String(millis())).c_str());
+  char msg[128] = {0};
+  snprintf(msg, sizeof(msg), "active:false,source:ROBOCLAW,reason:Emergency stop cleared,time:%lu",
+           static_cast<unsigned long>(millis()));
+  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
 }
 
 void RoboClawMonitor::setEmergencyStop() {
@@ -371,8 +397,9 @@ void RoboClawMonitor::setEmergencyStop() {
   // If we *can't* assert a real E-stop line to the RoboClaw, best-effort stop.
   setMotorSpeeds(0, 0);
 #endif
-  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(),
-                                                     ("Emergency stop activated, time:" + String(millis())).c_str());
+  char msg[96] = {0};
+  snprintf(msg, sizeof(msg), "Emergency stop activated,time:%lu", static_cast<unsigned long>(millis()));
+  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
 }
 
 void RoboClawMonitor::resetErrors() {
@@ -406,8 +433,11 @@ void RoboClawMonitor::resetErrors() {
       if (error_status == 0) {
         SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Error cleared successfully");
       } else {
-        String msg = "Errors remain after reset: " + decodeErrorStatus(error_status);
-        SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg.c_str());
+        char decoded[256] = {0};
+        decodeErrorStatus(error_status, decoded, sizeof(decoded));
+        char msg[320] = {0};
+        snprintf(msg, sizeof(msg), "Errors remain after reset: %s", decoded);
+        SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg);
       }
       system_status_.error_status = error_status;
     }
@@ -453,11 +483,10 @@ bool RoboClawMonitor::initializeRoboClaw() {
     uint32_t m2_max_current;
     roboclaw_->ReadM1MaxCurrent(config_.address, m1_max_current);
     roboclaw_->ReadM2MaxCurrent(config_.address, m2_max_current);
-    SerialManager::getInstance().sendDiagnosticMessage(
-        "INFO", name(),
-        ("Max current limits set - M1: " + String(m1_max_current / 100.0f) +
-         "A, M2: " + String(m2_max_current / 100.0f) + "A")
-            .c_str());
+    char msg[128] = {0};
+    snprintf(msg, sizeof(msg), "Max current limits set - M1: %.2fA, M2: %.2fA",
+             static_cast<double>(m1_max_current / 100.0f), static_cast<double>(m2_max_current / 100.0f));
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
   }
 
   // Set PID values (ported from legacy code)
@@ -492,12 +521,14 @@ bool RoboClawMonitor::testCommunication() {
   if (success) {
     // Check if version matches expected
     if (strstr(version, "Roboclaw") != nullptr) {
-      String msg = "Version check passed: " + String(version);
-      SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg.c_str());
+      char msg[96] = {0};
+      snprintf(msg, sizeof(msg), "Version check passed: %s", version);
+      SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
       return true;
     } else {
-      String msg = "Unexpected version: " + String(version);
-      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg.c_str());
+      char msg[96] = {0};
+      snprintf(msg, sizeof(msg), "Unexpected version: %s", version);
+      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg);
 
       // Safety: if we can't positively identify the controller, stop motion.
       SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, name(),
@@ -798,8 +829,10 @@ void RoboClawMonitor::updateCriticalMotorStatus() {
   uint32_t now = millis();
   if (now - last_fail_report > 10000) {  // Every 10 seconds
     if (encoder_fail_count_m1 > 0 || encoder_fail_count_m2 > 0) {
-      String msg = "Encoder fails - M1:" + String(encoder_fail_count_m1) + " M2:" + String(encoder_fail_count_m2);
-      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg.c_str());
+      char msg[96] = {0};
+      snprintf(msg, sizeof(msg), "Encoder fails - M1:%lu M2:%lu", static_cast<unsigned long>(encoder_fail_count_m1),
+               static_cast<unsigned long>(encoder_fail_count_m2));
+      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg);
 
       // TODO(wimble): Escalate encoder read failures via SafetyCoordinator.
       // Example: small consecutive count => WARNING; larger => EMERGENCY_STOP.
@@ -827,8 +860,9 @@ void RoboClawMonitor::updateOdometry() {
     static uint32_t last_log_time = 0;
     uint32_t now = millis();
     if (now - last_log_time > 5000) {  // Log every 5 seconds
-      String msg = "ODOM: Skipping - not connected, state=" + String(static_cast<int>(connection_state_));
-      SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), msg.c_str());
+      char msg[96] = {0};
+      snprintf(msg, sizeof(msg), "ODOM: Skipping - not connected, state=%d", static_cast<int>(connection_state_));
+      SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), msg);
       last_log_time = now;
     }
     return;
@@ -855,8 +889,9 @@ void RoboClawMonitor::updateOdometry() {
     static uint32_t last_dt_log = 0;
     uint32_t now = millis();
     if (now - last_dt_log > 10000) {  // Log every 10 seconds
-      String msg = "ODOM: Skipping - dt too small=" + String(dt_s, 6) + "s";
-      SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), msg.c_str());
+      char msg[96] = {0};
+      snprintf(msg, sizeof(msg), "ODOM: Skipping - dt too small=%.6fs", static_cast<double>(dt_s));
+      SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), msg);
       last_dt_log = now;
     }
     return;
@@ -868,8 +903,9 @@ void RoboClawMonitor::updateOdometry() {
     static uint32_t last_reset_log = 0;
     uint32_t now = millis();
     if (now - last_reset_log > 5000) {  // Log every 5 seconds
-      String msg = "ODOM: Reset timing - dt was " + String(dt_s, 6) + "s (system overload)";
-      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg.c_str());
+      char msg[128] = {0};
+      snprintf(msg, sizeof(msg), "ODOM: Reset timing - dt was %.6fs (system overload)", static_cast<double>(dt_s));
+      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg);
       last_reset_log = now;
     }
 
@@ -898,9 +934,11 @@ void RoboClawMonitor::updateOdometry() {
     enc_fail_count++;
 
     if (now - last_enc_log > 2000) {  // Log every 2 seconds
-      String msg = "ODOM: Encoder invalid - M1:" + String(motor1_status_.encoder_valid ? "OK" : "FAIL") +
-                   " M2:" + String(motor2_status_.encoder_valid ? "OK" : "FAIL") + " fails:" + String(enc_fail_count);
-      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg.c_str());
+      char msg[128] = {0};
+      snprintf(msg, sizeof(msg), "ODOM: Encoder invalid - M1:%s M2:%s fails:%lu",
+               motor1_status_.encoder_valid ? "OK" : "FAIL", motor2_status_.encoder_valid ? "OK" : "FAIL",
+               static_cast<unsigned long>(enc_fail_count));
+      SerialManager::getInstance().sendDiagnosticMessage("WARN", name(), msg);
       last_enc_log = now;
       enc_fail_count = 0;
     }
@@ -978,9 +1016,10 @@ void RoboClawMonitor::updateOdometry() {
 
   uint32_t now = millis();
   if (now - last_health_report > 30000) {  // Every 30 seconds
-    String msg =
-        "ODOM: Sent " + String(odom_sent_count) + " messages in 30s, freq=" + String(odom_sent_count / 30.0f, 1) + "Hz";
-    SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), msg.c_str());
+    char msg[128] = {0};
+    snprintf(msg, sizeof(msg), "ODOM: Sent %lu messages in 30s, freq=%.1fHz", static_cast<unsigned long>(odom_sent_count),
+             static_cast<double>(odom_sent_count / 30.0f));
+    SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), msg);
     last_health_report = now;
     odom_sent_count = 0;
   }
@@ -1047,18 +1086,21 @@ void RoboClawMonitor::checkSafetyConditions() {
 
   // RoboClaw internal temperature safety.
   if (!std::isnan(system_status_.temperature_c) && system_status_.temperature_c >= config_.roboclaw_temp_fault_c) {
+    char desc[128] = {0};
+    snprintf(desc, sizeof(desc), "RoboClaw over-temperature fault: %.1fC", static_cast<double>(system_status_.temperature_c));
     SafetyCoordinator::getInstance().activateFault(
-        FaultSeverity::EMERGENCY_STOP, name(),
-        ("RoboClaw over-temperature fault: " + String(system_status_.temperature_c, 1) + "C").c_str());
+        FaultSeverity::EMERGENCY_STOP, name(), desc);
     setEmergencyStop();
   }
 
   // RoboClaw fatal error bits.
   if ((system_status_.error_status & kFatalRoboclawErrorMask) != 0) {
-    String decoded = decodeErrorStatus(system_status_.error_status);
+    char decoded[256] = {0};
+    decodeErrorStatus(system_status_.error_status, decoded, sizeof(decoded));
+    char desc[320] = {0};
+    snprintf(desc, sizeof(desc), "RoboClaw reported fatal error bits: %s", decoded);
     SafetyCoordinator::getInstance().activateFault(
-        FaultSeverity::EMERGENCY_STOP, name(),
-        ("RoboClaw reported fatal error bits: " + decoded).c_str());
+      FaultSeverity::EMERGENCY_STOP, name(), desc);
     setEmergencyStop();
 
     if (isPowerCycleLikelyRequired(system_status_.error_status)) {
@@ -1080,9 +1122,11 @@ void RoboClawMonitor::checkSafetyConditions() {
 
     // Rate-limited ESTOP message
     if (now - last_estop_msg_time >= config_.estop_msg_interval_ms) {
-      String msg = "active:true,source:ROBOCLAW_CURRENT,reason:Motor 1 overcurrent," + String("value:") +
-                   String(motor1_status_.current_amps) + ",manual_reset:false,time:" + String(millis());
-      SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", "RoboClaw", msg.c_str());
+      char msg[192] = {0};
+      snprintf(msg, sizeof(msg),
+               "active:true,source:ROBOCLAW_CURRENT,reason:Motor 1 overcurrent,value:%.2f,manual_reset:false,time:%lu",
+               static_cast<double>(motor1_status_.current_amps), static_cast<unsigned long>(millis()));
+      SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", "RoboClaw", msg);
       last_estop_msg_time = now;
     }
   }
@@ -1100,9 +1144,11 @@ void RoboClawMonitor::checkSafetyConditions() {
 
     // Rate-limited ESTOP message
     if (now - last_estop_msg_time >= config_.estop_msg_interval_ms) {
-      String msg = "active:true,source:ROBOCLAW_CURRENT,reason:Motor 2 overcurrent," + String("value:") +
-                   String(motor2_status_.current_amps) + ",manual_reset:false,time:" + String(millis());
-      SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", "RoboClaw", msg.c_str());
+      char msg[192] = {0};
+      snprintf(msg, sizeof(msg),
+               "active:true,source:ROBOCLAW_CURRENT,reason:Motor 2 overcurrent,value:%.2f,manual_reset:false,time:%lu",
+               static_cast<double>(motor2_status_.current_amps), static_cast<unsigned long>(millis()));
+      SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", "RoboClaw", msg);
       last_estop_msg_time = now;
     }
   }
@@ -1138,9 +1184,11 @@ void RoboClawMonitor::detectMotorRunaway() {
 
     // Rate-limited ESTOP message
     if (now - last_runaway_msg_time >= config_.runaway_msg_interval_ms) {
-      String msg = "active:true,source:MOTOR_RUNAWAY,reason:Motor 1 runaway detected," + String("value:") +
-                   String(motor1_status_.speed_qpps) + ",manual_reset:false,time:" + String(millis());
-      SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg.c_str());
+      char msg[160] = {0};
+      snprintf(msg, sizeof(msg),
+               "active:true,source:MOTOR_RUNAWAY,reason:Motor 1 runaway detected,value:%ld,manual_reset:false,time:%lu",
+               static_cast<long>(motor1_status_.speed_qpps), static_cast<unsigned long>(millis()));
+      SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg);
       last_runaway_msg_time = now;
     }
   }
@@ -1158,9 +1206,11 @@ void RoboClawMonitor::detectMotorRunaway() {
 
     // Rate-limited ESTOP message
     if (now - last_runaway_msg_time >= config_.runaway_msg_interval_ms) {
-      String msg = "active:true,source:MOTOR_RUNAWAY,reason:Motor 2 runaway detected," + String("value:") +
-                   String(motor2_status_.speed_qpps) + ",manual_reset:false,time:" + String(millis());
-      SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg.c_str());
+      char msg[160] = {0};
+      snprintf(msg, sizeof(msg),
+               "active:true,source:MOTOR_RUNAWAY,reason:Motor 2 runaway detected,value:%ld,manual_reset:false,time:%lu",
+               static_cast<long>(motor2_status_.speed_qpps), static_cast<unsigned long>(millis()));
+      SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg);
       last_runaway_msg_time = now;
     }
   }
@@ -1170,20 +1220,21 @@ void RoboClawMonitor::detectMotorRunaway() {
 
 void RoboClawMonitor::sendStatusReports() {
   // Send ROBOCLAW status message (JSON format)
-  String status_msg = "{";
-  status_msg += "\"LogicVoltage\":" + String(system_status_.logic_battery_voltage, 1);
-  status_msg += ",\"MainVoltage\":" + String(system_status_.main_battery_voltage, 1);
-  status_msg += ",\"Encoder_Left\":" + String(motor1_status_.encoder_count);
-  status_msg += ",\"Encoder_Right\":" + String(motor2_status_.encoder_count);
-  status_msg += ",\"LeftMotorCurrent\":" + String(motor1_status_.current_amps, 3);
-  status_msg += ",\"RightMotorCurrent\":" + String(motor2_status_.current_amps, 3);
-  status_msg += ",\"LeftMotorSpeed\":" + String(motor1_status_.speed_qpps);
-  status_msg += ",\"RightMotorSpeed\":" + String(motor2_status_.speed_qpps);
-  status_msg += ",\"Error\":" + String(system_status_.error_status, HEX);
-  status_msg += ",\"ErrorDecoded\":\"" + decodeErrorStatus(system_status_.error_status) + "\"";
-  status_msg += "}";
+  char decoded[256] = {0};
+  decodeErrorStatus(system_status_.error_status, decoded, sizeof(decoded));
 
-  SerialManager::getInstance().sendMessage("ROBOCLAW", status_msg.c_str());
+  char status_msg[512] = {0};
+  snprintf(status_msg, sizeof(status_msg),
+           "{\"LogicVoltage\":%.1f,\"MainVoltage\":%.1f,\"Encoder_Left\":%ld,\"Encoder_Right\":%ld,"
+           "\"LeftMotorCurrent\":%.3f,\"RightMotorCurrent\":%.3f,\"LeftMotorSpeed\":%ld,\"RightMotorSpeed\":%ld,"
+           "\"Error\":\"%lX\",\"ErrorDecoded\":\"%s\"}",
+           static_cast<double>(system_status_.logic_battery_voltage), static_cast<double>(system_status_.main_battery_voltage),
+           static_cast<long>(motor1_status_.encoder_count), static_cast<long>(motor2_status_.encoder_count),
+           static_cast<double>(motor1_status_.current_amps), static_cast<double>(motor2_status_.current_amps),
+           static_cast<long>(motor1_status_.speed_qpps), static_cast<long>(motor2_status_.speed_qpps),
+           static_cast<unsigned long>(system_status_.error_status), decoded);
+
+  SerialManager::getInstance().sendMessage("ROBOCLAW", status_msg);
 
   // Auto-recovery for latched overcurrent errors when current is actually low
   if (system_status_.error_status != 0) {
@@ -1212,167 +1263,91 @@ void RoboClawMonitor::sendStatusReports() {
 
 void RoboClawMonitor::sendDiagnosticReports() {
   // Send diagnostic information
-  String diag_msg = "commands:" + String(total_commands_sent_);
-  diag_msg += ",errors:" + String(total_communication_errors_);
-  diag_msg += ",safety_violations:" + String(total_safety_violations_);
-  diag_msg += ",connection_state:" + String(static_cast<int>(connection_state_));
-  diag_msg += ",emergency_stop:" + String(emergency_stop_active_ ? "true" : "false");
-
-  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), ("Diagnostic report,details:" + diag_msg).c_str());
+  char diag_msg[256] = {0};
+  snprintf(diag_msg, sizeof(diag_msg),
+           "Diagnostic report,details:commands:%lu,errors:%lu,safety_violations:%lu,connection_state:%d,emergency_stop:%s",
+           static_cast<unsigned long>(total_commands_sent_), static_cast<unsigned long>(total_communication_errors_),
+           static_cast<unsigned long>(total_safety_violations_), static_cast<int>(connection_state_),
+           emergency_stop_active_ ? "true" : "false");
+  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), diag_msg);
 }
 
-String RoboClawMonitor::decodeErrorStatus(uint32_t error_status) const {
+void RoboClawMonitor::decodeErrorStatus(uint32_t error_status, char* out, size_t out_len) const {
+  if (!out || out_len == 0) {
+    return;
+  }
+  out[0] = '\0';
+
   if (error_status == 0) {
-    return "No errors";
+    snprintf(out, out_len, "%s", "No errors");
+    return;
   }
 
-  String errors = "";
   bool first = true;
+  auto append = [&](const char* token) {
+    if (!token) {
+      return;
+    }
+    const size_t len = strlen(out);
+    if (len >= (out_len - 1)) {
+      return;
+    }
+    if (!first) {
+      snprintf(out + len, out_len - len, ", %s", token);
+    } else {
+      snprintf(out + len, out_len - len, "%s", token);
+      first = false;
+    }
+  };
 
   // Check each error bit and add description
-  if (error_status & static_cast<uint32_t>(RoboClawError::E_STOP)) {
-    if (!first) errors += ", ";
-    errors += "E_STOP";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::E_STOP)) append("E_STOP");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::TEMPERATURE_ERROR)) {
-    if (!first) errors += ", ";
-    errors += "TEMPERATURE_ERROR";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::TEMPERATURE_ERROR)) append("TEMPERATURE_ERROR");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::TEMPERATURE2_ERROR)) {
-    if (!first) errors += ", ";
-    errors += "TEMPERATURE2_ERROR";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::TEMPERATURE2_ERROR)) append("TEMPERATURE2_ERROR");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::MAIN_BATTERY_HIGH_ERROR)) {
-    if (!first) errors += ", ";
-    errors += "MAIN_BATTERY_HIGH_ERROR";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::MAIN_BATTERY_HIGH_ERROR)) append("MAIN_BATTERY_HIGH_ERROR");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::LOGIC_VOLTAGE_HIGH_ERROR)) {
-    if (!first) errors += ", ";
-    errors += "LOGIC_VOLTAGE_HIGH_ERROR";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::LOGIC_VOLTAGE_HIGH_ERROR)) append("LOGIC_VOLTAGE_HIGH_ERROR");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::LOGIC_VOLTAGE_LOW_ERROR)) {
-    if (!first) errors += ", ";
-    errors += "LOGIC_VOLTAGE_LOW_ERROR";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::LOGIC_VOLTAGE_LOW_ERROR)) append("LOGIC_VOLTAGE_LOW_ERROR");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::M1_DRIVER_FAULT_ERROR)) {
-    if (!first) errors += ", ";
-    errors += "M1_DRIVER_FAULT_ERROR";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::M1_DRIVER_FAULT_ERROR)) append("M1_DRIVER_FAULT_ERROR");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::M2_DRIVER_FAULT_ERROR)) {
-    if (!first) errors += ", ";
-    errors += "M2_DRIVER_FAULT_ERROR";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::M2_DRIVER_FAULT_ERROR)) append("M2_DRIVER_FAULT_ERROR");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::M1_SPEED_ERROR)) {
-    if (!first) errors += ", ";
-    errors += "M1_SPEED_ERROR";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::M1_SPEED_ERROR)) append("M1_SPEED_ERROR");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::M2_SPEED_ERROR)) {
-    if (!first) errors += ", ";
-    errors += "M2_SPEED_ERROR";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::M2_SPEED_ERROR)) append("M2_SPEED_ERROR");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::M1_POSITION_ERROR)) {
-    if (!first) errors += ", ";
-    errors += "M1_POSITION_ERROR";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::M1_POSITION_ERROR)) append("M1_POSITION_ERROR");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::M2_POSITION_ERROR)) {
-    if (!first) errors += ", ";
-    errors += "M2_POSITION_ERROR";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::M2_POSITION_ERROR)) append("M2_POSITION_ERROR");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::M1_CURRENT_ERROR)) {
-    if (!first) errors += ", ";
-    errors += "M1_CURRENT_ERROR";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::M1_CURRENT_ERROR)) append("M1_CURRENT_ERROR");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::M2_CURRENT_ERROR)) {
-    if (!first) errors += ", ";
-    errors += "M2_CURRENT_ERROR";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::M2_CURRENT_ERROR)) append("M2_CURRENT_ERROR");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::M1_OVERCURRENT_WARNING)) {
-    if (!first) errors += ", ";
-    errors += "M1_OVERCURRENT_WARNING";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::M1_OVERCURRENT_WARNING)) append("M1_OVERCURRENT_WARNING");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::M2_OVERCURRENT_WARNING)) {
-    if (!first) errors += ", ";
-    errors += "M2_OVERCURRENT_WARNING";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::M2_OVERCURRENT_WARNING)) append("M2_OVERCURRENT_WARNING");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::MAIN_VOLTAGE_HIGH_WARNING)) {
-    if (!first) errors += ", ";
-    errors += "MAIN_VOLTAGE_HIGH_WARNING";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::MAIN_VOLTAGE_HIGH_WARNING)) append("MAIN_VOLTAGE_HIGH_WARNING");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::MAIN_VOLTAGE_LOW_WARNING)) {
-    if (!first) errors += ", ";
-    errors += "MAIN_VOLTAGE_LOW_WARNING";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::MAIN_VOLTAGE_LOW_WARNING)) append("MAIN_VOLTAGE_LOW_WARNING");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::TEMPERATURE_WARNING)) {
-    if (!first) errors += ", ";
-    errors += "TEMPERATURE_WARNING";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::TEMPERATURE_WARNING)) append("TEMPERATURE_WARNING");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::TEMPERATURE_2_WARNING)) {
-    if (!first) errors += ", ";
-    errors += "TEMPERATURE_2_WARNING";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::TEMPERATURE_2_WARNING)) append("TEMPERATURE_2_WARNING");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::S4_SIGNAL_TRIGGERED)) {
-    if (!first) errors += ", ";
-    errors += "S4_SIGNAL_TRIGGERED";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::S4_SIGNAL_TRIGGERED)) append("S4_SIGNAL_TRIGGERED");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::S5_SIGNAL_TRIGGERED)) {
-    if (!first) errors += ", ";
-    errors += "S5_SIGNAL_TRIGGERED";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::S5_SIGNAL_TRIGGERED)) append("S5_SIGNAL_TRIGGERED");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::SPEED_ERROR_LIMIT_WARNING)) {
-    if (!first) errors += ", ";
-    errors += "SPEED_ERROR_LIMIT_WARNING";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::SPEED_ERROR_LIMIT_WARNING)) append("SPEED_ERROR_LIMIT_WARNING");
 
-  if (error_status & static_cast<uint32_t>(RoboClawError::POSITION_ERROR_LIMIT_WARNING)) {
-    if (!first) errors += ", ";
-    errors += "POSITION_ERROR_LIMIT_WARNING";
-    first = false;
-  }
+  if (error_status & static_cast<uint32_t>(RoboClawError::POSITION_ERROR_LIMIT_WARNING)) append("POSITION_ERROR_LIMIT_WARNING");
 
   // Check for unknown error bits
   uint32_t known_errors =
@@ -1400,11 +1375,10 @@ String RoboClawMonitor::decodeErrorStatus(uint32_t error_status) const {
 
   uint32_t unknown_errors = error_status & ~known_errors;
   if (unknown_errors != 0) {
-    if (!first) errors += ", ";
-    errors += "UNKNOWN_ERROR_BITS:0x" + String(unknown_errors, HEX);
+    char token[32] = {0};
+    snprintf(token, sizeof(token), "UNKNOWN_ERROR_BITS:0x%lX", static_cast<unsigned long>(unknown_errors));
+    append(token);
   }
-
-  return errors;
 }
 
 }  // namespace sigyn_teensy

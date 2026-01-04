@@ -9,19 +9,30 @@
 
 namespace sigyn_teensy {
 
-  static StepperMotor* g_instance = nullptr;
-
   StepperMotor& StepperMotor::getInstance() {
-    if (!g_instance) {
-      g_instance = new StepperMotor();
-    }
-    return *g_instance;
+    static StepperMotor instance;
+    return instance;
   }
 
-  StepperMotor::StepperMotor() : Module(), serial_(SerialManager::getInstance()) {
-    // Construct motors now
-    elevator_ = createMotor(true);
-    extender_ = createMotor(false);
+  StepperMotor::StepperMotor()
+      : Module(),
+        serial_(SerialManager::getInstance()),
+        elevator_(Motor::kElevatorBottomLimitSwitchPin,
+                  Motor::kElevatorStepDirectionPin,
+                  Motor::kElevatorStepPulsePin,
+                  Motor::kElevatorTopLimitSwitchPin,
+                  /*max_up*/ 0.90f,
+                  /*min_down*/ 0.0f,
+                  /*travel_m_per_pulse*/ (1.0f / 5544.0f),
+                  /*reverse*/ false),
+        extender_(Motor::kExtenderInLimitSwitchPin,
+                  Motor::kExtenderStepDirectionPin,
+                  Motor::kExtenderStepPulsePin,
+                  Motor::kExtenderOutLimitSwitchPin,
+                  /*max_out*/ 0.342f,
+                  /*min_in*/ 0.0f,
+                  /*travel_m_per_pulse*/ (1.0f / 6683.0f),
+                  /*reverse*/ true) {
   }
 
   void StepperMotor::setup() {
@@ -32,8 +43,8 @@ namespace sigyn_teensy {
   void StepperMotor::loop() {
     static bool homed = false;
     if (!homed) {
-      if (elevator_) elevator_->home();
-      if (extender_) extender_->home();
+      elevator_.home();
+      extender_.home();
       homed = true;
     }
 
@@ -43,8 +54,8 @@ namespace sigyn_teensy {
       handleTwistMessage(twist_data);
     }
 
-    if (elevator_) elevator_->continueOutstandingMovementRequests();
-    if (extender_) extender_->continueOutstandingMovementRequests();
+    elevator_.continueOutstandingMovementRequests();
+    extender_.continueOutstandingMovementRequests();
   }
 
   void StepperMotor::handleTwistMessage(const char* data) {
@@ -68,18 +79,18 @@ namespace sigyn_teensy {
 
     // Move in very small increments per command
     const float kStep = 0.001f; // meters
-    if (linear_x > 0.0f && elevator_) {
-      elevator_->setTargetPosition(elevator_->getCurrentPosition() + kStep);
+    if (linear_x > 0.0f) {
+      elevator_.setTargetPosition(elevator_.getCurrentPosition() + kStep);
     }
-    else if (linear_x < 0.0f && elevator_) {
-      elevator_->setTargetPosition(elevator_->getCurrentPosition() - kStep);
+    else if (linear_x < 0.0f) {
+      elevator_.setTargetPosition(elevator_.getCurrentPosition() - kStep);
     }
 
-    if (angular_z > 0.0f && extender_) {
-      extender_->setTargetPosition(extender_->getCurrentPosition() + kStep);
+    if (angular_z > 0.0f) {
+      extender_.setTargetPosition(extender_.getCurrentPosition() + kStep);
     }
-    else if (angular_z < 0.0f && extender_) {
-      extender_->setTargetPosition(extender_->getCurrentPosition() - kStep);
+    else if (angular_z < 0.0f) {
+      extender_.setTargetPosition(extender_.getCurrentPosition() - kStep);
     }
   }
 
@@ -174,29 +185,6 @@ namespace sigyn_teensy {
       remaining_pulses_++;
     }
     if (remaining_pulses_ == 0) pending_movement_command_ = false;
-  }
-
-  StepperMotor::Motor* StepperMotor::createMotor(bool elevator) {
-    if (elevator) {
-      // 5544 pulses per meter (from legacy); 1/5544 m per pulse
-      return new Motor(Motor::kElevatorBottomLimitSwitchPin,
-        Motor::kElevatorStepDirectionPin,
-        Motor::kElevatorStepPulsePin,
-        Motor::kElevatorTopLimitSwitchPin,
-        /*max_up*/ 0.90f, /*min_down*/ 0.0f,
-        /*travel_m_per_pulse*/ (1.0f / 5544.0f),
-        /*reverse*/ false);
-    }
-    else {
-      // 6683 pulses per meter
-      return new Motor(Motor::kExtenderInLimitSwitchPin,
-        Motor::kExtenderStepDirectionPin,
-        Motor::kExtenderStepPulsePin,
-        Motor::kExtenderOutLimitSwitchPin,
-        /*max_out*/ 0.342f, /*min_in*/ 0.0f,
-        /*travel_m_per_pulse*/ (1.0f / 6683.0f),
-        /*reverse*/ true);
-    }
   }
 
 }  // namespace sigyn_teensy

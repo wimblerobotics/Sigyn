@@ -116,11 +116,14 @@ SDLogger* sd_logger;
  */
 void fault_handler() {
   if (serial_manager) {
-    const String fault_msg = "CRITICAL FAULT: Board " + String(BOARD_ID) + " system fault detected";
-    serial_manager->sendDiagnosticMessage("FAULT", "board2_main", fault_msg.c_str());
+    char fault_msg[96] = {0};
+    snprintf(fault_msg, sizeof(fault_msg), "CRITICAL FAULT: Board %d system fault detected", BOARD_ID);
+    serial_manager->sendDiagnosticMessage("FAULT", "board2_main", fault_msg);
 
-    const String details = "type=system,board=" + String(BOARD_ID) + ",time=" + String(millis());
-    serial_manager->sendDiagnosticMessage("FATAL", "board2_main", details.c_str());
+    char details[96] = {0};
+    snprintf(details, sizeof(details), "type=system,board=%d,time=%lu", BOARD_ID,
+             static_cast<unsigned long>(millis()));
+    serial_manager->sendDiagnosticMessage("FATAL", "board2_main", details);
   }
 
   // Halt system
@@ -228,7 +231,11 @@ void setup() {
   // Initialize all registered modules
   Module::setupAll();
 
- SerialManager::getInstance().sendDiagnosticMessage("INFO", "board2", ("===== Board " + String(BOARD_ID) + " Initialization Complete =====").c_str());
+  {
+    char msg[96] = {0};
+    snprintf(msg, sizeof(msg), "===== Board %d Initialization Complete =====", BOARD_ID);
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", "board2", msg);
+  }
 
   // Print enabled features for this board
  SerialManager::getInstance().sendDiagnosticMessage("INFO", "board2", "Enabled features:");
