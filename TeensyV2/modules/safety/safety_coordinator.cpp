@@ -244,7 +244,8 @@ void SafetyCoordinator::setEstopCommand(const char* command) {
   } else if (command != nullptr && strstr(command, "reset=true") != nullptr) {
     SerialManager::getInstance().sendDiagnosticMessage(
         "INFO", name(), "Software E-stop reset command received, attempting to clear E-stop");
-    deactivateFault(name());
+    // Perform a global safety reset to clear all faults (including latched hardware faults)
+    Module::resetAllSafetyFlags();
   }
 }
 

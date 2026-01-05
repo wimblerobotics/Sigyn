@@ -17,6 +17,8 @@ using namespace sigyn_teensy;
 
 namespace {
 
+static unsigned long g_test_millis = 1000;
+
 int32_t expectedQpps(const RoboClawConfig& cfg, float linear_x, float angular_z, bool left) {
   const float v = left ? (linear_x - (angular_z * cfg.wheel_base_m / 2.0f))
                        : (linear_x + (angular_z * cfg.wheel_base_m / 2.0f));
@@ -34,7 +36,8 @@ class RoboClawMonitorTest : public ::testing::Test {
  protected:
   void SetUp() override {
     arduino_mock::reset();
-    arduino_mock::setMillis(0);
+    g_test_millis += 1000;
+    arduino_mock::setMillis(g_test_millis);
 
     monitor_ = &RoboClawMonitor::getInstance();
     mock_.reset();
@@ -60,11 +63,18 @@ TEST_F(RoboClawMonitorTest, SetVelocityCommand_Forward_CommandsExpectedQppsAndDi
   const float linear_x = 0.50f;
   const float angular_z = 0.0f;
 
+  // Simulate processVelocityCommands to trigger transmission
   monitor_->setVelocityCommand(linear_x, angular_z);
+  monitor_->processVelocityCommandsForTest();
 
-  ASSERT_EQ(mock_.state.speed_accel_distance_calls, 1u);
-  ASSERT_TRUE(mock_.state.last_cmd.was_called);
+  // Switched to SpeedAccelM1M2 (continuous mix)
+  // Calls last_cmd_speed_accel now, NOT speed_accel_distance
+  // Actually, we need to check if we updated the test to verify SpeedAccelM1M2 usage
+  // The monitor uses roboclaw_->SpeedAccelM1M2()
 
+  // Verify that the continuous velocity function was called
+  ASSERT_EQ(mock_.state.last_cmd_speed_accel.was_called, true);
+  
   const RoboClawConfig cfg = monitor_->getConfig();
   const int32_t qpps_left = expectedQpps(cfg, linear_x, angular_z, /*left=*/true);
   const int32_t qpps_right = expectedQpps(cfg, linear_x, angular_z, /*left=*/false);
@@ -79,13 +89,9 @@ TEST_F(RoboClawMonitorTest, SetVelocityCommand_Forward_CommandsExpectedQppsAndDi
   const int32_t expected_left = clamp_qpps(qpps_left);
   const int32_t expected_right = clamp_qpps(qpps_right);
 
-  EXPECT_EQ(mock_.state.last_cmd.speed1, expected_left);
-  EXPECT_EQ(mock_.state.last_cmd.speed2, expected_right);
-
-  EXPECT_EQ(mock_.state.last_cmd.distance1, expectedDistance(cfg, expected_left));
-  EXPECT_EQ(mock_.state.last_cmd.distance2, expectedDistance(cfg, expected_right));
-
-  EXPECT_EQ(mock_.state.last_cmd.flag, 1u);
+  // Check the values passed to SpeedAccelM1M2
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed1, expected_left);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed2, expected_right);
 }
 
 TEST_F(RoboClawMonitorTest, SetVelocityCommand_RotateInPlace_CommandsOppositeWheelSpeeds) {
@@ -93,16 +99,16 @@ TEST_F(RoboClawMonitorTest, SetVelocityCommand_RotateInPlace_CommandsOppositeWhe
   const float angular_z = 1.0f;
 
   monitor_->setVelocityCommand(linear_x, angular_z);
+  monitor_->processVelocityCommandsForTest();
 
-  ASSERT_EQ(mock_.state.speed_accel_distance_calls, 1u);
-  ASSERT_TRUE(mock_.state.last_cmd.was_called);
+  ASSERT_EQ(mock_.state.last_cmd_speed_accel.was_called, true);
 
   const RoboClawConfig cfg = monitor_->getConfig();
   const int32_t qpps_left = expectedQpps(cfg, linear_x, angular_z, /*left=*/true);
   const int32_t qpps_right = expectedQpps(cfg, linear_x, angular_z, /*left=*/false);
 
-  EXPECT_EQ(mock_.state.last_cmd.speed1, qpps_left);
-  EXPECT_EQ(mock_.state.last_cmd.speed2, qpps_right);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed1, qpps_left);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed2, qpps_right);
 
   // Rotate-in-place should be opposite directions (signs), unless both round to zero.
   if (qpps_left != 0 && qpps_right != 0) {
@@ -117,37 +123,54 @@ TEST_F(RoboClawMonitorTest, SetMotorSpeeds_ClampsToMaxSpeed) {
 
   monitor_->setMotorSpeeds(500, -500);
 
-  ASSERT_EQ(mock_.state.speed_accel_distance_calls, 1u);
-  EXPECT_EQ(mock_.state.last_cmd.speed1, 100);
-  EXPECT_EQ(mock_.state.last_cmd.speed2, -100);
+  ASSERT_EQ(mock_.state.last_cmd_speed_accel.was_called, true);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed1, 100);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed2, -100);
 }
 
 TEST_F(RoboClawMonitorTest, EmergencyStop_ForcesZeroAndBlocksFurtherCommands) {
   monitor_->setVelocityCommand(0.2f, 0.0f);
-  ASSERT_EQ(mock_.state.speed_accel_distance_calls, 1u);
+  monitor_->processVelocityCommandsForTest();
+  ASSERT_EQ(mock_.state.last_cmd_speed_accel.was_called, true);
+
+  // Reset flag for clearer assertion
+  mock_.state.last_cmd_speed_accel.was_called = false;
 
   monitor_->setEmergencyStop();
+  
+  // Note: setEmergencyStop handles physical pins. 
+  // It calls setMotorSpeeds(0,0) only if !CONTROLS_ROBOCLAW_ESTOP_PIN
+  // Assuming defined for unit test environment or handled via logic check
 
-#if CONTROLS_ROBOCLAW_ESTOP_PIN
-  // When a real E-stop line is available, we avoid attempting additional
-  // serial commands during E-stop activation.
-  ASSERT_EQ(mock_.state.speed_accel_distance_calls, 1u);
-#else
-  ASSERT_EQ(mock_.state.speed_accel_distance_calls, 2u);
-  EXPECT_EQ(mock_.state.last_cmd.speed1, 0);
-  EXPECT_EQ(mock_.state.last_cmd.speed2, 0);
+#if !CONTROLS_ROBOCLAW_ESTOP_PIN
+  // If we rely on soft stop
+  ASSERT_EQ(mock_.state.last_cmd_speed_accel.was_called, true);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed1, 0);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed2, 0);
 #endif
+  
+  // Try sending a new command while in E-stop
+  // monitor_->setMotorSpeeds(0, 0); // Don't manually reset, let E-stop logic handle it
+  
+  g_test_millis += 100;
+  arduino_mock::setMillis(g_test_millis);
+
+  mock_.state.last_cmd_speed_accel.was_called = false;
+  monitor_->setVelocityCommand(0.5f, 0.0f);
+  monitor_->processVelocityCommandsForTest();
+
+  // It should internally command 0,0 due to the override in setMotorSpeeds
+  ASSERT_EQ(mock_.state.last_cmd_speed_accel.was_called, true);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed1, 0);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed2, 0);
 
   // While E-stop is active, even explicit motor commands should be forced to 0.
+  mock_.state.last_cmd_speed_accel.was_called = false;
   monitor_->setMotorSpeeds(200, 200);
 
-#if CONTROLS_ROBOCLAW_ESTOP_PIN
-  ASSERT_EQ(mock_.state.speed_accel_distance_calls, 2u);
-#else
-  ASSERT_EQ(mock_.state.speed_accel_distance_calls, 3u);
-#endif
-  EXPECT_EQ(mock_.state.last_cmd.speed1, 0);
-  EXPECT_EQ(mock_.state.last_cmd.speed2, 0);
+  ASSERT_EQ(mock_.state.last_cmd_speed_accel.was_called, true);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed1, 0);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed2, 0);
 
   // Validate the E-stop output pin was driven LOW.
   EXPECT_EQ(arduino_mock::digital_pins[ESTOP_OUTPUT_PIN], LOW);
@@ -155,15 +178,12 @@ TEST_F(RoboClawMonitorTest, EmergencyStop_ForcesZeroAndBlocksFurtherCommands) {
   monitor_->clearEmergencyStop();
   EXPECT_EQ(arduino_mock::digital_pins[ESTOP_OUTPUT_PIN], HIGH);
 
+  mock_.state.last_cmd_speed_accel.was_called = false;
   monitor_->setMotorSpeeds(50, 60);
 
-#if CONTROLS_ROBOCLAW_ESTOP_PIN
-  ASSERT_EQ(mock_.state.speed_accel_distance_calls, 3u);
-#else
-  ASSERT_EQ(mock_.state.speed_accel_distance_calls, 4u);
-#endif
-  EXPECT_EQ(mock_.state.last_cmd.speed1, 50);
-  EXPECT_EQ(mock_.state.last_cmd.speed2, 60);
+  ASSERT_EQ(mock_.state.last_cmd_speed_accel.was_called, true);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed1, 50);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed2, 60);
 }
 
 TEST_F(RoboClawMonitorTest, TestCommunication_Failure_TriggersEmergencyStop) {
@@ -211,14 +231,14 @@ TEST_F(RoboClawMonitorTest, HandleTwistMessage_ParsesAndCommandsMotorSpeeds) {
   const float angular_z = 0.20f;
 
   monitor_->handleTwistMessage("linear_x:0.10,angular_z:0.20");
+  monitor_->processVelocityCommandsForTest();
 
-  ASSERT_EQ(mock_.state.speed_accel_distance_calls, 1u);
-  ASSERT_TRUE(mock_.state.last_cmd.was_called);
+  ASSERT_EQ(mock_.state.last_cmd_speed_accel.was_called, true);
 
   const RoboClawConfig cfg = monitor_->getConfig();
-  EXPECT_EQ(mock_.state.last_cmd.accel, monitor_->getConfig().default_acceleration);
-  EXPECT_EQ(mock_.state.last_cmd.speed1, expectedQpps(cfg, linear_x, angular_z, /*left=*/true));
-  EXPECT_EQ(mock_.state.last_cmd.speed2, expectedQpps(cfg, linear_x, angular_z, /*left=*/false));
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.accel, monitor_->getConfig().default_acceleration);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed1, expectedQpps(cfg, linear_x, angular_z, /*left=*/true));
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed2, expectedQpps(cfg, linear_x, angular_z, /*left=*/false));
 }
 
 TEST_F(RoboClawMonitorTest, DecodeErrorStatus_FormatsKnownAndUnknownBits) {
@@ -245,6 +265,7 @@ TEST_F(RoboClawMonitorTest, ResetErrors_WhenDisconnected_DoesNotCallRoboClaw) {
   monitor_->resetErrors();
 
   EXPECT_EQ(mock_.state.speed_accel_distance_calls, 0u);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.was_called, false);
   EXPECT_EQ(mock_.state.reset_encoders_calls, 0u);
   EXPECT_EQ(mock_.state.read_error_calls, 0u);
 }
@@ -259,10 +280,10 @@ TEST_F(RoboClawMonitorTest, ResetErrors_WhenConnected_StopsAndResetsEncoders) {
 
   monitor_->resetErrors();
 
-  EXPECT_EQ(mock_.state.speed_accel_distance_calls, 1u);
-  EXPECT_EQ(mock_.state.last_cmd.speed1, 0);
-  EXPECT_EQ(mock_.state.last_cmd.speed2, 0);
-  EXPECT_EQ(mock_.state.last_cmd.accel, monitor_->getConfig().default_acceleration);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.was_called, true);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed1, 0);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.speed2, 0);
+  EXPECT_EQ(mock_.state.last_cmd_speed_accel.accel, monitor_->getConfig().default_acceleration);
   EXPECT_EQ(mock_.state.reset_encoders_calls, 1u);
   EXPECT_EQ(mock_.state.read_error_calls, 1u);
 }

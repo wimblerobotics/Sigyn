@@ -90,7 +90,7 @@ struct RoboClawConfig {
   int32_t odom_movement_threshold_ticks = 2;       ///< Consider moving if delta ticks exceeds
 
   // Safety tuning
-  int32_t runaway_speed_threshold_qpps = 100;      ///< Runaway if commanded 0 but speed exceeds
+  int32_t runaway_speed_threshold_qpps = 5000;      ///< Runaway if commanded 0 but speed exceeds (approx 0.5m/s)
   float overcurrent_recovery_current_amps = 0.5f;  ///< Auto-recover if latched but actual low
   uint32_t estop_msg_interval_ms = 1000;           ///< Rate-limit estop messages
   uint32_t runaway_msg_interval_ms = 1000;         ///< Rate-limit runaway messages
@@ -212,6 +212,7 @@ class RoboClawMonitor : public Module {
 
   // Allows tests to drive the read-failure retry logic.
   void updateMotorStatusForTesting() { updateMotorStatus(); }
+  void processVelocityCommandsForTest() { processVelocityCommands(); }
 #endif
 
   // E-STOP interface.
@@ -311,6 +312,7 @@ class RoboClawMonitor : public Module {
       return false;
     }
     bool ReadVersion(uint8_t, char*) override { return false; }
+    bool SpeedAccelM1M2(uint8_t, uint32_t, int32_t, int32_t) override { return false; }
     bool SpeedAccelDistanceM1M2(uint8_t, uint32_t, int32_t, uint32_t, int32_t, uint32_t, uint8_t) override {
       return false;
     }

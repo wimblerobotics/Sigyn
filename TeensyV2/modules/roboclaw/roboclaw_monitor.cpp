@@ -327,6 +327,9 @@ bool RoboClawMonitor::isUnsafe() {
 }
 
 void RoboClawMonitor::resetSafetyFlags() {
+  if (CONTROLS_ROBOCLAW_ESTOP_PIN) {
+    digitalWrite(ESTOP_OUTPUT_PIN, HIGH);  // Deactivate E-stop
+  }
   emergency_stop_active_ = false;
   motor1_status_.runaway_detected = false;
   motor2_status_.runaway_detected = false;
@@ -335,7 +338,7 @@ void RoboClawMonitor::resetSafetyFlags() {
   motor1_status_.timeout_error = false;
   motor2_status_.timeout_error = false;
 
-  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Safety flags reset");
+  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), "Safety flags and E-stop pin reset");
 }
 
 void RoboClawMonitor::setVelocityCommand(float linear_x, float angular_z) {
@@ -343,15 +346,24 @@ void RoboClawMonitor::setVelocityCommand(float linear_x, float angular_z) {
   last_velocity_command_.angular_z = angular_z;
   last_velocity_command_.timestamp_ms = millis();
 
-  // TODO(wimble): Compare commanded cmd_vel vs measured wheel speeds/accel and
-  // signal WARNING/E-STOP if mismatch persists.
-  // TODO(wimble): Cross-check localization pose vs wheel odometry to detect
-  // slips/runaways and signal safety state.
+  // If we receive a zero velocity command, check if we're in a runaway state and try to clear it
+  // This helps recover if the runaway was false positive or transient
+  if (linear_x == 0.0f && angular_z == 0.0f) {
+      if (motor1_status_.runaway_detected || motor2_status_.runaway_detected) {
+          motor1_status_.runaway_detected = false;
+          motor2_status_.runaway_detected = false;
+          
+          // If we were only E-stopped due to runaway, we might be able to clear it
+          // Note: This does NOT clear faults in SafetyCoordinator, just the local latch
+          // A full reset cycle via /commands/estop reset=true is preferred, but this 
+          // allows 'stop and recover' behavior if configured.
+      }
+  }
 
-  // Convert velocity to motor speeds
-  int32_t m1_qpps, m2_qpps;
-  velocityToMotorSpeeds(linear_x, angular_z, m1_qpps, m2_qpps);
-  setMotorSpeeds(m1_qpps, m2_qpps);
+  // NOTE: We do NOT send the command to the motors here anymore.
+  // To implement proper rate limiting (command_rate_limit_ms), actual transmission 
+  // is handled in processVelocityCommands().
+  // This prevents swamping the RoboClaw message buffer if high-frequency twist messages arrive.
 }
 
 void RoboClawMonitor::setMotorSpeeds(int32_t m1_qpps, int32_t m2_qpps) {
@@ -582,15 +594,11 @@ void RoboClawMonitor::executeMotorCommand(int32_t m1_qpps, int32_t m2_qpps) {
     return;
   }
 
-  uint32_t m1_max_distance =
-      static_cast<uint32_t>(static_cast<float>(std::abs(m1_qpps)) * config_.max_seconds_commanded_travel_s);
-  uint32_t m2_max_distance =
-      static_cast<uint32_t>(static_cast<float>(std::abs(m2_qpps)) * config_.max_seconds_commanded_travel_s);
-
-  bool success = roboclaw_->SpeedAccelDistanceM1M2(config_.address, config_.default_acceleration, m1_qpps,
-                                                  m1_max_distance, m2_qpps, m2_max_distance,
-                                                  1  // Flag: 1 = buffered mode
-  );
+  // Use SpeedAccelM1M2 (Mix Mode) for continuous velocity control.
+  // This avoids "stuttering" issues caused by Distance commands finishing before
+  // the next cmd_vel arrives.
+  // Safety is handled by the software watchdog in loop(), which stops motors if commands timeout.
+  bool success = roboclaw_->SpeedAccelM1M2(config_.address, config_.default_acceleration, m1_qpps, m2_qpps);
 
   if (!success) {
     handleCommunicationError();

@@ -87,6 +87,7 @@ class MockRoboClaw final : public IRoboClaw {
     bool read_version_ok = true;
     char version[64] = "Roboclaw Mock";
 
+    bool speed_accel_m1m2_ok = true;
     bool speed_accel_distance_ok = true;
 
     // Last command captured
@@ -100,6 +101,14 @@ class MockRoboClaw final : public IRoboClaw {
       uint32_t distance2 = 0;
       uint8_t flag = 0;
     } last_cmd;
+
+    struct LastSpeedAccel {
+      bool was_called = false;
+      uint8_t address = 0;
+      uint32_t accel = 0;
+      int32_t speed1 = 0;
+      int32_t speed2 = 0;
+    } last_cmd_speed_accel;
   } state;
 
   void reset() { state = State{}; }
@@ -210,6 +219,19 @@ class MockRoboClaw final : public IRoboClaw {
     std::strncpy(version, state.version, 63);
     version[63] = '\0';
     return true;
+  }
+
+  bool SpeedAccelM1M2(
+      uint8_t address,
+      uint32_t accel,
+      int32_t speed1,
+      int32_t speed2) override {
+    state.last_cmd_speed_accel.was_called = true;
+    state.last_cmd_speed_accel.address = address;
+    state.last_cmd_speed_accel.accel = accel;
+    state.last_cmd_speed_accel.speed1 = speed1;
+    state.last_cmd_speed_accel.speed2 = speed2;
+    return state.speed_accel_m1m2_ok;
   }
 
   bool SpeedAccelDistanceM1M2(

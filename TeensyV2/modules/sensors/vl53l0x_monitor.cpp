@@ -527,28 +527,42 @@ namespace sigyn_teensy {
   }
 
   void VL53L0XMonitor::sendDiagnosticReports() {
-    char payload[1024] = {0};
-    size_t off = 0;
-
-    snappend(payload, sizeof(payload), off, "{\"window_ms\":%lu,\"multiplexer_ok\":%s,\"sensors\":[",
-             static_cast<unsigned long>(config_.diagnostic_report_interval_ms), multiplexer_available_ ? "true" : "false");
+    // Keep this diagnostic compact.
+    // The DIAG envelope itself is JSON; embedding a JSON string inside it expands
+    // significantly when escaped and can exceed SerialManager::kMaxMessageLength,
+    // resulting in truncated / concatenated serial frames.
+    uint32_t total_measurements = 0;
+    uint32_t total_valid = 0;
+    uint32_t total_errors = 0;
+    uint32_t max_consecutive_failures = 0;
+    uint8_t uninitialized = 0;
 
     for (uint8_t i = 0; i < config_.enabled_sensors; ++i) {
-      if (i > 0) {
-        snappend(payload, sizeof(payload), off, ",");
+      const SensorStatus & st = sensor_status_[i];
+      total_measurements += static_cast<uint32_t>(st.total_measurements);
+      total_valid += static_cast<uint32_t>(st.total_valid_measurements);
+      total_errors += static_cast<uint32_t>(st.total_errors);
+      if (st.consecutive_failures > max_consecutive_failures) {
+        max_consecutive_failures = st.consecutive_failures;
       }
-
-      snappend(payload, sizeof(payload), off,
-               "{\"id\":%u,\"total_measurements\":%lu,\"valid_measurements\":%lu,\"errors\":%lu,\"consecutive_failures\":%u,\"initialized\":%s}",
-               static_cast<unsigned int>(i), static_cast<unsigned long>(sensor_status_[i].total_measurements),
-               static_cast<unsigned long>(sensor_status_[i].total_valid_measurements),
-               static_cast<unsigned long>(sensor_status_[i].total_errors),
-               static_cast<unsigned int>(sensor_status_[i].consecutive_failures),
-               sensor_status_[i].initialized ? "true" : "false");
+      if (!st.initialized) {
+        uninitialized++;
+      }
     }
 
-    snappend(payload, sizeof(payload), off, "]}");
-    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), payload);
+    char message[192] = {0};
+    snprintf(
+      message, sizeof(message),
+      "window_ms=%lu,multiplexer_ok=%s,enabled=%u,uninitialized=%u,total=%lu,valid=%lu,errors=%lu,max_consecutive_failures=%lu",
+      static_cast<unsigned long>(config_.diagnostic_report_interval_ms),
+      multiplexer_available_ ? "true" : "false",
+      static_cast<unsigned int>(config_.enabled_sensors),
+      static_cast<unsigned int>(uninitialized),
+      static_cast<unsigned long>(total_measurements),
+      static_cast<unsigned long>(total_valid),
+      static_cast<unsigned long>(total_errors),
+      static_cast<unsigned long>(max_consecutive_failures));
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), message);
   }
 
   void VL53L0XMonitor::detectObstacles() {
