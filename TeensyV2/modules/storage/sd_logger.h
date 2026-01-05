@@ -110,6 +110,9 @@ struct SDLoggerStatus {
 class SDLogger : public Module {
 public:
   static SDLogger& getInstance();
+
+  // Directory listing behavior
+  static constexpr size_t kDirectoryListingKeepCount = 20;  ///< Number of most-recent files to include in directory listing
   
   // Logging operations
   void log(const char* message);
@@ -127,6 +130,7 @@ public:
   const char* getDirectoryListing();
   bool dumpFile(const char* filename);
   bool deleteFile(const char* filename);
+  bool deleteAllButLastLogs(uint16_t preservation_count);
   
   // Status and configuration
   bool isSDAvailable() const;
@@ -140,6 +144,7 @@ public:
   void handleDirMessage(const char* message);
   void handleFileDumpMessage(const char* message);
   void handleDeleteMessage(const char* message);
+  void handlePruneMessage(const char* message);
 
 protected:
   // Module interface implementation
@@ -174,7 +179,10 @@ private:
   void updatePerformanceStatistics();
   
   // File management helpers
-  uint32_t findNextLogFileNumber();
+  uint32_t findHighestLogFileNumber();
+  uint32_t getNextLogFileNumber();
+  uint32_t readLastLogNumberFromSequenceFile();
+  void writeLastLogNumberToSequenceFile(uint32_t last_number);
   void generateLogFilename(char* out, size_t out_size, uint32_t file_number);
   bool openLogFile(const char* filename);
   
@@ -213,6 +221,10 @@ private:
   FsFile dump_file_;
   char dump_filename_[32] = {0};
   uint32_t dump_bytes_sent_;
+
+  // Directory listing streaming state (SDDIR)
+  bool dir_dump_active_ = false;
+  const char* dir_dump_ptr_ = nullptr;  // Points into dir_stream_listing_
   
   // State machine processing
   void processDumpStateMachine();
@@ -222,6 +234,10 @@ private:
   char cached_directory_listing_[kDirCacheSize] = {0};
   size_t cached_directory_len_ = 0;
   uint32_t last_directory_cache_time_ms_;
+
+  // Stable snapshot used while streaming an SDDIR response.
+  // Prevents cache refreshes (e.g., on log rotation) from corrupting dir_dump_ptr_.
+  char dir_stream_listing_[kDirCacheSize] = {0};
   
   // Timing for periodic operations
   uint32_t last_flush_time_ms_;
@@ -237,6 +253,9 @@ private:
   static constexpr uint32_t SD_SPI_SPEED = 25000000;  // 25MHz
   static constexpr uint32_t MAX_FILENAME_LENGTH = 32;
   static constexpr uint32_t DUMP_CHUNK_SIZE = 512;
+
+  // Internal bookkeeping file to keep log numbering monotonic even after deletions
+  static constexpr const char* kLogSequenceFilename = "LOGSEQ.TXT";
 };
 
 } // namespace sigyn_teensy

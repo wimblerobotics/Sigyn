@@ -204,6 +204,11 @@ namespace sigyn_teensy {
   const char* PerformanceMonitor::name() const { return "PerformanceMonitor"; }
 
   void PerformanceMonitor::getPerformanceStats(char* buffer, size_t size) {
+    if (!buffer || size == 0) {
+      return;
+    }
+    buffer[0] = '\0';
+
     // Get current frequency from Module system for accurate reporting
     float current_frequency = Module::getCurrentLoopFrequency();
 
@@ -235,41 +240,56 @@ namespace sigyn_teensy {
     if (modules_written > 0 && written + modules_written < (int)size) {
       written += modules_written;
 
-      // Iterate through all registered modules using Module::getModuleCount and Module::getModule
+      bool first_entry = true;
       for (uint16_t i = 0; i < Module::getModuleCount(); ++i) {
         Module* mod = Module::getModule(i);
-        if (mod) {
-          const auto& stats = mod->getPerformanceStats(); // Ensure the correct type is returned
-          float exec_time_ms = mod->getLastExecutionTimeUs() / 1000.0f;
-          bool is_violation = exec_time_ms > config_.max_module_time_ms;
-
-          // Get detailed performance statistics from the module
-          float avg_us = (stats.loop_count > 0) ? (stats.duration_sum_us / stats.loop_count) : 0.0f;
-
-          // Convert microseconds to milliseconds for readability
-          float min_ms = stats.duration_min_us / 1000.0f;
-          float max_ms = stats.duration_max_us / 1000.0f;
-          float avg_ms = avg_us / 1000.0f;
-
-          int mod_written = snprintf(buffer + written, size - written,
-            "%s{\"n\":\"%s\",\"min\":%.2f,\"max\":%.2f,\"avg\":%.2f,\"last\":%.2f,\"cnt\":%lu,\"viol\":%s}",
-            i > 0 ? "," : "",
-            mod->name(),
-            min_ms, max_ms, avg_ms, exec_time_ms,
-            (unsigned long)stats.loop_count,
-            is_violation ? "true" : "false");
-
-          if (mod_written > 0 && written + mod_written < (int)size - 50) // Leave more buffer space
-            written += mod_written;
-          else {
-            // Debug: Log buffer overflow
-            char debug_msg[100];
-            snprintf(debug_msg, sizeof(debug_msg), "PERF buffer overflow at module %d, written=%d, need=%d, size=%d",
-              i, written, mod_written, (int)size);
-            SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), debug_msg);
-            break; // Buffer full
-          }
+        if (!mod) {
+          continue;
         }
+
+        const auto& stats = mod->getPerformanceStats();
+        float exec_time_ms = mod->getLastExecutionTimeUs() / 1000.0f;
+        bool is_violation = exec_time_ms > config_.max_module_time_ms;
+
+        float avg_us = (stats.loop_count > 0) ? (stats.duration_sum_us / stats.loop_count) : 0.0f;
+        float min_ms = stats.duration_min_us / 1000.0f;
+        float max_ms = stats.duration_max_us / 1000.0f;
+        float avg_ms = avg_us / 1000.0f;
+
+        // Format into a temporary buffer first so we never partially-write JSON into `buffer`.
+        char entry[192] = {0};
+        int entry_written = snprintf(
+          entry, sizeof(entry),
+          "%s{\"n\":\"%s\",\"min\":%.2f,\"max\":%.2f,\"avg\":%.2f,\"last\":%.2f,\"cnt\":%lu,\"viol\":%s}",
+          first_entry ? "" : ",",
+          mod->name(),
+          min_ms, max_ms, avg_ms, exec_time_ms,
+          (unsigned long)stats.loop_count,
+          is_violation ? "true" : "false");
+
+        if (entry_written < 0) {
+          continue;
+        }
+
+        // Ensure we have space for this entry AND the final closing "]}" plus NUL.
+        const size_t remaining = (written < (int)size) ? (size - static_cast<size_t>(written)) : 0U;
+        if (remaining <= 4U || static_cast<size_t>(entry_written) >= remaining - 4U) {
+          char debug_msg[128] = {0};
+          snprintf(
+            debug_msg, sizeof(debug_msg),
+            "PERF: truncating module list at '%s' (written=%d, need=%d, size=%u)",
+            mod->name(),
+            written,
+            entry_written,
+            (unsigned)size);
+          SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(), debug_msg);
+          break;
+        }
+
+        memcpy(buffer + written, entry, static_cast<size_t>(entry_written));
+        written += entry_written;
+        buffer[written] = '\0';
+        first_entry = false;
       }
     }
 
@@ -294,17 +314,12 @@ namespace sigyn_teensy {
   }
 
   void PerformanceMonitor::reportStats() {
-    // Build PERF JSON in a large local buffer; on-wire payload is capped below
-    char stats_json[3072];
+    // Build PERF JSON directly into a bounded buffer sized for the serial on-wire cap.
+    // This avoids hacks that can create invalid JSON when truncated.
+    constexpr size_t kPerfPayloadMax = SerialManager::kMaxMessageLength - 64U;
+    char stats_json[kPerfPayloadMax];
     getPerformanceStats(stats_json, sizeof(stats_json));
 
-    // Enforce payload cap to avoid SerialManager (2048) overflow and SD truncation
-    const size_t MAX_SERIAL_PAYLOAD = 2000; // allow for prefix and terminator
-    if (strlen(stats_json) > MAX_SERIAL_PAYLOAD) {
-      stats_json[MAX_SERIAL_PAYLOAD - 3] = ']';
-      stats_json[MAX_SERIAL_PAYLOAD - 2] = '}';
-      stats_json[MAX_SERIAL_PAYLOAD - 1] = '\0';
-    }
     SerialManager::getInstance().sendMessage("PERF", stats_json);
   }
 

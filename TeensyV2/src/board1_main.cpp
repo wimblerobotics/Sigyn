@@ -154,6 +154,9 @@ void loop() {
   // Execute all modules through the module system
   Module::loopAll();
 
+  // Drain outgoing serial queue without blocking the real-time loop.
+  SerialManager::getInstance().processOutgoingMessages();
+
   // Board-specific safety monitoring
   static uint32_t last_safety_check = 0;
   uint32_t current_time = micros();

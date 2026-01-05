@@ -43,6 +43,12 @@ class IRoboClaw {
   virtual bool ReadTemp(uint8_t address, uint16_t& temp) = 0;
   virtual bool ReadVersion(uint8_t address, char* version) = 0;
 
+  virtual bool SpeedAccelM1M2(
+      uint8_t address,
+      uint32_t accel,
+      int32_t speed1,
+      int32_t speed2) = 0;
+
   virtual bool SpeedAccelDistanceM1M2(
       uint8_t address,
       uint32_t accel,

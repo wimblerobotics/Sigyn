@@ -111,6 +111,13 @@ void SerialManager::handleCommand(const char* command, const char* args) {
     // Store SDFILE command for SDLogger to process
     setLatestSDFileCommand(args ? args : "");
 
+  } else if ((cmd_len == 7) && (strncmp(command, "SDPRUNE", 7) == 0)) {
+    char diag[256] = {0};
+    snprintf(diag, sizeof(diag), "SDPRUNE command received: %s", args ? args : "");
+    sendDiagnosticMessage("DEBUG", "SerialManager", diag);
+    // Store SDPRUNE command for SDLogger to process
+    setLatestSDPruneCommand(args ? args : "");
+
   } else if ((cmd_len == 6) && (strncmp(command, "CONFIG", 6) == 0)) {
     char diag[256] = {0};
     snprintf(diag, sizeof(diag), "CONFIG command received: %s", args ? args : "");
@@ -141,6 +148,21 @@ void SerialManager::handleCommand(const char* command, const char* args) {
     snprintf(diag, sizeof(diag), "Unknown command type: %s", cmd_type);
     sendDiagnosticMessage("ERROR", "SerialManager", diag);
   }
+}
+
+void SerialManager::setLatestSDPruneCommand(const char* sdprune_data) {
+  snprintf(latest_sdprune_command_, sizeof(latest_sdprune_command_), "%s", sdprune_data ? sdprune_data : "");
+  has_new_sdprune_command_ = true;
+}
+
+const char* SerialManager::getLatestSDPruneCommand() const { return latest_sdprune_command_; }
+
+bool SerialManager::hasNewSDPruneCommand() {
+  if (has_new_sdprune_command_) {
+    has_new_sdprune_command_ = false;
+    return true;
+  }
+  return false;
 }
 
 void SerialManager::initialize(uint32_t timeout_ms) {
@@ -183,15 +205,63 @@ void SerialManager::processIncomingMessages() {
 }
 
 void SerialManager::sendMessage(const char* type, const char* payload) {
-  // Revert to immediate send: format line and write directly to USB CDC
+  // Format full line (including newline) into a temporary buffer.
   char line[kMaxMessageLength];
-  snprintf(line, sizeof(line), "%s%d:%s\n", type, BOARD_ID, payload);
+  const int written = snprintf(line, sizeof(line), "%s%d:%s\n", type, BOARD_ID, payload ? payload : "");
+
+  // If the message would be truncated, do not send a partial line. Partial lines can:
+  // - omit the terminating newline (gluing the next message onto this one)
+  // - cut JSON escape sequences in half (e.g. trailing '\\')
+  // which manifests as JSON parse errors on the ROS side.
+  if (written < 0 || static_cast<size_t>(written) >= sizeof(line)) {
+    char diag_line[256] = {0};
+    const unsigned long now_ms = static_cast<unsigned long>(millis());
+    const size_t payload_len = payload ? strlen(payload) : 0U;
+    const unsigned long required = (written > 0) ? static_cast<unsigned long>(written) : 0UL;
+    const unsigned long max_bytes = static_cast<unsigned long>(sizeof(line) - 1U);
+    // Emit a compact error that always fits and always ends with '\n'.
+    (void)snprintf(
+      diag_line, sizeof(diag_line),
+      "DIAG%d:{\"level\":\"ERROR\",\"module\":\"SerialManager\",\"message\":\"Dropped overlong %s payload_len=%lu required=%lu max=%lu\",\"timestamp\":%lu}\n",
+      BOARD_ID,
+      type ? type : "",
+      static_cast<unsigned long>(payload_len),
+      required,
+      max_bytes,
+      now_ms);
+    Serial.print(diag_line);
+    return;
+  }
 
 #if ENABLE_SD_LOGGING
   SDLogger::getInstance().logFormatted("%s%d:%s", type, BOARD_ID, payload);
 #endif
 
-  Serial.print(line);
+  // Best effort to drain any backlog before enqueueing more.
+  sendQueuedMessages();
+
+  // Enqueue the line for non-blocking transmit.
+  if (queue_count_ >= kMaxQueueSize) {
+    total_dropped_++;
+    classifyAndCountDrop_(type);
+    maybeReportQueueFull_();
+    return;
+  }
+
+  // Copy the full line (including trailing '\n' and terminating NUL).
+  const size_t copy_len = static_cast<size_t>(written);
+  const size_t slot = queue_tail_;
+  memcpy(message_queue_[slot], line, copy_len);
+  message_queue_[slot][copy_len] = '\0';
+
+  queue_tail_ = (queue_tail_ + 1) % kMaxQueueSize;
+  queue_count_++;
+  if (queue_count_ > queue_high_water_mark_) {
+    queue_high_water_mark_ = queue_count_;
+  }
+
+  // Opportunistically transmit immediately.
+  sendQueuedMessages();
 }
 
 void SerialManager::sendDiagnosticMessage(const char* level, const char* module, const char* message) {
@@ -236,16 +306,118 @@ void SerialManager::sendDiagnosticMessage(const char* level, const char* module,
   }
   *dst = '\0';
 
+  const unsigned long timestamp_ms = static_cast<unsigned long>(millis());
+
   // Create JSON diagnostic message
-  snprintf(json_payload, sizeof(json_payload),
-           "{\"level\":\"%s\",\"module\":\"%s\",\"message\":\"%s\",\"timestamp\":%lu}", level, module, escaped_message,
-           static_cast<unsigned long>(millis()));
+  const int diag_written = snprintf(
+    json_payload,
+    sizeof(json_payload),
+    "{\"level\":\"%s\",\"module\":\"%s\",\"message\":\"%s\",\"timestamp\":%lu}",
+    level,
+    module,
+    escaped_message,
+    timestamp_ms);
+
+  // If snprintf truncated the diagnostic JSON, it will almost certainly be invalid JSON.
+  // Never emit an invalid JSON frame: it can poison the ROS-side parser and cause
+  // subsequent messages to be misinterpreted as "chunks".
+  if (diag_written < 0 || static_cast<size_t>(diag_written) >= sizeof(json_payload)) {
+    char diag_line[256] = {0};
+    const unsigned long max_bytes = static_cast<unsigned long>(kMaxMessageLength - 1U);
+    const unsigned long payload_max = static_cast<unsigned long>(sizeof(json_payload) - 1U);
+    char module_short[32] = {0};
+    char level_short[8] = {0};
+    snprintf(module_short, sizeof(module_short), "%s", module ? module : "");
+    snprintf(level_short, sizeof(level_short), "%s", level ? level : "");
+    (void)snprintf(
+      diag_line,
+      sizeof(diag_line),
+      "DIAG%d:{\"level\":\"ERROR\",\"module\":\"SerialManager\",\"message\":\"Dropped truncated DIAG origin=%s/%s payload_max=%lu max=%lu\",\"timestamp\":%lu}\n",
+      BOARD_ID,
+      module_short,
+      level_short,
+      payload_max,
+      max_bytes,
+      timestamp_ms);
+    Serial.print(diag_line);
+    return;
+  }
+
+  // Guardrail: if this DIAG frame would be too large, don't call sendMessage("DIAG", ...)
+  // because the fallback would only tell us "Dropped overlong DIAG..." without the origin.
+  {
+    const size_t payload_len = strlen(json_payload);
+    size_t digits = 1U;
+    unsigned int tmp = static_cast<unsigned int>(BOARD_ID);
+    while (tmp >= 10U) {
+      tmp /= 10U;
+      ++digits;
+    }
+    // Required bytes excluding NUL terminator.
+    const size_t required = strlen("DIAG") + digits + 1U + payload_len + 1U;
+    if (required >= kMaxMessageLength) {
+      char diag_line[256] = {0};
+      const unsigned long max_bytes = static_cast<unsigned long>(kMaxMessageLength - 1U);
+      const unsigned long req = static_cast<unsigned long>(required);
+      char module_short[32] = {0};
+      char level_short[8] = {0};
+      snprintf(module_short, sizeof(module_short), "%s", module ? module : "");
+      snprintf(level_short, sizeof(level_short), "%s", level ? level : "");
+      (void)snprintf(
+        diag_line, sizeof(diag_line),
+        "DIAG%d:{\"level\":\"ERROR\",\"module\":\"SerialManager\",\"message\":\"Dropped overlong DIAG origin=%s/%s payload_len=%lu required=%lu max=%lu\",\"timestamp\":%lu}\n",
+        BOARD_ID,
+        module_short,
+        level_short,
+        static_cast<unsigned long>(payload_len),
+        req,
+        max_bytes,
+        timestamp_ms);
+      Serial.print(diag_line);
+      return;
+    }
+  }
 
   sendMessage("DIAG", json_payload);
 }
 
 void SerialManager::sendQueuedMessages() {
-  // No-op: immediate send path (queue disabled)
+  while (queue_count_ > 0) {
+    char* msg = message_queue_[queue_head_];
+    const size_t msg_len = strnlen(msg, kMaxMessageLength);
+    if (msg_len == 0) {
+      // Defensive: empty slot; drop it.
+      queue_head_ = (queue_head_ + 1) % kMaxQueueSize;
+      queue_count_--;
+      send_offset_ = 0;
+      continue;
+    }
+
+    if (send_offset_ >= msg_len) {
+      // Finished this message.
+      queue_head_ = (queue_head_ + 1) % kMaxQueueSize;
+      queue_count_--;
+      send_offset_ = 0;
+      continue;
+    }
+
+    const int avail = Serial.availableForWrite();
+    if (avail <= 0) {
+      break;
+    }
+
+    const size_t remaining = msg_len - send_offset_;
+    const size_t to_write = (remaining < static_cast<size_t>(avail)) ? remaining : static_cast<size_t>(avail);
+    const size_t wrote = Serial.write(reinterpret_cast<const uint8_t*>(msg + send_offset_), to_write);
+    if (wrote == 0) {
+      break;
+    }
+    send_offset_ += wrote;
+  }
+}
+
+void SerialManager::processOutgoingMessages() {
+  sendQueuedMessages();
 }
 
 void SerialManager::setLatestTwistCommand(const char* twist_data) {

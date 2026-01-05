@@ -62,6 +62,14 @@ class RoboClawAdapter final : public IRoboClaw {
   bool ReadTemp(uint8_t address, uint16_t& temp) override { return roboclaw_.ReadTemp(address, temp); }
   bool ReadVersion(uint8_t address, char* version) override { return roboclaw_.ReadVersion(address, version); }
 
+  bool SpeedAccelM1M2(
+      uint8_t address,
+      uint32_t accel,
+      int32_t speed1,
+      int32_t speed2) override {
+    return roboclaw_.SpeedAccelM1M2(address, accel, speed1, speed2);
+  }
+
   bool SpeedAccelDistanceM1M2(
       uint8_t address,
       uint32_t accel,
