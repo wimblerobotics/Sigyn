@@ -234,11 +234,8 @@ void TeensyBridge::InitializePublishersAndSubscribers()
   diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
       "~/diagnostics", 10);
 
-  estop_status_pub_ = this->create_publisher<std_msgs::msg::String>(
+  estop_status_pub_ = this->create_publisher<sigyn_interfaces::msg::EStopStatus>(
       "~/safety/estop_status", 10);
-  
-  estop_status_v2_pub_ = this->create_publisher<sigyn_interfaces::msg::EStopStatus>(
-      "~/safety/estop_status_v2", 10);
 
     // IMU publishers for dual sensors
   imu_sensor0_pub_ = this->create_publisher<sensor_msgs::msg::Imu>(
@@ -874,11 +871,6 @@ void TeensyBridge::HandleSafetyMessage(const MessageData & data, rclcpp::Time ti
     bool estop_active = (state_it->second == "ESTOP" || state_it->second == "SHUTDOWN") ||
       (conditions_it->second == "true");
 
-    auto msg = std_msgs::msg::String();
-    msg.data = "{\"active_fault\":\"" + std::string(estop_active ? "true" : "false") + "\"}";
-    estop_status_pub_->publish(msg);
-    // RCLCPP_INFO(this->get_logger(), "Published V1 ESTOP (active=%d)", estop_active);
-
     // Update V2 status
     {
       std::lock_guard<std::mutex> lock(fault_mutex_);
@@ -887,7 +879,7 @@ void TeensyBridge::HandleSafetyMessage(const MessageData & data, rclcpp::Time ti
         current_estop_status_.faults.clear();
       }
       // RCLCPP_INFO(this->get_logger(), "Publishing V2 ESTOP (active=%d)", current_estop_status_.active);
-      estop_status_v2_pub_->publish(current_estop_status_);
+      estop_status_pub_->publish(current_estop_status_);
     }
   }
 }
@@ -916,7 +908,7 @@ void TeensyBridge::HandleEstopMessage(const MessageData & data, rclcpp::Time tim
       std::lock_guard<std::mutex> lock(fault_mutex_);
       current_estop_status_.active = false;
       current_estop_status_.faults.clear();
-      estop_status_v2_pub_->publish(current_estop_status_);
+      estop_status_pub_->publish(current_estop_status_);
     }
   }
 }
@@ -992,12 +984,6 @@ void TeensyBridge::HandleDiagnosticMessage(const MessageData & data, rclcpp::Tim
             sanitize_frame_for_log(current_serial_frame, 512).c_str());
         }
 
-          // Publish ESTOP status
-        auto estop_msg = std_msgs::msg::String();
-        estop_msg.data = "{\"active_fault\":\"true\",\"source\":\"" + source + "\",\"reason\":\"" +
-          reason + "\"}";
-        estop_status_pub_->publish(estop_msg);
-
         // Update V2 Status
         {
           std::lock_guard<std::mutex> lock(fault_mutex_);
@@ -1022,7 +1008,7 @@ void TeensyBridge::HandleDiagnosticMessage(const MessageData & data, rclcpp::Tim
             new_fault.first_occurrence = this->now(); 
             current_estop_status_.faults.push_back(new_fault);
           }
-          estop_status_v2_pub_->publish(current_estop_status_);
+          estop_status_pub_->publish(current_estop_status_);
         }
       }
     }
@@ -1039,35 +1025,15 @@ void TeensyBridge::HandleDiagnosticMessage(const MessageData & data, rclcpp::Tim
 
 void TeensyBridge::HandleFaultMessage(const MessageData & data, rclcpp::Time timestamp)
 {
-    // Construct JSON string for estop_status
-  std::string json_str = "{";
-
     // Check for active_fault first to ensure it's at the beginning
   auto active_it = data.find("active_fault");
-  if (active_it != data.end()) {
-    json_str += "\"active_fault\":\"" + active_it->second + "\"";
-  }
-
-    // Add other fields
-  for (const auto & kv : data) {
-    if (kv.first == "active_fault") {continue;} // Already added
-    if (kv.first == "json") {continue;} // Skip raw json
-
-    if (json_str.length() > 1) {json_str += ",";}
-    json_str += "\"" + kv.first + "\":\"" + kv.second + "\"";
-  }
-  json_str += "}";
-
-  auto estop_msg = std_msgs::msg::String();
-  estop_msg.data = json_str;
-  estop_status_pub_->publish(estop_msg);
 
   // If "active_fault" is present and false, we treat this as a Safety Heartbeat
   if (active_it != data.end() && active_it->second == "false") {
     std::lock_guard<std::mutex> lock(fault_mutex_);
     current_estop_status_.active = false;
     current_estop_status_.faults.clear();
-    estop_status_v2_pub_->publish(current_estop_status_);
+    estop_status_pub_->publish(current_estop_status_);
   }
 
   auto fault_data = message_parser_->ParseFaultData(data);
@@ -1108,7 +1074,7 @@ void TeensyBridge::HandleFaultMessage(const MessageData & data, rclcpp::Time tim
           new_fault.first_occurrence = timestamp;
 
           current_estop_status_.faults.push_back(new_fault);
-          estop_status_v2_pub_->publish(current_estop_status_);
+          estop_status_pub_->publish(current_estop_status_);
         }
       }
     } else if (fault_data.severity == "WARNING") {
@@ -1883,7 +1849,7 @@ void TeensyBridge::HandleResetFault(const std::shared_ptr<sigyn_interfaces::srv:
 void TeensyBridge::UpdateAndPublishFaults()
 {
   std::lock_guard<std::mutex> lock(fault_mutex_);
-  estop_status_v2_pub_->publish(current_estop_status_);
+  estop_status_pub_->publish(current_estop_status_);
 }
 
 }  // namespace sigyn_to_sensor_v2
