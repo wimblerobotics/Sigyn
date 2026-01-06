@@ -16,7 +16,7 @@ TeensyV2 represents a complete redesign of the embedded control architecture, fe
 
 ## Project Status
 - **Current Version**: 2.0 (Major architecture revision)  
-- **Development Status**: Production-ready with active feature development
+- **Development Status**: Beta / Active Development (See [Safety System Docs](docs/safety_system/SAFETY_SYSTEM.md) for current implementation status)
 - **Hardware Platform**: Dual Teensy 4.1 boards with specialized sensor arrays
 - **Integration**: Full ROS2 Jazzy compatibility via sigyn_to_sensor_v2 bridge
 - **Message Protocol**: Enhanced JSON-based communication with board-specific identifiers
