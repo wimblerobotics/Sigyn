@@ -49,8 +49,8 @@ namespace sigyn_teensy {
  */
 typedef enum class FaultSeverity {
   NORMAL,          ///< All systems operational
-  WARNING,         ///< Minor issues detected, monitoring
   DEGRADED,        ///< Operating with reduced functionality
+  WARNING,         ///< Minor issues detected, monitoring
   EMERGENCY_STOP,  ///< Emergency stop active
   SYSTEM_SHUTDOWN  ///< Complete system shutdown required
 } FaultSeverity;

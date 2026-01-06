@@ -178,6 +178,14 @@ void SafetyCoordinator::deactivateFault(const char* source) {
   } else {
     const bool was_estop = (faults_[idx].severity == FaultSeverity::EMERGENCY_STOP ||
                             faults_[idx].severity == FaultSeverity::SYSTEM_SHUTDOWN);
+    
+    // Send fault clearance message BEFORE clearing the fault data
+    char status_msg[256];
+    snprintf(status_msg, sizeof(status_msg),
+             "{\"active_fault\":\"false\",\"source\":\"%s\",\"severity\":\"%s\"}",
+             faults_[idx].source, faultSeverityToString(faults_[idx].severity));
+    SerialManager::getInstance().sendMessage("FAULT", status_msg);
+    
     faults_[idx].active = false;
     if (was_estop && active_estop_count_ > 0) {
       active_estop_count_--;
@@ -213,14 +221,13 @@ bool SafetyCoordinator::isUnsafe() {
 }
 
 void SafetyCoordinator::loop() {
-#if CONTROLS_ROBOCLAW_ESTOP_PIN
+  // Send status updates periodically (once per second)
   static uint32_t last_check_ms = 0;
   uint32_t now_ms = millis();
   if (now_ms - last_check_ms >= 1000) {
     last_check_ms = now_ms;
     sendStatusUpdate();
   }
-#endif
 }
 
 const char* SafetyCoordinator::name() const { return "SafetyCoordinator"; }

@@ -155,33 +155,36 @@ unalias buildBoard2 2>/dev/null || true
 unalias buildElevator 2>/dev/null || true
 
 function buildBoard1 {
-    local port="/dev/teensy_sensor"
-    if [ ! -e "$port" ]; then
-        echo "ERROR: $port not present. Refusing to upload board1 firmware." >&2
+    local symlink="/dev/teensy_sensor"
+    if [ ! -e "$symlink" ]; then
+        echo "ERROR: $symlink not present. Refusing to upload board1 firmware." >&2
         echo "Hint: power the navigation/safety Teensy or check udev rules (try: ls -l /dev/teensy_*)." >&2
         return 2
     fi
+    local port=$(realpath "$symlink")
     platformio run -e board1 -d ~/sigyn_ws/src/Sigyn/TeensyV2 --target upload --upload-port "$port"
 }
 
 function buildBoard2 {
-    local port="/dev/teensy_sensor2"
-    if [ ! -e "$port" ]; then
-        echo "ERROR: $port not present. Refusing to upload board2 firmware." >&2
+    local symlink="/dev/teensy_sensor2"
+    if [ ! -e "$symlink" ]; then
+        echo "ERROR: $symlink not present. Refusing to upload board2 firmware." >&2
         echo "Hint: power the power/sensor Teensy or check udev rules (try: ls -l /dev/teensy_*)." >&2
         return 2
     fi
+    local port=$(realpath "$symlink")
     platformio run -e board2 -d ~/sigyn_ws/src/Sigyn/TeensyV2 --target upload --upload-port "$port"
 }
 alias compileElevator='platformio run -e elevator_board -d ~/sigyn_ws/src/Sigyn/TeensyV2'
 
 function buildElevator {
-    local port="/dev/teensy_gripper"
-    if [ ! -e "$port" ]; then
-        echo "ERROR: $port not present. Refusing to upload elevator firmware." >&2
+    local symlink="/dev/teensy_gripper"
+    if [ ! -e "$symlink" ]; then
+        echo "ERROR: $symlink not present. Refusing to upload elevator firmware." >&2
         echo "Hint: power the elevator/gripper Teensy or check udev rules (try: ls -l /dev/teensy_*)." >&2
         return 2
     fi
+    local port=$(realpath "$symlink")
     platformio run -e elevator_board -d ~/sigyn_ws/src/Sigyn/TeensyV2 --target upload --upload-port "$port"
 }
 export CYCLONEDDS_URI="

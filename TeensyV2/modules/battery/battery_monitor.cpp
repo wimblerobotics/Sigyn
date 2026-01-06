@@ -5,71 +5,21 @@
 /**
  * @file battery_monitor.cpp
  * @brief Implementation of comprehensive battery monitoring system
- *
- * This file implements the BatteryMonitor module that provides real-time
- * monitoring of battery voltage, current, power consumption, and state
- * estimation for the TeensyV2 system. The implementation supports multiple
- * battery configurations using INA226 current/voltage sensors with automatic
- * sensor detection.
- *
- * Key Implementation Features:
- *
- * **Multi-Sensor Support:**
- * - Automatic detection and configuration of INA226 sensors
- * - Graceful degradation when sensors are unavailable
- * - Support for up to kNumberOfBatteries simultaneous battery packs
- * - Configurable I2C multiplexer support for expanded sensor count
- *
- * **Real-Time Monitoring:**
- * - Exponential moving average (EMA) filtering for stable readings
- * - Configurable sampling rates optimized for different operational modes
- * - Low-latency data acquisition suitable for safety-critical decisions
- * - Minimal CPU overhead to preserve real-time system performance
- *
- * **Safety Integration:**
- * - Automatic detection of critical voltage/current conditions
- * - Integration with global safety system via isUnsafe() interface
- * - Battery state estimation (charging, discharging, critical, unknown)
- * - Configurable safety thresholds with appropriate hysteresis
- *
- * **State Estimation:**
- * - Charge percentage estimation based on voltage curves
- * - Battery state tracking (charging/discharging/critical)
- * - Power consumption analysis for runtime prediction
- * - Temperature compensation when thermal sensors are available
- *
- * **Performance Characteristics:**
- * - Sensor reading time: <500 microseconds per battery
- * - Memory footprint: ~128 bytes per battery configuration
- * - No dynamic memory allocation during operation
- * - Deterministic execution time for real-time safety
- *
- * **Error Handling:**
- * - Robust I2C communication with automatic retry logic
- * - Sensor disconnection detection and graceful recovery
- * - Invalid reading detection and filtering
- * - Comprehensive error reporting via SerialManager
- *
- * The implementation follows the TeensyV2 architectural principles of
- * modularity, safety, and real-time performance while providing the
- * detailed battery information needed for autonomous robot operation.
- *
- * @author Wimble Robotics
- * @date 2025
- * @version 2.0
  */
 
 #include "battery_monitor.h"
 
 #include <Arduino.h>
+#ifndef UNIT_TEST
 #include <Wire.h>
+#endif
 #include <stddef.h>
 #include <stdint.h>
-
 #include <cmath>
 
-#include "INA226.h"
+#include "sensors/ina226_sensor.h"
 #include "common/core/serial_manager.h"
+#include "modules/safety/safety_coordinator.h"
 
 namespace sigyn_teensy {
 
@@ -87,8 +37,6 @@ namespace sigyn_teensy {
        "3.3VDCDC"},
   };
 
-  INA226 BatteryMonitor::g_ina226_[kNumberOfBatteries] = {
-      INA226(0x40), INA226(0x40), INA226(0x40), INA226(0x40), INA226(0x40) };
   uint8_t BatteryMonitor::gINA226_DeviceIndexes_[kNumberOfBatteries] = { 2, 3, 4,
                                                                         5, 6 };
 
@@ -96,19 +44,28 @@ namespace sigyn_teensy {
     : multiplexer_available_(false), setup_completed_(false) {
     config_ = g_battery_config_[0];
 
-    // Initialize EMA arrays
+    // Initialize EMA arrays and sensors
     for (size_t i = 0; i < kNumberOfBatteries; i++) {
       voltage_ema_[i] = 0.0f;
       current_ema_[i] = 0.0f;
       state_[i] = BatteryState::UNKNOWN;
       total_readings_[i] = 0;
-      ina226_[i] = &g_ina226_[i];
+      sensors_[i] = nullptr;
+      sensor_owned_[i] = false;
+    }
+  }
+
+  void BatteryMonitor::registerSensor(size_t index, IPowerSensor* sensor) {
+    if (index < kNumberOfBatteries) {
+      // If we previously owned a sensor here, we should delete it (though typically registration happens before setup)
+      // For safety on embedded, we assume registration happens once at startup.
+      sensors_[index] = sensor;
+      sensor_owned_[index] = false; 
     }
   }
 
   float BatteryMonitor::estimateChargePercentage(float voltage) const {
     // Simple linear approximation for Li-ion battery pack
-    // Adjust these values based on actual battery characteristics
     constexpr float empty_voltage = 32.0f;  // 0% charge
     constexpr float full_voltage = 42.0f;   // 100% charge
 
@@ -142,27 +99,57 @@ namespace sigyn_teensy {
     if ((now_ms - last_read_time) > 100) {
       for (size_t battery_idx = 0; battery_idx < kNumberOfBatteries;
         battery_idx++) {
+        
         float voltage = 0.0f;
         float current = 0.0f;
-        selectSensor(battery_idx);
-        if (g_ina226_[battery_idx].isConnected()) {
-          voltage = g_ina226_[battery_idx].getBusVoltage();
-          current = g_ina226_[battery_idx].getCurrent();
+        
+        // Sensor failure check
+        if (state_[battery_idx] == BatteryState::DEGRADED) {
+            // Try to re-init periodically? Or just skip? 
+            // For now, we skip reading but maybe we should try to recover.
+            if (!sensors_[battery_idx]->isConnected()) {
+                 continue; // Still broken
+            } else {
+                 // Recovered?
+                 state_[battery_idx] = BatteryState::UNKNOWN; // Reset to unknown to re-evaluate
+            }
         }
 
-        if (total_readings_[battery_idx] == 0) {
-          voltage_ema_[battery_idx] = voltage;
-          current_ema_[battery_idx] = current;
+        if (sensors_[battery_idx]->isConnected()) {
+          voltage = sensors_[battery_idx]->readBusVoltage();
+          current = sensors_[battery_idx]->readCurrent();
+          
+          if (total_readings_[battery_idx] == 0) {
+            voltage_ema_[battery_idx] = voltage;
+            current_ema_[battery_idx] = current;
+          }
+          else {
+            voltage_ema_[battery_idx] = updateExponentialAverage(
+              voltage_ema_[battery_idx], voltage, kDefaultVoltageAlpha);
+            current_ema_[battery_idx] = updateExponentialAverage(
+              current_ema_[battery_idx], current, kDefaultCurrentAlpha);
+          }
+  
+          updateBatteryState(battery_idx);
+          total_readings_[battery_idx]++;
+        } else {
+            // Mark as DEGRADED if connection lost during operation
+            if (state_[battery_idx] != BatteryState::DEGRADED) {
+                state_[battery_idx] = BatteryState::DEGRADED;
+                
+                // Report sensor failure to SafetyCoordinator
+                SafetyCoordinator& safety = SafetyCoordinator::getInstance();
+                char fault_name[64];
+                char description[128];
+                snprintf(fault_name, sizeof(fault_name), "%s_Battery%zu", name(), battery_idx);
+                snprintf(description, sizeof(description), 
+                  "Battery %zu (%s) sensor lost connection",
+                  battery_idx, g_battery_config_[battery_idx].battery_name);
+                  
+                safety.activateFault(FaultSeverity::DEGRADED, fault_name, description);
+                SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), description);
+            }
         }
-        else {
-          voltage_ema_[battery_idx] = updateExponentialAverage(
-            voltage_ema_[battery_idx], voltage, kDefaultVoltageAlpha);
-          current_ema_[battery_idx] = updateExponentialAverage(
-            current_ema_[battery_idx], current, kDefaultCurrentAlpha);
-        }
-
-        updateBatteryState(battery_idx);
-        total_readings_[battery_idx]++;
       }
 
       last_read_time = now_ms;
@@ -180,12 +167,22 @@ namespace sigyn_teensy {
 
   const char* BatteryMonitor::name() const { return "BatteryMonitor"; }
 
+  // Check if any battery is in critical state
+  bool BatteryMonitor::isUnsafe() {
+      for (size_t i = 0; i < kNumberOfBatteries; i++) {
+          if (state_[i] == BatteryState::CRITICAL) {
+              return true;
+          }
+      }
+      return false;
+  }
+
   void BatteryMonitor::selectSensor(size_t battery_idx) const {
-    Wire.beginTransmission(
-      I2C_MULTIPLEXER_ADDRESS);  // I2C_MULTIPLEXER_ADDRESS, adjust as needed
-    Wire.write(1 << gINA226_DeviceIndexes_[battery_idx]);  // Select channel
-    Wire.endTransmission();
-    delayMicroseconds(100);
+      // Deprecated: sensors now handle their own selection
+      // Kept if needed for manual mux testing
+      Wire.beginTransmission(I2C_MULTIPLEXER_ADDRESS);
+      Wire.write(1 << gINA226_DeviceIndexes_[battery_idx]);
+      Wire.endTransmission();
   }
 
   void BatteryMonitor::sendStatusMessage(size_t idx) {
@@ -205,41 +202,45 @@ namespace sigyn_teensy {
     digitalWrite(kI2CMultiplexorEnablePin, HIGH);
     Wire.begin();
     Wire.setClock(400000);
+    
+    // We still test the mux because it is a shared resource
     multiplexer_available_ = testI2cMultiplexer();
     if (!multiplexer_available_) {
       SerialManager::getInstance().sendDiagnosticMessage(
         "FATAL", name(),
         "BatteryMonitor setup failed: I2C multiplexer not available");
-      return;
+      // Don't return, allow generic fallback or partial operation?
+      // If mux is dead, all sensors behind it are dead.
     }
 
     for (size_t device = 0; device < kNumberOfBatteries; device++) {
-      config_ = g_battery_config_[device];  // Use device-specific battery config
+      config_ = g_battery_config_[device]; 
 
-      // Debug: Report what we're trying to initialize
-      char debug_msg[128];
-      snprintf(debug_msg, sizeof(debug_msg),
-        "Initializing device %zu: mux_channel=%u, i2c_addr=0x%02X", device,
-        (unsigned)gINA226_DeviceIndexes_[device], 0x40);
-      SerialManager::getInstance().sendDiagnosticMessage("DEBUG", name(),
-        debug_msg);
-
-      selectSensor(device);
-
-      if (!g_ina226_[device].begin()) {
-        char message[128];
-        snprintf(message, sizeof(message), "INA226 sensor initialization failed for device %u (mux_channel=%u)",
-                 static_cast<unsigned>(device), static_cast<unsigned>(gINA226_DeviceIndexes_[device]));
-        SerialManager::getInstance().sendDiagnosticMessage("FATAL", name(),
-          message);
+      // If no sensor injected, create default
+      if (sensors_[device] == nullptr) {
+          // Provide the mux channel to the sensor wrapper so it can self-select
+          sensors_[device] = new INA226Sensor(0x40, gINA226_DeviceIndexes_[device], I2C_MULTIPLEXER_ADDRESS);
+          sensor_owned_[device] = true;
       }
 
-      g_ina226_[device].setMaxCurrentShunt(20, 0.002);  // 20A max, 2mΩ shunt
-
-      snprintf(debug_msg, sizeof(debug_msg), "Successfully initialized device %zu",
-        device);
-      SerialManager::getInstance().sendDiagnosticMessage("INFO", name(),
-        debug_msg);
+      // Initialize
+      if (!sensors_[device]->init()) {
+        char message[128];
+        snprintf(message, sizeof(message), "Sensor initialization failed for device %u (%s)",
+                 static_cast<unsigned>(device), g_battery_config_[device].battery_name);
+        SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(), message);
+        state_[device] = BatteryState::DEGRADED; // Mark as degraded initially
+        
+        // Report initialization failure to SafetyCoordinator
+        SafetyCoordinator& safety = SafetyCoordinator::getInstance();
+        char fault_name[64];
+        snprintf(fault_name, sizeof(fault_name), "%s_Battery%zu", name(), device);
+        safety.activateFault(FaultSeverity::DEGRADED, fault_name, message);
+      } else {
+          char debug_msg[128];
+          snprintf(debug_msg, sizeof(debug_msg), "Successfully initialized device %zu", device);
+          SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), debug_msg);
+      }
     }
     setup_completed_ = true;
   }
@@ -262,7 +263,6 @@ namespace sigyn_teensy {
         "[BatteryMonitor::testI2cMultiplexer] I2C multiplexer NOT found at "
         "address 0x%02X (error: %d)",
         I2C_MULTIPLEXER_ADDRESS, error);
-      // Log error message
       SerialManager::getInstance().sendDiagnosticMessage("FATAL", name(),
         message);
       return false;
@@ -274,30 +274,63 @@ namespace sigyn_teensy {
     float voltage = getVoltage(idx);
     float current = getCurrent(idx);
 
+    // Determine desired state and severity
+    BatteryState new_state = BatteryState::NORMAL;
+    FaultSeverity desired_severity = FaultSeverity::NORMAL;
+    char desired_description[128] = {0};
+
     if (voltage < g_battery_config_[idx].critical_low_voltage ||
       abs(current) > g_battery_config_[idx].critical_high_current) {
-      state_[idx] = BatteryState::CRITICAL;
-      snprintf(msg, sizeof(msg),
-        "Battery %zu does not meet CRITICAL LOW VOLTAGE OF %4.3f or "
-        "exceeds CRITICAL HIGH "
-        "CURRENT of %4.3f: V=%.2f A=%.2f",
-        idx, g_battery_config_[idx].critical_low_voltage,
-        g_battery_config_[idx].critical_high_current, voltage, current);
-      SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg);
+      new_state = BatteryState::CRITICAL;
+      desired_severity = FaultSeverity::EMERGENCY_STOP;
+      snprintf(desired_description, sizeof(desired_description),
+        "Battery %zu (%s) CRITICAL: V=%.2f A=%.2f",
+        idx, g_battery_config_[idx].battery_name, voltage, current);
     }
     else if (voltage < g_battery_config_[idx].warning_low_voltage) {
-      state_[idx] = BatteryState::WARNING;
-      snprintf(
-        msg, sizeof(msg),
-        "Battery %zu does not meet WARNING LOW VOLTAGE of %4.3f: V=%.2f A=%.2f",
-        idx, g_battery_config_[idx].warning_low_voltage, voltage, current);
-      SerialManager::getInstance().sendDiagnosticMessage("WARNING", name(), msg);
+      new_state = BatteryState::WARNING;
+      desired_severity = FaultSeverity::WARNING;
+      snprintf(desired_description, sizeof(desired_description),
+        "Battery %zu (%s) WARNING: V=%.2f A=%.2f",
+        idx, g_battery_config_[idx].battery_name, voltage, current);
     }
     else if ((idx == 0) && (current < 0.0f)) {
-      state_[idx] = BatteryState::CHARGING;
+      new_state = BatteryState::CHARGING;
     }
     else {
-      state_[idx] = BatteryState::NORMAL;
+      new_state = BatteryState::NORMAL;
+    }
+
+    // Update state and report to SafetyCoordinator if changed
+    bool state_changed = (state_[idx] != new_state);
+    state_[idx] = new_state;
+
+    // Report to SafetyCoordinator (avoid spamming)
+    SafetyCoordinator& safety = SafetyCoordinator::getInstance();
+    
+    // Build fault name with battery index
+    char fault_name[64];
+    snprintf(fault_name, sizeof(fault_name), "%s_Battery%zu", name(), idx);
+    
+    const Fault& current_fault = safety.getFault(fault_name);
+    
+    if (desired_severity == FaultSeverity::NORMAL) {
+      if (current_fault.active) {
+        safety.deactivateFault(fault_name);
+      }
+    } else {
+      // Report if new fault or severity/description changed
+      if (!current_fault.active || 
+          current_fault.severity != desired_severity || 
+          strcmp(current_fault.description, desired_description) != 0) {
+        safety.activateFault(desired_severity, fault_name, desired_description);
+        
+        // Also log to serial
+        if (state_changed) {
+          const char* severity_str = (desired_severity == FaultSeverity::EMERGENCY_STOP) ? "CRITICAL" : "WARNING";
+          SerialManager::getInstance().sendDiagnosticMessage(severity_str, name(), desired_description);
+        }
+      }
     }
   }
 
@@ -320,6 +353,8 @@ namespace sigyn_teensy {
       return "WARNING";
     case BatteryState::NORMAL:
       return "NORMAL";
+    case BatteryState::DEGRADED:
+      return "DEGRADED";
     default:
       return "INVALID";
     }

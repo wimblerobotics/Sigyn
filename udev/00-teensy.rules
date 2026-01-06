@@ -1,10 +1,11 @@
-# Rule for Teensy HalfKay Bootloader
+# Rule for Teensy HalfKay Bootloader (Generic HID)
 SUBSYSTEM=="usb", ATTRS{idVendor}=="16c0", ATTRS{idProduct}=="0478", MODE:="0666"
+KERNEL=="hidraw*", ATTRS{idVendor}=="16c0", ATTRS{idProduct}=="0478", MODE:="0666"
 
 # Rules for Teensy 4.1 devices
-# teensy_sensor
+# teensy_sensor (Board 1 - Navigation) - Hardware Serial 17055770
 KERNEL=="ttyACM*", ATTRS{idVendor}=="16c0", ATTRS{idProduct}=="0483", ATTRS{serial}=="17055770", MODE:="0666", SYMLINK+="teensy_sensor", RUN+="/bin/stty -F /dev/%k raw -echo"
-# teensy_sensor2
+# teensy_sensor2 (Board 2 - Power/Sensors) - Hardware Serial 16482570
 KERNEL=="ttyACM*", ATTRS{idVendor}=="16c0", ATTRS{idProduct}=="0483", ATTRS{serial}=="16482570", MODE:="0666", SYMLINK+="teensy_sensor2", RUN+="/bin/stty -F /dev/%k raw -echo"
 # teensy_gripper
 KERNEL=="ttyACM*", ATTRS{idVendor}=="16c0", ATTRS{idProduct}=="0483", ATTRS{serial}=="16483110", MODE:="0666", SYMLINK+="teensy_gripper", RUN+="/bin/stty -F /dev/%k raw -echo"

@@ -1027,13 +1027,32 @@ void TeensyBridge::HandleFaultMessage(const MessageData & data, rclcpp::Time tim
 {
     // Check for active_fault first to ensure it's at the beginning
   auto active_it = data.find("active_fault");
+  auto source_it = data.find("source");
 
-  // If "active_fault" is present and false, we treat this as a Safety Heartbeat
+  // If "active_fault" is present and false, this is a fault clearance or heartbeat
   if (active_it != data.end() && active_it->second == "false") {
     std::lock_guard<std::mutex> lock(fault_mutex_);
-    current_estop_status_.active = false;
-    current_estop_status_.faults.clear();
+    
+    // If there's a source, clear only that specific fault
+    if (source_it != data.end() && !source_it->second.empty()) {
+      auto it = std::remove_if(current_estop_status_.faults.begin(), 
+                                current_estop_status_.faults.end(),
+                                [&source_it](const sigyn_interfaces::msg::SystemFault& f) {
+                                  return f.source == source_it->second;
+                                });
+      if (it != current_estop_status_.faults.end()) {
+        current_estop_status_.faults.erase(it, current_estop_status_.faults.end());
+        RCLCPP_INFO(this->get_logger(), "Cleared fault from source: %s", source_it->second.c_str());
+      }
+    } else {
+      // No source specified - this is a heartbeat, clear all faults
+      current_estop_status_.faults.clear();
+    }
+    
+    // Update estop active status based on remaining faults
+    current_estop_status_.active = !current_estop_status_.faults.empty();
     estop_status_pub_->publish(current_estop_status_);
+    return;  // Don't process further
   }
 
   auto fault_data = message_parser_->ParseFaultData(data);
@@ -1077,8 +1096,40 @@ void TeensyBridge::HandleFaultMessage(const MessageData & data, rclcpp::Time tim
           estop_status_pub_->publish(current_estop_status_);
         }
       }
-    } else if (fault_data.severity == "WARNING") {
-      status.level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
+    } else if (fault_data.severity == "WARNING" || fault_data.severity == "DEGRADED") {
+      status.level = (fault_data.severity == "WARNING") 
+        ? diagnostic_msgs::msg::DiagnosticStatus::WARN
+        : diagnostic_msgs::msg::DiagnosticStatus::OK;
+
+      // Add WARNING and DEGRADED faults to estop_status (but don't trigger estop)
+      {
+        std::lock_guard<std::mutex> lock(fault_mutex_);
+        
+        // Check if this fault already exists
+        bool fault_exists = false;
+        for (auto& existing_fault : current_estop_status_.faults) {
+          if (existing_fault.source == fault_data.source) {
+            // Update existing fault
+            existing_fault.reason = fault_data.severity;
+            existing_fault.description = fault_data.description;
+            fault_exists = true;
+            break;
+          }
+        }
+        
+        // Add new fault if it doesn't exist
+        if (!fault_exists) {
+          sigyn_interfaces::msg::SystemFault new_fault;
+          new_fault.source = fault_data.source;
+          new_fault.reason = fault_data.severity;
+          new_fault.description = fault_data.description;
+          new_fault.latching = false;  // Non-critical faults don't latch
+          new_fault.first_occurrence = timestamp;
+          current_estop_status_.faults.push_back(new_fault);
+        }
+        
+        estop_status_pub_->publish(current_estop_status_);
+      }
     } else {
       status.level = diagnostic_msgs::msg::DiagnosticStatus::OK;
     }
