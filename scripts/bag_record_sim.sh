@@ -56,7 +56,7 @@ ros2 bag record \
   /sigyn/teensy_bridge/range/vl53l0x_5 \
   /sigyn/teensy_bridge/range/vl53l0x_6 \
   /sigyn/teensy_bridge/range/vl53l0x_7 \
-  /sigyn/teensy_bridge/safety/estop_status \
+  /sigyn/teensy_bridge/safety/estop_status_v2 \
   /sigyn/teensy_bridge/temperature/motor_0 \
   /sigyn/teensy_bridge/temperature/motor_1 \
   /sigyn/wheel_odom \

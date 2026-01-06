@@ -877,8 +877,21 @@ void TeensyBridge::HandleSafetyMessage(const MessageData & data, rclcpp::Time ti
     auto msg = std_msgs::msg::String();
     msg.data = "{\"active_fault\":\"" + std::string(estop_active ? "true" : "false") + "\"}";
     estop_status_pub_->publish(msg);
+    // RCLCPP_INFO(this->get_logger(), "Published V1 ESTOP (active=%d)", estop_active);
+
+    // Update V2 status
+    {
+      std::lock_guard<std::mutex> lock(fault_mutex_);
+      current_estop_status_.active = estop_active;
+      if (!estop_active) {
+        current_estop_status_.faults.clear();
+      }
+      // RCLCPP_INFO(this->get_logger(), "Publishing V2 ESTOP (active=%d)", current_estop_status_.active);
+      estop_status_v2_pub_->publish(current_estop_status_);
+    }
   }
 }
+
 
 void TeensyBridge::HandleEstopMessage(const MessageData & data, rclcpp::Time timestamp)
 {
@@ -1049,6 +1062,14 @@ void TeensyBridge::HandleFaultMessage(const MessageData & data, rclcpp::Time tim
   estop_msg.data = json_str;
   estop_status_pub_->publish(estop_msg);
 
+  // If "active_fault" is present and false, we treat this as a Safety Heartbeat
+  if (active_it != data.end() && active_it->second == "false") {
+    std::lock_guard<std::mutex> lock(fault_mutex_);
+    current_estop_status_.active = false;
+    current_estop_status_.faults.clear();
+    estop_status_v2_pub_->publish(current_estop_status_);
+  }
+
   auto fault_data = message_parser_->ParseFaultData(data);
   if (fault_data.valid) {
       // Convert fault to diagnostic message
@@ -1071,6 +1092,23 @@ void TeensyBridge::HandleFaultMessage(const MessageData & data, rclcpp::Time tim
         if (log_estop_raw_lines_) {
           RCLCPP_WARN(this->get_logger(), "E-STOP RAW (board %d): %s", current_board_id,
             sanitize_frame_for_log(current_serial_frame, 512).c_str());
+        }
+
+        // Update V2 status
+        {
+          std::lock_guard<std::mutex> lock(fault_mutex_);
+          current_estop_status_.active = true;
+
+          sigyn_interfaces::msg::SystemFault new_fault;
+          new_fault.source = fault_data.source;
+          // severity is "EMERGENCY_STOP" here
+          new_fault.reason = fault_data.severity;
+          new_fault.description = fault_data.description;
+          new_fault.latching = true;
+          new_fault.first_occurrence = timestamp;
+
+          current_estop_status_.faults.push_back(new_fault);
+          estop_status_v2_pub_->publish(current_estop_status_);
         }
       }
     } else if (fault_data.severity == "WARNING") {
