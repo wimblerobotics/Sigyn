@@ -529,8 +529,8 @@ bool RoboClawMonitor::testCommunication() {
   bool success = roboclaw_->ReadVersion(config_.address, version);
 
   if (success) {
-    // Check if version matches expected
-    if (strstr(version, "Roboclaw") != nullptr) {
+    // Check for exact version match
+    if (strcmp(version, "USB Roboclaw 2x15a v4.3.6\n") == 0) {
       char msg[96] = {0};
       snprintf(msg, sizeof(msg), "Version check passed: %s", version);
       SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);

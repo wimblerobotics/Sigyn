@@ -284,3 +284,33 @@ TEST_F(RoboClawMonitorTest, ResetErrors_WhenConnected_StopsAndResetsEncoders) {
   EXPECT_EQ(mock_.state.reset_encoders_calls, 1u);
   EXPECT_EQ(mock_.state.read_error_calls, 1u);
 }
+
+TEST_F(RoboClawMonitorTest, TestCommunication_ExactVersionStrictness) {
+  mock_.reset();
+
+  // Test case 1: Exact match
+  strncpy(mock_.state.version, "USB Roboclaw 2x15a v4.3.6\n", sizeof(mock_.state.version));
+  mock_.state.read_version_ok = true;
+
+  bool ok = monitor_->testCommunicationForTesting();
+  EXPECT_TRUE(ok);
+  EXPECT_FALSE(monitor_->isEmergencyStopActiveForTesting());
+
+  // Test case 2: Substring match (old behavior) that should now fail
+  monitor_->resetErrors();
+  monitor_->clearEmergencyStop();
+
+  strncpy(mock_.state.version, "USB Roboclaw 2x15a v4.3.5\n", sizeof(mock_.state.version));
+  ok = monitor_->testCommunicationForTesting();
+  EXPECT_FALSE(ok);
+  EXPECT_TRUE(monitor_->isEmergencyStopActiveForTesting());
+
+  // Test case 3: Wrong string entirely
+  monitor_->resetErrors();
+  monitor_->clearEmergencyStop();
+
+  strncpy(mock_.state.version, "Some Other Controller", sizeof(mock_.state.version));
+  ok = monitor_->testCommunicationForTesting();
+  EXPECT_FALSE(ok);
+  EXPECT_TRUE(monitor_->isEmergencyStopActiveForTesting());
+}
