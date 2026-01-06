@@ -1100,16 +1100,32 @@ void TeensyBridge::HandleFaultMessage(const MessageData & data, rclcpp::Time tim
           std::lock_guard<std::mutex> lock(fault_mutex_);
           current_estop_status_.active = true;
 
-          sigyn_interfaces::msg::SystemFault new_fault;
-          new_fault.board_id = static_cast<uint8_t>(current_board_id);
-          new_fault.source = fault_data.source;
-          // severity is "EMERGENCY_STOP" here
-          new_fault.reason = fault_data.severity;
-          new_fault.description = fault_data.description;
-          new_fault.latching = true;
-          new_fault.first_occurrence = timestamp;
+          // Check if this fault already exists from this board
+          bool fault_exists = false;
+          for (auto& existing_fault : current_estop_status_.faults) {
+            if (existing_fault.source == fault_data.source && 
+                existing_fault.board_id == static_cast<uint8_t>(current_board_id)) {
+              // Update existing fault
+              existing_fault.reason = fault_data.severity;
+              existing_fault.description = fault_data.description;
+              fault_exists = true;
+              break;
+            }
+          }
 
-          current_estop_status_.faults.push_back(new_fault);
+          // Add new fault if it doesn't exist
+          if (!fault_exists) {
+            sigyn_interfaces::msg::SystemFault new_fault;
+            new_fault.board_id = static_cast<uint8_t>(current_board_id);
+            new_fault.source = fault_data.source;
+            // severity is "EMERGENCY_STOP" here
+            new_fault.reason = fault_data.severity;
+            new_fault.description = fault_data.description;
+            new_fault.latching = true;
+            new_fault.first_occurrence = timestamp;
+            current_estop_status_.faults.push_back(new_fault);
+          }
+
           estop_status_pub_->publish(current_estop_status_);
         }
       }
@@ -1359,20 +1375,30 @@ void TeensyBridge::HandleOdomMessage(const MessageData & data, rclcpp::Time time
 
 void TeensyBridge::EstopCommandCallback(const std_msgs::msg::Bool::SharedPtr msg)
 {
-    // Send E-stop command to embedded system
+    // Send E-stop command to Board 1 (main controller with motor control)
+    // The safety coordinator on board1 will handle the e-stop trigger/reset
   std::string command;
   if (msg->data) {
-    command = "ESTOP:trigger=true,reason=Software command\n";
+    // Trigger software e-stop
+    command = "ESTOP:trigger=true\n";
+    RCLCPP_WARN(this->get_logger(), "Sending software E-STOP trigger command to Board 1");
   } else {
-    command = "ESTOP:reset=true,source=SOFTWARE\n";
+    // Reset/clear software e-stop
+    command = "ESTOP:reset=true\n";
+    RCLCPP_INFO(this->get_logger(), "Sending software E-STOP reset command to Board 1");
   }
 
     // Send to Board 1 (main controller)
   if (board1_fd_ >= 0) {
     ssize_t bytes_written = write(board1_fd_, command.c_str(), command.length());
     if (bytes_written != static_cast<ssize_t>(command.length())) {
-      RCLCPP_WARN(this->get_logger(), "Failed to send E-stop command to Board 1");
+      RCLCPP_ERROR(this->get_logger(), "Failed to send E-stop command to Board 1");
+    } else {
+      RCLCPP_DEBUG(this->get_logger(), "E-stop command sent to Board 1: %s", 
+                   command.substr(0, command.length()-1).c_str());
     }
+  } else {
+    RCLCPP_ERROR(this->get_logger(), "Cannot send E-stop command: Board 1 not connected");
   }
 }
 
