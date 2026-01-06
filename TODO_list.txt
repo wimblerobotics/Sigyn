@@ -3,13 +3,9 @@ RoboClawMonitor -- Add ability to cycle power to clear latching hardware faults 
 Behavior Trees -- Create a single, parameterized Condition Node (e.g., `IsFaultActive`) that takes a `target_fault` input port, instead of creating individual nodes for each fault type.
 
 # Safety System Critical Gaps (from TeensyV2 Analysis)
-* [CRITICAL] Implement `isUnsafe()` in `BatteryMonitor` (Voltage/Current thresholds, Sensor Health). ✅ DONE
 * [CRITICAL] Enable Safety on Board 3 (Gripper). Set `BOARD_HAS_SAFETY 1` and instantiate `SafetyCoordinator`.
-* [HIGH] Fix Software E-Stop in `SerialManager::handleCommand`. The `ESTOP` command is currently a TODO.
-* [HIGH] Map Safety Sources. Change `EstopSource::UNKNOWN` to specific sources (BATTERY, MOTOR, SENSOR, etc.).
 * [HIGH] Fix Inter-Board Communication. Implement `fault_handler` inter-board signaling in `board1_main.cpp`.
 * [MED] Sensor Timeout Safety. Ensure sensors trigger `isUnsafe` if they stop updating.
-* [MED] Temperature Monitor. Audit `TemperatureMonitor` enforcement of critical thresholds.
 * [FUTURE] Battery Charging Logic: Warning on low charge, E-Stop on Critical Low.
 
 # Multi-Board Safety Coordination (2025-01-06)
@@ -21,16 +17,6 @@ Behavior Trees -- Create a single, parameterized Condition Node (e.g., `IsFaultA
   - Board3 (Elevator) → Board1: GPIO pin signal when Board3 has EMERGENCY_STOP fault  
   - Board1: Interrupt handlers on input pins to immediately raise hardware E-stop
   - Board1: Drop E-stop when all board GPIO signals clear AND no local faults
-* [HIGH] sigyn_to_sensor_v2 Fault Aggregation - ROS2 bridge must handle multi-board safety
-  - Collect FAULT messages from all boards (1, 2, 3) via separate USB serial connections
-  - Aggregate all faults into single estop_status message with board source tracking
-  - Track which board owns each fault for proper routing of clear commands
-  - Implement fault clearance routing - send reset commands back to owning board
-  - Handle partial fault clearance (some boards still faulted while others clear)
-* [MED] Safety Message Protocol Enhancement
-  - Consider adding board_id field to FAULT messages for explicit source tracking
-  - Define clear-fault command format and board routing mechanism
-  - Document multi-board safety state machine and recovery procedures
 
 # Perimeter Roamer V3
 * Test with actual robot hardware.
