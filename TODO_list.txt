@@ -1,0 +1,31 @@
+TODO list:
+SerialManager::processIncomingMessages() -- possible buffer overrun
+boaqrd1_main.cpp -- unused code
+  fault_handler
+  free_memory
+  inside loop()
+RoboclawMonitor -- use real version string
+Check the DIAG messages are for diagnostics, and INFO for normal operation
+RoboClawMonitor -- Add ability to cycle power to clear latching hardware faults (see roboclaw_monitor.cpp TODOs)
+Behavior Trees -- Create a single, parameterized Condition Node (e.g., `IsFaultActive`) that takes a `target_fault` input port, instead of creating individual nodes for each fault type.
+
+# Safety System Critical Gaps (from TeensyV2 Analysis)
+* [CRITICAL] Implement `isUnsafe()` in `BatteryMonitor`. Currently, it monitors but doesn't trigger safety violations.
+* [CRITICAL] Enable Safety on Board 3 (Gripper). Set `BOARD_HAS_SAFETY 1` and instantiate `SafetyCoordinator`.
+* [HIGH] Fix Software E-Stop in `SerialManager::handleCommand`. The `ESTOP` command is currently a TODO.
+* [HIGH] Map Safety Sources. Change `EstopSource::UNKNOWN` to specific sources (BATTERY, MOTOR, SENSOR, etc.).
+* [HIGH] Fix Inter-Board Communication. Implement `fault_handler` inter-board signaling in `board1_main.cpp`.
+* [MED] Sensor Timeout Safety. Ensure sensors trigger `isUnsafe` if they stop updating.
+* [MED] Temperature Monitor. Audit `TemperatureMonitor` enforcement of critical thresholds.
+
+# Perimeter Roamer V3
+* Test with actual robot hardware.
+* Implement TF2 integration for proper pose tracking.
+* Add current pose monitoring for better space classification.
+* Implement wall-following behavior for room patrolling.
+* Add obstacle avoidance integration.
+
+# General
+* Predict battery discharge time based on current draw.
+* Board1 should pick up roboclaw temp, motor1 current, motor2 current.
+* Implement heartbeat/watchdog from sigyn_to_sensor_v2.

@@ -440,3 +440,20 @@ This architecture provides a solid foundation for safe autonomous operation and 
 4. IEC 61508 Functional Safety Standard
 5. ISO 13849 Safety of Machinery Standard
 6. ROS 2 Safety Working Group Documentation
+## 10. Current Implementation Status & Known Gaps (Jan 2026)
+
+While the architecture described above is the target state, the current codebase has the following status:
+
+### ✅ Functioning Correctly
+*   **RoboClaw Safety**: Motor runaway and overcurrent detection are fully implemented and tested. Overcurrent faults are latching and require manual reset.
+*   **Hardware E-Stop**: The physical button correctly triggers the safety system on Board 1.
+*   **Performance Monitor**: Loop timing violations are detected.
+*   **ROS 2 Bridge**: Safety status messages are correctly published to `/estop_status`.
+
+### ⚠️ Partially Implemented / Gaps
+*   **Battery Safety**: The `BatteryMonitor` class collects data but does **NOT** currently implement `isUnsafe()`. The robot will not automatically stop on low voltage.
+*   **Software E-Stop**: The ROS 2 service sends the command, but the firmware `SerialManager` does not yet execute the logic to trigger the E-stop.
+*   **Board 3 (Gripper)**: Safety monitoring is currently disabled (`BOARD_HAS_SAFETY 0`).
+*   **Source Mapping**: Most internal faults report as `EstopSource::UNKNOWN`.
+
+See `TODO_list.txt` for the remediation plan.
