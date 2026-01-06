@@ -74,8 +74,6 @@
 using namespace sigyn_teensy;
 
 // Function declarations
-void fault_handler();
-uint32_t freeMemory();
 void loop();
 void serialEvent();
 void setup();
@@ -111,70 +109,12 @@ BNO055Monitor* bno055_monitor;
 SDLogger* sd_logger;
 #endif
 
-/**
- * @brief Handle critical errors and system faults.
- *
- * This function is called by the Teensy runtime when critical errors occur.
- */
-void fault_handler() {
-  if (serial_manager) {
-    char fault_msg[96] = {0};
-    snprintf(fault_msg, sizeof(fault_msg), "CRITICAL FAULT: Board %d system fault detected", BOARD_ID);
-    serial_manager->sendDiagnosticMessage("FAULT", "board1_main", fault_msg);
-
-    char details[96] = {0};
-    snprintf(details, sizeof(details), "type=system,board=%d,time=%lu", BOARD_ID,
-             static_cast<unsigned long>(millis()));
-    serial_manager->sendDiagnosticMessage("FATAL", "board1_main", details);
-  }
-
-  // Halt system
-  while (true) {
-    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));  // Blink LED
-    delay(100);
-  }
-}
-
-/**
- * @brief Get free memory for monitoring.
- *
- * Simple free memory calculation for Teensy 4.1.
- *
- * @return Estimated free memory in bytes
- */
-uint32_t freeMemory() {
-  // For Teensy 4.1, we'll use a simple stack-based approach
-  // This is not as accurate but works without linker issues
-  char stack_var;
-  extern char _ebss;
-  return &stack_var - &_ebss;
-}
-
 void loop() {
   // Execute all modules through the module system
   Module::loopAll();
 
   // Drain outgoing serial queue without blocking the real-time loop.
   SerialManager::getInstance().processOutgoingMessages();
-
-  // Board-specific safety monitoring
-  static uint32_t last_safety_check = 0;
-  uint32_t current_time = micros();
-  if (current_time - last_safety_check >= SAFETY_CHECK_INTERVAL_US) {
-    last_safety_check = current_time;
-
-    // Board-specific safety checks
-#if ENABLE_VL53L0X
-    // Check VL53L0X sensors for emergency obstacles
-    // VL53L0X monitoring is handled by the VL53L0XMonitor module
-    // Additional board-specific obstacle detection logic can be added here
-#endif
-
-    // TODO: Add other board-specific safety checks here
-    // - Inter-board communication health check
-    // - Hardware E-stop button status (Board 1 only)
-    // - Critical system status verification
-  }
 }
 
 /**

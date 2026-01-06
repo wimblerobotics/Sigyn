@@ -1,9 +1,5 @@
 TODO list:
 SerialManager::processIncomingMessages() -- possible buffer overrun
-boaqrd1_main.cpp -- unused code
-  fault_handler
-  free_memory
-  inside loop()
 RoboclawMonitor -- use real version string
 Check the DIAG messages are for diagnostics, and INFO for normal operation
 RoboClawMonitor -- Add ability to cycle power to clear latching hardware faults (see roboclaw_monitor.cpp TODOs)
