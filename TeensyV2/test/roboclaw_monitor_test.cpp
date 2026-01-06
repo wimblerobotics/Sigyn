@@ -27,9 +27,6 @@ int32_t expectedQpps(const RoboClawConfig& cfg, float linear_x, float angular_z,
   return static_cast<int32_t>(qpps);
 }
 
-uint32_t expectedDistance(const RoboClawConfig& cfg, int32_t qpps) {
-  return static_cast<uint32_t>(std::abs(qpps) * cfg.max_seconds_commanded_travel_s);
-}
 }  // namespace
 
 class RoboClawMonitorTest : public ::testing::Test {

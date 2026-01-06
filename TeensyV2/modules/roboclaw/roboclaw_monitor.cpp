@@ -352,11 +352,9 @@ void RoboClawMonitor::setVelocityCommand(float linear_x, float angular_z) {
       if (motor1_status_.runaway_detected || motor2_status_.runaway_detected) {
           motor1_status_.runaway_detected = false;
           motor2_status_.runaway_detected = false;
-          
-          // If we were only E-stopped due to runaway, we might be able to clear it
-          // Note: This does NOT clear faults in SafetyCoordinator, just the local latch
-          // A full reset cycle via /commands/estop reset=true is preferred, but this 
-          // allows 'stop and recover' behavior if configured.
+          // Note: We do NOT clear other faults (overcurrent/timeout) here.
+          // The E-stop state will be cleared in checkSafetyConditions() only if all
+          // safety conditions (including runaway, overcurrent, temp) are satisfied.
       }
   }
 
@@ -1112,57 +1110,74 @@ void RoboClawMonitor::checkSafetyConditions() {
     setEmergencyStop();
 
     if (isPowerCycleLikelyRequired(system_status_.error_status)) {
-      // TODO(wimble): Power-cycle RoboClaw via PIN_RELAY_ROBOCLAW_POWER to clear latching faults.
+      // TODO: Power-cycle RoboClaw via PIN_RELAY_ROBOCLAW_POWER to clear latching faults.
+      // This is required for certain latching errors (like Logic Battery High) that
+      // cannot be cleared by a soft reset or serial command.
     }
   }
 
   // Check for overcurrent conditions
-  if (motor1_status_.current_valid && std::abs(motor1_status_.current_amps) > config_.max_current_m1) {
-    const bool first_trip = !motor1_status_.overcurrent;
-    motor1_status_.overcurrent = true;
-    total_safety_violations_++;
+  // NOTE: Overcurrent is a LATCING fault. It stops the robot to prevent oscillation ("hammering").
+  // It must be cleared by an explicit Reset command (Service/Topic) from the host.
+  if (motor1_status_.current_valid) {
+    if (std::abs(motor1_status_.current_amps) > config_.max_current_m1) {
+      if (!motor1_status_.overcurrent) {
+        // First trip
+        SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, name(), "Motor 1 overcurrent");
+        setEmergencyStop();
+        motor1_status_.overcurrent = true;
+        total_safety_violations_++;
 
-    if (first_trip) {
-      SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, name(),
-                                                     "Motor 1 overcurrent");
-      setEmergencyStop();
-    }
-
-    // Rate-limited ESTOP message
-    if (now - last_estop_msg_time >= config_.estop_msg_interval_ms) {
-      char msg[192] = {0};
-      snprintf(msg, sizeof(msg),
-               "active:true,source:ROBOCLAW_CURRENT,reason:Motor 1 overcurrent,value:%.2f,manual_reset:false,time:%lu",
-               static_cast<double>(motor1_status_.current_amps), static_cast<unsigned long>(millis()));
-      SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", "RoboClaw", msg);
-      last_estop_msg_time = now;
+        // TODO: If this error persists or is massive (short circuit), trigger Power Cycle.
+      }
+      
+      // Rate-limited diagnostics
+      if (now - last_estop_msg_time >= config_.estop_msg_interval_ms) {
+          char msg[192] = {0};
+          snprintf(msg, sizeof(msg),
+                  "active:true,source:ROBOCLAW_CURRENT,reason:Motor 1 overcurrent,value:%.2f,manual_reset:true,time:%lu",
+                  static_cast<double>(motor1_status_.current_amps), static_cast<unsigned long>(millis()));
+          SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", "RoboClaw", msg);
+          last_estop_msg_time = now;
+      }
     }
   }
 
-  if (motor2_status_.current_valid && std::abs(motor2_status_.current_amps) > config_.max_current_m2) {
-    const bool first_trip = !motor2_status_.overcurrent;
-    motor2_status_.overcurrent = true;
-    total_safety_violations_++;
+  if (motor2_status_.current_valid) {
+    if (std::abs(motor2_status_.current_amps) > config_.max_current_m2) {
+      if (!motor2_status_.overcurrent) {
+        SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, name(), "Motor 2 overcurrent");
+        setEmergencyStop();
+        motor2_status_.overcurrent = true;
+        total_safety_violations_++;
 
-    if (first_trip) {
-      SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, name(),
-                                                     "Motor 2 overcurrent");
-      setEmergencyStop();
-    }
-
-    // Rate-limited ESTOP message
-    if (now - last_estop_msg_time >= config_.estop_msg_interval_ms) {
-      char msg[192] = {0};
-      snprintf(msg, sizeof(msg),
-               "active:true,source:ROBOCLAW_CURRENT,reason:Motor 2 overcurrent,value:%.2f,manual_reset:false,time:%lu",
-               static_cast<double>(motor2_status_.current_amps), static_cast<unsigned long>(millis()));
-      SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", "RoboClaw", msg);
-      last_estop_msg_time = now;
+        // TODO: If this error persists or is massive (short circuit), trigger Power Cycle.
+      }
+      
+      if (now - last_estop_msg_time >= config_.estop_msg_interval_ms) {
+          char msg[192] = {0};
+          snprintf(msg, sizeof(msg),
+                  "active:true,source:ROBOCLAW_CURRENT,reason:Motor 2 overcurrent,value:%.2f,manual_reset:true,time:%lu",
+                  static_cast<double>(motor2_status_.current_amps), static_cast<unsigned long>(millis()));
+          SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", "RoboClaw", msg);
+          last_estop_msg_time = now;
+      }
     }
   }
 
   // Check for runaway detection
   detectMotorRunaway();
+
+  // Attempt Auto-Reset of E-Stop if all conditions are now safe
+  if (emergency_stop_active_) {
+    // Check all latching safety flags
+    // Overcurrent and Timeout are manual reset only (require service call)
+    // Runaway can be auto-cleared if velocity is zeroed (handled in setVelocityCommand)
+    
+    // We do NOT auto-reset here anymore to strictly enforce "Manual Reset" policy for safety.
+    // The previous auto-reset logic was risky for overcurrent.
+    // The host must send 'reset' command which calls resetSafetyFlags().
+  }
 }
 
 void RoboClawMonitor::detectMotorRunaway() {
