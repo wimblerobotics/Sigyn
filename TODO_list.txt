@@ -1,6 +1,4 @@
 TODO list:
-SerialManager::processIncomingMessages() -- possible buffer overrun
-RoboclawMonitor -- use real version string
 Check the DIAG messages are for diagnostics, and INFO for normal operation
 RoboClawMonitor -- Add ability to cycle power to clear latching hardware faults (see roboclaw_monitor.cpp TODOs)
 Behavior Trees -- Create a single, parameterized Condition Node (e.g., `IsFaultActive`) that takes a `target_fault` input port, instead of creating individual nodes for each fault type.

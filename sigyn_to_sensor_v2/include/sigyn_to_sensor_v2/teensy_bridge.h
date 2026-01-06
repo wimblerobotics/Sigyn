@@ -140,8 +140,7 @@ private:
     // Publishers
     rclcpp::Publisher < sensor_msgs::msg::BatteryState > ::SharedPtr battery_pub_;
     rclcpp::Publisher < diagnostic_msgs::msg::DiagnosticArray > ::SharedPtr diagnostics_pub_;
-    rclcpp::Publisher < sigyn_interfaces::msg::EStopStatus > ::SharedPtr estop_status_v2_pub_; // Renaming to avoid conflict if any, or just new one
-    rclcpp::Publisher < std_msgs::msg::String > ::SharedPtr estop_status_pub_; // Keeping old one for backward compat?
+    rclcpp::Publisher < sigyn_interfaces::msg::EStopStatus > ::SharedPtr estop_status_pub_;
     rclcpp::Publisher < sensor_msgs::msg::Imu > ::SharedPtr imu_sensor0_pub_;
     rclcpp::Publisher < sensor_msgs::msg::Imu > ::SharedPtr imu_sensor1_pub_;
     rclcpp::Publisher < nav_msgs::msg::Odometry > ::SharedPtr odom_pub_;
