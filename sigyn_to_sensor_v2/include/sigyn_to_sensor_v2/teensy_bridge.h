@@ -34,6 +34,9 @@
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "sigyn_interfaces/srv/teensy_sd_get_dir.hpp"
 #include "sigyn_interfaces/srv/teensy_sd_get_file.hpp"
+#include "sigyn_interfaces/srv/reset_fault.hpp"
+#include "sigyn_interfaces/msg/e_stop_status.hpp"
+#include "sigyn_interfaces/msg/system_fault.hpp"
 
 #include "sigyn_to_sensor_v2/message_parser.h"
 
@@ -137,7 +140,8 @@ private:
     // Publishers
     rclcpp::Publisher < sensor_msgs::msg::BatteryState > ::SharedPtr battery_pub_;
     rclcpp::Publisher < diagnostic_msgs::msg::DiagnosticArray > ::SharedPtr diagnostics_pub_;
-    rclcpp::Publisher < std_msgs::msg::String > ::SharedPtr estop_status_pub_;
+    rclcpp::Publisher < sigyn_interfaces::msg::EStopStatus > ::SharedPtr estop_status_v2_pub_; // Renaming to avoid conflict if any, or just new one
+    rclcpp::Publisher < std_msgs::msg::String > ::SharedPtr estop_status_pub_; // Keeping old one for backward compat?
     rclcpp::Publisher < sensor_msgs::msg::Imu > ::SharedPtr imu_sensor0_pub_;
     rclcpp::Publisher < sensor_msgs::msg::Imu > ::SharedPtr imu_sensor1_pub_;
     rclcpp::Publisher < nav_msgs::msg::Odometry > ::SharedPtr odom_pub_;
@@ -162,6 +166,14 @@ private:
     // Services
     rclcpp::Service < sigyn_interfaces::srv::TeensySdGetDir > ::SharedPtr sd_getdir_service_;
     rclcpp::Service < sigyn_interfaces::srv::TeensySdGetFile > ::SharedPtr sd_getfile_service_;
+    rclcpp::Service < sigyn_interfaces::srv::ResetFault > ::SharedPtr reset_fault_service_;
+    
+    // Fault tracking
+    std::mutex fault_mutex_;
+    sigyn_interfaces::msg::EStopStatus current_estop_status_;
+    void UpdateAndPublishFaults();
+    void HandleResetFault(const std::shared_ptr<sigyn_interfaces::srv::ResetFault::Request> request,
+                          std::shared_ptr<sigyn_interfaces::srv::ResetFault::Response> response);
 
     // Callback groups
     rclcpp::CallbackGroup::SharedPtr service_callback_group_;

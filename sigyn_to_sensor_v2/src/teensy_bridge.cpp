@@ -236,6 +236,9 @@ void TeensyBridge::InitializePublishersAndSubscribers()
 
   estop_status_pub_ = this->create_publisher<std_msgs::msg::String>(
       "~/safety/estop_status", 10);
+  
+  estop_status_v2_pub_ = this->create_publisher<sigyn_interfaces::msg::EStopStatus>(
+      "~/safety/estop_status_v2", 10);
 
     // IMU publishers for dual sensors
   imu_sensor0_pub_ = this->create_publisher<sensor_msgs::msg::Imu>(
@@ -333,6 +336,14 @@ void TeensyBridge::InitializePublishersAndSubscribers()
       },
       rclcpp::ServicesQoS(),
       service_callback_group_);
+
+  reset_fault_service_ = this->create_service<sigyn_interfaces::srv::ResetFault>(
+      "~/safety/reset_fault",
+    [this](const std::shared_ptr<sigyn_interfaces::srv::ResetFault::Request> request,
+      std::shared_ptr<sigyn_interfaces::srv::ResetFault::Response> response) {
+      HandleResetFault(request, response);
+      },
+      rclcpp::ServicesQoS(), service_callback_group_);
 
     // Timers
   status_timer_ = this->create_wall_timer(
@@ -886,6 +897,14 @@ void TeensyBridge::HandleEstopMessage(const MessageData & data, rclcpp::Time tim
       RCLCPP_INFO(this->get_logger(), "E-STOP RAW (board %d): %s", current_board_id,
         sanitize_frame_for_log(current_serial_frame, 512).c_str());
     }
+    
+    // Clear faults in V2 status
+    {
+      std::lock_guard<std::mutex> lock(fault_mutex_);
+      current_estop_status_.active = false;
+      current_estop_status_.faults.clear();
+      estop_status_v2_pub_->publish(current_estop_status_);
+    }
   }
 }
 
@@ -965,6 +984,33 @@ void TeensyBridge::HandleDiagnosticMessage(const MessageData & data, rclcpp::Tim
         estop_msg.data = "{\"active_fault\":\"true\",\"source\":\"" + source + "\",\"reason\":\"" +
           reason + "\"}";
         estop_status_pub_->publish(estop_msg);
+
+        // Update V2 Status
+        {
+          std::lock_guard<std::mutex> lock(fault_mutex_);
+          current_estop_status_.active = true;
+          
+          bool found = false;
+          for (auto & fault : current_estop_status_.faults) {
+            if (fault.source == source) {
+              fault.reason = reason;
+              // fault.latching = (message.find("manual_reset:true") != std::string::npos);
+              // timestamp update?
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            sigyn_interfaces::msg::SystemFault new_fault;
+            new_fault.source = source;
+            new_fault.reason = reason;
+            new_fault.description = message; // Or parse value?
+            new_fault.latching = (message.find("manual_reset:true") != std::string::npos);
+            new_fault.first_occurrence = this->now(); 
+            current_estop_status_.faults.push_back(new_fault);
+          }
+          estop_status_v2_pub_->publish(current_estop_status_);
+        }
       }
     }
 
@@ -1760,6 +1806,46 @@ void TeensyBridge::HandleSdeofResponse(const std::string & data)
         e.what());
     }
   }
+}
+
+void TeensyBridge::HandleResetFault(const std::shared_ptr<sigyn_interfaces::srv::ResetFault::Request> request,
+                                    std::shared_ptr<sigyn_interfaces::srv::ResetFault::Response> response)
+{
+  RCLCPP_INFO(this->get_logger(), "Received ResetFault request via service. Source: '%s', Reason: '%s'",
+              request->source.c_str(), request->reason.c_str());
+
+  // Construct command for Teensy
+  // If specific source is requested, try to send targeted reset if supported,
+  // otherwise send generic reset (which clears all safety flags in current firmware).
+  // Firmware Todo: Support 'cmd:reset,target:<source>'
+
+  std::string command;
+  if (request->source.empty() || request->source == "all") {
+    command = "cmd:reset,value:true\n";
+  } else {
+    // Attempt targeted reset command (firmware update required to fully support this granularity)
+    command = "cmd:reset_fault,source:" + request->source + "\n";
+  }
+
+  // Send to all boards since we don't track which board originated the fault in the map key yet (could improve this)
+  if (board1_fd_ >= 0) {
+    if (write(board1_fd_, command.c_str(), command.length()) < 0) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to write reset command to board1");
+      response->success = false;
+      response->message = "Failed to write to board1";
+      return;
+    }
+  }
+  // Sending to others just in case? Usually motion control is board 1.
+
+  response->success = true;
+  response->message = "Reset command sent: " + command;
+}
+
+void TeensyBridge::UpdateAndPublishFaults()
+{
+  std::lock_guard<std::mutex> lock(fault_mutex_);
+  estop_status_v2_pub_->publish(current_estop_status_);
 }
 
 }  // namespace sigyn_to_sensor_v2
