@@ -903,11 +903,18 @@ void TeensyBridge::HandleEstopMessage(const MessageData & data, rclcpp::Time tim
         sanitize_frame_for_log(current_serial_frame, 512).c_str());
     }
     
-    // Clear faults in V2 status
+    // Clear faults from this board only in V2 status
     {
       std::lock_guard<std::mutex> lock(fault_mutex_);
-      current_estop_status_.active = false;
-      current_estop_status_.faults.clear();
+      auto it = std::remove_if(current_estop_status_.faults.begin(), 
+                                current_estop_status_.faults.end(),
+                                [board_id = current_board_id](const sigyn_interfaces::msg::SystemFault& f) {
+                                  return f.board_id == board_id;
+                                });
+      if (it != current_estop_status_.faults.end()) {
+        current_estop_status_.faults.erase(it, current_estop_status_.faults.end());
+      }
+      current_estop_status_.active = !current_estop_status_.faults.empty();
       estop_status_pub_->publish(current_estop_status_);
     }
   }
@@ -991,7 +998,7 @@ void TeensyBridge::HandleDiagnosticMessage(const MessageData & data, rclcpp::Tim
           
           bool found = false;
           for (auto & fault : current_estop_status_.faults) {
-            if (fault.source == source) {
+            if (fault.source == source && fault.board_id == static_cast<uint8_t>(current_board_id)) {
               fault.reason = reason;
               // fault.latching = (message.find("manual_reset:true") != std::string::npos);
               // timestamp update?
@@ -1001,6 +1008,7 @@ void TeensyBridge::HandleDiagnosticMessage(const MessageData & data, rclcpp::Tim
           }
           if (!found) {
             sigyn_interfaces::msg::SystemFault new_fault;
+            new_fault.board_id = static_cast<uint8_t>(current_board_id);
             new_fault.source = source;
             new_fault.reason = reason;
             new_fault.description = message; // Or parse value?
@@ -1033,20 +1041,28 @@ void TeensyBridge::HandleFaultMessage(const MessageData & data, rclcpp::Time tim
   if (active_it != data.end() && active_it->second == "false") {
     std::lock_guard<std::mutex> lock(fault_mutex_);
     
-    // If there's a source, clear only that specific fault
+    // If there's a source, clear only that specific fault from this board
     if (source_it != data.end() && !source_it->second.empty()) {
       auto it = std::remove_if(current_estop_status_.faults.begin(), 
                                 current_estop_status_.faults.end(),
-                                [&source_it](const sigyn_interfaces::msg::SystemFault& f) {
-                                  return f.source == source_it->second;
+                                [&source_it, board_id = current_board_id](const sigyn_interfaces::msg::SystemFault& f) {
+                                  return f.source == source_it->second && f.board_id == board_id;
                                 });
       if (it != current_estop_status_.faults.end()) {
         current_estop_status_.faults.erase(it, current_estop_status_.faults.end());
-        RCLCPP_INFO(this->get_logger(), "Cleared fault from source: %s", source_it->second.c_str());
+        RCLCPP_INFO(this->get_logger(), "Cleared fault from board %d, source: %s", current_board_id, source_it->second.c_str());
       }
     } else {
-      // No source specified - this is a heartbeat, clear all faults
-      current_estop_status_.faults.clear();
+      // No source specified - this is a heartbeat, clear all faults from this board only
+      auto it = std::remove_if(current_estop_status_.faults.begin(), 
+                                current_estop_status_.faults.end(),
+                                [board_id = current_board_id](const sigyn_interfaces::msg::SystemFault& f) {
+                                  return f.board_id == board_id;
+                                });
+      if (it != current_estop_status_.faults.end()) {
+        current_estop_status_.faults.erase(it, current_estop_status_.faults.end());
+        RCLCPP_INFO(this->get_logger(), "Cleared all faults from board %d", current_board_id);
+      }
     }
     
     // Update estop active status based on remaining faults
@@ -1085,6 +1101,7 @@ void TeensyBridge::HandleFaultMessage(const MessageData & data, rclcpp::Time tim
           current_estop_status_.active = true;
 
           sigyn_interfaces::msg::SystemFault new_fault;
+          new_fault.board_id = static_cast<uint8_t>(current_board_id);
           new_fault.source = fault_data.source;
           // severity is "EMERGENCY_STOP" here
           new_fault.reason = fault_data.severity;
@@ -1105,10 +1122,11 @@ void TeensyBridge::HandleFaultMessage(const MessageData & data, rclcpp::Time tim
       {
         std::lock_guard<std::mutex> lock(fault_mutex_);
         
-        // Check if this fault already exists
+        // Check if this fault already exists from this board
         bool fault_exists = false;
         for (auto& existing_fault : current_estop_status_.faults) {
-          if (existing_fault.source == fault_data.source) {
+          if (existing_fault.source == fault_data.source && 
+              existing_fault.board_id == static_cast<uint8_t>(current_board_id)) {
             // Update existing fault
             existing_fault.reason = fault_data.severity;
             existing_fault.description = fault_data.description;
@@ -1120,6 +1138,7 @@ void TeensyBridge::HandleFaultMessage(const MessageData & data, rclcpp::Time tim
         // Add new fault if it doesn't exist
         if (!fault_exists) {
           sigyn_interfaces::msg::SystemFault new_fault;
+          new_fault.board_id = static_cast<uint8_t>(current_board_id);
           new_fault.source = fault_data.source;
           new_fault.reason = fault_data.severity;
           new_fault.description = fault_data.description;
