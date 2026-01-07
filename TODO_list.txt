@@ -1,5 +1,8 @@
 TODO list:
-RoboClawMonitor -- Add ability to cycle power to clear latching hardware faults (see roboclaw_monitor.cpp TODOs)
+# RoboClawMonitor
+* Get localization info, see if it aligns with motor movement to detect wheels spinning but not moving.
+* Add ability to cycle power to clear latching hardware faults (see roboclaw_monitor.cpp TODOs)
+
 Behavior Trees -- Create a single, parameterized Condition Node (e.g., `IsFaultActive`) that takes a `target_fault` input port, instead of creating individual nodes for each fault type.
 
 # Safety System Critical Gaps (from TeensyV2 Analysis)
@@ -32,3 +35,109 @@ Behavior Trees -- Create a single, parameterized Condition Node (e.g., `IsFaultA
 
 # IMU
 * Detect critical tilt in x or y.
+
+# ============================================================================
+# Safety System Future Enhancements (from SAFETY_OVERVIEW.md Section XVI)
+# Updated: 2026-01-06
+# ============================================================================
+
+# HIGH PRIORITY (Next 6 Months)
+# --------------------------------
+
+## 1. IMU Safety Integration (Tilt Detection, Fall Prevention)
+# [HIGH] Effort: 2 weeks | Risk: High (stairs/ramps) | Hardware: BNO055 ready
+* Add IMUSafetyMonitor module to Board 2
+* Detect excessive tilt: WARNING at 20° pitch/roll, EMERGENCY_STOP at 30°
+* Angular velocity detection: rapid spin >180°/s triggers fault
+* Integration with Nav2: Cancel goals on tilt warning
+* Self-healing: Auto-clear when tilt returns to normal
+* Config parameters in imu_safety_monitor.h
+* Testing: Mock IMU data + physical tilt test stand
+
+## 2. VL53L0X Obstacle Safety (Collision Prediction)
+# [HIGH] Effort: 3 weeks | Risk: High (collision damage) | Hardware: 8 sensors ready
+* Add collision prediction to VL53L0XMonitor (Board 1)
+* Direction-aware: Only trigger if obstacle in direction of motion
+* WARNING at 500mm (slow down), EMERGENCY_STOP at 200mm (immediate stop)
+* Hysteresis: 600mm clearance before recovery (prevent oscillation)
+* Challenge: Distinguish intentional close approach (docking) from hazard
+* Solution: Behavior tree flag 'allow_close_approach' disables temporarily
+* Config parameters in vl53l0x_monitor.h
+* Testing: Mock sensor data + real hardware wall approach
+
+## 3. SYSTEM_SHUTDOWN Implementation (Graceful Powerdown)
+# [HIGH] Effort: 4 weeks | Risk: Critical (battery protection) | Hardware: relay ready
+* Implement SYSTEM_SHUTDOWN severity level (beyond EMERGENCY_STOP)
+* Trigger: Battery <30V sustained for >30 seconds
+* Graceful shutdown sequence:
+  1. ROS2 notification (behavior tree saves state)
+  2. Motor e-stop
+  3. SD card file flush
+  4. Main battery relay cut (GPIO pin 32)
+* Require both INA226 sensors agree on low voltage (if available)
+* Not self-recovering: requires manual restart or charger
+* Config parameters in battery_monitor.h
+* Testing: Mock battery data (cannot test real <30V safely)
+
+# MEDIUM PRIORITY (6-12 Months)
+# ----------------------------------
+
+## 4. GPIO Inter-Board Signaling (Interrupt-Driven Safety)
+# [MED] Effort: 2 weeks | Risk: Medium | Benefit: <1ms latency vs 12-24ms
+* Implement hardware GPIO fault propagation (pins 10-12 already assigned)
+* Board 1 asserts GPIO high when e-stop active
+* Board 2/3 monitor via interrupt (attachInterrupt), immediate local e-stop
+* Bidirectional: All boards can signal all others
+* Benefits: Ultra-low latency, independent of serial, simple
+* Challenges: Race conditions (atomic flags), interrupt mocking in tests
+* Testing: GPIO wire integration test, measure response time
+
+## 5. Reverse E-Stop Signaling to All Boards
+# [MED] Effort: 4 weeks | Risk: Medium | Benefit: Redundancy
+* Add e-stop relay output to Board 2 (GPIO pin 30, currently unused)
+* Board 2 can independently enforce e-stop (cut power to Board 1)
+* Symmetry: Both boards have equal authority
+* Defense-in-depth: Multiple independent cutoff paths
+* Challenges: Hardware wiring, power circuit redesign, coordination logic
+* Testing: Board 1 failure simulation (difficult without risking hardware)
+
+## 6. Watchdog Timer Implementation
+# [MED] Effort: 2 weeks | Risk: Medium | Benefit: Firmware hang protection
+* Enable Teensy 4.1 hardware watchdog timer (WDT)
+* Timeout: 500ms (must feed twice per 85Hz loop)
+* Feed watchdog after safety checks in main loop
+* On hang: WDT reset → SafetyCoordinator reinit → e-stop asserted by default
+* Fail-safe default: E-stop active until explicitly cleared after reset
+* Challenges: False triggers if loop >500ms, state loss on reset
+* Testing: Inject infinite loop, verify reset and e-stop assertion
+
+# LOW PRIORITY (12+ Months)
+# --------------------------
+
+## 7. Complete Testing Coverage for All Modules
+# [LOW] Effort: 4 weeks | Benefit: 90%+ code coverage
+* Expand mock framework: RoboClaw serial protocol, VL53L0X, IMU
+* Current coverage: ~60% (SafetyCoordinator, Temperature, Battery tested)
+* Target: RoboClawMonitor, VL53L0XMonitor, IMU fully tested
+* 1 week per major module
+
+## 8. Safety Event Logging and Replay
+# [LOW] Effort: 3 weeks | Benefit: Post-incident debugging
+* Circular buffer for last 100 safety events (timestamp, source, severity)
+* Store to SD card when e-stop triggered (crash log)
+* ROS2 service: teensy_sensor_safety_history (retrieve events)
+* Replay capability: Load recorded events into mock system
+
+## 9. Adaptive Threshold Tuning
+# [LOW] Effort: 3 weeks | Benefit: Environmental adaptation
+* Runtime configuration service: teensy_sensor_update_config
+* Behavior trees can temporarily adjust thresholds (e.g., cold weather)
+* Store tuned thresholds to EEPROM (persist across reboots)
+* Safety limits: Prevent setting thresholds outside safe ranges
+
+# FUTURE RESEARCH (Exploratory)
+# ------------------------------
+* Machine learning anomaly detection (historical sensor patterns)
+* Predictive maintenance (gradual degradation detection)
+* Multi-robot coordination (share safety status between Sigyn units)
+* Remote safety monitoring (cloud dashboard)
