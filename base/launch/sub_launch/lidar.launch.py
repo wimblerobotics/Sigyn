@@ -56,12 +56,12 @@ def generate_launch_description():
             condition=UnlessCondition(LaunchConfiguration('do_top_lidar')),
             package='ldlidar',
             executable='ldlidar',
-            name='cup_ldlidar',
+            name='top_ldlidar',
             output='screen',
             parameters=[
                 {'serial_port': "/dev/lidar_cup"},
                 {'topic_name': "scan"},
-                {'lidar_frame': "lidar_frame_cup_lidar"},
+                {'lidar_frame': "lidar_frame_top_lidar"},
                 {'range_threshold': LaunchConfiguration("range_threshold")}
                 ],
             remappings=[('scan', 'raw_scan')]

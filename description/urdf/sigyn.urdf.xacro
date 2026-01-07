@@ -2,6 +2,7 @@
 <robot xmlns:xacro="http://ros.org/wiki/xacro" name="Sigyn">
   <xacro:arg name="use_ros2_control" default="true" />
   <xacro:arg name="sim_mode" default="false" />
+  <xacro:arg name="do_top_lidar" default="true" />
 
   <xacro:include filename="$(find description)/urdf/common_macros.xacro" />
   <xacro:include filename="$(find description)/urdf/inertials.xacro" />
@@ -37,13 +38,24 @@
 
   <xacro:include filename="$(find description)/urdf/ld06.urdf.xacro" />
 
-  <xacro:ld06 lidar_prefix="top_lidar" topic_name="scan">
-    <origin xyz="0.155 0 0.300" rpy="0 0 -${pi / 2}" />
-  </xacro:ld06>
+  <!-- LiDAR configuration: if do_top_lidar=true, use both top_lidar and cup_lidar as-is.
+       if do_top_lidar=false, create only a top_lidar at the cup_lidar origin so downstream
+       code continues to use the 'top_lidar' name and 'scan' topic. -->
+  <xacro:if value="$(arg do_top_lidar)">
+    <xacro:ld06 lidar_prefix="top_lidar" topic_name="scan">
+      <origin xyz="${0.155-0.34} 0 ${0.300+1.485}" rpy="0 0 0" />
+    </xacro:ld06>
 
-  <xacro:ld06 lidar_prefix="cup_lidar" topic_name="scan_cup">
-    <origin xyz="${0.155-0.34} 0 ${0.300+1.485}" rpy="0 0 0" />
-  </xacro:ld06>
+    <xacro:ld06 lidar_prefix="cup_lidar" topic_name="scan_cup">
+      <origin xyz="0.155 0 0.300" rpy="0 0 -${pi / 2}" />
+    </xacro:ld06>
+  </xacro:if>
+
+  <xacro:unless value="$(arg do_top_lidar)">
+    <xacro:ld06 lidar_prefix="top_lidar" topic_name="scan">
+      <origin xyz="0.155 0 0.300" rpy="0 0 -${pi / 2}" />
+    </xacro:ld06>
+  </xacro:unless>
 
   <xacro:include filename="$(find description)/urdf/gazebo.urdf.xacro" />
 

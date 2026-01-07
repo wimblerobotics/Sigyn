@@ -40,7 +40,7 @@ from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
 def launch_robot_state_publisher(
-    context, file_name_var, use_ros2_control, use_sim_time
+    context, file_name_var, use_ros2_control, use_sim_time, do_top_lidar
 ):
     description_directory_path = get_package_share_directory("description")
     file_name = context.perform_substitution(file_name_var)
@@ -55,7 +55,12 @@ def launch_robot_state_publisher(
     use_ros2_control_value = "true" if use_sim_time.perform(context) == "true" else "false"
     
     urdf_as_xml = xacro.process_file(
-        xacro_file_path, mappings={"use_ros2_control": use_ros2_control_value, "sim_mode": use_sim_time.perform(context)}
+        xacro_file_path,
+        mappings={
+            "use_ros2_control": use_ros2_control_value,
+            "sim_mode": use_sim_time.perform(context),
+            "do_top_lidar": do_top_lidar.perform(context),
+        },
     ).toxml()
     robot_state_publisher_node = Node(
         package="robot_state_publisher",
@@ -169,6 +174,16 @@ def generate_launch_description():
     ld.add_action(log_info_action)
 
     # Launch the robot state publisher
+    # Handle LiDAR configuration in URDF via xacro arg
+    do_top_lidar = LaunchConfiguration("do_top_lidar")
+    ld.add_action(
+        DeclareLaunchArgument(
+            name="do_top_lidar",
+            default_value="true",
+            description="If false, use only one LiDAR (top_lidar at cup origin)",
+        )
+    )
+
     ld.add_action(
         OpaqueFunction(
             function=launch_robot_state_publisher,
@@ -176,6 +191,7 @@ def generate_launch_description():
                 LaunchConfiguration("urdf_file_name"),
                 "true",
                 LaunchConfiguration("use_sim_time"),
+                do_top_lidar,
             ],
         )
     )
@@ -376,15 +392,6 @@ def generate_launch_description():
         condition=UnlessCondition(use_sim_time),
     )
     ld.add_action(multiplexer_launch)
-
-    do_top_lidar = LaunchConfiguration("do_top_lidar")
-    ld.add_action(
-        DeclareLaunchArgument(
-            name="do_top_lidar",
-            default_value="false",
-            description="Launch top LiDAR node if true",
-        )
-    )
 
     # Bring up the LIDAR.
     lidars_launch = IncludeLaunchDescription(
