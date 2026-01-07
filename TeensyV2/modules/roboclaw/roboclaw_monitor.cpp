@@ -1171,7 +1171,7 @@ void RoboClawMonitor::checkSafetyConditions() {
   // Attempt Auto-Reset of E-Stop if all conditions are now safe
   if (emergency_stop_active_) {
     // Check all latching safety flags
-    // Overcurrent and Timeout are manual reset only (require service call)
+    // Overcurrent ismanual reset only (require power cycling the RoboClaw).
     // Runaway can be auto-cleared if velocity is zeroed (handled in setVelocityCommand)
     
     // We do NOT auto-reset here anymore to strictly enforce "Manual Reset" policy for safety.
@@ -1194,7 +1194,7 @@ void RoboClawMonitor::detectMotorRunaway() {
   static uint32_t last_runaway_msg_time = 0;
 
   // Check if motors are running away (moving when commanded to stop)
-  if (last_commanded_m1_qpps_ == 0 && std::abs(motor1_status_.speed_qpps) > config_.runaway_speed_threshold_qpps) {
+  if (std::abs(motor1_status_.speed_qpps) > config_.runaway_speed_threshold_qpps) {
     const bool first_trip = !motor1_status_.runaway_detected;
     motor1_status_.runaway_detected = true;
     total_safety_violations_++;

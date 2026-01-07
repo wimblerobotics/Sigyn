@@ -38,7 +38,7 @@
 
 ## I. Introduction & Motivation
 
-The Sigyn autonomous house patroller represents a significant step forward in personal robotics: a mobile robot that operates independently in human living spaces, navigating hallways, climbing onto elevators, and monitoring for intruders or environmental hazards. But with autonomy comes responsibility. A robot that can move on its own can also damage property, injure people, or catch fire if its safety systems fail.
+The Sigyn autonomous house patroller represents a step forward in personal robotics: a mobile robot that operates independently in human living spaces, navigating hallways, and monitoring for intruders or environmental hazards. But with autonomy comes responsibility. A robot that can move on its own can also damage property, injure people, or catch fire if its safety systems fail.
 
 This document describes the comprehensive safety architecture built into TeensyV2, the embedded control system at the heart of Sigyn. Unlike toy robots or research platforms that operate under constant supervision, Sigyn is designed to patrol unsupervised for hours at a time. This means the safety system must be robust, self-monitoring, and capable of graceful degradation when things go wrong.
 
@@ -48,26 +48,12 @@ Trust is the foundation of autonomous robotics. A robot operating in your home m
 
 - **It won't catch fire** while charging unattended overnight
 - **It won't damage floors or furniture** if a wheel encoder fails and causes runaway acceleration
-- **It won't drain its battery completely** and become stranded in an elevator
+- **It won't drain its battery completely** and become stranded
 - **It will stop immediately** if something goes wrong, rather than continuing to operate in a degraded state
 
 The cost of failure isn't just measured in damaged hardware. A single battery fire can destroy a home. A runaway motor can injure a pet or person. Even minor failures erode trust and make the technology unacceptable for real-world deployment.
 
-**Real-World Failure Scenarios**
 
-These aren't theoretical concerns—they're real failure modes encountered during Sigyn's development:
-
-1. **Motor Controller Meltdown (2024)**: During early testing, a RoboClaw motor controller drew excessive current due to a firmware bug. Without proper monitoring, the board temperature climbed above 85°C before the built-in thermal protection triggered. The plastic enclosure began to soften. *Lesson: Temperature monitoring must be continuous and predictive, not reactive.*
-
-2. **Battery Fire Risk (2023)**: A 3S LiPo battery cell became unbalanced during charging. The battery management system failed to detect the issue because voltage was only checked at the pack level, not per-cell. Testing revealed the cell voltage had drifted to 4.35V (safe maximum is 4.2V). *Lesson: Multi-rail monitoring is essential; pack-level voltage isn't sufficient.*
-
-3. **Runaway Wheel (2024)**: A loose encoder cable caused intermittent signals. The motor controller interpreted this as no feedback and drove the motor to maximum speed trying to reach the commanded velocity. The robot accelerated into a wall at full speed, damaging both the wheel assembly and the wall. *Lesson: Encoder validation must cross-check motor current against expected movement.*
-
-4. **Elevator Door Collision (2025)**: During elevator navigation testing, the robot's obstacle detection failed when the elevator doors began closing. The robot continued moving forward, wedging itself between the doors. The motors stalled, drawing maximum current until manually powered off. *Lesson: Motor current monitoring must trigger emergency stop before mechanical damage occurs.*
-
-5. **Thermal Runaway Cascade (2024)**: A Teensy board running intensive sensor processing began to overheat. The increased temperature reduced the efficiency of the voltage regulator, which generated more heat, creating a positive feedback loop. The board reached 78°C before testing was halted. *Lesson: Rate-of-change monitoring catches thermal runaway before absolute thresholds are exceeded.*
-
-These incidents shaped the design philosophy documented in this guide: comprehensive monitoring, predictive detection, and defense in depth.
 
 ---
 
@@ -83,7 +69,7 @@ No single safety mechanism is perfect. Sensors fail, software has bugs, and unex
 - **Firmware Layer**: SafetyCoordinator running on each Teensy board, monitoring local sensors and generating faults
 - **Communication Layer**: Serial protocol that transmits faults between boards and to ROS2
 - **Software Layer**: ROS2 bridge (sigyn_to_sensor_v2) aggregates faults from all sources and publishes unified safety state
-- **Behavior Layer**: Behavior trees can trigger software e-stop based on high-level mission context (e.g., approaching stairs, low battery near elevator)
+- **Behavior Layer**: Behavior trees can trigger software e-stop based on high-level mission context (e.g., low battery)
 
 If any layer fails, the others continue protecting the system. For example, if the ROS2 bridge crashes, the Teensy boards continue monitoring local sensors and will trigger hardware e-stop if needed.
 
@@ -91,40 +77,41 @@ If any layer fails, the others continue protecting the system. For example, if t
 
 Not all faults require human intervention. Many conditions are transient:
 
-- A temperature spike that resolves when the robot moves to a cooler area
+- A temperature spike that resolves when the robot moves to a cooler area or the robot stops moving the wheels
 - A brief voltage drop when motors start under high load
 - A momentary encoder glitch due to electrical noise
 
 The safety system distinguishes between *transient* and *persistent* faults. Transient faults automatically clear when the underlying condition resolves, allowing the robot to resume operation without manual intervention. This is crucial for unsupervised patrol missions that may last several hours.
 
-However, certain faults (like motor overcurrent or thermal runaway) require manual reset to ensure a human has verified the issue is resolved. This balance between automation and safety is a core design tradeoff.
+However, certain faults (like motor overcurren) require manual reset to ensure a human has verified the issue is resolved or are simply required by the hardware component (like the RoboClaw). This balance between automation and safety is a core design tradeoff.
 
 **Fail-Safe Principles**
 
 When designing each safety feature, we ask: "What happens if this component fails?"
 
-- **E-stop pin is active-low**: If the signal wire breaks, the motor controllers see a LOW signal and stop immediately
-- **Watchdog timers**: If software hangs, the hardware watchdog resets the board after 5 seconds
+- **E-stop pin is active-low**: If the signal wire breaks, the motor controller should see a LOW signal and stop immediately
+- **Watchdog timers**: If software hangs, the hardware watchdog resets the board
 - **Graceful degradation**: If a non-critical sensor fails (like one of three temperature monitors), the system continues operating with reduced capability rather than stopping completely
-- **Conservative thresholds**: Safety thresholds are set well below destructive limits. For example, motor current limits are set at 80% of the controller's rated maximum to provide safety margin
+- **Conservative thresholds**: Safety thresholds are set well below destructive limits. For example, motor current limits are set well below of the controller's and motos rated maximum to provide safety margin
 
 **Performance Preservation as Safety Requirement**
 
 This might seem counterintuitive, but *maintaining real-time performance is itself a safety requirement*. Here's why:
 
-The TeensyV2 system runs control loops at 80-100Hz. These loops:
+The TeensyV2 system runs control loops use state machines to operate different layers at different rates. These loops:
 - Update motor commands based on encoder feedback
 - Process sensor data to detect obstacles
 - Monitor battery voltage and temperature
 - Generate odometry for navigation
+- Monitor expected performance to detect anomalies&mdash;the ROS 2 navigation stack expects some sensors to report often and navigation starts failing if sensors don't report in as expected.
 
 If safety checks cause the control loop to slow down (say, from 85Hz to 40Hz), several bad things happen:
 1. Motor control becomes unstable, potentially causing jerky movement or oscillation
 2. Encoder readings are processed less frequently, reducing positional accuracy
 3. Battery voltage monitoring has longer gaps, missing brief voltage sags
-4. Navigation deadlines are missed, causing the ROS2 navigation stack to timeout
+4. Navigation deadlines are missed, causing the ROS2 navigation stack to perform erratically
 
-A robot that moves jerkily is more likely to collide with obstacles. A robot with poor odometry is more likely to get lost. A robot that times out during navigation may stop in an unsafe location (like blocking a doorway).
+A robot that moves jerkily is more likely to collide with obstacles. More dangerously, back EMF voltage spikes can damage hardware. A robot with poor odometry is more likely to get lost. A robot that times out during navigation may stop in an unsafe location (like blocking a doorway).
 
 Therefore, **safety checks must not violate timing requirements**. This is achieved through:
 - Exponential Moving Average (EMA) filters that smooth data without storing large buffers
@@ -140,7 +127,6 @@ Safety systems are only as good as their test coverage. Every safety feature in 
 1. **Unit tests**: Mock hardware allows testing fault detection logic without physical sensors
 2. **Integration tests**: Full system tests with real hardware verify end-to-end fault propagation
 3. **Failure injection**: Deliberately trigger each fault condition to verify correct response
-4. **Continuous testing**: Safety tests run on every code change via GitHub Actions CI/CD
 
 For example, the temperature monitoring system includes tests that:
 - Simulate temperature ramps to verify rate-of-change detection
@@ -202,7 +188,6 @@ NORMAL → DEGRADED → WARNING → EMERGENCY_STOP → SYSTEM_SHUTDOWN
 - **Battery trending low**: Voltage is 34.5V (warning threshold: 34.0V, critical: 32.0V). The robot should return to base soon.
 - **Temperature rising**: Motor controller is at 68°C (warning: 65°C, critical: 80°C). Temperature is increasing but not yet dangerous.
 - **Memory usage high**: Available RAM is below 20% but system is still functional.
-- **Encoder drift**: Wheel encoder readings show minor inconsistencies that may indicate a loose cable.
 
 **System Response**:
 - Robot continues operating but may modify behavior
@@ -228,17 +213,16 @@ NORMAL → DEGRADED → WARNING → EMERGENCY_STOP → SYSTEM_SHUTDOWN
 
 **System Response**:
 - **Immediate motor shutdown**: E-stop pin on RoboClaw pulled LOW, cutting power to motors
-- All motion ceases within <100ms (hardware enforced)
-- Fault remains active until manually cleared (for most conditions)
-- Robot becomes "bricked" until operator intervention
+- All motion ceases (hardware enforced)
+- Fault remains active until manually cleared or fault condition resolves (if self-healing enabled)
+- Robot becomes "bricked" until fault is cleared intervention
 - Detailed fault information logged with timestamp and triggering values
 
 **Recovery**:
-- Most EMERGENCY_STOP faults require **manual reset** via ROS2 command or physical reset
-- Exception: Some transient conditions (brief voltage sag, momentary overcurrent) may self-heal if configured
-- Operator must verify the underlying issue is resolved before resetting
+- Some EMERGENCY_STOP faults require **manual reset** via ROS2 command or physical reset. 
+- Other faults, like temperature out of range will self-heal when the underlying condition resolves (e.g., robot stops moving and the motors cool down).
 
-**Use Case**: Robot is navigating when elevator doors begin closing. The motors draw 28A trying to push through the obstruction. The RoboClaw monitor detects overcurrent and triggers EMERGENCY_STOP. Motors cut off immediately. The robot remains stopped until an operator sends a reset command after verifying no mechanical damage occurred.
+**Use Case**: Robot is navigating when something gets tangled around its axle. The motors draw 28A trying to push through the obstruction. The RoboClaw monitor detects overcurrent and triggers EMERGENCY_STOP. Motors cut off immediately. The robot remains stopped until an operator sends a reset command after verifying no mechanical damage occurred.
 
 **Hardware Enforcement**: The e-stop signal is a physical GPIO pin connected to the RoboClaw's emergency stop input. Even if the Teensy firmware crashes, the pin remains LOW (active), keeping motors disabled. This fail-safe design ensures software bugs can't override safety.
 
@@ -254,9 +238,9 @@ NORMAL → DEGRADED → WARNING → EMERGENCY_STOP → SYSTEM_SHUTDOWN
 
 **Planned System Response**:
 - Flush all data buffers to non-volatile storage
-- Send final status message to ROS2 with shutdown reason
+- Signal all subsystems to shutdown quickly
 - Disable all peripherals in controlled sequence
-- Power down Teensy boards via power management circuit
+- Power down all subsystems
 - Requires physical power cycle to restart
 
 **Current Status**: Not yet implemented. Currently, all critical conditions trigger EMERGENCY_STOP (motor shutdown) but the system remains powered. SYSTEM_SHUTDOWN would add full power management for conditions where even passive power draw is problematic.
@@ -274,19 +258,16 @@ This section provides detailed implementation guidance for each module, includin
 ### Temperature Monitor
 
 The TemperatureMonitor module tracks up to 8 DS18B20 temperature sensors distributed throughout the robot:
-- RoboClaw motor controllers (3 sensors)
-- Teensy boards (2 sensors)
-- Battery compartment (1 sensor)
-- Power distribution board (1 sensor)
-- Servo controller (1 sensor)
+- RoboClaw motor controllers
+- Motor housings
 
-**Why Temperature Monitoring?**: The motor controller meltdown incident (Section I) demonstrated that thermal protection is non-negotiable. Temperature rises can indicate:
+**Why Temperature Monitoring?**: Temperature rises can indicate:
 - Stalled motors drawing excessive current
 - Thermal runaway (self-heating feedback loop)
 - Ambient overheating (robot in hot environment)
 - Inadequate cooling or blocked airflow
 
-**Three-Tier Detection Strategy**:
+**Multi-Tier Detection Strategy**:
 
 1. **Absolute Thresholds**: Trigger when temperature exceeds fixed limits
    - Warning High: 65-70°C (component-specific)
@@ -296,11 +277,7 @@ The TemperatureMonitor module tracks up to 8 DS18B20 temperature sensors distrib
 2. **Rate-of-Change Detection**: Catch thermal runaway before absolute limits
    - Monitors temperature rise per minute
    - Threshold: >100°C/min indicates runaway condition
-   - Uses 60-second sliding window for trend calculation
-
-3. **Timeout Detection**: Identify sensor failures
-   - If no valid reading received for 5 seconds, mark sensor DEGRADED
-   - System continues if redundant sensors available
+   - Uses sliding window for trend calculation
 
 **Thermal Runaway Detection**
 
@@ -315,7 +292,7 @@ Without intervention, this loop continues until component destruction.
 **Detection Algorithm**:
 
 ```cpp
-// From temperature_monitor.cpp lines 730-770
+// From temperature_monitor.cpp 
 
 void TemperatureMonitor::detectThermalRunaway() {
   for (uint8_t i = 0; i < max_sensors; i++) {
@@ -372,7 +349,7 @@ void TemperatureMonitor::detectThermalRunaway() {
 Calculating accurate temperature trends requires filtering noise while maintaining responsiveness:
 
 ```cpp
-// From temperature_monitor.cpp lines 780-830
+// From temperature_monitor.cpp
 
 float TemperatureMonitor::calculateTemperatureTrend(uint8_t sensor_index) {
   const TemperatureSensorStatus& status = sensor_status_[sensor_index];
@@ -514,16 +491,16 @@ See [Section X: Performance & Safety Balance](#x-performance--safety-balance) fo
 
 ### Battery Monitor
 
-The BatteryMonitor module tracks battery health using INA226 current/voltage sensors. Sigyn uses a 12S LiPo battery (nominal 44.4V, 3.7V per cell) with multiple monitoring points.
+The BatteryMonitor module tracks battery health using INA226 current/voltage sensors. Sigyn uses a 10S LiPo battery (nominal 37.0V, 3.7V per cell).
 
-**Why Battery Monitoring?**: The battery fire risk incident (Section I) showed that pack-level voltage monitoring isn't sufficient. Individual cell monitoring prevented a potential fire when one cell drifted to 4.35V (0.15V above safe maximum).
+**Why Battery Monitoring?**: LIPO batteries can catch fire if overcharged, over-discharged, or short-circuited. LIPO battery lifetimes are degraded if not properly managed.
 
 **Multi-Rail Architecture**:
 
 The system monitors multiple power rails independently:
-1. **Main battery pack** (12S LiPo): Powers motors via RoboClaw
-2. **Logic power** (5V/12V rails): Powers Teensy boards, sensors, cameras
-3. **Auxiliary systems**: Servos, lights, other peripherals
+1. **Main battery pack** (10S LiPo): Powers multiple DC-DC power converters
+1. **Motor power** (24V rail). Powers the RoboClaw to drive the motors. Also powers some auxiliary systems, like stepper motors and systems that are located far from the main battery to reduce voltage drop
+2. **Logic power** (3.3V/5V/12V rails): Powers Main PC, Teensy boards, sensors, cameras
 
 Each rail has independent INA226 sensors connected via I2C multiplexer, providing:
 - Voltage measurement (±0.1V accuracy)
@@ -543,9 +520,9 @@ Three detection mechanisms:
 2. **Warning Low Voltage** (34.0V = 2.83V/cell):
    - Triggers WARNING severity
    - Behavior tree uses this to initiate "return to base"
-   - Gives ~5-10 minutes of operation before critical
+   - Gives several minutes of operation before critical
 
-3. **Critical High Current** (20A continuous):
+3. **Critical High Current** (High continuous current):
    - Indicates motor stall, mechanical jam, or short circuit
    - Triggers EMERGENCY_STOP
    - RoboClaw controllers rated for 30A peak but 20A sustained can overheat
@@ -589,7 +566,7 @@ UNKNOWN → NORMAL ⇄ WARNING → CRITICAL → EMERGENCY_STOP
 **Code Example: Battery Fault Detection**
 
 ```cpp
-// From battery_monitor.cpp lines 270-330
+// From battery_monitor.cpp
 
 void BatteryMonitor::updateBatteryState(size_t idx) {
   float voltage = getVoltage(idx);
@@ -703,12 +680,12 @@ void BatteryMonitor::setup() {
 
 The RoboClawMonitor module controls the RoboClaw 2x15A motor controllers and implements critical safety features to prevent motor-related damage.
 
-**Why RoboClaw Monitoring?**: The runaway wheel incident (Section I) showed that encoder validation is essential. A loose cable caused the motor to accelerate uncontrollably into a wall. Motor overcurrent detection prevents damage during stalls.
+**Why RoboClaw Monitoring?**: A loose cable caused the motor to accelerate uncontrollably into a wall. Motor overcurrent detection prevents damage during stalls.
 
 **Two-Tier Safety Strategy**:
 
-1. **Overcurrent Detection**: Prevents thermal damage to motor controllers
-2. **Runaway Detection**: Catches mechanical failures (loose encoders, broken gears)
+1. **Overcurrent Detection**: Prevents thermal damage to motor controllers and motors during stalls or jams
+2. **Runaway Detection**: Catches mechanical failures (loose encoders, broken wires)
 
 **Motor Overcurrent Detection**
 
@@ -717,71 +694,92 @@ RoboClaw controllers report real-time current draw for each motor. Sigyn monitor
 **Detection Algorithm**:
 
 ```cpp
-// From roboclaw_monitor.cpp lines 1119-1165
+// From roboclaw_monitor.cpp 
 
-void RoboClawMonitor::checkMotorSafety() {
+void RoboClawMonitor::checkSafetyConditions() {
+  // Rate limiting for ESTOP messages
+  static uint32_t last_estop_msg_time = 0;
   uint32_t now = millis();
-  
+
+  // RoboClaw internal temperature safety.
+  if (!std::isnan(system_status_.temperature_c) && system_status_.temperature_c >= config_.roboclaw_temp_fault_c) {
+    char desc[128] = {0};
+    snprintf(desc, sizeof(desc), "RoboClaw over-temperature fault: %.1fC", static_cast<double>(system_status_.temperature_c));
+    SafetyCoordinator::getInstance().activateFault(
+        FaultSeverity::EMERGENCY_STOP, name(), desc);
+    setEmergencyStop();
+  }
+
+  // RoboClaw fatal error bits.
+  if ((system_status_.error_status & kFatalRoboclawErrorMask) != 0) {
+    char decoded[256] = {0};
+    decodeErrorStatus(system_status_.error_status, decoded, sizeof(decoded));
+    char desc[320] = {0};
+    snprintf(desc, sizeof(desc), "RoboClaw reported fatal error bits: %s", decoded);
+    SafetyCoordinator::getInstance().activateFault(
+      FaultSeverity::EMERGENCY_STOP, name(), desc);
+    setEmergencyStop();
+
+    if (isPowerCycleLikelyRequired(system_status_.error_status)) {
+      // TODO: Power-cycle RoboClaw via PIN_RELAY_ROBOCLAW_POWER to clear latching faults.
+      // This is required for certain latching errors (like Logic Battery High) that
+      // cannot be cleared by a soft reset or serial command.
+    }
+  }
+
   // Check for overcurrent conditions
-  // NOTE: Overcurrent is a LATCHING fault. It stops the robot to prevent 
-  // oscillation ("hammering"). Must be cleared by explicit Reset command.
-  
+  // NOTE: Overcurrent is a LATCING fault. It stops the robot to prevent oscillation ("hammering").
+  // It must be cleared by an explicit Reset command (Service/Topic) from the host.
   if (motor1_status_.current_valid) {
     if (std::abs(motor1_status_.current_amps) > config_.max_current_m1) {
       if (!motor1_status_.overcurrent) {
-        // First trip - activate fault
-        SafetyCoordinator::getInstance().activateFault(
-          FaultSeverity::EMERGENCY_STOP, 
-          name(), 
-          "Motor 1 overcurrent");
+        // First trip
+        SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, name(), "Motor 1 overcurrent");
         setEmergencyStop();
         motor1_status_.overcurrent = true;
         total_safety_violations_++;
+
+        // TODO: If this error persists or is massive (short circuit), trigger Power Cycle.
       }
       
-      // Rate-limited diagnostics (max 1 per second)
+      // Rate-limited diagnostics
       if (now - last_estop_msg_time >= config_.estop_msg_interval_ms) {
-        char msg[192];
-        snprintf(msg, sizeof(msg),
-                 "active:true,source:ROBOCLAW_CURRENT,reason:Motor 1 overcurrent,"
-                 "value:%.2f,manual_reset:true,time:%lu",
-                 motor1_status_.current_amps, millis());
-        SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", "RoboClaw", msg);
-        last_estop_msg_time = now;
+          char msg[192] = {0};
+          snprintf(msg, sizeof(msg),
+                  "active:true,source:ROBOCLAW_CURRENT,reason:Motor 1 overcurrent,value:%.2f,manual_reset:true,time:%lu",
+                  static_cast<double>(motor1_status_.current_amps), static_cast<unsigned long>(millis()));
+          SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", "RoboClaw", msg);
+          last_estop_msg_time = now;
       }
     }
   }
-  
-  // Similar check for motor2
+
   if (motor2_status_.current_valid) {
     if (std::abs(motor2_status_.current_amps) > config_.max_current_m2) {
       if (!motor2_status_.overcurrent) {
-        SafetyCoordinator::getInstance().activateFault(
-          FaultSeverity::EMERGENCY_STOP,
-          name(),
-          "Motor 2 overcurrent");
+        SafetyCoordinator::getInstance().activateFault(FaultSeverity::EMERGENCY_STOP, name(), "Motor 2 overcurrent");
         setEmergencyStop();
         motor2_status_.overcurrent = true;
         total_safety_violations_++;
+
+        // TODO: If this error persists or is massive (short circuit), trigger Power Cycle.
       }
       
       if (now - last_estop_msg_time >= config_.estop_msg_interval_ms) {
-        char msg[192];
-        snprintf(msg, sizeof(msg),
-                 "active:true,source:ROBOCLAW_CURRENT,reason:Motor 2 overcurrent,"
-                 "value:%.2f,manual_reset:true,time:%lu",
-                 motor2_status_.current_amps, millis());
-        SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", "RoboClaw", msg);
-        last_estop_msg_time = now;
+          char msg[192] = {0};
+          snprintf(msg, sizeof(msg),
+                  "active:true,source:ROBOCLAW_CURRENT,reason:Motor 2 overcurrent,value:%.2f,manual_reset:true,time:%lu",
+                  static_cast<double>(motor2_status_.current_amps), static_cast<unsigned long>(millis()));
+          SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", "RoboClaw", msg);
+          last_estop_msg_time = now;
       }
     }
   }
-}
 ```
 
 **Key Design Decisions**:
 
-- **Latching fault**: Once overcurrent triggers, it remains active until manually cleared
+- **Latching fault**: Once overcurrent triggers, it remains active until power cycled
   - Prevents "hammering": robot trying repeatedly to move through obstacle
   - Forces operator to verify the obstruction is removed
   
@@ -816,13 +814,12 @@ struct RoboClawConfig {
 
 Motor runaway occurs when:
 - Encoder cable disconnects (controller thinks motor isn't moving, applies maximum power)
-- Gear breaks (motor spins freely without moving robot)
 - Wheel loses traction (encoder shows movement but robot doesn't move - harder to detect)
 
 **Detection Algorithm**:
 
 ```cpp
-// From roboclaw_monitor.cpp lines 1185-1245
+// From roboclaw_monitor.cpp
 
 void RoboClawMonitor::detectMotorRunaway() {
   if (!runaway_detection_initialized_) {
@@ -837,8 +834,7 @@ void RoboClawMonitor::detectMotorRunaway() {
   // Check if motors are running away (moving when commanded to stop)
   // This catches encoder disconnect and mechanical failure
   
-  if (last_commanded_m1_qpps_ == 0 && 
-      std::abs(motor1_status_.speed_qpps) > config_.runaway_speed_threshold_qpps) {
+  if (std::abs(motor1_status_.speed_qpps) > config_.runaway_speed_threshold_qpps) {
     
     const bool first_trip = !motor1_status_.runaway_detected;
     motor1_status_.runaway_detected = true;
@@ -898,20 +894,16 @@ void RoboClawMonitor::detectMotorRunaway() {
 **Detection Logic**:
 
 ```
-IF (commanded_speed == 0) AND (actual_speed > threshold) THEN
-  → Motor is moving when it shouldn't be → RUNAWAY!
+IF (actual_speed > threshold) THEN
+  → Motor is moving out of control -> AWAY!
 ```
 
 This simple check catches:
-1. **Encoder disconnect**: RoboClaw thinks motor is stopped, applies full power to reach zero speed setpoint
-2. **Mechanical failure**: Gear breaks, motor spins freely
-3. **Firmware bug**: RoboClaw ignoring stop commands (rare but observed)
+- **Encoder disconnect**: RoboClaw doesn't get encoder feedback, applies full power to reach zero speed setpoint
 
 **Why This Works**:
 
-- **Zero-command baseline**: When robot is commanded to stop (speed = 0), encoders should show zero movement
-- **Threshold tolerance**: 100 QPPS (~0.01 m/s) allows for minor noise/drift without false triggers
-- **Fast detection**: Checked at 10Hz, detects runaway within ~100-200ms
+- ** The motors are rate limited in several places. If the encoders shows exccessive speed, it indicates a runaway condition.
 
 **Self-Healing for Runaway**:
 
@@ -964,7 +956,7 @@ This prevents the robot from operating with stale sensor data or without motor c
 
 The PerformanceMonitor module treats timing violations as safety issues. As discussed in Section II, performance preservation is itself a safety requirement—a robot that misses control deadlines becomes unpredictable and dangerous.
 
-**Why Performance Monitoring?**: Control theory requires predictable timing. A motor controller expecting updates at 85Hz will become unstable if it receives updates at 40Hz. Odometry calculations assume constant time deltas—variable timing causes position errors that accumulate over time.
+**Why Performance Monitoring?**: Control theory requires predictable timing. A motor controller expecting updates at 85Hz will become unstable if it receives updates at 40Hz. Odometry calculations assume small time deltas—large timing causes position errors that accumulate over time.
 
 **Two-Category Monitoring**:
 
@@ -982,7 +974,7 @@ The PerformanceMonitor module treats timing violations as safety issues. As disc
 **Detection Algorithm**:
 
 ```cpp
-// From performance_monitor.cpp lines 80-120
+// From performance_monitor.cp
 
 void PerformanceMonitor::checkFrequencyViolations() {
   // Get current frequency from Module system
@@ -1129,7 +1121,6 @@ bool PerformanceMonitor::isUnsafe() {
 2. **Heavy computation**: Complex algorithms (matrix operations, filtering)
 3. **Serial communication delays**: Waiting for RoboClaw/sensor responses
 4. **Interrupt storms**: Excessive ISR activity
-5. **Memory issues**: Heap fragmentation, excessive allocation
 
 **Performance Impact**:
 - Monitoring overhead: <50μs per iteration (negligible)
@@ -1145,7 +1136,7 @@ Currently under development, these sensors will provide additional safety capabi
 
 **BNO055 IMU (9-DOF Inertial Measurement Unit)**:
 - **Tilt detection**: Trigger WARNING if robot tilts >15° (approaching tip-over)
-- **Fall detection**: Detect free-fall conditions (dropped off ledge, going down stairs unintentionally)
+- **Fall detection**: Detect free-fall conditions (dropped off ledge)
 - **Orientation validation**: Cross-check odometry heading against IMU compass
 - **Vibration monitoring**: Excessive vibration indicates mechanical failure
 
@@ -1156,8 +1147,7 @@ Planned safety thresholds:
 
 **VL53L0X Time-of-Flight Distance Sensors**:
 - **Collision prediction**: Detect obstacles <30cm ahead
-- **Cliff detection**: Detect drop-offs (stairs, ramps)
-- **Elevator threshold detection**: Validate elevator floor alignment before entering
+- **Cliff detection**: Detect drop-offs (ramps)
 - **Wall distance validation**: Cross-check against expected map distance
 
 Planned safety thresholds:
@@ -1229,7 +1219,7 @@ Faults follow a well-defined state machine:
 **Activation Code Path**:
 
 ```cpp
-// From safety_coordinator.cpp lines 120-180
+// From safety_coordinator.cpp
 
 void SafetyCoordinator::activateFault(
     FaultSeverity severity,
@@ -1298,7 +1288,7 @@ void SafetyCoordinator::activateFault(
 **Deactivation Code Path**:
 
 ```cpp
-// From safety_coordinator.cpp lines 185-220
+// From safety_coordinator.cpp
 
 void SafetyCoordinator::deactivateFault(const char* source) {
   const int idx = findFaultIndex(source);
@@ -1461,7 +1451,7 @@ Recovery behavior depends on fault severity and type:
 **Fault Class Structure**
 
 ```cpp
-// From safety_coordinator.h lines 50-90
+// From safety_coordinator.h
 
 typedef enum class FaultSeverity {
   NORMAL,          // All systems operational
@@ -1568,27 +1558,19 @@ Sigyn uses a dual-board architecture for safety and performance reasons. Underst
 The decision to use two Teensy 4.1 boards instead of a single board was driven by physical and electrical constraints:
 
 **1. I2C Connector Limits**:
-- Teensy 4.1 has limited I2C ports (Wire, Wire1, Wire2)
-- Total sensor count exceeds available ports:
-  - 8× DS18B20 temperature sensors (OneWire, not I2C, but uses pins)
-  - 3× INA226 current/voltage sensors (I2C)
-  - 1× BNO055 IMU (I2C)
-  - 3× VL53L0X distance sensors (I2C)
-  - 1× I2C multiplexer (TCA9548A)
+- The custom Teensy 4.1 has limited ports. E.g., there are 8 multiplexed I2C ports but Sigyn uses more than 8 I2C sensors.
 - With I2C address conflicts (multiple INA226s at 0x40), multiplexer is required
-- Single board would require complex multiplexer chaining
 
 **2. Performance Requirements**:
-- Motor control requires consistent 85Hz loop rate
+- Motor control requires consistent high loop rate
 - Sensor processing (especially IMU) can have variable timing
-- Separating motor control from heavy sensor processing prevents timing interference
-- Board1 can dedicate cycles to motor control without sensor overhead
+- Long operations are split into small, quick operations that use multiple loop() iterations to complete, using state machines.
 
 **3. Physical Constraints**:
 - Single board would require >40 GPIO pins for all functions
 - Teensy 4.1 has 42 digital pins, but some are reserved (SPI, Serial, etc.)
 - Physical mounting: two smaller boards fit better in chassis than one large board
-- Heat dissipation: spreading load across two boards reduces hot spots
+- Placing board near devices reduces wiring complexity and noise (e.g., motor control near RoboClaw)
 
 **4. Fault Isolation**:
 - If one board crashes, the other can still operate
@@ -1601,7 +1583,7 @@ The decision to use two Teensy 4.1 boards instead of a single board was driven b
 ```
 Board1 (Navigation & Safety):
 - RoboClawMonitor (motor control)
-- TemperatureMonitor (motor controller temps)
+- TemperatureMonitor (motor controller and motor housing temps)
 - VL53L0XMonitor (obstacle detection)
 - PerformanceMonitor
 - SafetyCoordinator
@@ -2337,7 +2319,7 @@ t=60s   67.0      <70          NORMAL (cleared)  Fault auto-clears, full operati
 **Code Implementation**:
 
 ```cpp
-// temperature_monitor.cpp lines 680-710
+// temperature_monitor.cpp
 
 FaultSeverity desired_severity = FaultSeverity::NORMAL;
 
@@ -4279,7 +4261,7 @@ ros2 topic echo /sigyn/teensy_bridge/diagnostics | grep -i "timing\|frequency\|v
    - **WARNING**: Only use for debugging; tightening thresholds may hide real issues
    - Thresholds defined in `TeensyV2/common/core/config.h`:
      ```cpp
-     // Board 1 thresholds (config.h lines 181-186)
+     // Board 1 thresholds (config.h)
      #define BOARD_MAX_MODULE_TIME_MS          2.0f   // Increase to 3.0f if needed
      #define BOARD_MIN_LOOP_FREQUENCY_HZ       50.0f  // Decrease to 40Hz if needed
      ```
@@ -4652,7 +4634,7 @@ This section outlines planned improvements to the safety system based on lessons
 
 #### 1. IMU Safety Integration (Tilt Detection, Fall Prevention)
 
-**Motivation**: Sigyn navigates stairs and ramps. A tilt beyond safe operating limits (>30° pitch/roll) could cause loss of control, hardware damage, or tumbling down stairs.
+**Motivation**: Sigyn navigates ramps. A tilt beyond safe operating limits (>30° pitch/roll) could cause loss of control or hardware damage,.
 
 **Implementation Plan**:
 - Add `IMUSafetyMonitor` module to Board 2 (BNO055 already present)
@@ -5203,7 +5185,7 @@ All configuration parameters are defined in header files within the TeensyV2 mod
 **Performance Timing Thresholds (Board 1 - Navigation)**
 
 ```cpp
-// File: TeensyV2/common/core/config.h, lines 181-186
+// File: TeensyV2/common/core/config.h,
 #define BOARD_MAX_MODULE_TIME_MS          2.0f   // Maximum module execution time
 #define BOARD_MIN_LOOP_FREQUENCY_HZ       50.0f  // Minimum acceptable loop frequency
 #define BOARD_CRITICAL_EXECUTION_TIME_US  10000  // Critical execution time warning (10ms)
@@ -5216,7 +5198,7 @@ All configuration parameters are defined in header files within the TeensyV2 mod
 **Performance Timing Thresholds (Board 2 - Sensors)**
 
 ```cpp
-// File: TeensyV2/common/core/config.h, lines 191-196
+// File: TeensyV2/common/core/config.h,
 #define BOARD_MAX_MODULE_TIME_MS          3.0f   // Maximum module execution time
 #define BOARD_MIN_LOOP_FREQUENCY_HZ       20.0f  // Minimum acceptable loop frequency
 #define BOARD_CRITICAL_EXECUTION_TIME_US  15000  // Critical execution time warning (15ms)
@@ -5229,7 +5211,7 @@ All configuration parameters are defined in header files within the TeensyV2 mod
 **GPIO Pin Assignments**
 
 ```cpp
-// File: TeensyV2/common/core/config.h, lines 148-160 (Board 1)
+// File: TeensyV2/common/core/config.h, (Board 1)
 #define INTER_BOARD_SIGNAL_OUTPUT_PIN 10  // Signal other boards
 #define PIN_SAFETY_IN_BOARD2          11  // Receive from Board 2
 #define PIN_SAFETY_IN_BOARD3          12  // Receive from Board 3
@@ -5248,7 +5230,7 @@ All configuration parameters are defined in header files within the TeensyV2 mod
 **Temperature Thresholds (Per-Sensor)**
 
 ```cpp
-// File: TeensyV2/modules/sensors/temperature_monitor.h, lines 63-68
+// File: TeensyV2/modules/sensors/temperature_monitor.h,
 struct TemperatureSensorConfig {
   float critical_high_temp = 85.0f;         // Critical high temperature (°C)
   float warning_high_temp = 70.0f;          // Warning high temperature (°C)
@@ -5268,7 +5250,7 @@ struct TemperatureSensorConfig {
 **System-Wide Temperature Thresholds**
 
 ```cpp
-// File: TeensyV2/modules/sensors/temperature_monitor.h, lines 83-85
+// File: TeensyV2/modules/sensors/temperature_monitor.h,
 struct TemperatureMonitorConfig {
   float system_critical_temp = 80.0f;       // System-wide critical temperature
   float system_warning_temp = 65.0f;        // System-wide warning temperature
@@ -5293,7 +5275,7 @@ const float ema_filter_alpha_ = 0.7f;  // EMA filter alpha (0.0 = no filtering, 
 **Voltage Thresholds**
 
 ```cpp
-// File: TeensyV2/modules/battery/battery_monitor.h, lines 51-52
+// File: TeensyV2/modules/battery/battery_monitor.h,
 struct BatteryConfig {
   float critical_low_voltage = 32.0f;    // Emergency shutdown voltage (V)
   float warning_low_voltage = 34.0f;     // Low battery warning (V)
@@ -5320,7 +5302,7 @@ struct BatteryConfig {
 **Hardware Configuration**
 
 ```cpp
-// File: TeensyV2/modules/battery/battery_monitor.h, lines 61-66
+// File: TeensyV2/modules/battery/battery_monitor.h,
   int ina226_address = 0x40;              // I2C address for INA226 sensor
   int analog_voltage_pin = A0;            // Analog backup voltage sense
   float voltage_divider_ratio = 11.0f;    // Voltage divider scaling
@@ -5403,7 +5385,7 @@ struct PerformanceConfig {
 **Fault Management**
 
 ```cpp
-// File: TeensyV2/modules/safety/safety_coordinator.h, lines 27-28
+// File: TeensyV2/modules/safety/safety_coordinator.h,
 static constexpr size_t kMaxFaults = 16;            // Maximum simultaneous faults
 static constexpr size_t kMaxFaultSourceLength = 32; // Fault source name length
 ```
