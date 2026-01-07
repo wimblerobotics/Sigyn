@@ -377,12 +377,24 @@ def generate_launch_description():
     )
     ld.add_action(multiplexer_launch)
 
+    do_top_lidar = LaunchConfiguration("do_top_lidar")
+    ld.add_action(
+        DeclareLaunchArgument(
+            name="do_top_lidar",
+            default_value="false",
+            description="Launch top LiDAR node if true",
+        )
+    )
+
     # Bring up the LIDAR.
     lidars_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             [base_pgk, "/launch/sub_launch/lidar.launch.py"]
         ),
         condition=UnlessCondition(use_sim_time),
+        launch_arguments={
+            'do_top_lidar': do_top_lidar,
+        }.items(),
     )
     ld.add_action(lidars_launch)
 
@@ -425,11 +437,20 @@ def generate_launch_description():
     )
     ld.add_action(joint_state_publisher_node)
     
+    do_oakd = LaunchConfiguration("do_oakd")
+    ld.add_action(
+        DeclareLaunchArgument(
+            name="do_oakd",
+            default_value="false",
+            description="Launch OAK-D camera nodes if true",
+        )
+    )
+    
     oakd_elevator_top = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
           [base_pgk, "/launch/sub_launch/oakd_stereo.launch.py"]
         ),
-        condition=UnlessCondition(use_sim_time),
+        condition=IfCondition(AndSubstitution(NotSubstitution(use_sim_time), do_oakd)),
     )
     ld.add_action(oakd_elevator_top)
     
@@ -438,7 +459,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
           [base_pgk, "/launch/sub_launch/oakd_compressed_republisher.launch.py"]
         ),
-        condition=UnlessCondition(use_sim_time),
+        condition=IfCondition(AndSubstitution(NotSubstitution(use_sim_time), do_oakd)),
     )
     ld.add_action(oakd_compressed)
     

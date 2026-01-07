@@ -1,4 +1,4 @@
 # For the LD06 lidar. Adjust busnum to match the USB bus for your setup.
-KERNEL=="ttyUSB*", ATTRS{busnum}=="3", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", MODE:="0777", SYMLINK+="lidar_cup"
-KERNEL=="ttyUSB*", ATTRS{busnum}=="5", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", MODE:="0777", SYMLINK+="lidar_top"
+KERNEL=="ttyUSB*", ATTRS{busnum}=="5", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", MODE:="0777", SYMLINK+="lidar_cup"
+KERNEL=="ttyUSB*", ATTRS{busnum}=="4", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", MODE:="0777", SYMLINK+="lidar_top"
 (
