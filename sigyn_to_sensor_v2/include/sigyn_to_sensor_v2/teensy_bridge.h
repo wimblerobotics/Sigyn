@@ -78,7 +78,6 @@ private:
     // Message handlers
     void HandleBatteryMessage(const MessageData & data, rclcpp::Time timestamp);
     void HandlePerformanceMessage(const MessageData & data, rclcpp::Time timestamp);
-    void HandleSafetyMessage(const MessageData & data, rclcpp::Time timestamp);
     void HandleIMUMessage(const MessageData & data, rclcpp::Time timestamp);
     void HandleEstopMessage(const MessageData & data, rclcpp::Time timestamp);
     void HandleDiagnosticMessage(const MessageData & data, rclcpp::Time timestamp);

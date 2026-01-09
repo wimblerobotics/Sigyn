@@ -314,3 +314,22 @@ TEST_F(RoboClawMonitorTest, TestCommunication_ExactVersionStrictness) {
   EXPECT_FALSE(ok);
   EXPECT_TRUE(monitor_->isEmergencyStopActiveForTesting());
 }
+
+TEST_F(RoboClawMonitorTest, Safety_Runaway_TriggersWhileCommanded) {
+  RoboClawConfig cfg = monitor_->getConfig();
+  cfg.runaway_check_interval_ms = 10;
+  cfg.runaway_speed_threshold_qpps = 50;
+  monitor_->updateConfig(cfg);
+
+  monitor_->setRunawayDetectionInitializedForTesting(true);
+  // Command is non-zero (10), but actual speed is 200 (> 50).
+  // Runaway logic should trigger regardless of command.
+  monitor_->setLastCommandedQppsForTesting(10, 0); 
+  monitor_->setMotorSpeedFeedbackForTesting(/*m1_qpps=*/200, /*m2_qpps=*/0, /*valid=*/true);
+
+  arduino_mock::setMillis(cfg.runaway_check_interval_ms + 1);
+  monitor_->runSafetyChecksForTesting();
+
+  EXPECT_TRUE(monitor_->isEmergencyStopActiveForTesting());
+  EXPECT_EQ(arduino_mock::digital_pins[ESTOP_OUTPUT_PIN], LOW);
+}

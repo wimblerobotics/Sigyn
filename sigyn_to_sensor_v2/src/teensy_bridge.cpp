@@ -85,11 +85,6 @@ TeensyBridge::TeensyBridge()
       HandlePerformanceMessage(data, timestamp);
       });
 
-  message_parser_->RegisterCallback(MessageType::SAFETY,
-    [this](const MessageData & data, rclcpp::Time timestamp) {
-      HandleSafetyMessage(data, timestamp);
-      });
-
   message_parser_->RegisterCallback(MessageType::IMU,
     [this](const MessageData & data, rclcpp::Time timestamp) {
       HandleIMUMessage(data, timestamp);
@@ -860,29 +855,6 @@ void TeensyBridge::HandlePerformanceMessage(const MessageData & data, rclcpp::Ti
   }
 }
 
-void TeensyBridge::HandleSafetyMessage(const MessageData & data, rclcpp::Time timestamp)
-{
-  (void)timestamp;   // Suppress unused parameter warning
-    // Extract safety state and publish E-stop status
-  auto state_it = data.find("state");
-  auto conditions_it = data.find("active_conditions");
-
-  if (state_it != data.end() && conditions_it != data.end()) {
-    bool estop_active = (state_it->second == "ESTOP" || state_it->second == "SHUTDOWN") ||
-      (conditions_it->second == "true");
-
-    // Update V2 status
-    {
-      std::lock_guard<std::mutex> lock(fault_mutex_);
-      current_estop_status_.active = estop_active;
-      if (!estop_active) {
-        current_estop_status_.faults.clear();
-      }
-      // RCLCPP_INFO(this->get_logger(), "Publishing V2 ESTOP (active=%d)", current_estop_status_.active);
-      estop_status_pub_->publish(current_estop_status_);
-    }
-  }
-}
 
 
 void TeensyBridge::HandleEstopMessage(const MessageData & data, rclcpp::Time timestamp)

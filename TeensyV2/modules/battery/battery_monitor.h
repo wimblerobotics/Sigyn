@@ -7,7 +7,7 @@
  * @brief Comprehensive battery monitoring system for TeensyV2
  *
  * Provides real-time monitoring of battery voltage, current, power, and state
- * with support for both INA226 current sensors and analog voltage monitoring.
+ * with support for both INA226 voltage/current sensors and analog voltage monitoring.
  * Integrates with the safety system for critical battery conditions.
  *
  * Features:

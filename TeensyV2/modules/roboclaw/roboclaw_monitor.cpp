@@ -1193,7 +1193,8 @@ void RoboClawMonitor::detectMotorRunaway() {
   // Rate limiting for runaway ESTOP messages
   static uint32_t last_runaway_msg_time = 0;
 
-  // Check if motors are running away (moving when commanded to stop)
+  // Check if motors are running away (moving fast despite command, or just too fast)
+  // "motor runaway should not care about commanded speed -- it should always detect if the motors are running to fast."
   if (std::abs(motor1_status_.speed_qpps) > config_.runaway_speed_threshold_qpps) {
     const bool first_trip = !motor1_status_.runaway_detected;
     motor1_status_.runaway_detected = true;
@@ -1216,7 +1217,7 @@ void RoboClawMonitor::detectMotorRunaway() {
     }
   }
 
-  if (last_commanded_m2_qpps_ == 0 && std::abs(motor2_status_.speed_qpps) > config_.runaway_speed_threshold_qpps) {
+  if (std::abs(motor2_status_.speed_qpps) > config_.runaway_speed_threshold_qpps) {
     const bool first_trip = !motor2_status_.runaway_detected;
     motor2_status_.runaway_detected = true;
     total_safety_violations_++;

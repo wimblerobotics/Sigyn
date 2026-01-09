@@ -44,7 +44,6 @@ namespace sigyn_to_sensor_v2 {
   {
     BATTERY,      ///< Battery status and measurements
     PERFORMANCE,  ///< Performance metrics and timing
-    SAFETY,       ///< Safety status and conditions
     IMU,          ///< IMU sensor data (orientation, gyro, accel)
     TEMPERATURE,  ///< Temperature sensor data (individual TEMP and array TEMPERATURE)
     VL53L0X,      ///< VL53L0X time-of-flight sensor data
@@ -115,19 +114,6 @@ namespace sigyn_to_sensor_v2 {
     uint8_t system_status = 0;            ///< System status byte
     uint8_t system_error = 0;             ///< System error byte
     uint64_t timestamp = 0;               ///< Sensor timestamp (ms)
-    bool valid = false;                   ///< Data validity flag
-  };
-
-  /**
-   * @brief Safety data structure parsed from SAFETY messages.
-   */
-  struct SafetyData
-  {
-    std::string state = "UNKNOWN";        ///< Safety state (NORMAL, WARNING, ESTOP, etc.)
-    bool hardware_estop = false;          ///< Hardware E-stop status
-    bool inter_board_safety = false;     ///< Inter-board safety signal status
-    bool active_conditions = false;      ///< Any active E-stop conditions
-    std::vector < std::string > sources;    ///< List of active E-stop sources
     bool valid = false;                   ///< Data validity flag
   };
 
@@ -309,15 +295,8 @@ public:
     IMUData ParseIMUData(const MessageData & data) const;
 
     /**
-     * @brief Parse safety data from message.
-     *
-     * @param[in] data Parsed key-value data
-     * @return SafetyData structure with parsed values
-     */
-    SafetyData ParseSafetyData(const MessageData & data) const;
+     * @brief Parse IMU data from message.
 
-    /**
-     * @brief Parse E-stop data from message.
      *
      * @param[in] data Parsed key-value data
      * @return EstopData structure with parsed values

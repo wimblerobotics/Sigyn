@@ -347,46 +347,6 @@ IMUData MessageParser::ParseIMUData(const MessageData & data) const
   return imu;
 }
 
-SafetyData MessageParser::ParseSafetyData(const MessageData & data) const
-{
-  SafetyData safety;
-
-  try {
-    auto it = data.find("state");
-    if (it != data.end()) {
-      safety.state = it->second;
-    }
-
-    it = data.find("hw_estop");
-    if (it != data.end()) {
-      safety.hardware_estop = SafeStringToBool(it->second, false);
-    }
-
-    it = data.find("inter_board");
-    if (it != data.end()) {
-      safety.inter_board_safety = SafeStringToBool(it->second, false);
-    }
-
-    it = data.find("active_conditions");
-    if (it != data.end()) {
-      safety.active_conditions = SafeStringToBool(it->second, false);
-    }
-
-    it = data.find("sources");
-    if (it != data.end()) {
-      safety.sources = ParseCommaSeparatedList(it->second);
-    }
-
-    safety.valid = true;
-
-  } catch (const std::exception & e) {
-    RCLCPP_WARN(logger_, "Error parsing safety data: %s", e.what());
-    safety.valid = false;
-  }
-
-  return safety;
-}
-
 EstopData MessageParser::ParseEstopData(const MessageData & data) const
 {
   EstopData estop;
@@ -817,7 +777,6 @@ MessageType MessageParser::StringToMessageType(const std::string & type_str) con
 {
   if (type_str == "BATT" || type_str == "BATT2") {return MessageType::BATTERY;}
   if (type_str == "PERF") {return MessageType::PERFORMANCE;}
-  if (type_str == "SAFETY") {return MessageType::SAFETY;}
   if (type_str == "IMU" || type_str == "IMU1" || type_str == "IMU2") {return MessageType::IMU;}
   if (type_str == "TEMPERATURE") {return MessageType::TEMPERATURE;}
   if (type_str == "VL53L0X") {return MessageType::VL53L0X;}
@@ -846,7 +805,6 @@ std::string MessageParser::MessageTypeToString(MessageType type) const
   switch (type) {
     case MessageType::BATTERY: return "BATT";
     case MessageType::PERFORMANCE: return "PERF";
-    case MessageType::SAFETY: return "SAFETY";
     case MessageType::IMU: return "IMU";
     case MessageType::TEMPERATURE: return "TEMP";
     case MessageType::VL53L0X: return "VL53L0X";
@@ -978,7 +936,7 @@ bool MessageParser::IsDataMessage(const std::string & type_prefix) const
   return  type_prefix == "BATT" || type_prefix == "BATT2" || type_prefix == "PERF" ||
          type_prefix == "IMU" ||
          type_prefix == "TEMPERATURE" || type_prefix == "VL53L0X" ||
-         type_prefix == "ROBOCLAW" || type_prefix == "ODOM" || type_prefix == "SAFETY";
+         type_prefix == "ROBOCLAW" || type_prefix == "ODOM";
 }
 
 TemperatureData MessageParser::ParseTemperatureData(const MessageData & data) const

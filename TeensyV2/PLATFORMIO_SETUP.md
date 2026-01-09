@@ -1,6 +1,9 @@
 # TeensyV2 PlatformIO Setup Guide
 
-This guide explains how to build and upload the TeensyV2 firmware using PlatformIO, specifically configured for the Sigyn robot's multi-board architecture.
+This guide explains how to build and upload the TeensyV2 firmware using PlatformIO, specifically configured for the Sigyn robot's three-board architecture:
+- **Board 1 (board1)**: Navigation & Safety
+- **Board 2 (board2)**: Power & Sensors
+- **Board 3 (elevator_board)**: Elevator/Gripper
 
 ## Prerequisites
 
