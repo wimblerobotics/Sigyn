@@ -33,9 +33,11 @@
 
 #include <Arduino.h>
 
+#include <cstdio>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 #include "../../common/core/module.h"
 #include "../../common/core/serial_manager.h"
@@ -43,41 +45,49 @@
 namespace sigyn_teensy {
 
 /**
- * @brief E-stop sources enumeration for tracking and reporting.
- */
-typedef enum class FaultSource {
-  HARDWARE_BUTTON,       ///< Physical E-stop button pressed
-  SOFTWARE_COMMAND,      ///< Software E-stop from ROS2
-  PERFORMANCE,           ///< Performance violation (timing/frequency)
-  BATTERY_LOW_VOLTAGE,   ///< Battery voltage critically low
-  BATTERY_HIGH_CURRENT,  ///< Battery current critically high
-  MOTOR_OVERCURRENT,     ///< Motor drawing excessive current
-  MOTOR_RUNAWAY,         ///< Motor speed control failure
-  SENSOR_FAILURE,        ///< Critical sensor offline
-  INTER_BOARD_BOARD2,    ///< Safety signal from Board 2
-  INTER_BOARD_BOARD3,    ///< Safety signal from Board 3
-  TEMPERATURE_FAULT,      ///< Transient fault condition
-  UNKNOWN,               ///< Undefined or multiple sources
-  NUMBER_FAULT_SOURCES
-} FaultSource;
-
-/**
  * @brief Safety state enumeration for system status.
  */
 typedef enum class FaultSeverity {
   NORMAL,          ///< All systems operational
-  WARNING,         ///< Minor issues detected, monitoring
   DEGRADED,        ///< Operating with reduced functionality
+  WARNING,         ///< Minor issues detected, monitoring
   EMERGENCY_STOP,  ///< Emergency stop active
   SYSTEM_SHUTDOWN  ///< Complete system shutdown required
 } FaultSeverity;
 
 struct Fault {
-  bool active;             ///< Is the fault currently active
-  FaultSource source;      ///< Source of the fault
-  FaultSeverity severity;  ///< Severity level of the fault
-  String description;      ///< Human-readable description
-  uint32_t timestamp;      ///< Time when fault was detected
+  static constexpr size_t kMaxSourceLen = 32;
+  static constexpr size_t kMaxDescriptionLen = 128;
+
+  bool active = false;             ///< Is the fault currently active
+  FaultSeverity severity = FaultSeverity::NORMAL;  ///< Severity level of the fault
+  char source[kMaxSourceLen] = {0};                ///< Source module name (null-terminated)
+  char description[kMaxDescriptionLen] = {0};      ///< Human-readable description (null-terminated)
+  uint32_t timestamp = 0;                          ///< Time when fault was detected
+
+  Fault() = default;
+
+  Fault(bool is_active, FaultSeverity sev, const char* src, const char* desc)
+      : active(is_active), severity(sev), timestamp(millis()) {
+    setSource(src);
+    setDescription(desc);
+  }
+
+  void clear() {
+    active = false;
+    severity = FaultSeverity::NORMAL;
+    timestamp = 0;
+    source[0] = '\0';
+    description[0] = '\0';
+  }
+
+  void setSource(const char* src) {
+    snprintf(source, sizeof(source), "%s", (src != nullptr) ? src : "");
+  }
+
+  void setDescription(const char* desc) {
+    snprintf(description, sizeof(description), "%s", (desc != nullptr) ? desc : "");
+  }
 };
 
 /**
@@ -118,24 +128,24 @@ class SafetyCoordinator : public Module {
   /**
    * @brief Activate the E-stop state.
    * @param severity The severity level of the fault
-   * @param source The source of the E-stop
+    * @param source Module name that raised the fault
    * @param description A description of the reason
    */
-  void activateFault(FaultSeverity severity, FaultSource source, const String& description);
+    void activateFault(FaultSeverity severity, const char* source, const char* description);
 
   /**
    * @brief Deactivate the E-stop state.
    */
-  void deactivateFault(FaultSource source);
+  void deactivateFault(const char* source);
 
-  void setEstopCommand(String command);
+  void setEstopCommand(const char* command);
 
   /**
    * @brief Get a specific fault by source.
-   * @param source The fault source to query
+    * @param source The module name to query
    * @return Const reference to the fault
    */
-  const Fault& getFault(FaultSource source) const;
+    const Fault& getFault(const char* source) const;
 
   // --- Module Overrides ---
   /**
@@ -199,38 +209,21 @@ class SafetyCoordinator : public Module {
 
   // --- Member Variables ---
   uint8_t active_estop_count_ = 0;
-  Fault faults_[static_cast<size_t>(FaultSource::NUMBER_FAULT_SOURCES)];  ///< Active faults
-};
 
-[[maybe_unused]] static const char* faultSourceToString(FaultSource source) {
-  switch (source) {
-    case FaultSource::HARDWARE_BUTTON:
-      return "HARDWARE_BUTTON";
-    case FaultSource::SOFTWARE_COMMAND:
-      return "SOFTWARE_COMMAND";
-    case FaultSource::PERFORMANCE:
-      return "PERFORMANCE";
-    case FaultSource::BATTERY_LOW_VOLTAGE:
-      return "BATTERY_LOW_VOLTAGE";
-    case FaultSource::BATTERY_HIGH_CURRENT:
-      return "BATTERY_HIGH_CURRENT";
-    case FaultSource::MOTOR_OVERCURRENT:
-      return "MOTOR_OVERCURRENT";
-    case FaultSource::MOTOR_RUNAWAY:
-      return "MOTOR_RUNAWAY";
-    case FaultSource::SENSOR_FAILURE:
-      return "SENSOR_FAILURE";
-    case FaultSource::INTER_BOARD_BOARD2:
-      return "INTER_BOARD_BOARD2";
-    case FaultSource::INTER_BOARD_BOARD3:
-      return "INTER_BOARD_BOARD3";
-    case FaultSource::TEMPERATURE_FAULT:
-      return "TEMPERATURE_FAULT";
-    case FaultSource::UNKNOWN:
-    default:
-      return "UNKNOWN";
+  static constexpr size_t kMaxFaults = 16;
+  Fault faults_[kMaxFaults];  ///< Active faults (fixed-size, heap-free)
+  Fault empty_fault_;
+
+  static bool sourcesEqual(const char* a, const char* b) {
+    if (a == nullptr || b == nullptr) {
+      return false;
+    }
+    return strncmp(a, b, Fault::kMaxSourceLen) == 0;
   }
-}
+
+  int findFaultIndex(const char* source) const;
+  int getOrAllocateFaultIndex(const char* source);
+};
 
 [[maybe_unused]] static const char* faultSeverityToString(FaultSeverity severity) {
   switch (severity) {

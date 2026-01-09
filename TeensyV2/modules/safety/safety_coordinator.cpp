@@ -57,7 +57,7 @@
 #include <Arduino.h>
 
 #include <cstdint>
-// #include <cstdio>
+#include <cstdio>
 #include <cstring>
 
 #include "common/core/config.h"
@@ -68,31 +68,80 @@
 
 namespace sigyn_teensy {
 
-SafetyCoordinator::SafetyCoordinator() {
-  // Initialize faults array
-  for (int i = 0; i < static_cast<int>(FaultSource::NUMBER_FAULT_SOURCES); i++) {
-    faults_[i].active = false;
-    faults_[i].source = static_cast<FaultSource>(i);
-    faults_[i].severity = FaultSeverity::NORMAL;
-    faults_[i].description = "";
-    faults_[i].timestamp = 0;
+int SafetyCoordinator::findFaultIndex(const char* source) const {
+  if (source == nullptr || source[0] == '\0') {
+    return -1;
   }
+
+  for (size_t i = 0; i < kMaxFaults; i++) {
+    if (faults_[i].source[0] != '\0' && sourcesEqual(faults_[i].source, source)) {
+      return static_cast<int>(i);
+    }
+  }
+  return -1;
 }
 
-void SafetyCoordinator::activateFault(FaultSeverity severity, FaultSource source, const String& description) {
+int SafetyCoordinator::getOrAllocateFaultIndex(const char* source) {
+  if (source == nullptr || source[0] == '\0') {
+    return -1;
+  }
+
+  const int existing = findFaultIndex(source);
+  if (existing >= 0) {
+    return existing;
+  }
+
+  // Prefer an unused slot.
+  for (size_t i = 0; i < kMaxFaults; i++) {
+    if (faults_[i].source[0] == '\0') {
+      return static_cast<int>(i);
+    }
+  }
+
+  // Next best: reuse an inactive slot.
+  for (size_t i = 0; i < kMaxFaults; i++) {
+    if (!faults_[i].active) {
+      faults_[i].clear();
+      return static_cast<int>(i);
+    }
+  }
+
+  // Worst case: overwrite the oldest fault.
+  size_t oldest_idx = 0;
+  uint32_t oldest_ts = faults_[0].timestamp;
+  for (size_t i = 1; i < kMaxFaults; i++) {
+    if (faults_[i].timestamp < oldest_ts) {
+      oldest_ts = faults_[i].timestamp;
+      oldest_idx = i;
+    }
+  }
+  faults_[oldest_idx].clear();
+  return static_cast<int>(oldest_idx);
+}
+
+SafetyCoordinator::SafetyCoordinator() {
+  // Initialize faults array
+  for (size_t i = 0; i < kMaxFaults; i++) {
+    faults_[i].clear();
+  }
+  empty_fault_.clear();
+}
+
+void SafetyCoordinator::activateFault(FaultSeverity severity, const char* source, const char* description) {
   char msg[256];
-  int idx = static_cast<int>(source);
+  const int idx = getOrAllocateFaultIndex(source);
+  if (idx < 0) {
+    SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(),
+                                                       "activateFault called with empty/null source");
+    return;
+  }
   const bool new_is_estop = (severity == FaultSeverity::EMERGENCY_STOP || severity == FaultSeverity::SYSTEM_SHUTDOWN);
   const bool was_active = faults_[idx].active;
   const bool was_estop = (faults_[idx].severity == FaultSeverity::EMERGENCY_STOP ||
                           faults_[idx].severity == FaultSeverity::SYSTEM_SHUTDOWN);
 
   // Always update the fault record (so WARNING can upgrade to EMERGENCY_STOP, etc.)
-  faults_[idx].active = true;
-  faults_[idx].source = source;
-  faults_[idx].severity = severity;
-  faults_[idx].description = description;
-  faults_[idx].timestamp = millis();
+  faults_[idx] = Fault(/*is_active=*/true, severity, source, description);
 
   // Update E-stop count based on severity transitions
   if (!was_active && new_is_estop) {
@@ -115,20 +164,28 @@ void SafetyCoordinator::activateFault(FaultSeverity severity, FaultSource source
   }
 
   snprintf(msg, sizeof(msg), "%s: source=%s, severity=%s description=%s, active_estop_count_=%d",
-           was_active ? "Fault updated" : "Fault activated", faultSourceToString(source),
-           faultSeverityToString(severity), description.c_str(), active_estop_count_);
+           was_active ? "Fault updated" : "Fault activated", faults_[idx].source, faultSeverityToString(severity),
+           faults_[idx].description, active_estop_count_);
   SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
 }
 
-void SafetyCoordinator::deactivateFault(FaultSource source) {
-  int idx = static_cast<int>(source);
-  if (!faults_[idx].active) {
-    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(),
+void SafetyCoordinator::deactivateFault(const char* source) {
+  const int idx = findFaultIndex(source);
+  if (idx < 0 || !faults_[idx].active) {
+    SerialManager::getInstance().sendDiagnosticMessage("ERROR", name(),
                                                        "Attempted to deactivate a fault that is not active");
     return;
   } else {
     const bool was_estop = (faults_[idx].severity == FaultSeverity::EMERGENCY_STOP ||
                             faults_[idx].severity == FaultSeverity::SYSTEM_SHUTDOWN);
+    
+    // Send fault clearance message BEFORE clearing the fault data
+    char status_msg[256];
+    snprintf(status_msg, sizeof(status_msg),
+             "{\"active_fault\":\"false\",\"source\":\"%s\",\"severity\":\"%s\"}",
+             faults_[idx].source, faultSeverityToString(faults_[idx].severity));
+    SerialManager::getInstance().sendMessage("FAULT", status_msg);
+    
     faults_[idx].active = false;
     if (was_estop && active_estop_count_ > 0) {
       active_estop_count_--;
@@ -141,10 +198,13 @@ void SafetyCoordinator::deactivateFault(FaultSource source) {
 #endif
       char msg[256];
       snprintf(msg, sizeof(msg), "Fault deactivated: source=%s, severity=%s, description=%s, active_faults=%d",
-               faultSourceToString(source), faultSeverityToString(faults_[idx].severity),
-               faults_[idx].description.c_str(), active_estop_count_);
+               faults_[idx].source, faultSeverityToString(faults_[idx].severity), faults_[idx].description,
+               active_estop_count_);
       SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
     }
+
+    // Release the slot.
+    faults_[idx].clear();
   }
 }
 
@@ -161,24 +221,21 @@ bool SafetyCoordinator::isUnsafe() {
 }
 
 void SafetyCoordinator::loop() {
-#if CONTROLS_ROBOCLAW_ESTOP_PIN
+  // Send status updates periodically (once per second)
   static uint32_t last_check_ms = 0;
   uint32_t now_ms = millis();
   if (now_ms - last_check_ms >= 1000) {
     last_check_ms = now_ms;
     sendStatusUpdate();
   }
-#endif
 }
 
 const char* SafetyCoordinator::name() const { return "SafetyCoordinator"; }
 
 void SafetyCoordinator::resetSafetyFlags() {
   // Clear all active faults
-  for (int i = 0; i < static_cast<int>(FaultSource::NUMBER_FAULT_SOURCES); i++) {
-    if (faults_[i].active) {
-      deactivateFault(static_cast<FaultSource>(i));
-    }
+  for (size_t i = 0; i < kMaxFaults; i++) {
+    faults_[i].clear();
   }
   active_estop_count_ = 0;
 }
@@ -186,15 +243,16 @@ void SafetyCoordinator::resetSafetyFlags() {
 void SafetyCoordinator::setup() {
 }
 
-void SafetyCoordinator::setEstopCommand(String command) {
-  if (command.indexOf("trigger=true") >= 0) {
+void SafetyCoordinator::setEstopCommand(const char* command) {
+  if (command != nullptr && strstr(command, "trigger=true") != nullptr) {
     SerialManager::getInstance().sendDiagnosticMessage("INFO", name(),
                                                        "Software E-stop command received, activating E-stop");
-    activateFault(FaultSeverity::EMERGENCY_STOP, FaultSource::SOFTWARE_COMMAND, "Software E-stop command received");
-  } else if (command.indexOf("reset=true") >= 0) {
+    activateFault(FaultSeverity::EMERGENCY_STOP, name(), "Software E-stop command received");
+  } else if (command != nullptr && strstr(command, "reset=true") != nullptr) {
     SerialManager::getInstance().sendDiagnosticMessage(
         "INFO", name(), "Software E-stop reset command received, attempting to clear E-stop");
-    deactivateFault(FaultSource::SOFTWARE_COMMAND);
+    // Perform a global safety reset to clear all faults (including latched hardware faults)
+    Module::resetAllSafetyFlags();
   }
 }
 
@@ -214,20 +272,24 @@ void SafetyCoordinator::setMainBatteryPower(bool on) {
 #endif
 }
 
-const Fault& SafetyCoordinator::getFault(FaultSource source) const {
-  return faults_[static_cast<size_t>(source)];
+const Fault& SafetyCoordinator::getFault(const char* source) const {
+  const int idx = findFaultIndex(source);
+  if (idx < 0) {
+    return empty_fault_;
+  }
+  return faults_[static_cast<size_t>(idx)];
 }
 
 void SafetyCoordinator::sendStatusUpdate() {
   char status_msg[512];
   bool any_active = false;
-  for (size_t i = 0; i < static_cast<size_t>(FaultSource::NUMBER_FAULT_SOURCES); i++) {
+  for (size_t i = 0; i < kMaxFaults; i++) {
     if (faults_[i].active) {
       any_active = true;
       snprintf(status_msg, sizeof(status_msg),
                "{\"active_fault\":\"true\",\"source\":\"%s\",\"severity\":\"%s\",\"description\":\"%s\",\"timestamp\":%lu}",
-               faultSourceToString(faults_[i].source), faultSeverityToString(faults_[i].severity),
-               faults_[i].description.c_str(), static_cast<unsigned long>(faults_[i].timestamp));
+               faults_[i].source, faultSeverityToString(faults_[i].severity), faults_[i].description,
+               static_cast<unsigned long>(faults_[i].timestamp));
       SerialManager::getInstance().sendMessage("FAULT", status_msg);
     }
   }

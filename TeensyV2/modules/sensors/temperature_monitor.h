@@ -37,6 +37,7 @@
 #endif
 
 #include <cstdint>
+#include <cstddef>
 #include <cmath>
 
 #include "../../common/core/module.h"
@@ -49,14 +50,17 @@ namespace sigyn_teensy {
 static constexpr uint8_t kMaxTemperatureSensors = 8;
 // Default number of sensors configured (left and right motor)
 static constexpr uint8_t kDefaultSensorsConfigured = 2;
+// Fixed-size labels (avoid Arduino String heap allocations)
+static constexpr size_t kMaxTempSensorNameLen = 24;
+static constexpr size_t kMaxTempSensorLocationLen = 32;
 
 /**
  * @brief Temperature sensor configuration and thresholds.
  */
 struct TemperatureSensorConfig {
   // Sensor identification
-  String sensor_name;                       ///< Human-readable sensor name
-  String location;                          ///< Physical location description
+  char sensor_name[kMaxTempSensorNameLen] = {0};          ///< Human-readable sensor name
+  char location[kMaxTempSensorLocationLen] = {0};         ///< Physical location description
   uint8_t analog_pin = 255;                 ///< Analog pin number for TMP36 sensors (255 = not configured)
   
   // Temperature thresholds (Celsius)

@@ -122,6 +122,9 @@ void setup() {
 void loop() {
   // Run all modules once
   Module::loopAll();
+  
+  // Drain outgoing serial queue without blocking the real-time loop.
+  SerialManager::getInstance().processOutgoingMessages();
 }
 
 /**

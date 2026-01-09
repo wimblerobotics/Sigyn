@@ -80,15 +80,16 @@ namespace sigyn_teensy {
   public:
     /**
      * @brief Maximum length of a single message including terminator.
-     * Increased to 2048 to support larger PERF JSON messages with all module details.
+      * Increased to 4096 to support larger PERF JSON messages and long SD/DIAG payloads.
      */
-    static constexpr size_t kMaxMessageLength = 2048;
+        static constexpr size_t kMaxMessageLength = 4096;
 
     /**
      * @brief Maximum size of the outgoing message queue.
-     * Reduced to 16 to balance RAM usage with larger message size.
+      * Sized to absorb short bursts (e.g., SD directory listings) without
+      * blocking the real-time loop.
      */
-    static constexpr size_t kMaxQueueSize = 4;
+        static constexpr size_t kMaxQueueSize = 32;
 
     /**
      * @brief Serial baud rate for communication.
@@ -146,18 +147,26 @@ namespace sigyn_teensy {
     void processIncomingMessages();
 
     /**
+     * @brief Drain queued outgoing messages.
+     *
+     * Call this regularly from the main loop to ensure queued data is
+     * transmitted even when no new messages are being produced.
+     */
+    void processOutgoingMessages();
+
+    /**
      * @brief Set the latest TWIST command for modules to access.
      *
      * @param[in] twist_data The TWIST command data
      */
-    void setLatestTwistCommand(const String& twist_data);
+    void setLatestTwistCommand(const char* twist_data);
 
     /**
      * @brief Get the latest TWIST command data.
      *
-     * @return Latest TWIST command data, or empty string if none
+      * @return Pointer to internal TWIST command buffer (never null)
      */
-    String getLatestTwistCommand();
+     const char* getLatestTwistCommand() const;
 
     /**
      * @brief Check if there's a new TWIST command and mark it as processed.
@@ -172,13 +181,13 @@ namespace sigyn_teensy {
      * @brief Set the latest SDDIR command.
      * @param[in] sddir_data The SDDIR command data
      */
-    void setLatestSDDirCommand(const String& sddir_data);
+    void setLatestSDDirCommand(const char* sddir_data);
 
     /**
      * @brief Get the latest SDDIR command.
-     * @return String containing the SDDIR command data
+      * @return Pointer to internal SDDIR command buffer (never null)
      */
-    String getLatestSDDirCommand();
+     const char* getLatestSDDirCommand() const;
 
     /**
      * @brief Check if there's a new SDDIR command available.
@@ -190,19 +199,37 @@ namespace sigyn_teensy {
      * @brief Set the latest SDFILE command.
      * @param[in] sdfile_data The SDFILE command data
      */
-    void setLatestSDFileCommand(const String& sdfile_data);
+    void setLatestSDFileCommand(const char* sdfile_data);
 
     /**
      * @brief Get the latest SDFILE command.
-     * @return String containing the SDFILE command data
+      * @return Pointer to internal SDFILE command buffer (never null)
      */
-    String getLatestSDFileCommand();
+     const char* getLatestSDFileCommand() const;
 
     /**
      * @brief Check if there's a new SDFILE command available.
      * @return true if a new command is available, false otherwise
      */
     bool hasNewSDFileCommand();
+
+    /**
+     * @brief Set the latest SDPRUNE command.
+     * @param[in] sdprune_data The SDPRUNE command data (e.g. preserve count)
+     */
+    void setLatestSDPruneCommand(const char* sdprune_data);
+
+    /**
+     * @brief Get the latest SDPRUNE command.
+     * @return Pointer to internal SDPRUNE command buffer (never null)
+     */
+    const char* getLatestSDPruneCommand() const;
+
+    /**
+     * @brief Check if there's a new SDPRUNE command available.
+     * @return true if a new command is available, false otherwise
+     */
+    bool hasNewSDPruneCommand();
 
   private:
     /**
@@ -275,6 +302,11 @@ namespace sigyn_teensy {
     size_t queue_count_ = 0;
 
     /**
+     * @brief Byte offset into the current head message being transmitted.
+     */
+    size_t send_offset_ = 0;
+
+    /**
      * @brief Queue state/counters for diagnostics
      */
     size_t queue_high_water_mark_ = 0;    ///< Max observed queued messages
@@ -294,10 +326,15 @@ namespace sigyn_teensy {
 
     // --- Command Storage ---
 
+    static constexpr size_t kMaxTwistCommandLen = 256;
+    static constexpr size_t kMaxSDDirCommandLen = 256;
+    static constexpr size_t kMaxSDFileCommandLen = 256;
+    static constexpr size_t kMaxSDPruneCommandLen = 64;
+
     /**
      * @brief Storage for the latest TWIST command.
      */
-    String latest_twist_command_;
+    char latest_twist_command_[kMaxTwistCommandLen] = {0};
 
     /**
      * @brief Flag indicating if there's a new TWIST command.
@@ -307,7 +344,7 @@ namespace sigyn_teensy {
     /**
      * @brief Storage for the latest SDDIR command.
      */
-    String latest_sddir_command_;
+    char latest_sddir_command_[kMaxSDDirCommandLen] = {0};
 
     /**
      * @brief Flag indicating if there's a new SDDIR command.
@@ -317,12 +354,22 @@ namespace sigyn_teensy {
     /**
      * @brief Storage for the latest SDFILE command.
      */
-    String latest_sdfile_command_;
+    char latest_sdfile_command_[kMaxSDFileCommandLen] = {0};
 
     /**
      * @brief Flag indicating if there's a new SDFILE command.
      */
     bool has_new_sdfile_command_ = false;
+
+    /**
+     * @brief Storage for the latest SDPRUNE command.
+     */
+    char latest_sdprune_command_[kMaxSDPruneCommandLen] = {0};
+
+    /**
+     * @brief Flag indicating if there's a new SDPRUNE command.
+     */
+    bool has_new_sdprune_command_ = false;
 
     // Helper to classify message type into counters
     inline void classifyAndCountDrop_(const char* type) {

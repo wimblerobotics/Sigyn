@@ -115,7 +115,7 @@ if ! shopt -oq posix; then
     . /etc/bash_completion
   fi
 fi
-alias cb='colcon build --symlink-install'
+alias cb='colcon build --symlink-install --allow-overriding teleop_twist_keyboard'
 alias cgcm='ros2 service call /global_costmap/clear_entirely_global_costmap nav2_msgs/srv/ClearEntireCostmap'
 alias clcm='ros2 service call /local_costmap/clear_entirely_local_costmap nav2_msgs/srv/ClearEntireCostmap'
 alias dla="ros2 run --prefix 'gdbserver localhost:3000' line_finder laser_accumulator"
@@ -147,10 +147,46 @@ alias test_teensy='cd /home/ros/sigyn_ws/src/Sigyn/TeensyV2 && pio test -e test 
 
 alias compileBoard1='platformio run -e board1 -d ~/sigyn_ws/src/Sigyn/TeensyV2'
 alias compileBoard2='platformio run -e board2 -d ~/sigyn_ws/src/Sigyn/TeensyV2'
-alias buildBoard1='platformio run -e board1 -d ~/sigyn_ws/src/Sigyn/TeensyV2 --target upload'
-alias buildBoard2='platformio run -e board2 -d ~/sigyn_ws/src/Sigyn/TeensyV2 --target upload'
+
+# Safer upload helpers: refuse to auto-detect a board if the expected udev symlink isn't present.
+# Note: aliases expand before functions in interactive shells, so remove any older aliases.
+unalias buildBoard1 2>/dev/null || true
+unalias buildBoard2 2>/dev/null || true
+unalias buildElevator 2>/dev/null || true
+
+function buildBoard1 {
+    local symlink="/dev/teensy_sensor"
+    if [ ! -e "$symlink" ]; then
+        echo "ERROR: $symlink not present. Refusing to upload board1 firmware." >&2
+        echo "Hint: power the navigation/safety Teensy or check udev rules (try: ls -l /dev/teensy_*)." >&2
+        return 2
+    fi
+    local port=$(realpath "$symlink")
+    platformio run -e board1 -d ~/sigyn_ws/src/Sigyn/TeensyV2 --target upload --upload-port "$port"
+}
+
+function buildBoard2 {
+    local symlink="/dev/teensy_sensor2"
+    if [ ! -e "$symlink" ]; then
+        echo "ERROR: $symlink not present. Refusing to upload board2 firmware." >&2
+        echo "Hint: power the power/sensor Teensy or check udev rules (try: ls -l /dev/teensy_*)." >&2
+        return 2
+    fi
+    local port=$(realpath "$symlink")
+    platformio run -e board2 -d ~/sigyn_ws/src/Sigyn/TeensyV2 --target upload --upload-port "$port"
+}
 alias compileElevator='platformio run -e elevator_board -d ~/sigyn_ws/src/Sigyn/TeensyV2'
-alias buildElevator='platformio run -e elevator_board -d ~/sigyn_ws/src/Sigyn/TeensyV2 --target upload'
+
+function buildElevator {
+    local symlink="/dev/teensy_gripper"
+    if [ ! -e "$symlink" ]; then
+        echo "ERROR: $symlink not present. Refusing to upload elevator firmware." >&2
+        echo "Hint: power the elevator/gripper Teensy or check udev rules (try: ls -l /dev/teensy_*)." >&2
+        return 2
+    fi
+    local port=$(realpath "$symlink")
+    platformio run -e elevator_board -d ~/sigyn_ws/src/Sigyn/TeensyV2 --target upload --upload-port "$port"
+}
 export CYCLONEDDS_URI="
 
 <CycloneDDS>
