@@ -34,7 +34,7 @@ This document serves as both an architectural overview for ROS2 developers inter
 ┌─────────────────────────────────────────────────────────────────┐
 │                     Hardware Safety Layer                      │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │ E-Stop Button   │  │ Current Sensors │  │ Voltage         │  │
+│  │ E-Stop Button   │  │ Voltage/Current Sensors │  │ Voltage         │  │
 │  │ (Physical)      │  │ (Hardware)      │  │ Monitoring      │  │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
