@@ -1,3 +1,8 @@
+map_server:
+  ros__parameters:
+    use_sim_time: True
+    yaml_filename: ""
+
 amcl: # See: https://assets.researchsquare.com/files/rs-225880/v1_covered.pdf?c=1631856303
   ros__parameters:
     use_sim_time: True
