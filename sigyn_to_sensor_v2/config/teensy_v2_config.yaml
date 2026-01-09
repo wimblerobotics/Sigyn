@@ -11,3 +11,6 @@ teensy_bridge:
     baud_rate: 921600                      # Serial communication speed
     connection_timeout: 5.0                # Timeout for initial connection (seconds)
     reconnect_timeout: 2.0                 # Timeout for reconnection attempts (seconds)
+
+    # SD services
+    sd_getdir_timeout_sec: 10              # Directory listing timeout (seconds)

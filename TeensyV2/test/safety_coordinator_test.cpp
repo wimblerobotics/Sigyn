@@ -13,8 +13,10 @@
 
 #include "Arduino.h"  // Mock Arduino
 #include "mock_analog_reader.h"
+#include "modules/roboclaw/roboclaw_monitor.h"
 #include "modules/sensors/temperature_monitor.h"
 #include "modules/safety/safety_coordinator.h"
+#include "test/mocks/mock_roboclaw.h"
 
 using namespace sigyn_teensy;
 
@@ -69,12 +71,45 @@ protected:
   SafetyCoordinator* safety;
 };
 
+class SafetyCoordinatorRoboClawIntegrationTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    arduino_mock::reset();
+    arduino_mock::setMillis(0);
+
+    safety_ = &SafetyCoordinator::getInstance();
+    monitor_ = &RoboClawMonitor::getInstance();
+
+    monitor_->setRoboClawForTesting(&mock_);
+    monitor_->setConnectedForTesting(true);
+
+    // Ensure a known config.
+    RoboClawConfig cfg = monitor_->getConfig();
+    cfg.max_current_m1 = 100.0f;
+    cfg.max_current_m2 = 100.0f;
+    cfg.runaway_check_interval_ms = 10;
+    cfg.runaway_speed_threshold_qpps = 50;
+    monitor_->updateConfig(cfg);
+
+    // Reset state so faults/pins don't leak between tests.
+    safety_->resetSafetyFlags();
+    monitor_->resetErrors();
+    monitor_->clearEmergencyStop();
+  }
+
+  void TearDown() override { arduino_mock::reset(); }
+
+  SafetyCoordinator* safety_ = nullptr;
+  RoboClawMonitor* monitor_ = nullptr;
+  MockRoboClaw mock_;
+};
+
 /**
  * Test: SafetyCoordinator tracks temperature warning fault
  */
 TEST_F(SafetyCoordinatorTest, Integration_TemperatureWarningFault) {
   // Verify initial state - no faults
-  const Fault& temp_fault = safety->getFault(FaultSource::TEMPERATURE_FAULT);
+  const Fault& temp_fault = safety->getFault("TemperatureMonitor");
   EXPECT_FALSE(temp_fault.active);
   EXPECT_FALSE(safety->isUnsafe());
   
@@ -86,7 +121,7 @@ TEST_F(SafetyCoordinatorTest, Integration_TemperatureWarningFault) {
   }
   
   // Verify still no faults after stable period
-  EXPECT_FALSE(safety->getFault(FaultSource::TEMPERATURE_FAULT).active);
+  EXPECT_FALSE(safety->getFault("TemperatureMonitor").active);
   EXPECT_FALSE(safety->isUnsafe());
   
   // Ramp temperature slowly from 15°C to 71°C over 34 seconds
@@ -120,13 +155,63 @@ TEST_F(SafetyCoordinatorTest, Integration_TemperatureWarningFault) {
   EXPECT_FALSE(temp_monitor->isUnsafe());
   
   // SafetyCoordinator should track this as a temperature fault
-  const Fault& fault_after_warning = safety->getFault(FaultSource::TEMPERATURE_FAULT);
+  const Fault& fault_after_warning = safety->getFault("TemperatureMonitor");
   EXPECT_TRUE(fault_after_warning.active);
   EXPECT_EQ(fault_after_warning.severity, FaultSeverity::WARNING);
-  EXPECT_EQ(fault_after_warning.source, FaultSource::TEMPERATURE_FAULT);
+  EXPECT_STREQ(fault_after_warning.source, "TemperatureMonitor");
 
   // Warnings should not trigger E-stop
   EXPECT_FALSE(safety->isUnsafe());
+}
+
+TEST_F(SafetyCoordinatorRoboClawIntegrationTest, Integration_RoboClawOvercurrent_ActivatesCoordinatorFault) {
+  RoboClawConfig cfg = monitor_->getConfig();
+  cfg.max_current_m1 = 1.0f;
+  cfg.max_current_m2 = 1.0f;
+  monitor_->updateConfig(cfg);
+
+  EXPECT_FALSE(safety_->getFault("RoboClawMonitor").active);
+  EXPECT_FALSE(safety_->isUnsafe());
+
+  monitor_->setMotorCurrentsForTesting(/*m1_amps=*/2.0f, /*m2_amps=*/0.0f, /*valid=*/true);
+  monitor_->runSafetyChecksForTesting();
+
+  const Fault& f = safety_->getFault("RoboClawMonitor");
+  EXPECT_TRUE(f.active);
+  EXPECT_EQ(f.severity, FaultSeverity::EMERGENCY_STOP);
+  EXPECT_TRUE(safety_->isUnsafe());
+  EXPECT_TRUE(monitor_->isEmergencyStopActiveForTesting());
+}
+
+TEST_F(SafetyCoordinatorRoboClawIntegrationTest, Integration_RoboClawRunaway_ActivatesCoordinatorFault) {
+  EXPECT_FALSE(safety_->getFault("RoboClawMonitor").active);
+
+  monitor_->setRunawayDetectionInitializedForTesting(true);
+  monitor_->setLastCommandedQppsForTesting(0, 0);
+  monitor_->setMotorSpeedFeedbackForTesting(/*m1_qpps=*/200, /*m2_qpps=*/0, /*valid=*/true);
+
+  arduino_mock::setMillis(monitor_->getConfig().runaway_check_interval_ms + 1);
+  monitor_->runSafetyChecksForTesting();
+
+  const Fault& f = safety_->getFault("RoboClawMonitor");
+  EXPECT_TRUE(f.active);
+  EXPECT_EQ(f.severity, FaultSeverity::EMERGENCY_STOP);
+  EXPECT_TRUE(safety_->isUnsafe());
+  EXPECT_TRUE(monitor_->isEmergencyStopActiveForTesting());
+}
+
+TEST_F(SafetyCoordinatorRoboClawIntegrationTest, Integration_RoboClawCommFail_ActivatesCoordinatorFault) {
+  EXPECT_FALSE(safety_->getFault("RoboClawMonitor").active);
+
+  mock_.state.read_version_ok = false;
+  const bool ok = monitor_->testCommunicationForTesting();
+  EXPECT_FALSE(ok);
+
+  const Fault& f = safety_->getFault("RoboClawMonitor");
+  EXPECT_TRUE(f.active);
+  EXPECT_EQ(f.severity, FaultSeverity::EMERGENCY_STOP);
+  EXPECT_TRUE(safety_->isUnsafe());
+  EXPECT_TRUE(monitor_->isEmergencyStopActiveForTesting());
 }
 
 /**
@@ -144,7 +229,7 @@ TEST_F(SafetyCoordinatorTest, Integration_TemperatureCriticalFault) {
   }
   
   // Verify no faults at 60°C (below 70°C warning)
-  EXPECT_FALSE(safety->getFault(FaultSource::TEMPERATURE_FAULT).active);
+  EXPECT_FALSE(safety->getFault("TemperatureMonitor").active);
   
   // Jump to 86°C (above 85°C critical threshold)
   mock_reader->setTemperature(25, 86.0f);
@@ -163,12 +248,13 @@ TEST_F(SafetyCoordinatorTest, Integration_TemperatureCriticalFault) {
   EXPECT_TRUE(temp_monitor->isUnsafe());
   
   // SafetyCoordinator should track as EMERGENCY_STOP severity
-  const Fault& fault = safety->getFault(FaultSource::TEMPERATURE_FAULT);
+  const Fault& fault = safety->getFault("TemperatureMonitor");
   EXPECT_TRUE(fault.active);
   EXPECT_EQ(fault.severity, FaultSeverity::EMERGENCY_STOP);
-  EXPECT_EQ(fault.source, FaultSource::TEMPERATURE_FAULT);
+  EXPECT_STREQ(fault.source, "TemperatureMonitor");
   EXPECT_TRUE(safety->isUnsafe());
 }
+
 
 /**
  * Test: SafetyCoordinator tracks thermal runaway fault
@@ -185,7 +271,7 @@ TEST_F(SafetyCoordinatorTest, Integration_ThermalRunawayFault) {
   }
   
   // Verify no faults at stable 60°C
-  EXPECT_FALSE(safety->getFault(FaultSource::TEMPERATURE_FAULT).active);
+  EXPECT_FALSE(safety->getFault("TemperatureMonitor").active);
   
   // Simulate stalled motor: rapid 11°C rise in 4 seconds (165°C/min)
   // This exceeds the 100°C/min threshold and should trigger thermal runaway
@@ -202,7 +288,7 @@ TEST_F(SafetyCoordinatorTest, Integration_ThermalRunawayFault) {
     const TemperatureSensorStatus& status = temp_monitor->getSensorStatus(0);
     if (status.thermal_runaway) {
       // Found it! Verify SafetyCoordinator tracked the fault
-      const Fault& fault = safety->getFault(FaultSource::TEMPERATURE_FAULT);
+      const Fault& fault = safety->getFault("TemperatureMonitor");
       EXPECT_TRUE(fault.active);
       EXPECT_EQ(fault.severity, FaultSeverity::EMERGENCY_STOP);
       EXPECT_TRUE(safety->isUnsafe());
@@ -247,10 +333,10 @@ TEST_F(SafetyCoordinatorTest, Integration_TemperatureRecovery) {
   }
   
   // Verify warning fault is active
-  EXPECT_TRUE(safety->getFault(FaultSource::TEMPERATURE_FAULT).active);
+  EXPECT_TRUE(safety->getFault("TemperatureMonitor").active);
   EXPECT_FALSE(temp_monitor->isUnsafe());
   EXPECT_FALSE(safety->isUnsafe());
-  EXPECT_EQ(safety->getFault(FaultSource::TEMPERATURE_FAULT).severity, FaultSeverity::WARNING);
+  EXPECT_EQ(safety->getFault("TemperatureMonitor").severity, FaultSeverity::WARNING);
   
   // Cool down well below warning threshold
   mock_reader->setTemperature(25, 60.0f);
@@ -269,7 +355,7 @@ TEST_F(SafetyCoordinatorTest, Integration_TemperatureRecovery) {
   EXPECT_FALSE(temp_monitor->isUnsafe());
   
   // SafetyCoordinator should clear the fault
-  const Fault& fault = safety->getFault(FaultSource::TEMPERATURE_FAULT);
+  const Fault& fault = safety->getFault("TemperatureMonitor");
   EXPECT_FALSE(fault.active);
   EXPECT_FALSE(safety->isUnsafe());
 }
@@ -297,7 +383,7 @@ TEST_F(SafetyCoordinatorTest, Integration_LowTemperatureWarning) {
   EXPECT_FALSE(temp_monitor->isUnsafe());
   
   // SafetyCoordinator should track this
-  const Fault& fault = safety->getFault(FaultSource::TEMPERATURE_FAULT);
+  const Fault& fault = safety->getFault("TemperatureMonitor");
   EXPECT_TRUE(fault.active);
   EXPECT_EQ(fault.severity, FaultSeverity::WARNING);
   EXPECT_FALSE(safety->isUnsafe());
@@ -324,7 +410,7 @@ TEST_F(SafetyCoordinatorTest, Integration_LowTemperatureCritical) {
   EXPECT_TRUE(temp_monitor->isUnsafe());
   
   // SafetyCoordinator should track as EMERGENCY_STOP
-  const Fault& fault = safety->getFault(FaultSource::TEMPERATURE_FAULT);
+  const Fault& fault = safety->getFault("TemperatureMonitor");
   EXPECT_TRUE(fault.active);
   EXPECT_EQ(fault.severity, FaultSeverity::EMERGENCY_STOP);
   EXPECT_TRUE(safety->isUnsafe());

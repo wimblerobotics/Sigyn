@@ -20,7 +20,10 @@ find_package(rosidl_default_generators REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "action/MoveElevator.action"
   "action/MoveExtender.action"
+  "msg/SystemFault.msg"
+  "msg/EStopStatus.msg"
   "srv/GripperPosition.srv"
+  "srv/ResetFault.srv"
   "srv/TeensySdGetDir.srv"
   "srv/TeensySdGetFile.srv"
 )

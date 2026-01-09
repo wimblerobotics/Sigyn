@@ -34,6 +34,7 @@
 #include <Arduino.h>
 #include <SdFat.h>
 #include <cstdint>
+#include <cstddef>
 #include "sdios.h"
 
 #include "../../common/core/module.h"
@@ -76,7 +77,7 @@ struct SDLoggerStatus {
   bool file_open = false;                   ///< Log file currently open
   
   // Current file information
-  String current_filename;                  ///< Current log filename
+  char current_filename[32] = {0};          ///< Current log filename
   uint32_t current_file_number = 0;         ///< Current file number
   uint32_t current_file_size = 0;           ///< Current file size (bytes)
   uint32_t total_files_created = 0;         ///< Total files created this session
@@ -109,9 +110,12 @@ struct SDLoggerStatus {
 class SDLogger : public Module {
 public:
   static SDLogger& getInstance();
+
+  // Directory listing behavior
+  static constexpr size_t kDirectoryListingKeepCount = 20;  ///< Number of most-recent files to include in directory listing
   
-    // Logging operations
-  void log(const String& message);
+  // Logging operations
+  void log(const char* message);
   void logFormatted(const char* format, ...);
   void flush();
   void forceFlush();
@@ -119,26 +123,28 @@ public:
   // File management
   bool createNewLogFile();
   void closeCurrentFile();
-  String getCurrentFilename() const { return status_.current_filename; }
+  const char* getCurrentFilename() const { return status_.current_filename; }
   
   // Directory and file operations
   void refreshDirectoryCache();
-  String getDirectoryListing();
-  bool dumpFile(const String& filename);
-  bool deleteFile(const String& filename);
+  const char* getDirectoryListing();
+  bool dumpFile(const char* filename);
+  bool deleteFile(const char* filename);
+  bool deleteAllButLastLogs(uint16_t preservation_count);
   
   // Status and configuration
   bool isSDAvailable() const;
   uint32_t getBufferUsagePercent() const;
-  bool hasPendingWrites() const { return write_buffer_.length() > 0; }  ///< Check if buffer has data
+  bool hasPendingWrites() const { return write_offset_ > 0; }  ///< Check if buffer has data
   const SDLoggerStatus& getStatus() const { return status_; }
   void updateConfig(const SDLoggerConfig& config) { config_ = config; }
   const SDLoggerConfig& getConfig() const { return config_; }
   
   // Message handling (for ROS2 integration)
-  void handleDirMessage(const String& message);
-  void handleFileDumpMessage(const String& message);
-  void handleDeleteMessage(const String& message);
+  void handleDirMessage(const char* message);
+  void handleFileDumpMessage(const char* message);
+  void handleDeleteMessage(const char* message);
+  void handlePruneMessage(const char* message);
 
 protected:
   // Module interface implementation
@@ -173,12 +179,15 @@ private:
   void updatePerformanceStatistics();
   
   // File management helpers
-  uint32_t findNextLogFileNumber();
-  String generateLogFilename(uint32_t file_number);
-  bool openLogFile(const String& filename);
+  uint32_t findHighestLogFileNumber();
+  uint32_t getNextLogFileNumber();
+  uint32_t readLastLogNumberFromSequenceFile();
+  void writeLastLogNumberToSequenceFile(uint32_t last_number);
+  void generateLogFilename(char* out, size_t out_size, uint32_t file_number);
+  bool openLogFile(const char* filename);
   
   // Buffer management
-  void addToBuffer(const String& data);
+  void addToBuffer(const char* data);
   void writeBufferToFile();
   void drainWriteBufferWithBudget(uint32_t max_ms);
   
@@ -195,7 +204,9 @@ private:
   FsFile log_file_;
   
   // Write buffer
-  String write_buffer_;
+  static constexpr size_t kWriteBufferSize = 4096;
+  char write_buffer_[kWriteBufferSize] = {0};
+  size_t write_offset_ = 0;
   uint32_t last_buffer_add_time_ms_;
   
   // File dumping state
@@ -208,15 +219,25 @@ private:
   
   DumpState dump_state_;
   FsFile dump_file_;
-  String dump_filename_;
+  char dump_filename_[32] = {0};
   uint32_t dump_bytes_sent_;
+
+  // Directory listing streaming state (SDDIR)
+  bool dir_dump_active_ = false;
+  const char* dir_dump_ptr_ = nullptr;  // Points into dir_stream_listing_
   
   // State machine processing
   void processDumpStateMachine();
   
   // Directory caching
-  String cached_directory_listing_;
+  static constexpr size_t kDirCacheSize = 2048;
+  char cached_directory_listing_[kDirCacheSize] = {0};
+  size_t cached_directory_len_ = 0;
   uint32_t last_directory_cache_time_ms_;
+
+  // Stable snapshot used while streaming an SDDIR response.
+  // Prevents cache refreshes (e.g., on log rotation) from corrupting dir_dump_ptr_.
+  char dir_stream_listing_[kDirCacheSize] = {0};
   
   // Timing for periodic operations
   uint32_t last_flush_time_ms_;
@@ -232,6 +253,9 @@ private:
   static constexpr uint32_t SD_SPI_SPEED = 25000000;  // 25MHz
   static constexpr uint32_t MAX_FILENAME_LENGTH = 32;
   static constexpr uint32_t DUMP_CHUNK_SIZE = 512;
+
+  // Internal bookkeeping file to keep log numbering monotonic even after deletions
+  static constexpr const char* kLogSequenceFilename = "LOGSEQ.TXT";
 };
 
 } // namespace sigyn_teensy

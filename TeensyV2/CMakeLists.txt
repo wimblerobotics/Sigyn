@@ -39,7 +39,7 @@ set(TEENSY_SOURCES
   modules/safety/safety_coordinator.cpp
   
   # Motors/RoboClaw - PHASE 2 (needs interface abstraction)
-  # modules/roboclaw/roboclaw_monitor.cpp
+  modules/roboclaw/roboclaw_monitor.cpp
   
   # Performance monitoring - PHASE 2 (needs RoboClaw)
   # modules/performance/performance_monitor.cpp
@@ -91,6 +91,20 @@ if(BUILD_TESTING)
       ${PROJECT_NAME}_core
     )
     target_include_directories(test_safety_coordinator PUBLIC
+      ${CMAKE_CURRENT_SOURCE_DIR}/test/mocks
+    )
+  endif()
+
+  # RoboClaw monitor tests
+  ament_add_gtest(test_roboclaw_monitor
+    test/roboclaw_monitor_test.cpp
+  )
+
+  if(TARGET test_roboclaw_monitor)
+    target_link_libraries(test_roboclaw_monitor
+      ${PROJECT_NAME}_core
+    )
+    target_include_directories(test_roboclaw_monitor PUBLIC
       ${CMAKE_CURRENT_SOURCE_DIR}/test/mocks
     )
   endif()

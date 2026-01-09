@@ -40,7 +40,7 @@ from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
 def launch_robot_state_publisher(
-    context, file_name_var, use_ros2_control, use_sim_time
+    context, file_name_var, use_ros2_control, use_sim_time, do_top_lidar
 ):
     description_directory_path = get_package_share_directory("description")
     file_name = context.perform_substitution(file_name_var)
@@ -55,7 +55,12 @@ def launch_robot_state_publisher(
     use_ros2_control_value = "true" if use_sim_time.perform(context) == "true" else "false"
     
     urdf_as_xml = xacro.process_file(
-        xacro_file_path, mappings={"use_ros2_control": use_ros2_control_value, "sim_mode": use_sim_time.perform(context)}
+        xacro_file_path,
+        mappings={
+            "use_ros2_control": use_ros2_control_value,
+            "sim_mode": use_sim_time.perform(context),
+            "do_top_lidar": do_top_lidar.perform(context),
+        },
     ).toxml()
     robot_state_publisher_node = Node(
         package="robot_state_publisher",
@@ -169,6 +174,16 @@ def generate_launch_description():
     ld.add_action(log_info_action)
 
     # Launch the robot state publisher
+    # Handle LiDAR configuration in URDF via xacro arg
+    do_top_lidar = LaunchConfiguration("do_top_lidar")
+    ld.add_action(
+        DeclareLaunchArgument(
+            name="do_top_lidar",
+            default_value="true",
+            description="If false, use only one LiDAR (top_lidar at cup origin)",
+        )
+    )
+
     ld.add_action(
         OpaqueFunction(
             function=launch_robot_state_publisher,
@@ -176,6 +191,7 @@ def generate_launch_description():
                 LaunchConfiguration("urdf_file_name"),
                 "true",
                 LaunchConfiguration("use_sim_time"),
+                do_top_lidar,
             ],
         )
     )
@@ -383,6 +399,9 @@ def generate_launch_description():
             [base_pgk, "/launch/sub_launch/lidar.launch.py"]
         ),
         condition=UnlessCondition(use_sim_time),
+        launch_arguments={
+            'do_top_lidar': do_top_lidar,
+        }.items(),
     )
     ld.add_action(lidars_launch)
 
@@ -425,11 +444,20 @@ def generate_launch_description():
     )
     ld.add_action(joint_state_publisher_node)
     
+    do_oakd = LaunchConfiguration("do_oakd")
+    ld.add_action(
+        DeclareLaunchArgument(
+            name="do_oakd",
+            default_value="false",
+            description="Launch OAK-D camera nodes if true",
+        )
+    )
+    
     oakd_elevator_top = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
           [base_pgk, "/launch/sub_launch/oakd_stereo.launch.py"]
         ),
-        condition=UnlessCondition(use_sim_time),
+        condition=IfCondition(AndSubstitution(NotSubstitution(use_sim_time), do_oakd)),
     )
     ld.add_action(oakd_elevator_top)
     
@@ -438,7 +466,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
           [base_pgk, "/launch/sub_launch/oakd_compressed_republisher.launch.py"]
         ),
-        condition=UnlessCondition(use_sim_time),
+        condition=IfCondition(AndSubstitution(NotSubstitution(use_sim_time), do_oakd)),
     )
     ld.add_action(oakd_compressed)
     

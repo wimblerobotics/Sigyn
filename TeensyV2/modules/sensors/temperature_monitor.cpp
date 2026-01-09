@@ -11,6 +11,10 @@
  */
 
 #include "temperature_monitor.h"
+
+#include <cstdarg>
+#include <cstring>
+
 #include "analog_reader_hw.h"
 #include "../../common/core/serial_manager.h"
 #include "../../modules/safety/safety_coordinator.h"
@@ -28,6 +32,39 @@ constexpr float TMP36_SCALE_MV_PER_C = 10.0f;  // TMP36 scale factor (10mV/°C)
 
 // Static hardware reader for production use (no heap allocation)
 static AnalogReaderHW hardware_reader;
+
+namespace {
+void copy_cstr(char* dest, size_t dest_size, const char* src) {
+  if (!dest || dest_size == 0) {
+    return;
+  }
+  if (!src) {
+    dest[0] = '\0';
+    return;
+  }
+  strncpy(dest, src, dest_size - 1);
+  dest[dest_size - 1] = '\0';
+}
+
+void snappend(char* buf, size_t buf_size, size_t& offset, const char* fmt, ...) {
+  if (!buf || buf_size == 0 || offset >= buf_size) {
+    return;
+  }
+
+  va_list args;
+  va_start(args, fmt);
+  const int written = vsnprintf(buf + offset, buf_size - offset, fmt, args);
+  va_end(args);
+
+  if (written <= 0) {
+    return;
+  }
+
+  const size_t remaining = buf_size - offset;
+  const size_t advance = (static_cast<size_t>(written) < remaining) ? static_cast<size_t>(written) : (remaining - 1);
+  offset += advance;
+}
+}  // namespace
 
 TemperatureMonitor& TemperatureMonitor::getInstance() {
   static TemperatureMonitor instance;
@@ -65,8 +102,8 @@ TemperatureMonitor::TemperatureMonitor()
   }
 
   // Initialize sensor configurations for left and right motor
-  sensor_configs_[0].sensor_name = "LeftMotor";
-  sensor_configs_[0].location = "Left Motor";
+  copy_cstr(sensor_configs_[0].sensor_name, sizeof(sensor_configs_[0].sensor_name), "LeftMotor");
+  copy_cstr(sensor_configs_[0].location, sizeof(sensor_configs_[0].location), "Left Motor");
   sensor_configs_[0].analog_pin = 25;  // Left motor temperature pin
   sensor_configs_[0].critical_high_temp = 85.0f;
   sensor_configs_[0].warning_high_temp = 70.0f;
@@ -76,8 +113,8 @@ TemperatureMonitor::TemperatureMonitor()
   sensor_configs_[0].safety_critical = true;
   sensor_configured_[0] = true;
 
-  sensor_configs_[1].sensor_name = "RightMotor";
-  sensor_configs_[1].location = "Right Motor";
+  copy_cstr(sensor_configs_[1].sensor_name, sizeof(sensor_configs_[1].sensor_name), "RightMotor");
+  copy_cstr(sensor_configs_[1].location, sizeof(sensor_configs_[1].location), "Right Motor");
   sensor_configs_[1].analog_pin = 26;  // Right motor temperature pin
   sensor_configs_[1].critical_high_temp = 85.0f;
   sensor_configs_[1].warning_high_temp = 70.0f;
@@ -110,9 +147,10 @@ void TemperatureMonitor::setup() {
     if (sensor_configured_[i] && sensor_configs_[i].analog_pin != 255) {
       pinMode(sensor_configs_[i].analog_pin, INPUT);
 
-      String msg =
-          "Configured pin " + String(sensor_configs_[i].analog_pin) + " for sensor " + sensor_configs_[i].sensor_name;
-      SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg.c_str());
+      char msg[128] = {0};
+      snprintf(msg, sizeof(msg), "Configured pin %u for sensor %s", static_cast<unsigned int>(sensor_configs_[i].analog_pin),
+               sensor_configs_[i].sensor_name);
+      SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
     }
   }
 
@@ -142,8 +180,11 @@ void TemperatureMonitor::setup() {
   last_diagnostic_report_time_ms_ = now;
   last_safety_check_time_ms_ = now;
 
-  SerialManager::getInstance().sendDiagnosticMessage(
-      "INFO", name(), ("Setup complete - " + String(getSensorCount()) + " analog sensors ready").c_str());
+  {
+    char msg[96] = {0};
+    snprintf(msg, sizeof(msg), "Setup complete - %u analog sensors ready", static_cast<unsigned int>(getSensorCount()));
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
+  }
 }
 
 void TemperatureMonitor::loop() {
@@ -275,8 +316,10 @@ void TemperatureMonitor::configureSensor(uint8_t sensor_index, const Temperature
   sensor_configs_[sensor_index] = sensor_config;
   sensor_configured_[sensor_index] = true;
 
-  String msg = "Configured sensor " + String(sensor_index) + " (" + sensor_config.sensor_name + ")";
-  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg.c_str());
+  char msg[128] = {0};
+  snprintf(msg, sizeof(msg), "Configured sensor %u (%s)", static_cast<unsigned int>(sensor_index),
+           sensor_config.sensor_name);
+  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
 }
 
 void TemperatureMonitor::scanForSensors() {
@@ -291,9 +334,10 @@ void TemperatureMonitor::calibrateSensor(uint8_t sensor_index, float reference_t
 
   // For TMP36 sensors, calibration would involve adjusting the conversion formula
   // This is a placeholder for future calibration implementation
-  String msg = "Calibration requested for sensor " + String(sensor_index) + " with reference " +
-               String(reference_temp, 1) + "°C";
-  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg.c_str());
+  char msg[128] = {0};
+  snprintf(msg, sizeof(msg), "Calibration requested for sensor %u with reference %.1f°C",
+           static_cast<unsigned int>(sensor_index), static_cast<double>(reference_temp));
+  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
 }
 
 void TemperatureMonitor::resetSensorStatistics(uint8_t sensor_index) {
@@ -520,7 +564,7 @@ void TemperatureMonitor::checkSafetyConditions() {
       if (can_log) {
         char msg[256];
         snprintf(msg, sizeof(msg), "DEGRADED temp sensor: sensor=%s idx=%u age_ms=%lu timeout_ms=%lu", 
-                 sensor_configs_[i].sensor_name.c_str(), i, (unsigned long)age_ms, (unsigned long)timeout_ms);
+                 sensor_configs_[i].sensor_name, i, (unsigned long)age_ms, (unsigned long)timeout_ms);
         SerialManager::getInstance().sendDiagnosticMessage("WARNING", name(), msg);
       }
     }
@@ -558,7 +602,7 @@ void TemperatureMonitor::checkSafetyConditions() {
     if (can_log && (sensor_status_[i].critical_high || sensor_status_[i].critical_low)) {
       char msg[256];
       snprintf(msg, sizeof(msg), "CRITICAL temp: sensor=%s idx=%u temp=%.1fC (crit_high>=%.1fC crit_low<=%.1fC)",
-               config.sensor_name.c_str(), i, temp, config.critical_high_temp, config.critical_low_temp);
+               config.sensor_name, i, temp, config.critical_high_temp, config.critical_low_temp);
       SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg);
     }
 
@@ -566,7 +610,7 @@ void TemperatureMonitor::checkSafetyConditions() {
         !(sensor_status_[i].critical_high || sensor_status_[i].critical_low)) {
       char msg[256];
       snprintf(msg, sizeof(msg), "WARN temp: sensor=%s idx=%u temp=%.1fC (warn_high>=%.1fC warn_low<=%.1fC)",
-               config.sensor_name.c_str(), i, temp, config.warning_high_temp, config.warning_low_temp);
+               config.sensor_name, i, temp, config.warning_high_temp, config.warning_low_temp);
       SerialManager::getInstance().sendDiagnosticMessage("WARNING", name(), msg);
     }
   }
@@ -586,7 +630,7 @@ void TemperatureMonitor::checkSafetyConditions() {
   system_status_.system_thermal_critical = any_critical || thermal_runaway_detected;
 
   FaultSeverity desired_severity = FaultSeverity::NORMAL;
-  String desired_description;
+  char desired_description[256] = {0};
 
   if (thermal_runaway_detected || any_critical) {
     desired_severity = FaultSeverity::EMERGENCY_STOP;
@@ -595,18 +639,18 @@ void TemperatureMonitor::checkSafetyConditions() {
       const TemperatureSensorConfig& config = sensor_configs_[idx];
       const TemperatureSensorStatus& status = sensor_status_[idx];
       if (runaway_idx >= 0) {
-        desired_description = "Thermal runaway: sensor=" + config.sensor_name + " idx=" + String(idx) +
-                              " temp=" + String(status.temperature_c, 1) + "C trend=" +
-                              String(status.temperature_trend, 1) + "C/min thr=" +
-                              String(config.thermal_runaway_rate, 1) + "C/min";
+        snprintf(desired_description, sizeof(desired_description),
+                 "Thermal runaway: sensor=%s idx=%d temp=%.1fC trend=%.1fC/min thr=%.1fC/min",
+                 config.sensor_name, static_cast<int>(idx), static_cast<double>(status.temperature_c),
+                 static_cast<double>(status.temperature_trend), static_cast<double>(config.thermal_runaway_rate));
       } else {
-        desired_description = "Temp critical: sensor=" + config.sensor_name + " idx=" + String(idx) +
-                              " temp=" + String(status.temperature_c, 1) + "C (crit_high>=" +
-                              String(config.critical_high_temp, 1) + "C crit_low<=" +
-                              String(config.critical_low_temp, 1) + "C)";
+        snprintf(desired_description, sizeof(desired_description),
+                 "Temp critical: sensor=%s idx=%d temp=%.1fC (crit_high>=%.1fC crit_low<=%.1fC)",
+                 config.sensor_name, static_cast<int>(idx), static_cast<double>(status.temperature_c),
+                 static_cast<double>(config.critical_high_temp), static_cast<double>(config.critical_low_temp));
       }
     } else {
-      desired_description = "Temperature critical";
+      snprintf(desired_description, sizeof(desired_description), "Temperature critical");
     }
     if (can_log) {
       SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), "System thermal CRITICAL (E-stop) active");
@@ -617,12 +661,12 @@ void TemperatureMonitor::checkSafetyConditions() {
     if (idx >= 0) {
       const TemperatureSensorConfig& config = sensor_configs_[idx];
       const TemperatureSensorStatus& status = sensor_status_[idx];
-      desired_description = "Temp warning: sensor=" + config.sensor_name + " idx=" + String(idx) +
-                            " temp=" + String(status.temperature_c, 1) + "C (warn_high>=" +
-                            String(config.warning_high_temp, 1) + "C warn_low<=" +
-                            String(config.warning_low_temp, 1) + "C)";
+      snprintf(desired_description, sizeof(desired_description),
+               "Temp warning: sensor=%s idx=%d temp=%.1fC (warn_high>=%.1fC warn_low<=%.1fC)",
+               config.sensor_name, static_cast<int>(idx), static_cast<double>(status.temperature_c),
+               static_cast<double>(config.warning_high_temp), static_cast<double>(config.warning_low_temp));
     } else {
-      desired_description = "Temperature warning";
+      snprintf(desired_description, sizeof(desired_description), "Temperature warning");
     }
     if (can_log) {
       SerialManager::getInstance().sendDiagnosticMessage("WARNING", name(), "System thermal WARNING active");
@@ -636,10 +680,11 @@ void TemperatureMonitor::checkSafetyConditions() {
       const uint32_t last_valid = sensor_status_[idx].last_valid_reading_time_ms;
       const bool never_valid = (last_valid == 0);
       const uint32_t age_ms = never_valid ? (now - system_start_time_ms_) : (now - last_valid);
-      desired_description = "Temp sensor stale: sensor=" + config.sensor_name + " idx=" + String(idx) +
-                            " age_ms=" + String(age_ms) + " timeout_ms=" + String(timeout_ms);
+      snprintf(desired_description, sizeof(desired_description),
+               "Temp sensor stale: sensor=%s idx=%d age_ms=%lu timeout_ms=%lu", config.sensor_name,
+               static_cast<int>(idx), static_cast<unsigned long>(age_ms), static_cast<unsigned long>(timeout_ms));
     } else {
-      desired_description = "Temperature sensor stale";
+      snprintf(desired_description, sizeof(desired_description), "Temperature sensor stale");
     }
     if (can_log) {
       SerialManager::getInstance().sendDiagnosticMessage("WARNING", name(), "System thermal DEGRADED (sensor timeout) active");
@@ -648,14 +693,14 @@ void TemperatureMonitor::checkSafetyConditions() {
 
   // Avoid spamming SafetyCoordinator: only update when state/description changes.
   SafetyCoordinator& safety = SafetyCoordinator::getInstance();
-  const Fault& current = safety.getFault(FaultSource::TEMPERATURE_FAULT);
+  const Fault& current = safety.getFault(name());
   if (desired_severity == FaultSeverity::NORMAL) {
     if (current.active) {
-      safety.deactivateFault(FaultSource::TEMPERATURE_FAULT);
+      safety.deactivateFault(name());
     }
   } else {
-    if (!current.active || current.severity != desired_severity || current.description != desired_description) {
-      safety.activateFault(desired_severity, FaultSource::TEMPERATURE_FAULT, desired_description);
+    if (!current.active || current.severity != desired_severity || strcmp(current.description, desired_description) != 0) {
+      safety.activateFault(desired_severity, name(), desired_description);
     }
   }
 
@@ -700,10 +745,12 @@ void TemperatureMonitor::detectThermalRunaway() {
 
         // Rate limit thermal runaway messages (max once per 1s)
         if (now - last_thermal_message_time >= 1000) {
-          String msg = "active:true,source:THERMAL_RUNAWAY,reason:" + sensor_configs_[i].sensor_name +
-                       " thermal runaway detected,value:" + String(sensor_status_[i].temperature_c, 1) +
-                       ",rate:" + String(trend, 1) + "C_per_min" + ",manual_reset:false,time:" + String(millis());
-          SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg.c_str());
+          char msg[256] = {0};
+          snprintf(msg, sizeof(msg),
+                   "active:true,source:THERMAL_RUNAWAY,reason:%s thermal runaway detected,value:%.1f,rate:%.1fC_per_min,manual_reset:false,time:%lu",
+                   sensor_configs_[i].sensor_name, static_cast<double>(sensor_status_[i].temperature_c),
+                   static_cast<double>(trend), static_cast<unsigned long>(millis()));
+          SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg);
           last_thermal_message_time = now;
         }
       }
@@ -712,10 +759,12 @@ void TemperatureMonitor::detectThermalRunaway() {
       sensor_status_[i].thermal_runaway = false;
       
       if (now - last_thermal_message_time >= 1000) {
-        String msg = "active:false,source:THERMAL_RUNAWAY,reason:" + sensor_configs_[i].sensor_name +
-                     " thermal runaway cleared,value:" + String(sensor_status_[i].temperature_c, 1) +
-                     ",rate:" + String(trend, 1) + "C_per_min" + ",time:" + String(millis());
-        SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg.c_str());
+        char msg[256] = {0};
+        snprintf(msg, sizeof(msg),
+                 "active:false,source:THERMAL_RUNAWAY,reason:%s thermal runaway cleared,value:%.1f,rate:%.1fC_per_min,time:%lu",
+                 sensor_configs_[i].sensor_name, static_cast<double>(sensor_status_[i].temperature_c),
+                 static_cast<double>(trend), static_cast<unsigned long>(millis()));
+        SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
         last_thermal_message_time = now;
       }
     }
@@ -790,47 +839,46 @@ void TemperatureMonitor::updatePerformanceStatistics() {
 
 void TemperatureMonitor::sendStatusReports() {
   // Send aggregate TEMPERATURE message in JSON format (like VL53L0X)
-  String json = "{";
-  json += "\"total_sensors\":" + String(kMaxTemperatureSensors);
-  json += ",\"active_sensors\":" + String(system_status_.active_sensors);
+  char json[512] = {0};
+  size_t off = 0;
 
-  // Add temperatures array
-  json += ",\"temperatures\":[";
+  snappend(json, sizeof(json), off, "{\"total_sensors\":%u,\"active_sensors\":%u,\"temperatures\":[",
+           static_cast<unsigned int>(kMaxTemperatureSensors), static_cast<unsigned int>(system_status_.active_sensors));
+
   for (int i = 0; i < kMaxTemperatureSensors; i++) {
-    if (i > 0) json += ",";
+    if (i > 0) {
+      snappend(json, sizeof(json), off, ",");
+    }
     if (sensor_configured_[i] && sensor_status_[i].reading_valid) {
-      json += String(sensor_status_[i].temperature_c, 1);
+      snappend(json, sizeof(json), off, "%.1f", static_cast<double>(sensor_status_[i].temperature_c));
     } else {
-      json += "null";
+      snappend(json, sizeof(json), off, "null");
     }
   }
-  json += "]";
 
-  // Add system statistics
-  json += ",\"avg_temp\":" + String(system_status_.average_temperature, 1);
-  json += ",\"max_temp\":" + String(system_status_.highest_temperature, 1);
-  json += ",\"min_temp\":" + String(system_status_.lowest_temperature, 1);
-  json += ",\"hottest_sensor\":" + String(system_status_.hottest_sensor);
-  json += ",\"system_warning\":" + String(system_status_.system_thermal_warning ? "true" : "false");
-  json += ",\"system_critical\":" + String(system_status_.system_thermal_critical ? "true" : "false");
-  json += ",\"rate_hz\":" + String(system_status_.system_reading_rate_hz, 1);
-  json += ",\"readings\":" + String(system_status_.total_readings);
-  json += ",\"errors\":" + String(system_status_.total_errors);
-  json += "}";
+  snappend(json, sizeof(json), off,
+           "],\"avg_temp\":%.1f,\"max_temp\":%.1f,\"min_temp\":%.1f,\"hottest_sensor\":%u,\"system_warning\":%s,\"system_critical\":%s,\"rate_hz\":%.1f,\"readings\":%lu,\"errors\":%lu}",
+           static_cast<double>(system_status_.average_temperature), static_cast<double>(system_status_.highest_temperature),
+           static_cast<double>(system_status_.lowest_temperature), static_cast<unsigned int>(system_status_.hottest_sensor),
+           system_status_.system_thermal_warning ? "true" : "false", system_status_.system_thermal_critical ? "true" : "false",
+           static_cast<double>(system_status_.system_reading_rate_hz), static_cast<unsigned long>(system_status_.total_readings),
+           static_cast<unsigned long>(system_status_.total_errors));
 
-  SerialManager::getInstance().sendMessage("TEMPERATURE", json.c_str());
+  SerialManager::getInstance().sendMessage("TEMPERATURE", json);
 }
 
 void TemperatureMonitor::sendDiagnosticReports() {
   // Send diagnostic information
-  String diag_msg = "active:" + String(system_status_.active_sensors);
-  diag_msg += ",readings:" + String(system_status_.total_readings);
-  diag_msg += ",errors:" + String(system_status_.total_errors);
-  diag_msg += ",rate_hz:" + String(system_status_.system_reading_rate_hz, 1);
-  diag_msg += ",warning_time:" + String(system_status_.time_in_warning_ms);
-  diag_msg += ",critical_time:" + String(system_status_.time_in_critical_ms);
+  char diag_msg[192] = {0};
+  snprintf(diag_msg, sizeof(diag_msg), "active:%u,readings:%lu,errors:%lu,rate_hz:%.1f,warning_time:%lu,critical_time:%lu",
+           static_cast<unsigned int>(system_status_.active_sensors), static_cast<unsigned long>(system_status_.total_readings),
+           static_cast<unsigned long>(system_status_.total_errors), static_cast<double>(system_status_.system_reading_rate_hz),
+           static_cast<unsigned long>(system_status_.time_in_warning_ms),
+           static_cast<unsigned long>(system_status_.time_in_critical_ms));
 
-  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), ("Diagnostic report,details:" + diag_msg).c_str());
+  char msg[256] = {0};
+  snprintf(msg, sizeof(msg), "Diagnostic report,details:%s", diag_msg);
+  SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
 }
 
 }  // namespace sigyn_teensy

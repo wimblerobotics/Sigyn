@@ -4,7 +4,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, LogInfo
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 
 def generate_launch_description():
     nodes = [
@@ -13,9 +13,15 @@ def generate_launch_description():
             default_value='0.0',
             description='Range Threshold'
         ),
+        
+        DeclareLaunchArgument(
+            name='do_top_lidar',
+            default_value='false',
+            description='Launch top LiDAR node if true'
+        ),
     
         Node(
-            condition=IfCondition(str(os.path.exists("/dev/lidar_top"))),
+            condition=IfCondition(LaunchConfiguration('do_top_lidar')),
             package='ldlidar',
             executable='ldlidar',
             name='top_ldlidar',
@@ -29,8 +35,9 @@ def generate_launch_description():
             remappings=[('scan', 'raw_scan')]
         ),
         
+        # Cup lidar with scan_cup remapping when top lidar is enabled
         Node(
-            condition=IfCondition(str(os.path.exists("/dev/lidar_cup"))),
+            condition=IfCondition(LaunchConfiguration('do_top_lidar')),
             package='ldlidar',
             executable='ldlidar',
             name='cup_ldlidar',
@@ -42,6 +49,22 @@ def generate_launch_description():
                 {'range_threshold': LaunchConfiguration("range_threshold")}
                 ],
             remappings=[('scan', 'scan_cup')]
+        ),
+        
+        # Cup lidar with raw_scan remapping when top lidar is disabled
+        Node(
+            condition=UnlessCondition(LaunchConfiguration('do_top_lidar')),
+            package='ldlidar',
+            executable='ldlidar',
+            name='top_ldlidar',
+            output='screen',
+            parameters=[
+                {'serial_port': "/dev/lidar_cup"},
+                {'topic_name': "scan"},
+                {'lidar_frame': "lidar_frame_top_lidar"},
+                {'range_threshold': LaunchConfiguration("range_threshold")}
+                ],
+            remappings=[('scan', 'raw_scan')]
         ),
         
         Node(
