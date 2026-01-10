@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2024 Wimblerobotics
+# https://github.com/wimblerobotics/Sigyn
 
 import rclpy
 from rclpy.node import Node

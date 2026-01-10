@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2025 Wimblerobotics
+// https://github.com/wimblerobotics/Sigyn
+
 /**
  * @file module.h
  * @brief Core module system for TeensyV2 real-time embedded framework
@@ -53,7 +57,11 @@
 
 #pragma once
 
-#include "Arduino.h"
+#ifdef UNIT_TEST
+#include "Arduino.h"  // Mock Arduino for testing
+#else
+#include <Arduino.h>  // Real Arduino SDK
+#endif
 #include <cstdint>
 #include <cstddef>
 #include <cmath>

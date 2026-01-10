@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2025 Wimblerobotics
+// https://github.com/wimblerobotics/Sigyn
+
 #include "RoboClaw.h"
 
 #include "Arduino.h"
@@ -14,6 +18,7 @@
 RoboClaw::RoboClaw(HardwareSerial *serial, uint32_t tout) {
   timeout = tout;
   hserial = serial;
+  crc = 0;
 #ifdef __AVR__
   sserial = 0;
 #endif
@@ -24,13 +29,14 @@ RoboClaw::RoboClaw(SoftwareSerial *serial, uint32_t tout) {
   timeout = tout;
   sserial = serial;
   hserial = 0;
+  crc = 0;
 }
 #endif
 
 //
 // Destructor
 //
-RoboClaw::~RoboClaw() { Serial6.end(); }
+RoboClaw::~RoboClaw() { hserial->end(); }
 
 void RoboClaw::begin(long speed) {
   if (hserial) {
@@ -1002,7 +1008,7 @@ bool RoboClaw::ReadTemp2(uint8_t address, uint16_t &temp) {
 }
 
 uint32_t RoboClaw::ReadError(uint8_t address, bool *valid) {
-  return Read4(address, GETERROR, valid);
+  return Read4(address, GETERROR, valid) & 0x3FFFFFFF; // Mask to 30 bits
 }
 
 bool RoboClaw::ReadEncoderModes(uint8_t address, uint8_t &M1mode,

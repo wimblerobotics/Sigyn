@@ -9,8 +9,60 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug Perimeter Roamer V2",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/perimeter_roamer_v2/perimeter_roamer_v2/perimeter_roamer.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/perimeter_roamer_v2:${env:PYTHONPATH}",
+                "ROS_DOMAIN_ID": "${env:ROS_DOMAIN_ID}"
+            },
+            "args": [],
+            "justMyCode": false,
+            "stopOnEntry": false,
+            "python": "${command:python.interpreterPath}"
+        },
+        {
+            "name": "Debug Perimeter Roamer V2 (ROS2 run)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "ros2",
+            "args": [
+                "run",
+                "perimeter_roamer_v2",
+                "perimeter_roamer"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "ROS_DOMAIN_ID": "${env:ROS_DOMAIN_ID}"
+            },
+            "justMyCode": false,
+            "stopOnEntry": false,
+            "python": "${command:python.interpreterPath}"
+        },
+        {
+            "name": "Attach to Perimeter Roamer V2 (Remote Debug)",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/perimeter_roamer_v2/perimeter_roamer_v2",
+                    "remoteRoot": "/home/ros/sigyn_ws/src/Sigyn/perimeter_roamer_v2/perimeter_roamer_v2"
+                }
+            ],
+            "justMyCode": false,
+            "redirectOutput": true
+        },
+        {
             "name": "Attach to permiter_roamer",
-            "type": "python",
+            "type": "debugpy",
             "request": "attach",
             "connect": {
                 "host": "sigyn7900",
@@ -35,7 +87,7 @@
             "internalConsoleOptions": "openOnSessionStart",
             "preLaunchTask": {
                 "type": "PlatformIO",
-                "task": "Pre-Debug"
+                "task": "Pre-Debug (board1)"
             }
         },
         {

@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2024 Wimblerobotics
+# https://github.com/wimblerobotics/Sigyn
+
 from setuptools import find_packages, setup
 
 package_name = 'py_scripts'
@@ -20,6 +24,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'battery_overlay_publisher = py_scripts.battery_overlay_publisher:main',
             'measure_wifi = py_scripts.measure_wifi:main',
             'show_time_skew = py_scripts.show_time_skew:main',
             'topic_analysis = py_scripts.topic_analysis:main',

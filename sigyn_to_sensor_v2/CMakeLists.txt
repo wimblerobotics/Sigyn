@@ -7,6 +7,10 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -17,6 +21,10 @@ find_package(nav_msgs REQUIRED)
 find_package(diagnostic_msgs REQUIRED)
 find_package(rcl_interfaces REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
+
+# JSON parsing library
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(NLOHMANN_JSON REQUIRED nlohmann_json)
 
 # Custom message interfaces
 find_package(sigyn_interfaces REQUIRED)
@@ -42,6 +50,10 @@ ament_target_dependencies(teensy_bridge_node
   rcl_interfaces
   sigyn_interfaces
 )
+
+# Link JSON library
+target_link_libraries(teensy_bridge_node ${NLOHMANN_JSON_LIBRARIES})
+target_include_directories(teensy_bridge_node PRIVATE ${NLOHMANN_JSON_INCLUDE_DIRS})
 
 # Install executables
 install(TARGETS

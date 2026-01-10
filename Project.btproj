@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root BTCPP_format="4">
+    <include path="perimeter_roamer_v3/bt_xml/follow_waypoints.xml"/>
+    <!-- Description of Node Models (used by Groot) -->
+    <TreeNodesModel>
+        <Condition ID="CheckBatteryState">
+            <input_port name="low_battery_threshold"/>
+        </Condition>
+        <Condition ID="CheckLidarHealth">
+            <input_port name="max_invalid_ratio"/>
+            <input_port name="scan_timeout"/>
+        </Condition>
+        <Condition ID="CheckWaypointsComplete">
+            <input_port name="current_waypoint_index"/>
+            <input_port name="total_waypoints"/>
+            <input_port name="loop_waypoints"/>
+            <input_port name="all_complete"/>
+        </Condition>
+        <Action ID="GetNextWaypoint">
+            <input_port name="current_waypoint_index"/>
+            <input_port name="target_pose"/>
+            <input_port name="waypoint_id"/>
+            <input_port name="waypoint_name"/>
+        </Action>
+        <Action ID="IncrementWaypointIndex">
+            <input_port name="current_waypoint_index"/>
+        </Action>
+        <Action ID="LoadWaypoints">
+            <input_port name="database_path"/>
+            <input_port name="waypoints_loaded"/>
+        </Action>
+        <Action ID="MarkWaypointVisited">
+            <input_port name="waypoint_id"/>
+        </Action>
+        <Action ID="NavigateToPose">
+            <input_port name="target_pose"/>
+            <input_port name="timeout"/>
+            <input_port name="goal_interrupted"/>
+            <input_port name="behavior_tree"/>
+        </Action>
+        <Action ID="ClassifySpace">
+            <output_port name="space_type"/>
+            <output_port name="suggested_pose"/>
+        </Action>
+        <Condition ID="IsRoom">
+            <input_port name="space_type"/>
+        </Condition>
+        <Condition ID="IsHallway">
+            <input_port name="space_type"/>
+        </Condition>
+        <Condition ID="IsDoorway">
+            <input_port name="space_type"/>
+        </Condition>
+        <Condition ID="IsVeryNarrow">
+            <input_port name="space_type"/>
+        </Condition>
+    </TreeNodesModel>
+</root>

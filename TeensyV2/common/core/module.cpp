@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2025 Wimblerobotics
+// https://github.com/wimblerobotics/Sigyn
+
 /**
  * @file module.cpp
  * @brief Implementation of the core Module system for TeensyV2
@@ -82,8 +86,8 @@ void Module::checkPerformanceAndSafety() {
 void Module::getPerformanceStats(char* stats_json, size_t buffer_size) {
   // Start JSON object
   int written = snprintf(stats_json, buffer_size,
-                         "{\"loop_count\":%lu,\"freq\":%.1f,\"modules\":[",
-                         total_loop_count_,
+                         "{\"loop_count\":%u,\"freq\":%.1f,\"modules\":[",
+                         static_cast<unsigned int>(total_loop_count_),
                          total_loop_count_ > 0
                              ? total_loop_count_ * 1000.0f / millis()
                              : 0.0f);
@@ -189,7 +193,7 @@ void Module::resetAllSafetyFlags() {
 void Module::setupAll() {
   // Initialize SerialManager first, as other modules may depend on it for logging
   // This establishes communication early for debugging and error reporting
-  SerialManager::getInstance().sendMessage("INIT", "starting_module_setup");
+  SerialManager::getInstance().sendDiagnosticMessage("INIT", "Module", "starting_module_setup");
 
   // Initialize all registered modules in registration order
   // Order dependencies should be handled by controlling registration order
@@ -205,10 +209,10 @@ void Module::setupAll() {
       char init_msg[50];
       snprintf(init_msg, sizeof(init_msg), "module_initialized:%s",
                mod->name());
-      SerialManager::getInstance().sendMessage("INIT", init_msg);
+      SerialManager::getInstance().sendDiagnosticMessage("INIT", "Module", init_msg);
     }
   }
-  SerialManager::getInstance().sendMessage("INIT", "module_setup_complete");
+  SerialManager::getInstance().sendDiagnosticMessage("INIT", "Module", "module_setup_complete");
 }
 
 void Module::updatePerformanceStats(Module* module,

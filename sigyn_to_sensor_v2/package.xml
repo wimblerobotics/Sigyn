@@ -9,8 +9,8 @@
     and parameter management for the Sigyn robotic platform.
   </description>
   
-  <maintainer email="sigyn@robotics.example.com">Sigyn Robotics Team</maintainer>
-  <license>MIT</license>
+  <maintainer email="mike@wimblerobotics.com">Michael Wimble</maintainer>
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

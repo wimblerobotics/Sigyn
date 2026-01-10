@@ -1,4 +1,0 @@
-  -
-    - FUSEBOX_8_SHUNTS: [F1, F2, F3, F4, 1A, 2A, 3A, 4A]
-    - Fuse_Interconnect: [1, 2, 3, 4, 5, 6, 7, 8]
-    - FUSEBOX_8_SUPPLIES: [F1, F2, F3, F4, 1B, 2B, 3B, 4B]

@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2024 Wimblerobotics
+# https://github.com/wimblerobotics/Sigyn
+
 from datetime import datetime
 import rclpy
 from rclpy.node import Node

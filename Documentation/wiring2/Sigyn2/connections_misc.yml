@@ -1,0 +1,104 @@
+  -
+    - GNDp1: [2] #+
+    - GNDp1_TO_GNDp2: [1] #+
+    - GNDp2: [2] #+
+
+  -
+    - GNDp3: [4] #+
+    - GNDp3_TO_GNDp2: [1] #+
+    - GNDp2: [3] #+
+
+  -
+    - PS2: [1] #+
+    - GNDp3_TO_PS2: [1] #+
+    - GNDp3: [1] #+
+
+  -
+    - GND3: [1] #+
+    - GND3_TO_GNDPC: [1] #+
+    - GNDPC: [5] #+
+  
+  -
+    - 5V5: [1]
+    - 5V5_TO_5VPC: [1]
+    - 5VPC: [4]
+
+  -
+    - GND4: [1] #+
+    - GND4_TO_GNDp4: [1]
+    - GNDp4: [5] #+
+  
+  -
+    - 5V4: [1]
+    - 5V4_TO_5VPC: [1]
+    - 5VPC: [5]
+  
+  -
+    - GND1: [1] #+
+    - GND1_TO_GNDPC: [1] #+
+    - GNDPC: [2] #+
+
+  -
+    - GND2: [1] #+
+    - GND2_TO_GNDPC: [1] #+
+    - GNDPC: [3] #+
+
+  -
+    - 12V4: [1] #+
+    - 12V4_TO_12VPC: [1] #+
+    - 12VPC: [2] #+
+  
+  -
+    - 5VPC: [1] #+
+    - 5VPC_TO_5V2: [1] #+
+    - 5V2: [3] #=
+  
+  -
+    - GNDPC: [1] #+
+    - GNDPC__TO_GNDp4: [1] #+
+    - GNDp4: [4] #+
+
+  -
+    - 12VPC: [1] #+
+    - 12VPC_TO_12Vp1: [1] #+
+    - 12Vp1: [2] #+
+
+  -
+    - 12VPC: [3] #+
+    - 12VPC_TO_12V5: [1] #+
+    - 12V5: [1] #+
+
+  -
+    - 5V2: [2] #+
+    - 5V2_TO_5Vx4: [1]
+    - 5Vx4: [RD1] #+
+
+  -
+    - GNDp4: [3] #+
+    - 5V2_TO_5Vx4: [2] #+
+    - 5Vx4: [BK1] #+
+
+  -
+    - ROBOCLAW: [-] #+
+    - ROBOCLAW_TO_GNDp2: [1] #+
+    - GNDp2: [4] #+
+  
+  -
+    - ROBOCLAW: [+] #+
+    - ROBOCLAW_TO_24V1: [1] #+
+    - 24V1: [2] #+
+  
+  -
+    - GNDp2: [5] #+
+    - GNDp2_TO_GNDp4: [1] #+
+    - GNDp4: [2] #+
+
+  - 
+    - GNDp4: [1]
+    - USBC_CHARGER_CABLE: [BK]
+    - USBC_CHARGER: [-]
+
+  -
+    - 12Vp1: [5]
+    - USBC_CHARGER_CABLE: [RD]
+    - USBC_CHARGER: [+]

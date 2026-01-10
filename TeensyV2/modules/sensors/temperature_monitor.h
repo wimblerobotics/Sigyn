@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2025 Wimblerobotics
+// https://github.com/wimblerobotics/Sigyn
+
 /**
  * @file temperature_monitor.h
  * @brief Temperature monitoring system for TeensyV2
@@ -26,12 +30,19 @@
 
 #pragma once
 
-#include <Arduino.h>
+#ifdef UNIT_TEST
+#include "Arduino.h"  // Mock Arduino for testing
+#else
+#include <Arduino.h>  // Real Arduino SDK
+#endif
+
 #include <cstdint>
+#include <cstddef>
 #include <cmath>
 
 #include "../../common/core/module.h"
 #include "../../common/core/serial_manager.h"
+#include "interfaces/i_analog_reader.h"
 
 namespace sigyn_teensy {
 
@@ -39,31 +50,34 @@ namespace sigyn_teensy {
 static constexpr uint8_t kMaxTemperatureSensors = 8;
 // Default number of sensors configured (left and right motor)
 static constexpr uint8_t kDefaultSensorsConfigured = 2;
+// Fixed-size labels (avoid Arduino String heap allocations)
+static constexpr size_t kMaxTempSensorNameLen = 24;
+static constexpr size_t kMaxTempSensorLocationLen = 32;
 
 /**
  * @brief Temperature sensor configuration and thresholds.
  */
 struct TemperatureSensorConfig {
   // Sensor identification
-  String sensor_name;                       ///< Human-readable sensor name
-  String location;                          ///< Physical location description
+  char sensor_name[kMaxTempSensorNameLen] = {0};          ///< Human-readable sensor name
+  char location[kMaxTempSensorLocationLen] = {0};         ///< Physical location description
   uint8_t analog_pin = 255;                 ///< Analog pin number for TMP36 sensors (255 = not configured)
   
   // Temperature thresholds (Celsius)
   float critical_high_temp = 85.0f;         ///< Critical high temperature (°C)
   float warning_high_temp = 70.0f;          ///< Warning high temperature (°C)
-  float warning_low_temp = -10.0f;          ///< Warning low temperature (°C)
-  float critical_low_temp = -20.0f;         ///< Critical low temperature (°C)
+  float warning_low_temp = 5.0f;            ///< Warning low temperature (°C)
+  float critical_low_temp = 0.0f;           ///< Critical low temperature (°C)
   
   // Operational parameters
   bool enabled = true;                      ///< Sensor enabled for monitoring
-  uint32_t read_interval_ms = 1000;         ///< Reading interval (ms)
+  uint32_t read_interval_ms = 100;          ///< Reading interval (ms) - 10Hz for fast response
   uint8_t resolution_bits = 12;             ///< Temperature resolution (9-12 bits)
   
   // Safety parameters
   bool safety_critical = true;              ///< Sensor participates in safety system
   uint32_t fault_timeout_ms = 5000;         ///< Time before sensor fault triggers safety
-  float thermal_runaway_rate = 5.0f;        ///< Temperature rise rate for runaway (°C/min)
+  float thermal_runaway_rate = 100.0f;      ///< Temperature rise rate for runaway (°C/min) - detects stalled motors
 };
 
 /**
@@ -81,7 +95,7 @@ struct TemperatureMonitorConfig {
   uint32_t scan_interval_ms = 5000;         ///< Sensor discovery scan interval
   
   // Reporting intervals
-  uint32_t status_report_interval_ms = 2000; ///< Status reporting interval
+  uint32_t status_report_interval_ms = 1000; ///< Status reporting interval (1 second)
   uint32_t diagnostic_report_interval_ms = 10000; ///< Diagnostic reporting interval
   
   // Safety settings
@@ -115,10 +129,11 @@ struct TemperatureSensorStatus {
   uint32_t total_readings = 0;              ///< Total successful readings
   uint32_t error_count = 0;                 ///< Number of read errors
   uint32_t last_reading_time_ms = 0;        ///< Time of last reading
+  uint32_t last_valid_reading_time_ms = 0;  ///< Time of last successful/valid reading
   float reading_frequency_hz = 0.0f;        ///< Current reading frequency
   
   // Temperature history for trend analysis
-  float temperature_history[10];            ///< Recent temperature history
+  float temperature_history[50];            ///< Recent temperature history (5s at 10Hz)
   uint8_t history_index = 0;                ///< Current history index
   float temperature_trend = 0.0f;           ///< Temperature trend (°C/min)
   float max_temperature = -273.15f;         ///< Maximum recorded temperature
@@ -180,14 +195,16 @@ public:
   const TemperatureMonitorConfig& getConfig() const { return config_; }
   void configureSensor(uint8_t sensor_index, const TemperatureSensorConfig& sensor_config);
   
+  // Dependency injection for testing
+  void setAnalogReader(IAnalogReader* reader) { analog_reader_ = reader; }
+  
   // Control interface
   void scanForSensors();
   void calibrateSensor(uint8_t sensor_index, float reference_temp);
   void resetSensorStatistics(uint8_t sensor_index);
   void resetSystemStatistics();
-
-protected:
-  // Module interface implementation
+  
+  // Module interface - public for testing
   void setup() override;
   void loop() override;
   const char* name() const override { return "TemperatureMonitor"; }
@@ -196,7 +213,7 @@ protected:
   bool isUnsafe() override;
   void resetSafetyFlags() override;
 
-private:
+protected:
   // Singleton constructor
   TemperatureMonitor();
   
@@ -243,21 +260,25 @@ private:
   bool sensor_configured_[kMaxTemperatureSensors];
   
   // Safety state tracking
-  uint32_t warning_start_time_ms_;
-  uint32_t critical_start_time_ms_;
-  bool thermal_protection_engaged_;
+  uint32_t warning_start_time_ms_ = 0;
+  uint32_t critical_start_time_ms_ = 0;
+  bool thermal_protection_engaged_ = false;
   
   // Timing for periodic operations
-  uint32_t last_status_report_time_ms_;
-  uint32_t last_diagnostic_report_time_ms_;
-  uint32_t last_sensor_scan_time_ms_;
-  uint32_t last_safety_check_time_ms_;
+  uint32_t last_status_report_time_ms_ = 0;
+  uint32_t last_diagnostic_report_time_ms_ = 0;
+  uint32_t last_sensor_scan_time_ms_ = 0;
+  uint32_t last_safety_check_time_ms_ = 0;
   
   // Performance tracking
-  uint32_t system_start_time_ms_;
-  uint32_t total_system_readings_;
-  uint32_t total_system_errors_;
-  uint32_t last_performance_update_ms_;
+  uint32_t system_start_time_ms_ = 0;
+  
+  uint32_t total_system_readings_ = 0;
+  uint32_t total_system_errors_ = 0;
+  uint32_t last_performance_update_ms_ = 0;
+
+  // Hardware abstraction for testing
+  IAnalogReader* analog_reader_;  // Non-owning pointer, no heap allocation
 };
 
 } // namespace sigyn_teensy

@@ -1,0 +1,82 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build All Packages",
+            "type": "shell",
+            "command": "colcon",
+            "args": ["build", "--symlink-install", "--cmake-args", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/../.."
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build sigyn_house_patroller",
+            "type": "shell",
+            "command": "colcon",
+            "args": ["build", "--symlink-install", "--packages-select", "sigyn_house_patroller", "--cmake-args", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/../.."
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Source ROS2 and Build All",
+            "type": "shell",
+            "command": "bash",
+            "args": ["-c", "source /opt/ros/jazzy/setup.bash && colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/../.."
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Launch Sigyn Simulation",
+            "type": "shell",
+            "command": "bash",
+            "args": ["-c", "source install/setup.bash && ros2 launch base sigyn.launch.py use_sim_time:=true do_rviz:=true"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/../.."
+            },
+            "dependsOn": "Build All Packages",
+            "problemMatcher": []
+        }
+    ]
+}

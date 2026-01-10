@@ -5,11 +5,13 @@
   <version>0.0.0</version>
   <description>Python scripts</description>
   <maintainer email="mike@wimblerobotics.com">Michael Wimble</maintainer>
-  <license>MIT</license>
+  <license>Apache-2.0</license>
+  <url type="website">https://github.com/wimblerobotics/Sigyn</url>
 
   <depend>rclpy</depend>
   <depend>std_msgs</depend>
-  <test_depend>ament_copyright</test_depend>
+  <depend>sensor_msgs</depend>
+  <depend>rviz_2d_overlay_msgs</depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
