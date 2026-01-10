@@ -1,0 +1,32 @@
+<root>
+    <TreeNodesModel>
+        <Condition ID="BatteryAboveChargingVoltage"/>
+        <Condition ID="BatteryAboveCriticalVoltage"/>
+        <Action ID="ChargeBattery"/>
+        <SubTree ID="EnsureGripperHomed"/>
+        <Action ID="FetchBeer"/>
+        <SubTree ID="GetNearToBeer"/>
+        <Condition ID="GripperIsHomed"/>
+        <SubTree ID="HandleBatteryCharging"/>
+        <SubTree ID="HandleSystemShutdown"/>
+        <Action ID="HomeGripper"/>
+        <Condition ID="IsAtPose">
+            <input_port default="HomeLocation" name="port"/>
+        </Condition>
+        <Action ID="NavigateToPose">
+            <input_port default="Home" name="pose">Pose to move robot</input_port>
+        </Action>
+        <Action ID="RecoverFromNavigateToPose"/>
+        <SubTree ID="RobotHasNotFallenOver"/>
+        <Condition ID="RobotIsEstopped"/>
+        <SubTree ID="RobotIsNotAboutToFallOver"/>
+        <SubTree ID="RobotIsNotEStopped"/>
+        <Condition ID="RobotTiltedCritically"/>
+        <Condition ID="RobotTiltedWarning"/>
+        <Action ID="ShutdownSystem"/>
+        <Action ID="SoftwareEStop">
+            <input_port default="Help Me" name="reason">Reason to signal emergency stop</input_port>
+        </Action>
+    </TreeNodesModel>
+</root>
+

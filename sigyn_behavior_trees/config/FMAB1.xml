@@ -1,0 +1,141 @@
+<?xml version="1.0"?>
+<root main_tree_to_execute="BehaviorTree">
+    <!-- ////////// -->
+    <BehaviorTree ID="BatterIsCharged">
+        <ReactiveFallback name="ChargingNotNeeded">
+            <Condition ID="BatteryAboveChargingVoltage"/>
+            <Action ID="ChargeBattery"/>
+        </ReactiveFallback>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <BehaviorTree ID="BatteryIsNotAboutToFail">
+        <ReactiveFallback name="SystemShutdownNotNeeded">
+            <Condition ID="BatteryAboveCriticalVoltage"/>
+            <Action ID="ShutdownSystem"/>
+        </ReactiveFallback>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <BehaviorTree ID="BatteryNotNeedingCharging">
+        <Fallback>
+            <Condition ID="BatteryAboveChargingVoltage"/>
+            <Action ID="ChargeBattery"/>
+        </Fallback>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <BehaviorTree ID="BehaviorTree">
+        <ReactiveSequence>
+            <SubTree ID="BatteryIsNotAboutToFail" __shared_blackboard="false"/>
+            <SubTree ID="RobotIsNotEStopped"/>
+            <SubTree ID="RobotHasNotFallenOver"/>
+            <SubTree ID="RobotIsNotAboutToFallOver"/>
+            <SubTree ID="BatterIsCharged" __shared_blackboard="false"/>
+            <SubTree ID="GetNearToBeer"/>
+            <Action ID="FetchBeer"/>
+        </ReactiveSequence>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <BehaviorTree ID="EnsureGripperHomed">
+        <ReactiveFallback>
+            <Condition ID="GripperIsHomed"/>
+            <Action ID="HomeGripper"/>
+        </ReactiveFallback>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <BehaviorTree ID="GetNearToBeer">
+        <ReactiveSequence>
+            <SubTree ID="EnsureGripperHomed"/>
+            <ReactiveSequence name="GoToBeerLocation">
+                <Condition ID="IsAtPose" port="BeerLocation"/>
+                <Repeat num_cycles="3">
+                    <Fallback>
+                        <Action ID="NavigateToPose" pose="BeerLocation"/>
+                        <ForceFailure>
+                            <Action ID="RecoverFromNavigateToPose"/>
+                        </ForceFailure>
+                    </Fallback>
+                </Repeat>
+            </ReactiveSequence>
+        </ReactiveSequence>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <BehaviorTree ID="GoToBeer">
+        <Sequence name="GoToBeer">
+            <Action ID="HomeGripper"/>
+            <Fallback name="SuccessfullyGoToBeer">
+                <Condition ID="IsAtPose" port="HomeLocation"/>
+                <Fallback>
+                    <Action ID="NavigateToPose" pose="BeerLocation"/>
+                    <Action ID="RecoverFromNavigateToPose"/>
+                </Fallback>
+            </Fallback>
+        </Sequence>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <BehaviorTree ID="HomeGripper">
+        <Fallback>
+            <Inverter>
+                <Condition ID="GripperIsHomed"/>
+            </Inverter>
+            <Action ID="HomeGripper"/>
+        </Fallback>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <BehaviorTree ID="RobotHasNotFallenOver">
+        <ReactiveFallback>
+            <Inverter>
+                <Condition ID="RobotTiltedCritically"/>
+            </Inverter>
+            <Action ID="ShutdownSystem"/>
+        </ReactiveFallback>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <BehaviorTree ID="RobotIsNotAboutToFallOver">
+        <ReactiveFallback>
+            <Inverter>
+                <Condition ID="RobotTiltedWarning"/>
+            </Inverter>
+            <Action ID="SoftwareEStop" reason="Robot is about to fall over"/>
+        </ReactiveFallback>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <BehaviorTree ID="RobotIsNotEStopped">
+        <Inverter>
+            <Condition ID="RobotIsEstopped"/>
+        </Inverter>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <TreeNodesModel>
+        <SubTree ID="BatterIsCharged">
+            <input_port default="false" name="__shared_blackboard">If false (default), the Subtree has an isolated blackboard and needs port remapping</input_port>
+        </SubTree>
+        <Condition ID="BatteryAboveChargingVoltage"/>
+        <Condition ID="BatteryAboveCriticalVoltage"/>
+        <SubTree ID="BatteryIsNotAboutToFail">
+            <input_port default="false" name="__shared_blackboard">If false (default), the Subtree has an isolated blackboard and needs port remapping</input_port>
+        </SubTree>
+        <Action ID="ChargeBattery"/>
+        <SubTree ID="EnsureGripperHomed"/>
+        <Action ID="FetchBeer"/>
+        <SubTree ID="GetNearToBeer"/>
+        <Condition ID="GripperIsHomed"/>
+        <Action ID="HomeGripper"/>
+        <Condition ID="IsAtPose">
+            <input_port default="HomeLocation" name="port"/>
+        </Condition>
+        <Action ID="NavigateToPose">
+            <input_port default="Home" name="pose">Pose to move robot</input_port>
+        </Action>
+        <Action ID="RecoverFromNavigateToPose"/>
+        <SubTree ID="RobotHasNotFallenOver"/>
+        <Condition ID="RobotIsEstopped"/>
+        <SubTree ID="RobotIsNotAboutToFallOver"/>
+        <SubTree ID="RobotIsNotEStopped"/>
+        <Condition ID="RobotTiltedCritically"/>
+        <Condition ID="RobotTiltedWarning"/>
+        <Action ID="ShutdownSystem"/>
+        <Action ID="SoftwareEStop">
+            <input_port default="Help Me" name="reason">Reason to signal emergency stop</input_port>
+        </Action>
+    </TreeNodesModel>
+    <!-- ////////// -->
+</root>
