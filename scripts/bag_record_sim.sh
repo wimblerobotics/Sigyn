@@ -1,50 +1,68 @@
 ros2 bag record \
   /amcl_pose \
   /behavior_tree_log \
-  /camera/camera_info \
-  /camera/image_raw \
   /clicked_point \
+  /clock \
   /cmd_vel \
+  /cmd_vel_joystick \
+  /cmd_vel_keyboard \
   /cmd_vel_nav \
+  /cmd_vel_smoothed \
   /cmd_vel_teleop \
   /diagnostics \
   /global_costmap/costmap \
+  /global_costmap/costmap_updates \
   /global_costmap/footprint \
+  /global_costmap/obstacle_layer \
+  /global_costmap/obstacle_layer_updates \
+  /global_costmap/published_footprint \
+  /global_costmap/static_layer \
+  /global_costmap/static_layer_updates \
   /goal_pose \
-  /imu \
   /initialpose \
   /joint_states \
   /local_costmap/costmap \
+  /local_costmap/costmap_updates \
   /local_costmap/footprint \
-  /local_plan \
+  /local_costmap/lidar_layer \
+  /local_costmap/lidar_layer_updates \
+  /local_costmap/published_footprint \
+  /local_costmap/static_layer \
+  /local_costmap/static_layer_updates \
   /map \
-  /map_metadata \
-  /oakd_left/color/camera_info \
-  /oakd_left/color/image/theora \
-  /oakd_left/stereo/depth/compressedDepth \
-  /oakd_left/imu \
-  /oakd_right/imu \
+  /map_updates \
   /odom \
+  /optimal_trajectory \
   /parameter_events \
   /particle_cloud \
   /plan \
   /plan_smoothed \
-  /roboclaw_status \
   /robot_description \
+  /roboclaw_status \
   /rosout \
   /scan \
   /set_pose \
-  /slam_toolbox/feedback \
-  /slam_toolbox/graph_visualization \
-  /slam_toolbox/scan_visualization \
-  /slam_toolbox/transition_event \
-  /slam_toolbox/update \
-  /teensy_diagnostics \
-  /teensy_stats \
+  /sigyn/teensy_bridge/battery/status \
+  /sigyn/teensy_bridge/commands/config \
+  /sigyn/teensy_bridge/commands/estop \
+  /sigyn/teensy_bridge/diagnostics \
+  /sigyn/teensy_bridge/imu/sensor_0 \
+  /sigyn/teensy_bridge/imu/sensor_1 \
+  /sigyn/teensy_bridge/range/vl53l0x_0 \
+  /sigyn/teensy_bridge/range/vl53l0x_1 \
+  /sigyn/teensy_bridge/range/vl53l0x_2 \
+  /sigyn/teensy_bridge/range/vl53l0x_3 \
+  /sigyn/teensy_bridge/range/vl53l0x_4 \
+  /sigyn/teensy_bridge/range/vl53l0x_5 \
+  /sigyn/teensy_bridge/range/vl53l0x_6 \
+  /sigyn/teensy_bridge/range/vl53l0x_7 \
+  /sigyn/teensy_bridge/safety/estop_status \
+  /sigyn/teensy_bridge/temperature/motor_0 \
+  /sigyn/teensy_bridge/temperature/motor_1 \
+  /sigyn/wheel_odom \
+  /speed_limit \
   /tf \
   /tf_static \
   /trajectories \
   /transformed_global_plan \
-  /unsmoothed_plan \
   /waypoints \
-  /sigyn/wheel_odom

@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2024 Wimblerobotics
+# https://github.com/wimblerobotics/Sigyn
+
 import os
 
 from ament_index_python.packages import get_package_share_directory
@@ -34,8 +38,10 @@ def generate_launch_description():
                     'rgbResolution': '1080p',
                     'tf_prefix' : 'oak',
                     'mxId' : '14442C1051B665D700',
-                    'previewWidth': '640',    # match NN input size
-                    'previewHeight': '640',
+                    'previewWidth': '416',    # match NN input size
+                    'previewHeight': '416',
+                    # Enable IMU for orientation data
+                    'imuMode': '1',  # Enable IMU data
                     # Switch to a non-YOLO SSD-based model to avoid side7 mask errors:
                     'resourceBaseFolder': PathJoinSubstitution([FindPackageShare('depthai_examples'), 'resources']),
                     'nnName': 'yolov4_tiny_coco_416x416_openvino_2021.4_6shave_bgr.blob',  # SSD retail model

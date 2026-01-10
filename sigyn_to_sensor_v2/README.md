@@ -1,16 +1,31 @@
 # sigyn_to_sensor_v2
 
-Advanced ROS2 interface package for the TeensyV2 embedded system, providing real-time sensor data processing, safety coordination, and comprehensive parameter management for the Sigyn robotic platform.
+Advanced ROS2 Jazzy bridge package for the TeensyV2 embedded system, providing real-time sensor data processing, enhanced message parsing, safety coordination, and comprehensive diagnostic reporting for the Sigyn autonomous house patroller robot.
 
 ## Overview
 
-This package serves as the primary communication bridge between the TeensyV2 embedded system (running on dual Teensy 4.1 boards) and the ROS2 ecosystem. It provides:
+This package serves as the critical communication bridge between the TeensyV2 embedded system (dual Teensy 4.1 boards) and the ROS2 Jazzy ecosystem. It provides:
 
-- **Real-time Communication**: High-speed serial communication with embedded boards
-- **Safety Coordination**: E-stop management and safety status monitoring
-- **Parameter Interface**: Runtime configuration of embedded system parameters
-- **Sensor Integration**: Battery monitoring, performance tracking, and diagnostic reporting
-- **Modular Architecture**: Clean separation of concerns with dedicated nodes for different functions
+- **Enhanced Message Parsing**: Support for board-identified messages (IMU1/IMU2, BATT1/BATT2, etc.)
+- **Real-time Communication**: High-speed serial communication at 921600 baud
+- **Safety Coordination**: Multi-source E-stop management and safety status monitoring  
+- **Sensor Integration**: Battery monitoring, dual IMU sensors, performance tracking, and odometry
+- **Diagnostic System**: Comprehensive ROS2 diagnostics with enhanced string representation
+- **JSON Payload Extraction**: Advanced parsing for structured data fields
+
+## Key Features & Recent Enhancements
+
+### Message Parser Improvements
+- **Board-Specific Message Types**: Recognizes IMU1/IMU2 as IMU message type variants
+- **Enhanced ODOM Parsing**: Extracts position (px,py), orientation (ox,oy,oz,ow), and velocity (vx,vy,wz) fields
+- **Diagnostic String Support**: Preserves both enum and string representations for diagnostic level display
+- **JSON Field Extraction**: Robust parsing of nested JSON payloads from TeensyV2 boards
+
+### Dual IMU Support
+- **Primary IMU**: `/imu/sensor_0` from sensor_0 messages
+- **Secondary IMU**: `/imu/sensor_1` from sensor_1 messages  
+- **Board Identification**: Automatic routing based on board ID in message headers
+- **Synchronized Publishing**: Coordinated publishing from both embedded boards
 
 ## Architecture
 
@@ -75,32 +90,54 @@ sudo apt install ros-jazzy-diagnostic-msgs ros-jazzy-sensor-msgs
 
 ### Building
 ```bash
-cd /path/to/sigyn_ws
+cd /home/ros/sigyn_ws
 colcon build --packages-select sigyn_to_sensor_v2 --symlink-install
 source install/setup.bash
 ```
 
-### Running
+### Running the Bridge
 ```bash
-# Launch the TeensyV2 interface bridge
+# Launch the complete TeensyV2 interface bridge
 ros2 launch sigyn_to_sensor_v2 teensy_bridge.launch.py
 
-# Or run the main bridge node directly
+# Or run the main bridge node directly  
 ros2 run sigyn_to_sensor_v2 teensy_bridge_node
+
+# Monitor all TeensyV2-related topics
+ros2 topic list | grep -E "(battery|imu|estop|performance)"
 ```
+
+### Verification and Testing
+```bash
+# Verify dual IMU sensor data
+ros2 topic echo /imu/sensor_0 --once
+ros2 topic echo /imu/sensor_1 --once
+
+# Check battery monitoring with location info
+ros2 topic echo /battery_state --once
+
+# Monitor odometry data (high-frequency)
+ros2 topic hz /odom
+
+# View comprehensive diagnostics
+ros2 topic echo /diagnostics --once
 
 ### Configuration
 ```bash
 # View available parameters
-ros2 param list
+ros2 param list | grep -E "(battery|performance|serial)"
 
 # Update battery monitoring thresholds
-ros2 param set /battery_monitor critical_low_voltage 30.0
-ros2 param set /battery_monitor warning_low_voltage 32.0
+ros2 param set /teensy_bridge_node battery_critical_voltage 30.0
+ros2 param set /teensy_bridge_node battery_warning_voltage 32.0
 
-# Configure performance monitoring
-ros2 param set /performance_monitor target_frequency 85.0
-ros2 param set /performance_monitor max_execution_time_ms 2.0
+# Configure performance monitoring  
+ros2 param set /teensy_bridge_node target_loop_frequency 85.0
+ros2 param set /teensy_bridge_node max_execution_time_ms 2.0
+
+# Update serial communication settings
+ros2 param set /teensy_bridge_node serial_port "/dev/ttyACM0"
+ros2 param set /teensy_bridge_node serial_port_board2 "/dev/ttyACM1"
 ```
 
 ## Topics
@@ -108,18 +145,31 @@ ros2 param set /performance_monitor max_execution_time_ms 2.0
 ### Published Topics
 
 #### Battery Monitoring
-- `/battery_state` (sensor_msgs/BatteryState) - Battery voltage, current, percentage, and location
-  - **New Feature**: `location` field indicates physical battery location (e.g., "36VLIPO", "5VDCDC")
-  - Supports multiple battery types: 36V LiPo main battery, 5V DC-DC, 24V DC-DC, 3.3V DC-DC, 12V DC-DC
+- `/battery_state` (sensor_msgs/BatteryState) - Enhanced battery monitoring with location identification
+  - **Board Support**: Receives BATT1/BATT2 messages from both TeensyV2 boards
+  - **Location Field**: Physical battery location (e.g., "36VLIPO", "5VDCDC", "24VDCDC")
+  - **Multi-Battery**: Supports main 36V LiPo, 5V DC-DC, 24V DC-DC, 3.3V DC-DC, 12V DC-DC
 
-#### IMU Data
-- `/imu/sensor0` (sensor_msgs/Imu) - Primary IMU sensor data (quaternion orientation)
-- `/imu/sensor1` (sensor_msgs/Imu) - Secondary IMU sensor data (quaternion orientation)
+#### IMU Data (Enhanced Dual Sensor Support)
+- `/imu/sensor_0` (sensor_msgs/Imu) - Primary IMU sensor (from sensor_0 messages)
+- `/imu/sensor_1` (sensor_msgs/Imu) - Secondary IMU sensor (from sensor_1 messages)
+  - **Board Identification**: Automatic message routing based on IMU1/IMU2 message types
+  - **Quaternion Orientation**: Full orientation data from BNO055 sensors
+  - **Synchronized Updates**: Coordinated sensor readings from both embedded boards
+
+#### Odometry Data (High-Frequency)
+- `/odom` (nav_msgs/Odometry) - High-frequency robot odometry (≥70Hz)
+  - **Enhanced Parsing**: Extracts position (px,py), orientation (ox,oy,oz,ow), velocity (vx,vy,wz)
+  - **Real-time Updates**: Low-latency odometry for precise navigation
+  - **Source**: ODOM1 messages from TeensyV2 Board 1 (main controller)
 
 #### Safety and Diagnostics
-- `/estop_status` (custom message) - Emergency stop events and status
-- `/diagnostics` (diagnostic_msgs/DiagnosticArray) - System diagnostic messages
-- `/performance_stats` (custom message) - Real-time performance monitoring
+- `/estop_status` (diagnostic_msgs/DiagnosticArray) - Emergency stop events and safety status
+- `/diagnostics` (diagnostic_msgs/DiagnosticArray) - Enhanced system diagnostic messages
+  - **String Preservation**: Includes both enum values and human-readable diagnostic strings
+  - **Board Identification**: Diagnostics tagged with source board information
+  - **Level Display**: Enhanced level representation for diagnostic viewers
+- `/performance_stats` (diagnostic_msgs/DiagnosticArray) - Real-time performance monitoring and timing analysis
 
 ### Subscribed Topics
 
@@ -129,13 +179,29 @@ ros2 param set /performance_monitor max_execution_time_ms 2.0
 
 ### Message Format Notes
 
-#### BATT Messages
-The TeensyV2 system now includes battery location information in BATT messages:
+### Message Format Notes
+
+#### Enhanced Message Protocol
+The TeensyV2 system now uses board-identified messages for proper routing and debugging:
+
+**Battery Messages (BATT1/BATT2):**
 ```
-BATT:idx:0,V:42.51,A:1.15,charge:1.00,state:NORMAL,location:36VLIPO
+BATT1:id=0,v=42.51,c=1.15,p=47.8,pct=0.85,state=NORMAL,location=36VLIPO
+BATT2:id=1,v=5.05,c=0.25,p=1.26,pct=1.0,state=NORMAL,location=5VDCDC
 ```
 
-The `location` field maps to the `location` field in the ROS2 `sensor_msgs/BatteryState` message, providing clear identification of which physical battery is reporting data.
+**IMU Messages (IMU1/IMU2):**
+```
+IMU1:{"qx":0.123,"qy":0.456,"qz":0.789,"qw":0.987,"status":"OK"}
+IMU2:{"qx":0.124,"qy":0.457,"qz":0.788,"qw":0.986,"status":"OK"}
+```
+
+**Odometry Messages (ODOM1):**
+```
+ODOM1:px=1.234,py=5.678,ox=0.0,oy=0.0,oz=0.707,ow=0.707,vx=0.5,vy=0.0,wz=0.1
+```
+
+The `location` field in battery messages maps directly to the `location` field in the ROS2 `sensor_msgs/BatteryState` message, providing clear identification of which physical battery is reporting data.
 
 ## Services
 
@@ -170,31 +236,43 @@ The `location` field maps to the `location` field in the ROS2 `sensor_msgs/Batte
 ## Message Protocol
 
 ### TeensyV2 Message Format
-All messages follow the format: `TYPE:key1=val1,key2=val2,...`
+All messages follow the enhanced format with board identification: `TYPEX:payload`
+Where `X` is the board identifier (1 or 2).
 
 #### Message Types
-- **BATT**: Battery status and measurements
-- **PERF**: Performance metrics and timing data  
-- **SAFETY**: Safety status and E-stop conditions
-- **ESTOP**: E-stop trigger/clear notifications
-- **CONFIG**: Configuration updates and responses
-- **DIAG**: Diagnostic and error messages
+- **BATT1/BATT2**: Battery status and measurements from specific boards
+- **IMU1/IMU2**: IMU sensor data from specific sensors  
+- **ODOM1**: High-frequency odometry data from main controller
+- **PERF1/PERF2**: Performance metrics and timing data from each board
+- **ESTOP1/ESTOP2**: E-stop events from specific boards
+- **TEMP1/TEMP2**: Temperature sensor readings
+- **ROBOCLAW1**: Motor controller status and encoder data
 
-#### Example Messages
+#### Example Enhanced Messages
 ```
-BATT:id=0,v=39.8,c=1.2,p=47.8,pct=0.85,state=NORMAL
-PERF:freq=84.2,exec_time=1.8,violations=0,modules=5
-ESTOP:active=true,source=BATTERY,reason=low_voltage,value=31.2
-SAFETY:state=NORMAL,hw_estop=false,conditions=0
+BATT1:id=0,v=39.8,c=1.2,p=47.8,pct=0.85,state=NORMAL,location=36VLIPO
+IMU2:{"qx":0.123,"qy":0.456,"qz":0.789,"qw":0.987,"status":"OK"}
+ODOM1:px=1.234,py=5.678,ox=0.0,oy=0.0,oz=0.707,ow=0.707,vx=0.5,vy=0.0,wz=0.1
+PERF2:{"freq":80.2,"exec_time":1.8,"violations":0,"modules":5}
+ESTOP1:src=battery,state=active,reason=low_voltage,value=31.2
+TEMP1:id=0,temp=23.5,status=OK
 ```
 
 ## Development
 
 ### Adding New Message Types
 1. Define message structure in `include/sigyn_to_sensor_v2/message_parser.h`
-2. Implement parsing logic in `src/message_parser.cpp`
-3. Add ROS2 topic publishing in appropriate node
-4. Update documentation
+2. Add parsing logic in `StringToMessageType()` function in `src/message_parser.cpp`
+3. Implement field extraction in `ParseJsonPayload()` for JSON messages
+4. Add ROS2 topic publishing in teensy_bridge_node
+5. Update documentation and tests
+
+### Message Parser Enhancements
+The message parser now supports:
+- **Board-Specific Types**: IMU1/IMU2 automatically recognized as IMU message type
+- **Enhanced ODOM Parsing**: Extracts px,py,ox,oy,oz,ow,vx,vy,wz fields from ODOM messages
+- **Diagnostic String Preservation**: Maintains both enum and string representations for diagnostic displays
+- **JSON Field Extraction**: Robust parsing of nested JSON payloads from structured messages
 
 ### Adding New Parameters
 1. Declare parameter in node constructor with default value
@@ -220,39 +298,101 @@ colcon test-result --verbose
 
 #### Serial Communication Problems
 ```bash
-# Check device permissions
+# Check device permissions and connectivity
 ls -l /dev/ttyACM*
 sudo usermod -a -G dialout $USER
 
-# Monitor serial communication
-ros2 topic echo /sigyn/diagnostics/serial_status
+# Monitor serial communication health
+ros2 topic echo /diagnostics | grep -i serial
+
+# Test individual board connections
+ros2 param get /teensy_bridge_node serial_port
+ros2 param get /teensy_bridge_node serial_port_board2
+```
+
+#### IMU Sensor Issues
+```bash
+# Verify both IMU sensors are publishing
+ros2 topic list | grep imu
+ros2 topic hz /imu/sensor_0
+ros2 topic hz /imu/sensor_1
+
+# Check for IMU data quality
+ros2 topic echo /imu/sensor_0 --once
+ros2 topic echo /imu/sensor_1 --once
+
+# Monitor IMU-related diagnostics
+ros2 topic echo /diagnostics | grep -i imu
+```
+
+#### Message Parsing Issues
+```bash
+# Monitor message parser diagnostics
+ros2 topic echo /diagnostics | grep -i parser
+
+# Check for ODOM data completeness
+ros2 topic echo /odom --once
+
+# Verify enhanced diagnostics with string levels
+rqt_robot_monitor  # GUI diagnostic viewer
 ```
 
 #### Parameter Issues
 ```bash
-# Reset all parameters to defaults
-ros2 service call /sigyn/config/reset_parameters std_srvs/Empty
+# List all available parameters
+ros2 param list | grep teensy_bridge
+
+# Reset specific parameters to defaults
+ros2 param set /teensy_bridge_node battery_critical_voltage 32.0
+ros2 param set /teensy_bridge_node target_loop_frequency 85.0
 
 # Check parameter validation
-ros2 param describe /battery_monitor critical_low_voltage
+ros2 param describe /teensy_bridge_node battery_critical_voltage
 ```
 
 #### Safety System Issues
 ```bash
-# Check E-stop status
-ros2 topic echo /sigyn/safety/estop_status
+# Check E-stop status from both boards
+ros2 topic echo /estop_status --once
 
-# Reset E-stop manually
-ros2 service call /sigyn/safety/reset_estop sigyn_interfaces/ResetEstop "{source: 'ALL', force_reset: true}"
+# Monitor safety-related diagnostics
+ros2 topic echo /diagnostics | grep -i estop
+
+# View comprehensive safety status
+ros2 topic echo /diagnostics | grep -i safety
 ```
+
+## Recent Enhancements (2024-2025)
+
+### Message Parser Improvements
+- **Board-Specific Recognition**: Enhanced `StringToMessageType()` to recognize IMU1/IMU2 as IMU message variants
+- **ODOM Field Extraction**: Added comprehensive odometry field parsing (px,py,ox,oy,oz,ow,vx,vy,wz)
+- **Diagnostic String Preservation**: Enhanced `ToDiagnosticArrayMsg()` to include both enum and string level representations
+- **Robust JSON Parsing**: Improved `ParseJsonPayload()` function for structured data extraction
+
+### Dual IMU Support
+- **Synchronized Publishing**: Coordinated IMU sensor data from both TeensyV2 boards
+- **Automatic Routing**: Message routing based on board identification in message headers
+- **Enhanced Topics**: Separated `/imu/sensor_0` and `/imu/sensor_1` for independent sensor monitoring
+
+### Communication Enhancements  
+- **Enhanced Serial Reliability**: Improved error handling and reconnection logic
+- **Board-Identified Messages**: Support for BATT1/BATT2, IMU1/IMU2, PERF1/PERF2 message routing
+- **High-Frequency Odometry**: Optimized ODOM1 message processing for ≥70Hz updates
+
+### Diagnostic System Improvements
+- **RQT Compatibility**: Enhanced diagnostic messages for improved GUI display compatibility
+- **String Level Display**: Diagnostic level strings now properly displayed in diagnostic viewers
+- **Comprehensive Monitoring**: Enhanced system health monitoring and reporting
 
 ## Contributing
 
-1. Follow ROS2 coding standards and Google C++ style guide
-2. Add comprehensive unit tests for new functionality
-3. Update documentation for any API changes
-4. Test with both simulated and real hardware
+1. Follow ROS2 Jazzy coding standards and Google C++ style guide
+2. Add comprehensive unit tests for new message parsing functionality
+3. Update documentation for any message protocol or API changes
+4. Test with both simulated and real TeensyV2 hardware
+5. Ensure real-time performance requirements are maintained for critical data streams
 
 ## License
 
-This package is part of the Sigyn robotics platform. See LICENSE file for details.
+This package is part of the Sigyn autonomous house patroller robotic platform. See LICENSE file for details.

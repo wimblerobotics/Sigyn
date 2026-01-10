@@ -1,10 +1,8 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro" name="Sigyn">
-  <self_collide>false</self_collide>
-  <pose>0 0 0.2 0 0 0</pose>
-  <static>false</static>
   <xacro:arg name="use_ros2_control" default="true" />
   <xacro:arg name="sim_mode" default="false" />
+  <xacro:arg name="do_top_lidar" default="true" />
 
   <xacro:include filename="$(find description)/urdf/common_macros.xacro" />
   <xacro:include filename="$(find description)/urdf/inertials.xacro" />
@@ -12,7 +10,14 @@
   <xacro:include filename="$(find description)/urdf/sigyn_base_macro.urdf.xacro" />
   <xacro:include filename="$(find description)/urdf/sigyn_caster_wheel_macro.urdf.xacro" />
   <xacro:include filename="$(find description)/urdf/sigyn_wheels_macro.urdf.xacro" />
-  <xacro:include filename="$(find description)/urdf/oakd.urdf.xacro" />
+
+  <xacro:unless value="$(arg sim_mode)">
+    <xacro:include filename="$(find description)/urdf/depthai_macro.urdf.xacro" />
+  </xacro:unless>
+
+  <xacro:unless value="$(arg sim_mode)">
+    <xacro:include filename="$(find description)/urdf/oakd.urdf.xacro" />
+  </xacro:unless>
 
   <xacro:if value="$(arg use_ros2_control)">
     <xacro:include filename="ros2_control.xacro" />
@@ -32,10 +37,27 @@
   <xacro:caster_wheel config="${props}" />
 
   <xacro:include filename="$(find description)/urdf/ld06.urdf.xacro" />
+
+  <!-- LiDAR configuration: if do_top_lidar=true, use both top_lidar and cup_lidar as-is.
+       if do_top_lidar=false, create only a top_lidar at the cup_lidar origin so downstream
+       code continues to use the 'top_lidar' name and 'scan' topic. -->
+  <xacro:if value="$(arg do_top_lidar)">
+    <xacro:ld06 lidar_prefix="top_lidar" topic_name="scan">
+      <origin xyz="${0.155-0.34} 0 ${0.300+1.485}" rpy="0 0 0" />
+    </xacro:ld06>
+
+    <xacro:ld06 lidar_prefix="cup_lidar" topic_name="scan_cup">
+      <origin xyz="0.155 0 0.300" rpy="0 0 -${pi / 2}" />
+    </xacro:ld06>
+  </xacro:if>
+
+  <xacro:unless value="$(arg do_top_lidar)">
+    <xacro:ld06 lidar_prefix="top_lidar" topic_name="scan">
+      <origin xyz="0.155 0 0.300" rpy="0 0 -${pi / 2}" />
+    </xacro:ld06>
+  </xacro:unless>
+
   <xacro:include filename="$(find description)/urdf/gazebo.urdf.xacro" />
-  <xacro:ld06 lidar_prefix="top_lidar">
-    <origin xyz="0.155 0 0.300" rpy="0 0 -${pi / 2}" />
-  </xacro:ld06>
 
   <xacro:include filename="$(find description)/urdf/gripper_assembly.urdf.xacro" />
   <joint name="base_link_to_elevator_pole" type="fixed">
@@ -45,9 +67,11 @@
   </joint>
 
   <!-- <xacro:oakd_link mount_point="elevator_top" /> -->
-  <xacro:oakd_joint mount_point="elevator_top">
-    <origin xyz="-0.12 -0.02 1.47" rpy="0 ${(pi / 4)+13*(2.0*pi/360.0)} ${-0*(2.0*pi/360.0)}" />
-  </xacro:oakd_joint>
+  <xacro:unless value="$(arg sim_mode)">
+    <xacro:oakd_joint mount_point="elevator_top">
+      <origin xyz="-0.12 -0.02 1.47" rpy="0 ${(pi / 4)+13*(2.0*pi/360.0)} ${-0*(2.0*pi/360.0)}" />
+    </xacro:oakd_joint>
+  </xacro:unless>
 
   <gazebo>
     <plugin filename="gz-sim-joint-position-controller-system"
@@ -125,21 +149,22 @@
   <xacro:diff_drive_controller config="${props}" instances1="${props.wheels.instances}"
     instances2="${props.wheels.instances}" />
 
-  <!-- IMU0 - Upside down (components facing down) -->
+  <!-- IMU0 - Upside down & backwards -->
   <joint name="imu0_joint" type="fixed">
     <parent link="base_link" />
     <child link="imu_0" />
-    <origin xyz="-0.100 0.180 0.022" rpy="0 3.14159 0" />  <!-- 180° around Y-axis -->
+    <origin xyz="-0.100 0.180 0.022" rpy="0 3.14159 3.14159" />
   </joint>
 
   <link name="imu_0" />
 
-  <!-- IMU1 - Right-side up (components facing up) -->
+  <!-- IMU1 - Right-side up & backwards -->
   <joint name="imu1_joint" type="fixed">
     <parent link="base_link" />
     <child link="imu_1" />
-    <origin xyz="0.085 -0.185 0.022" rpy="0 0 0" />  <!-- No rotation needed -->
+    <origin xyz="0.085 -0.185 0.022" rpy="0 0 3.14159" />
   </joint>
 
   <link name="imu_1" />
+  <xacro:include filename="$(find description)/urdf/vl53l0x.xacro" />
 </robot>

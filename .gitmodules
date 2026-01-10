@@ -1,6 +1,4 @@
-[submodule "min_max_curr_rviz_overlay"]
-	path = min_max_curr_rviz_overlay
-	url = git@github.com:wimblerobotics/min_max_curr_rviz_overlay.git
-[submodule "wifi_logger_visualizer"]
-	path = wifi_logger_visualizer
-	url = git@github.com:wimblerobotics/wifi_logger_visualizer.git
+[submodule "groot"]
+	path = groot
+	url = https://github.com/BehaviorTree/Groot.git
+

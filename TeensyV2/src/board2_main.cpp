@@ -1,10 +1,10 @@
-#include <Arduino.h>
-
-#include <cstdint>
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2025 Wimblerobotics
+// https://github.com/wimblerobotics/Sigyn
 
 /**
- * @file board2_main.ino
-board (Board 2) for TeensyV2 system
+ * @file board2_main.cpp
+ * @brief Sensor monitoring board (Board 2) for TeensyV2 system
  *
  * This is the sensor monitoring board responsible for:
  * - Battery monitoring (INA226 and analog sensors)
@@ -29,105 +29,90 @@ board (Board 2) for TeensyV2 system
  */
 
 #include <Arduino.h>
+#include <cstdint>
 
+// Core TeensyV2 system
+#include "common/core/config.h"
 #include "common/core/module.h"
 #include "common/core/serial_manager.h"
-#include "modules/battery/battery_monitor.h"
-#include "modules/bno055/bno055_monitor.h"
+
+// Conditional module includes based on board configuration
+#if ENABLE_PERFORMANCE
 #include "modules/performance/performance_monitor.h"
+#endif
+
+#if ENABLE_SAFETY
+#include "modules/safety/safety_coordinator.h"
+#endif
+
+#if BOARD_HAS_MOTOR_CONTROL
+#include "modules/roboclaw/roboclaw_monitor.h"
+#endif
+
+#if ENABLE_VL53L0X
+#include "modules/sensors/vl53l0x_monitor.h"
+#endif
+
+#if ENABLE_TEMPERATURE
+#include "modules/sensors/temperature_monitor.h"
+#endif
+
+#if ENABLE_BATTERY
+#include "modules/battery/battery_monitor.h"
+#endif
+
+#if ENABLE_IMU
+#include "modules/bno055/bno055_monitor.h"
+#endif
+
+#if ENABLE_SD_LOGGING
+#include "modules/storage/sd_logger.h"
+#endif
 
 using namespace sigyn_teensy;
 
 // Function declarations
-void fault_handler();
-uint32_t freeMemory();
 void loop();
 void serialEvent();
 void setup();
 
-// System timing
-uint32_t loop_start_time;
-uint32_t last_loop_time;
-float loop_frequency;
-
-// Module instances (created via singleton pattern)
+// Module instances (created via singleton pattern, conditionally based on board config)
 SerialManager* serial_manager;
+
+#if ENABLE_PERFORMANCE
 PerformanceMonitor* performance_monitor;
+#endif
+
+#if ENABLE_SAFETY
+SafetyCoordinator* safety_coordinator;
+#endif
+
+#if BOARD_HAS_MOTOR_CONTROL
+RoboClawMonitor* roboclaw_monitor;
+#endif
+
+#if ENABLE_TEMPERATURE
+TemperatureMonitor* temperature_monitor;
+#endif
+
+#if ENABLE_BATTERY
 BatteryMonitor* battery_monitor;
+#endif
+
+#if ENABLE_IMU
 BNO055Monitor* bno055_monitor;
+#endif
 
-/**
- * @brief Handle critical errors and system faults.
- *
- * This function is called by the Teensy runtime when critical errors occur.
- */
-void fault_handler() {
-  // ### Serial.println("CRITICAL FAULT: Board2 system fault detected");
-
-  // Send fault notification if possible
-  if (serial_manager) {
-    String fault_msg = "type=system,board=2,time=" + String(millis());
-    serial_manager->sendMessage("FAULT", fault_msg.c_str());
-  }
-
-  // For Board 2, we don't have direct E-stop control, but we should signal
-  // the problem This would be done via inter-board communication in a
-  // complete implementation
-
-  // Halt system with status indication
-  while (true) {
-    digitalWrite(LED_BUILTIN,
-                 !digitalRead(LED_BUILTIN));  // Blink LED rapidly
-    delay(50);
-  }
-}
-
-/**
- * @brief Get free memory for monitoring.
- *
- * Simple free memory calculation for Teensy 4.1.
- *
- * @return Estimated free memory in bytes
- */
-uint32_t freeMemory() {
-  // For Teensy 4.1, we'll use a simple stack-based approach
-  // This is not as accurate but works without linker issues
-  char stack_var;
-  extern char _ebss;
-  return &stack_var - &_ebss;
-}
+#if ENABLE_SD_LOGGING
+SDLogger* sd_logger;
+#endif
 
 void loop() {
-  uint32_t current_time = micros();
-  loop_start_time = current_time;
-
-  // Calculate loop frequency
-  uint32_t loop_time_us = current_time - last_loop_time;
-  if (loop_time_us > 0) {
-    loop_frequency = 1000000.0f / loop_time_us;
-  }
-  last_loop_time = current_time;
-
   // Execute all modules through the module system
   Module::loopAll();
 
-  // Board 2 status reporting (less frequent than Board 1)
-  static uint32_t last_status_report_ms = 0;
-  if (current_time - last_status_report_ms > 10000000) {  // Every 10 seconds
-    last_status_report_ms = current_time;
-    // Add any 10-second reporting tasks here
-  }
-
-  // ### // Performance warnings (less strict than Board 1)
-  //  if (execution_time > 15000) {  // 15ms is concerning for Board 2
-  //    Serial.println("WARNING: Board2 execution time exceeded 15ms (" +
-  //                   String(execution_time) + " us)");
-  //  }
-
-  // if (loop_frequency < 20.0f) {  // Below 20Hz is concerning for Board 2
-  //   Serial.println("WARNING: Board2 frequency below 20Hz (" +
-  //                  String(loop_frequency, 1) + " Hz)");
-  // }
+  // Drain outgoing serial queue without blocking the real-time loop.
+  SerialManager::getInstance().processOutgoingMessages();
 }
 
 /**
@@ -142,23 +127,88 @@ void serialEvent() {
 }
 
 void setup() {
-  // Initialize serial communication for debugging and ROS2 interface
-  Serial.begin(115200);
-  while (!Serial && millis() < 5000) {
-    // Wait for serial port to connect. Needed for native USB only.
-  }
+  // Initialize serial communication (do not block waiting for USB).
+  Serial.begin(BOARD_SERIAL_BAUD_RATE);
 
-  // Initialize modules
+  // Initialize SD logger first if enabled (required for other modules)
+#if ENABLE_SD_LOGGING
+  sd_logger = &SDLogger::getInstance();
+#endif
+
+  // Get singleton instances (this registers them with the module system)
+  // Core modules are always initialized
   serial_manager = &SerialManager::getInstance();
+
+  // Initialize modules based on board configuration
+#if ENABLE_PERFORMANCE
   performance_monitor = &PerformanceMonitor::getInstance();
+#endif
+
+#if ENABLE_SAFETY
+  safety_coordinator = &SafetyCoordinator::getInstance();
+#endif
+
+#if BOARD_HAS_MOTOR_CONTROL
+  roboclaw_monitor = &RoboClawMonitor::getInstance();
+#endif
+
+#if ENABLE_VL53L0X
+  VL53L0XMonitor::getInstance();  // Initialize VL53L0X monitor
+#endif
+
+#if ENABLE_TEMPERATURE
+  temperature_monitor = &TemperatureMonitor::getInstance();
+#endif
+
+#if ENABLE_BATTERY
   battery_monitor = &BatteryMonitor::getInstance();
+#endif
+
+#if ENABLE_IMU
   bno055_monitor = &BNO055Monitor::getInstance();
+#endif
+
+  // Initialize serial communication
+  serial_manager->initialize(BOARD_SERIAL_TIMEOUT_MS);
 
   // Initialize all registered modules
   Module::setupAll();
 
-  // Initialize system timing
-  last_loop_time = micros();
+  {
+    char msg[96] = {0};
+    snprintf(msg, sizeof(msg), "===== Board %d Initialization Complete =====", BOARD_ID);
+    SerialManager::getInstance().sendDiagnosticMessage("INFO", "board2", msg);
+  }
 
-  serial_manager->sendMessage("INFO", "Board 2 setup complete");
+  // Print enabled features for this board
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board2", "Enabled features:");
+#if ENABLE_SD_LOGGING
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board2", "  - SD Logging");
+#endif
+#if BOARD_HAS_MOTOR_CONTROL
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board2", "  - Board has Motor Control");
+#endif
+#if ENABLE_VL53L0X
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board2", "  - VL53L0X Distance Sensors");
+#endif
+#if ENABLE_TEMPERATURE
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board2", "  - Temperature Monitoring");
+#endif
+#if ENABLE_PERFORMANCE
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board2", "  - Performance Monitoring");
+#endif
+#if ENABLE_SAFETY
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board2", "  - Safety Coordinator");
+#endif
+#if BOARD_HAS_MOTOR_CONTROL
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board2", "  - RoboClaw Motor Driver");
+#endif
+#if ENABLE_BATTERY
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board2", "  - Battery Monitoring");
+#endif
+#if ENABLE_IMU
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board2", "  - IMU (BNO055)");
+#endif
+
+ SerialManager::getInstance().sendDiagnosticMessage("INFO", "board2", "Ready for operation");
 }

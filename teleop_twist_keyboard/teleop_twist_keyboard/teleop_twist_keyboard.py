@@ -232,7 +232,7 @@ class TeleopTwistKeyboard(Node):
         self.declare_parameter('turn', 1.0)
         self.declare_parameter('speed_limit', 1000.0)
         self.declare_parameter('turn_limit', 1000.0)
-        self.declare_parameter('repeat_rate', 0.0)
+        self.declare_parameter('repeat_rate', 20.0)
         self.declare_parameter('key_timeout', 0.5)
         self.declare_parameter('stamped', False)
         self.declare_parameter('frame_id', '')

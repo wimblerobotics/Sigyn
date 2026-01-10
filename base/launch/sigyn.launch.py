@@ -40,7 +40,7 @@ from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
 def launch_robot_state_publisher(
-    context, file_name_var, use_ros2_control, use_sim_time
+    context, file_name_var, use_ros2_control, use_sim_time, do_top_lidar
 ):
     description_directory_path = get_package_share_directory("description")
     file_name = context.perform_substitution(file_name_var)
@@ -55,7 +55,12 @@ def launch_robot_state_publisher(
     use_ros2_control_value = "true" if use_sim_time.perform(context) == "true" else "false"
     
     urdf_as_xml = xacro.process_file(
-        xacro_file_path, mappings={"use_ros2_control": use_ros2_control_value, "sim_mode": use_sim_time.perform(context)}
+        xacro_file_path,
+        mappings={
+            "use_ros2_control": use_ros2_control_value,
+            "sim_mode": use_sim_time.perform(context),
+            "do_top_lidar": do_top_lidar.perform(context),
+        },
     ).toxml()
     robot_state_publisher_node = Node(
         package="robot_state_publisher",
@@ -169,6 +174,16 @@ def generate_launch_description():
     ld.add_action(log_info_action)
 
     # Launch the robot state publisher
+    # Handle LiDAR configuration in URDF via xacro arg
+    do_top_lidar = LaunchConfiguration("do_top_lidar")
+    ld.add_action(
+        DeclareLaunchArgument(
+            name="do_top_lidar",
+            default_value="true",
+            description="If false, use only one LiDAR (top_lidar at cup origin)",
+        )
+    )
+
     ld.add_action(
         OpaqueFunction(
             function=launch_robot_state_publisher,
@@ -176,6 +191,7 @@ def generate_launch_description():
                 LaunchConfiguration("urdf_file_name"),
                 "true",
                 LaunchConfiguration("use_sim_time"),
+                do_top_lidar,
             ],
         )
     )
@@ -383,6 +399,9 @@ def generate_launch_description():
             [base_pgk, "/launch/sub_launch/lidar.launch.py"]
         ),
         condition=UnlessCondition(use_sim_time),
+        launch_arguments={
+            'do_top_lidar': do_top_lidar,
+        }.items(),
     )
     ld.add_action(lidars_launch)
 
@@ -425,45 +444,53 @@ def generate_launch_description():
     )
     ld.add_action(joint_state_publisher_node)
     
-    # oakd_elevator_top = IncludeLaunchDescription(
-    #     PythonLaunchDescriptionSource(
-    #       [base_pgk, "/launch/sub_launch/oakd_stereo.launch.py"]
-    #     )
-    # )
-    # ld.add_action(oakd_elevator_top)
+    do_oakd = LaunchConfiguration("do_oakd")
+    ld.add_action(
+        DeclareLaunchArgument(
+            name="do_oakd",
+            default_value="false",
+            description="Launch OAK-D camera nodes if true",
+        )
+    )
     
-    # pc2ls = Node(
-    #     package="pointcloud_to_laserscan",
-    #     executable="pointcloud_to_laserscan_node",
-    #     name="pointcloud_to_laserscan_node",
-    #     output="screen",
-    #     parameters=[
-    #         {"target_frame": "base_footprint",
-    #          "min_height": 0.03,
-    #          "max_height": 2.0,
-    #          "range_min": 0.27,
-    #          "range_max": 5.0,
-    #          "scan_time": 0.1,
-    #          "use_inf": True,
-    #         },
-    #     ],
-    #     remappings= [
-    #       ("/cloud_in", "/stereo/points"),
-    #       ("/scan", "/stereo/points2")],
-    # )
-    # ld.add_action(pc2ls)
+    oakd_elevator_top = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+          [base_pgk, "/launch/sub_launch/oakd_stereo.launch.py"]
+        ),
+        condition=IfCondition(AndSubstitution(NotSubstitution(use_sim_time), do_oakd)),
+    )
+    ld.add_action(oakd_elevator_top)
     
-    # battery_overlay = IncludeLaunchDescription(
-    #     PythonLaunchDescriptionSource(
-    #         os.path.join(
-    #             get_package_share_directory('this_to_that'),
-    #             'launch',
-    #             'battery_voltage.launch.py'
-    #         )
-    #     ),
-    #     condition=UnlessCondition(use_sim_time),sigyn
-    # )
-    # ld.add_action(battery_overlay)
+    # Add compressed image republisher for OAK-D
+    oakd_compressed = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+          [base_pgk, "/launch/sub_launch/oakd_compressed_republisher.launch.py"]
+        ),
+        condition=IfCondition(AndSubstitution(NotSubstitution(use_sim_time), do_oakd)),
+    )
+    ld.add_action(oakd_compressed)
+    
+    pc2ls = Node(
+        condition=UnlessCondition(use_sim_time),
+        package="pointcloud_to_laserscan",
+        executable="pointcloud_to_laserscan_node",
+        name="pointcloud_to_laserscan_node",
+        output="screen",
+        parameters=[
+            {"target_frame": "base_footprint",
+             "min_height": 0.03,
+             "max_height": 2.0,
+             "range_min": 0.27,
+             "range_max": 5.0,
+             "scan_time": 0.1,
+             "use_inf": True,
+            },
+        ],
+        remappings= [
+          ("/cloud_in", "/stereo/points"),
+          ("/scan", "/stereo/points2")],
+    )
+    ld.add_action(pc2ls)
     
     # wifi_logger = IncludeLaunchDescription(
     #   PythonLaunchDescriptionSource(
@@ -476,7 +503,7 @@ def generate_launch_description():
     # )
     # ld.add_action(wifi_logger)
     
-    # head_mapper = IncludeLaunchDescription(
+    # heat_mapper = IncludeLaunchDescription(
     #   PythonLaunchDescriptionSource(
     #     os.path.join(
     #       get_package_share_directory('wifi_logger_visualizer'),sigyn
@@ -485,7 +512,7 @@ def generate_launch_description():
     #     )
     #   )
     # )
-    # ld.add_action(head_mapper)
+    # ld.add_action(heat_mapper)
 
     SaySomethingActionServer = Node(
         package="sigyn_behavior_trees",
@@ -538,6 +565,22 @@ def generate_launch_description():
         }.items(),
     )
     ld.add_action(sigyn_to_sensor)
+
+    # Battery overlay for RViz
+    battery_overlay = Node(
+        package='py_scripts',
+        executable='battery_overlay_publisher',
+        name='battery_overlay_publisher',
+        output='screen',
+        parameters=[{
+            'battery_topic': '/sigyn/teensy_bridge/battery/status',
+            'overlay_topic': '/battery_overlay_text',
+            'min_voltage': 30.0,
+            'max_voltage': 42.0,
+            'filter_battery_id': '36VLIPO'
+        }]
+    )
+    ld.add_action(battery_overlay)
 
     # sigyn_to_sensor = Node(
     #     package="sigyn_to_sensor_v",
