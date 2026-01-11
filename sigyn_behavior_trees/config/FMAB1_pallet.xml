@@ -1,8 +1,12 @@
 <root>
     <TreeNodesModel>
+        <SubTree ID="BatterIsyCharged">
+            <input_port default="false" name="__shared_blackboard">If false (default), the Subtree has an isolated blackboard and needs port remapping</input_port>
+        </SubTree>
         <Condition ID="BatteryAboveChargingVoltage"/>
         <Condition ID="BatteryAboveCriticalVoltage"/>
         <Action ID="ChargeBattery"/>
+        <SubTree ID="EnsureBatteryIsNoCritical"/>
         <SubTree ID="EnsureGripperHomed"/>
         <Action ID="FetchBeer"/>
         <SubTree ID="GetNearToBeer"/>

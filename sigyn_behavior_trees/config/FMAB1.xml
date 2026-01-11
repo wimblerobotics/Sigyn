@@ -1,17 +1,10 @@
 <?xml version="1.0"?>
 <root main_tree_to_execute="BehaviorTree">
     <!-- ////////// -->
-    <BehaviorTree ID="BatterIsCharged">
+    <BehaviorTree ID="BatterIsyCharged">
         <ReactiveFallback name="ChargingNotNeeded">
             <Condition ID="BatteryAboveChargingVoltage"/>
             <Action ID="ChargeBattery"/>
-        </ReactiveFallback>
-    </BehaviorTree>
-    <!-- ////////// -->
-    <BehaviorTree ID="BatteryIsNotAboutToFail">
-        <ReactiveFallback name="SystemShutdownNotNeeded">
-            <Condition ID="BatteryAboveCriticalVoltage"/>
-            <Action ID="ShutdownSystem"/>
         </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
@@ -24,14 +17,21 @@
     <!-- ////////// -->
     <BehaviorTree ID="BehaviorTree">
         <ReactiveSequence>
-            <SubTree ID="BatteryIsNotAboutToFail" __shared_blackboard="false"/>
+            <SubTree ID="EnsureBatteryIsNoCritical"/>
             <SubTree ID="RobotIsNotEStopped"/>
             <SubTree ID="RobotHasNotFallenOver"/>
             <SubTree ID="RobotIsNotAboutToFallOver"/>
-            <SubTree ID="BatterIsCharged" __shared_blackboard="false"/>
+            <SubTree ID="BatterIsyCharged" __shared_blackboard="false"/>
             <SubTree ID="GetNearToBeer"/>
             <Action ID="FetchBeer"/>
         </ReactiveSequence>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <BehaviorTree ID="EnsureBatteryIsNoCritical">
+        <ReactiveFallback name="SystemShutdownNotNeeded">
+            <Condition ID="BatteryAboveCriticalVoltage"/>
+            <Action ID="ShutdownSystem"/>
+        </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="EnsureGripperHomed">
@@ -105,19 +105,19 @@
     </BehaviorTree>
     <!-- ////////// -->
     <TreeNodesModel>
-        <SubTree ID="BatterIsCharged">
+        <SubTree ID="BatterIsyCharged">
             <input_port default="false" name="__shared_blackboard">If false (default), the Subtree has an isolated blackboard and needs port remapping</input_port>
         </SubTree>
         <Condition ID="BatteryAboveChargingVoltage"/>
         <Condition ID="BatteryAboveCriticalVoltage"/>
-        <SubTree ID="BatteryIsNotAboutToFail">
-            <input_port default="false" name="__shared_blackboard">If false (default), the Subtree has an isolated blackboard and needs port remapping</input_port>
-        </SubTree>
         <Action ID="ChargeBattery"/>
+        <SubTree ID="EnsureBatteryIsNoCritical"/>
         <SubTree ID="EnsureGripperHomed"/>
         <Action ID="FetchBeer"/>
         <SubTree ID="GetNearToBeer"/>
         <Condition ID="GripperIsHomed"/>
+        <SubTree ID="HandleBatteryCharging"/>
+        <SubTree ID="HandleSystemShutdown"/>
         <Action ID="HomeGripper"/>
         <Condition ID="IsAtPose">
             <input_port default="HomeLocation" name="port"/>
