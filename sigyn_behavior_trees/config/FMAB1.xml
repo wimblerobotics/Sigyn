@@ -1,30 +1,23 @@
 <?xml version="1.0"?>
 <root main_tree_to_execute="BehaviorTree">
     <!-- ////////// -->
-    <BehaviorTree ID="BatterIsyCharged">
+    <BehaviorTree ID="BatteryIsCharged">
         <ReactiveFallback name="ChargingNotNeeded">
             <Condition ID="BatteryAboveChargingVoltage"/>
             <Action ID="ChargeBattery"/>
         </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
-    <BehaviorTree ID="BatteryNotNeedingCharging">
-        <Fallback>
-            <Condition ID="BatteryAboveChargingVoltage"/>
-            <Action ID="ChargeBattery"/>
-        </Fallback>
-    </BehaviorTree>
-    <!-- ////////// -->
     <BehaviorTree ID="BehaviorTree">
-        <ReactiveSequence>
-            <SubTree ID="EnsureBatteryIsNoCritical"/>
-            <SubTree ID="RobotIsNotEStopped"/>
-            <SubTree ID="RobotHasNotFallenOver"/>
-            <SubTree ID="RobotIsNotAboutToFallOver"/>
-            <SubTree ID="BatterIsyCharged" __shared_blackboard="false"/>
-            <SubTree ID="GetNearToBeer"/>
-            <Action ID="FetchBeer"/>
-        </ReactiveSequence>
+        <Sequence>
+            <SetBlackboard output_key="needToHomeGripper" value="true"/>
+            <ReactiveSequence>
+                <SubTree ID="ReactiveRobotSafety"/>
+                <SubTree ID="GetNearToBeer"/>
+                <SubTree ID="FetchBeer"/>
+                <Action ID="ReturnBeerToUser"/>
+            </ReactiveSequence>
+        </Sequence>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="EnsureBatteryIsNoCritical">
@@ -34,50 +27,72 @@
         </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
-    <BehaviorTree ID="EnsureGripperHomed">
-        <ReactiveFallback>
-            <Condition ID="GripperIsHomed"/>
-            <Action ID="HomeGripper"/>
-        </ReactiveFallback>
+    <BehaviorTree ID="FetchBeer">
+        <ReactiveSequence>
+            <ReactiveFallback name="GetElevatorToHeight">
+                <Condition ID="ElevatorIsAtBeerHeight"/>
+                <ForceFailure>
+                    <ReactiveSequence>
+                        <SubTree ID="RotateUntilWideAngleSeesBeer"/>
+                        <SetBlackboard output_key="needToHomeGripper" value="false"/>
+                        <ReactiveFallback name="AttemptRaiseElevatorUntilAtBeerHeight">
+                            <Condition ID="ElevatorIsAtMaximumHeight"/>
+                            <ForceFailure>
+                                <ReactiveRepeat num_cycles="400">
+                                    <Action ID="MoveElevatorRelative" distance_mm="10"/>
+                                </ReactiveRepeat>
+                            </ForceFailure>
+                        </ReactiveFallback>
+                    </ReactiveSequence>
+                </ForceFailure>
+            </ReactiveFallback>
+            <ReactiveFallback name="RotateUntilCenteredOnBeer">
+                <Condition ID="BeerIsCenteredInGripper"/>
+            </ReactiveFallback>
+            <ReactiveFallback name="GraspBeer">
+                <Condition ID="BeerIsGrasped"/>
+            </ReactiveFallback>
+            <ReactiveFallback name="RetractExtender">
+                <Condition ID="ExtenderIsRetracted"/>
+            </ReactiveFallback>
+        </ReactiveSequence>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="GetNearToBeer">
         <ReactiveSequence>
-            <SubTree ID="EnsureGripperHomed"/>
-            <ReactiveSequence name="GoToBeerLocation">
-                <Condition ID="IsAtPose" port="BeerLocation"/>
-                <Repeat num_cycles="3">
-                    <Fallback>
+            <SubTree ID="HomeGripperIfNeeded" __shared_blackboard="true"/>
+            <ReactiveFallback name="GoToBeerLocation">
+                <Condition ID="IsAtPose" pose="BeerLocation"/>
+                <ReactiveRepeat num_cycles="3">
+                    <ReactiveFallback>
                         <Action ID="NavigateToPose" pose="BeerLocation"/>
                         <ForceFailure>
                             <Action ID="RecoverFromNavigateToPose"/>
                         </ForceFailure>
-                    </Fallback>
-                </Repeat>
-            </ReactiveSequence>
+                    </ReactiveFallback>
+                </ReactiveRepeat>
+            </ReactiveFallback>
         </ReactiveSequence>
     </BehaviorTree>
     <!-- ////////// -->
-    <BehaviorTree ID="GoToBeer">
-        <Sequence name="GoToBeer">
-            <Action ID="HomeGripper"/>
-            <Fallback name="SuccessfullyGoToBeer">
-                <Condition ID="IsAtPose" port="HomeLocation"/>
-                <Fallback>
-                    <Action ID="NavigateToPose" pose="BeerLocation"/>
-                    <Action ID="RecoverFromNavigateToPose"/>
-                </Fallback>
-            </Fallback>
-        </Sequence>
+    <BehaviorTree ID="HomeGripperIfNeeded">
+        <ReactiveSequence>
+            <BlackboardCheckBool expected="true" key="needToHomeGripper"/>
+            <ReactiveFallback>
+                <Condition ID="GripperIsHomed"/>
+                <Action ID="HomeGripper"/>
+            </ReactiveFallback>
+        </ReactiveSequence>
     </BehaviorTree>
     <!-- ////////// -->
-    <BehaviorTree ID="HomeGripper">
-        <Fallback>
-            <Inverter>
-                <Condition ID="GripperIsHomed"/>
-            </Inverter>
-            <Action ID="HomeGripper"/>
-        </Fallback>
+    <BehaviorTree ID="ReactiveRobotSafety">
+        <ReactiveSequence>
+            <SubTree ID="EnsureBatteryIsNoCritical"/>
+            <SubTree ID="RobotIsNotEStopped"/>
+            <SubTree ID="RobotHasNotFallenOver"/>
+            <SubTree ID="RobotIsNotAboutToFallOver"/>
+            <SubTree ID="BatteryIsCharged"/>
+        </ReactiveSequence>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="RobotHasNotFallenOver">
@@ -104,34 +119,65 @@
         </Inverter>
     </BehaviorTree>
     <!-- ////////// -->
+    <BehaviorTree ID="RotateUntilWideAngleSeesBeer">
+        <ReactiveFallback name="SpinUntilBeerSeen">
+            <Condition ID="CanSeeBeerWithWideAngleCamera"/>
+            <ForceFailure>
+                <ReactiveRepeat num_cycles="12">
+                    <Action ID="RotateRobot" degrees="030"/>
+                </ReactiveRepeat>
+            </ForceFailure>
+        </ReactiveFallback>
+    </BehaviorTree>
+    <!-- ////////// -->
     <TreeNodesModel>
-        <SubTree ID="BatterIsyCharged">
-            <input_port default="false" name="__shared_blackboard">If false (default), the Subtree has an isolated blackboard and needs port remapping</input_port>
-        </SubTree>
         <Condition ID="BatteryAboveChargingVoltage"/>
         <Condition ID="BatteryAboveCriticalVoltage"/>
+        <SubTree ID="BatteryIsCharged"/>
+        <Condition ID="BeerIsCenteredInGripper"/>
+        <Condition ID="BlackboardCheckBool">
+            <input_port name="key">Blackboard key to check</input_port>
+            <input_port name="expected" default="true">Expected boolean value</input_port>
+        </Condition>
+        <Condition ID="BeerIsGrasped"/>
+        <Condition ID="CanSeeBeerWithWideAngleCamera"/>
         <Action ID="ChargeBattery"/>
+        <Condition ID="ElevatorIsAtBeerHeight"/>
+        <Condition ID="ElevatorIsAtMaximumHeight"/>
         <SubTree ID="EnsureBatteryIsNoCritical"/>
-        <SubTree ID="EnsureGripperHomed"/>
-        <Action ID="FetchBeer"/>
+        <Condition ID="ExtenderIsRetracted"/>
+        <SubTree ID="FetchBeer"/>
         <SubTree ID="GetNearToBeer"/>
         <Condition ID="GripperIsHomed"/>
-        <SubTree ID="HandleBatteryCharging"/>
-        <SubTree ID="HandleSystemShutdown"/>
         <Action ID="HomeGripper"/>
+        <SubTree ID="HomeGripperIfNeeded">
+            <input_port default="true" name="__shared_blackboard">If false (default), the Subtree has an isolated blackboard and needs port remapping</input_port>
+        </SubTree>
         <Condition ID="IsAtPose">
-            <input_port default="HomeLocation" name="port"/>
+            <input_port default="HomeLocation" name="pose"/>
         </Condition>
+        <Action ID="MoveElevatorRelative">
+            <input_port default="0" name="distance_mm">+/- value to move from current position</input_port>
+        </Action>
         <Action ID="NavigateToPose">
             <input_port default="Home" name="pose">Pose to move robot</input_port>
         </Action>
+        <SubTree ID="ReactiveRobotSafety"/>
+        <Decorator ID="ReactiveRepeat">
+            <input_port name="num_cycles">Number of cycles to repeat</input_port>
+        </Decorator>
         <Action ID="RecoverFromNavigateToPose"/>
+        <Action ID="ReturnBeerToUser"/>
         <SubTree ID="RobotHasNotFallenOver"/>
         <Condition ID="RobotIsEstopped"/>
         <SubTree ID="RobotIsNotAboutToFallOver"/>
         <SubTree ID="RobotIsNotEStopped"/>
         <Condition ID="RobotTiltedCritically"/>
         <Condition ID="RobotTiltedWarning"/>
+        <Action ID="RotateRobot">
+            <input_port default="0" name="degrees">Degrees to rotate in +/- 0..360</input_port>
+        </Action>
+        <SubTree ID="RotateUntilWideAngleSeesBeer"/>
         <Action ID="ShutdownSystem"/>
         <Action ID="SoftwareEStop">
             <input_port default="Help Me" name="reason">Reason to signal emergency stop</input_port>
