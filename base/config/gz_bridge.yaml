@@ -66,3 +66,17 @@
   ros_type_name: "sensor_msgs/msg/JointState"
   gz_type_name: "gz.msgs.Model"
   direction: GZ_TO_ROS
+
+# OAK-D camera info
+- ros_topic_name: "/oakd_top/color/camera_info"
+  gz_topic_name: "/oakd_top/color/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
+# Pi camera info
+- ros_topic_name: "/gripper/camera/camera_info"
+  gz_topic_name: "/gripper/camera/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS

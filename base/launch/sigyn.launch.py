@@ -345,10 +345,7 @@ def generate_launch_description():
         package="ros_gz_image",
         executable="image_bridge",
         condition=IfCondition(use_sim_time),
-        arguments=["/oakd/image_raw"],
-        remappings=[
-            ("/oakd/image_raw", "/oakd_top/color/image/compressed"),
-        ],
+        arguments=["/oakd_top/color/image"],
     )
     ld.add_action(ros_gz_image_bridge_oakd)
 
@@ -357,10 +354,7 @@ def generate_launch_description():
         package="ros_gz_image",
         executable="image_bridge",
         condition=IfCondition(use_sim_time),
-        arguments=["/pi_camera/image_raw"],
-        remappings=[
-            ("/pi_camera/image_raw", "/gripper/camera/image_raw"),
-        ],
+        arguments=["/gripper/camera/image"],
     )
     ld.add_action(ros_gz_image_bridge_pi)
 

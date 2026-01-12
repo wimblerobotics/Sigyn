@@ -45,7 +45,7 @@
             <far>10.0</far>
           </clip>
         </camera>
-        <topic>/oakd/image_raw</topic>
+        <topic>/oakd_top/color/image</topic>
         <gz_frame_id>oakd_sim_optical</gz_frame_id>
       </sensor>
     </gazebo>
@@ -56,7 +56,7 @@
     <joint name="pi_camera_sim_joint" type="fixed">
       <parent link="${parent_link}"/>
       <child link="pi_camera_sim_link"/>
-      <origin xyz="0.05 0 0" rpy="0 0 0"/>
+      <origin xyz="0.0 0.1 -0.125" rpy="-${pi/2} -${pi/2} 0"/>
     </joint>
 
     <link name="pi_camera_sim_link">
@@ -95,7 +95,7 @@
             <far>2.0</far>
           </clip>
         </camera>
-        <topic>/pi_camera/image_raw</topic>
+        <topic>/gripper/camera/image</topic>
         <gz_frame_id>pi_camera_sim_optical</gz_frame_id>
       </sensor>
     </gazebo>
