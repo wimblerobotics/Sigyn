@@ -1,0 +1,13 @@
+{
+  "can_locations": [
+    {
+      "name": "CokeZeroCan",
+      "location": {
+        "x": 0.0,
+        "y": 20.0,
+        "z": 0.75,
+        "comment": "Table location - can is on table surface"
+      }
+    }
+  ]
+}

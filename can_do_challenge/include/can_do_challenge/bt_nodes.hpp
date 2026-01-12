@@ -1,0 +1,503 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Wimblerobotics
+// https://github.com/wimblerobotics/Sigyn
+
+#ifndef CAN_DO_CHALLENGE__BT_NODES_HPP_
+#define CAN_DO_CHALLENGE__BT_NODES_HPP_
+
+#include "behaviortree_cpp_v3/behavior_tree.h"
+#include "behaviortree_cpp_v3/bt_factory.h"
+#include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
+#include "nav2_msgs/action/navigate_to_pose.hpp"
+#include "nav2_msgs/action/compute_path_to_pose.hpp"
+#include "nav2_msgs/action/follow_path.hpp"
+#include "sensor_msgs/msg/image.hpp"
+#include "sensor_msgs/msg/battery_state.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/pose.hpp"
+#include "std_msgs/msg/float64.hpp"
+#include "std_msgs/msg/bool.hpp"
+#include "tf2/LinearMath/Quaternion.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include <memory>
+#include <string>
+#include <atomic>
+#include <chrono>
+#include <fstream>
+
+namespace can_do_challenge
+{
+
+/**
+ * @brief Structure to hold detected object information
+ */
+struct BoundingBox {
+  int x, y, width, height;
+};
+
+struct DetectedObject {
+  std::string name;
+  BoundingBox bounding_box;
+  double confidence;
+  double distance_z; // Distance to object (if available from depth)
+};
+
+/**
+ * @brief Base class for BT nodes that need ROS 2 node access
+ */
+class RosNodeBT {
+protected:
+  std::shared_ptr<rclcpp::Node> node_;
+  
+public:
+  void setRosNode(std::shared_ptr<rclcpp::Node> node) {
+    node_ = node;
+  }
+};
+
+// ============================================================================
+// SAFETY CONDITION NODES
+// ============================================================================
+
+class BatteryAboveChargingVoltage : public BT::ConditionNode, public RosNodeBT
+{
+public:
+  BatteryAboveChargingVoltage(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::ConditionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() { return {}; }
+  BT::NodeStatus tick() override;
+};
+
+class BatteryAboveCriticalVoltage : public BT::ConditionNode, public RosNodeBT
+{
+public:
+  BatteryAboveCriticalVoltage(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::ConditionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() { return {}; }
+  BT::NodeStatus tick() override;
+};
+
+class RobotIsEstopped : public BT::ConditionNode, public RosNodeBT
+{
+public:
+  RobotIsEstopped(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::ConditionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() { return {}; }
+  BT::NodeStatus tick() override;
+};
+
+class RobotTiltedCritically : public BT::ConditionNode, public RosNodeBT
+{
+public:
+  RobotTiltedCritically(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::ConditionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() { return {}; }
+  BT::NodeStatus tick() override;
+};
+
+class RobotTiltedWarning : public BT::ConditionNode, public RosNodeBT
+{
+public:
+  RobotTiltedWarning(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::ConditionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() { return {}; }
+  BT::NodeStatus tick() override;
+};
+
+// ============================================================================
+// VISION CONDITION NODES
+// ============================================================================
+
+class CanDetectedByOAKD : public BT::ConditionNode, public RosNodeBT
+{
+public:
+  CanDetectedByOAKD(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::ConditionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return { BT::InputPort<std::string>("objectOfInterest") };
+  }
+  BT::NodeStatus tick() override;
+};
+
+class CanDetectedByPiCamera : public BT::ConditionNode, public RosNodeBT
+{
+public:
+  CanDetectedByPiCamera(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::ConditionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return { BT::InputPort<std::string>("objectOfInterest") };
+  }
+  BT::NodeStatus tick() override;
+};
+
+class CanCenteredInPiCamera : public BT::ConditionNode, public RosNodeBT
+{
+public:
+  CanCenteredInPiCamera(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::ConditionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return { BT::InputPort<std::string>("objectOfInterest") };
+  }
+  BT::NodeStatus tick() override;
+};
+
+class CanWithinReach : public BT::ConditionNode, public RosNodeBT
+{
+public:
+  CanWithinReach(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::ConditionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return { BT::InputPort<std::string>("objectOfInterest") };
+  }
+  BT::NodeStatus tick() override;
+};
+
+class CanIsGrasped : public BT::ConditionNode, public RosNodeBT
+{
+public:
+  CanIsGrasped(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::ConditionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return { BT::InputPort<std::string>("objectOfInterest") };
+  }
+  BT::NodeStatus tick() override;
+};
+
+class ElevatorAtHeight : public BT::ConditionNode, public RosNodeBT
+{
+public:
+  ElevatorAtHeight(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::ConditionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return { BT::InputPort<double>("targetHeight") };
+  }
+  BT::NodeStatus tick() override;
+};
+
+// ============================================================================
+// NAVIGATION ACTION NODES
+// ============================================================================
+
+class ComputePathToCanLocation : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  ComputePathToCanLocation(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return {
+      BT::InputPort<geometry_msgs::msg::Point>("location"),
+      BT::OutputPort<geometry_msgs::msg::PoseStamped>("goal"),
+      BT::OutputPort<nav_msgs::msg::Path>("path")
+    };
+  }
+  BT::NodeStatus tick() override;
+};
+
+class ComputePathToPose : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  ComputePathToPose(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return {
+      BT::InputPort<geometry_msgs::msg::PoseStamped>("goal"),
+      BT::InputPort<std::string>("planner_id"),
+      BT::OutputPort<nav_msgs::msg::Path>("path"),
+      BT::OutputPort<int>("error_code_id")
+    };
+  }
+  BT::NodeStatus tick() override;
+};
+
+class FollowPath : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  FollowPath(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return {
+      BT::InputPort<nav_msgs::msg::Path>("path"),
+      BT::InputPort<std::string>("controller_id"),
+      BT::OutputPort<int>("error_code_id")
+    };
+  }
+  BT::NodeStatus tick() override;
+};
+
+class MoveTowardsCan : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  MoveTowardsCan(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return { BT::InputPort<std::string>("objectOfInterest") };
+  }
+  BT::NodeStatus tick() override;
+};
+
+class RotateRobot : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  RotateRobot(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return { BT::InputPort<double>("degrees", 0.0, "Degrees to rotate") };
+  }
+  BT::NodeStatus tick() override;
+};
+
+// ============================================================================
+// GRIPPER/ELEVATOR ACTION NODES
+// ============================================================================
+
+class LowerElevator : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  LowerElevator(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() { return {}; }
+  BT::NodeStatus tick() override;
+};
+
+class LowerElevatorSafely : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  LowerElevatorSafely(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() { return {}; }
+  BT::NodeStatus tick() override;
+};
+
+class LowerElevatorToTable : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  LowerElevatorToTable(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() { return {}; }
+  BT::NodeStatus tick() override;
+};
+
+class MoveElevatorToHeight : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  MoveElevatorToHeight(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return { BT::InputPort<double>("targetHeight") };
+  }
+  BT::NodeStatus tick() override;
+};
+
+class ComputeElevatorHeight : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  ComputeElevatorHeight(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return {
+      BT::InputPort<geometry_msgs::msg::Point>("canLocation"),
+      BT::OutputPort<double>("targetHeight")
+    };
+  }
+  BT::NodeStatus tick() override;
+};
+
+class RetractExtender : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  RetractExtender(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() { return {}; }
+  BT::NodeStatus tick() override;
+};
+
+class RetractGripper : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  RetractGripper(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() { return {}; }
+  BT::NodeStatus tick() override;
+};
+
+class OpenGripper : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  OpenGripper(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() { return {}; }
+  BT::NodeStatus tick() override;
+};
+
+class CloseGripperAroundCan : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  CloseGripperAroundCan(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return { BT::InputPort<double>("canDiameter", 0.066, "Diameter of can in meters") };
+  }
+  BT::NodeStatus tick() override;
+};
+
+class ExtendTowardsCan : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  ExtendTowardsCan(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return { BT::InputPort<std::string>("objectOfInterest") };
+  }
+  BT::NodeStatus tick() override;
+};
+
+class AdjustExtenderToCenterCan : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  AdjustExtenderToCenterCan(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return { BT::InputPort<std::string>("objectOfInterest") };
+  }
+  BT::NodeStatus tick() override;
+};
+
+// ============================================================================
+// SETUP/UTILITY ACTION NODES
+// ============================================================================
+
+class SaveRobotPose : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  SaveRobotPose(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return { BT::OutputPort<geometry_msgs::msg::PoseStamped>("saveTo") };
+  }
+  BT::NodeStatus tick() override;
+};
+
+class LoadCanLocation : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  LoadCanLocation(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return {
+      BT::InputPort<std::string>("canName"),
+      BT::OutputPort<geometry_msgs::msg::Point>("location")
+    };
+  }
+  BT::NodeStatus tick() override;
+};
+
+class ChargeBattery : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  ChargeBattery(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() { return {}; }
+  BT::NodeStatus tick() override;
+};
+
+class ShutdownSystem : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  ShutdownSystem(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() { return {}; }
+  BT::NodeStatus tick() override;
+};
+
+class SoftwareEStop : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  SoftwareEStop(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return { BT::InputPort<std::string>("reason", "Emergency stop", "Reason for E-stop") };
+  }
+  BT::NodeStatus tick() override;
+};
+
+class WaitForDetection : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  WaitForDetection(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() { return {}; }
+  BT::NodeStatus tick() override;
+};
+
+class ReportGraspFailure : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  ReportGraspFailure(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() { return {}; }
+  BT::NodeStatus tick() override;
+};
+
+// ============================================================================
+// CUSTOM DECORATOR
+// ============================================================================
+
+class ReactiveRepeat : public BT::DecoratorNode
+{
+public:
+  ReactiveRepeat(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::DecoratorNode(name, config), current_cycle_(0) {}
+  
+  static BT::PortsList providedPorts() {
+    return { BT::InputPort<int>("num_cycles") };
+  }
+  
+  BT::NodeStatus tick() override;
+  
+  void halt() override {
+    current_cycle_ = 0;
+    BT::DecoratorNode::halt();
+  }
+  
+private:
+  int current_cycle_;
+};
+
+}  // namespace can_do_challenge
+
+#endif  // CAN_DO_CHALLENGE__BT_NODES_HPP_
