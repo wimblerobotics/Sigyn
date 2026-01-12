@@ -1,0 +1,139 @@
+<?xml version="1.0" ?>
+<sdf version="1.8">
+  <world name="can_challenge">
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics">
+    </plugin>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands">
+    </plugin>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster">
+    </plugin>
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
+    </plugin>
+
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+            </plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>0.8 0.8 0.8 1</ambient>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+            <specular>0.8 0.8 0.8 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Challenge Table at (0.0, 20.0) -->
+    <model name="challenge_table">
+      <static>true</static>
+      <pose>0.0 20.0 0.35 0 0 0</pose>
+      <link name="table_link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.2 0.8 0.7</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.2 0.8 0.7</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.45 0.3 0.15 1</ambient>
+            <diffuse>0.72 0.48 0.24 1</diffuse>
+            <specular>0.15 0.15 0.15 1</specular>
+            <emissive>0 0 0 1</emissive>
+            <shininess>30</shininess>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- CokeZero Can on table -->
+    <model name="coke_zero_can">
+      <pose>0.0 20.0 0.785 0 0 0</pose>
+      <link name="can_link">
+        <inertial>
+          <mass>0.015</mass>
+          <inertia>
+            <ixx>0.00001</ixx>
+            <iyy>0.00001</iyy>
+            <izz>0.000005</izz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <radius>0.033</radius>
+              <length>0.122</length>
+            </cylinder>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <radius>0.033</radius>
+              <length>0.122</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.0 0.0 0.0 1</ambient>
+            <diffuse>0.1 0.1 0.1 1</diffuse>
+            <specular>0.3 0.3 0.3 1</specular>
+            <emissive>0 0 0 1</emissive>
+          </material>
+        </visual>
+        <!-- Red label band around middle -->
+        <visual name="label">
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.0335</radius>
+              <length>0.04</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.8 0.0 0.0 1</ambient>
+            <diffuse>0.9 0.1 0.1 1</diffuse>
+            <specular>0.2 0.2 0.2 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

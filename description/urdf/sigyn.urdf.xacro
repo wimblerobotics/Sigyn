@@ -167,4 +167,11 @@
 
   <link name="imu_1" />
   <xacro:include filename="$(find description)/urdf/vl53l0x.xacro" />
+  
+  <!-- Simulation cameras for Can Do Challenge -->
+  <xacro:if value="$(arg sim_mode)">
+    <xacro:include filename="$(find description)/urdf/sim_cameras.urdf.xacro" />
+    <xacro:oakd_sim_camera parent_link="base_link"/>
+    <xacro:pi_camera_sim parent_link="parallel_gripper_base_plate"/>
+  </xacro:if>
 </robot>
