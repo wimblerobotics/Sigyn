@@ -1,0 +1,185 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Wimblerobotics
+// https://github.com/wimblerobotics/Sigyn
+
+#include <memory>
+#include <string>
+#include <chrono>
+#include <signal.h>
+#include <atomic>
+
+#include "rclcpp/rclcpp.hpp"
+#include "behaviortree_cpp_v3/bt_factory.h"
+#include "behaviortree_cpp_v3/loggers/bt_cout_logger.h"
+#include "behaviortree_cpp_v3/loggers/bt_zmq_publisher.h"
+
+#include "can_do_challenge/bt_nodes.hpp"
+
+using namespace std::chrono_literals;
+
+// Global flag for signal handling
+std::atomic<bool> g_shutdown_requested{false};
+
+void signal_handler(int signal) {
+  (void)signal;
+  g_shutdown_requested = true;
+  RCLCPP_INFO(rclcpp::get_logger("can_do_challenge"), "Shutdown requested");
+}
+
+namespace can_do_challenge
+{
+
+class CanDoChallengeNode : public rclcpp::Node
+{
+public:
+  CanDoChallengeNode()
+  : Node("can_do_challenge_node")
+  {
+    this->declare_parameter<std::string>("bt_xml_filename", "");
+    this->declare_parameter<bool>("enable_groot_monitoring", true);
+    this->declare_parameter<int>("groot_port", 1667);
+    
+    std::string bt_xml_filename = this->get_parameter("bt_xml_filename").as_string();
+    bool enable_groot = this->get_parameter("enable_groot_monitoring").as_bool();
+    int groot_port = this->get_parameter("groot_port").as_int();
+
+    if (bt_xml_filename.empty()) {
+      RCLCPP_ERROR(this->get_logger(), "Parameter 'bt_xml_filename' is not set.");
+      rclcpp::shutdown();
+      return;
+    }
+
+    RCLCPP_INFO(this->get_logger(), "Loading Behavior Tree from: %s", bt_xml_filename.c_str());
+
+    BT::BehaviorTreeFactory factory;
+
+    // Create shared pointer to this node for BT nodes that need ROS access
+    auto node_ptr = std::shared_ptr<rclcpp::Node>(this, [](rclcpp::Node*){});
+
+    // --- Register all custom nodes ---
+    
+    // Safety Conditions
+    factory.registerNodeType<BatteryAboveChargingVoltage>("BatteryAboveChargingVoltage");
+    factory.registerNodeType<BatteryAboveCriticalVoltage>("BatteryAboveCriticalVoltage");
+    factory.registerNodeType<RobotIsEstopped>("RobotIsEstopped");
+    factory.registerNodeType<RobotTiltedCritically>("RobotTiltedCritically");
+    factory.registerNodeType<RobotTiltedWarning>("RobotTiltedWarning");
+    
+    // Vision Conditions
+    factory.registerNodeType<CanDetectedByOAKD>("CanDetectedByOAKD");
+    factory.registerNodeType<CanDetectedByPiCamera>("CanDetectedByPiCamera");
+    factory.registerNodeType<CanCenteredInPiCamera>("CanCenteredInPiCamera");
+    factory.registerNodeType<CanWithinReach>("CanWithinReach");
+    factory.registerNodeType<CanIsGrasped>("CanIsGrasped");
+    factory.registerNodeType<ElevatorAtHeight>("ElevatorAtHeight");
+    
+    // Navigation Actions
+    factory.registerNodeType<ComputePathToCanLocation>("ComputePathToCanLocation");
+    factory.registerNodeType<ComputePathToPose>("ComputePathToPose");
+    factory.registerNodeType<FollowPath>("FollowPath");
+    factory.registerNodeType<MoveTowardsCan>("MoveTowardsCan");
+    factory.registerNodeType<RotateRobot>("RotateRobot");
+    
+    // Gripper/Elevator Actions
+    factory.registerNodeType<LowerElevator>("LowerElevator");
+    factory.registerNodeType<LowerElevatorSafely>("LowerElevatorSafely");
+    factory.registerNodeType<LowerElevatorToTable>("LowerElevatorToTable");
+    factory.registerNodeType<MoveElevatorToHeight>("MoveElevatorToHeight");
+    factory.registerNodeType<ComputeElevatorHeight>("ComputeElevatorHeight");
+    factory.registerNodeType<RetractExtender>("RetractExtender");
+    factory.registerNodeType<RetractGripper>("RetractGripper");
+    factory.registerNodeType<OpenGripper>("OpenGripper");
+    factory.registerNodeType<CloseGripperAroundCan>("CloseGripperAroundCan");
+    factory.registerNodeType<ExtendTowardsCan>("ExtendTowardsCan");
+    factory.registerNodeType<AdjustExtenderToCenterCan>("AdjustExtenderToCenterCan");
+    
+    // Setup/Utility Actions
+    factory.registerNodeType<SaveRobotPose>("SaveRobotPose");
+    factory.registerNodeType<LoadCanLocation>("LoadCanLocation");
+    factory.registerNodeType<ChargeBattery>("ChargeBattery");
+    factory.registerNodeType<ShutdownSystem>("ShutdownSystem");
+    factory.registerNodeType<SoftwareEStop>("SoftwareEStop");
+    factory.registerNodeType<WaitForDetection>("WaitForDetection");
+    factory.registerNodeType<ReportGraspFailure>("ReportGraspFailure");
+    
+    // Custom Decorator
+    factory.registerNodeType<ReactiveRepeat>("ReactiveRepeat");
+
+    // Create the behavior tree
+    try {
+      tree_ = factory.createTreeFromFile(bt_xml_filename);
+      
+      // Set ROS node for all custom nodes
+      for (auto& node : tree_.nodes) {
+        if (auto ros_node = dynamic_cast<RosNodeBT*>(node.get())) {
+          ros_node->setRosNode(node_ptr);
+        }
+      }
+      
+      RCLCPP_INFO(this->get_logger(), "Behavior Tree loaded successfully");
+      
+      // Setup Groot monitoring if enabled
+      if (enable_groot) {
+        groot_publisher_ = std::make_unique<BT::PublisherZMQ>(tree_, 10, groot_port, groot_port + 1);
+        RCLCPP_INFO(this->get_logger(), "Groot monitoring enabled on port %d", groot_port);
+      }
+      
+      // Create timer to tick the behavior tree
+      timer_ = this->create_wall_timer(
+        100ms,
+        std::bind(&CanDoChallengeNode::tickTree, this));
+        
+    } catch (const std::exception& e) {
+      RCLCPP_ERROR(this->get_logger(), "Error loading behavior tree: %s", e.what());
+      rclcpp::shutdown();
+    }
+  }
+
+private:
+  void tickTree()
+  {
+    if (g_shutdown_requested) {
+      RCLCPP_INFO(this->get_logger(), "Stopping behavior tree execution");
+      timer_->cancel();
+      rclcpp::shutdown();
+      return;
+    }
+
+    BT::NodeStatus status = tree_.tickRoot();
+    
+    if (status == BT::NodeStatus::SUCCESS) {
+      RCLCPP_INFO(this->get_logger(), "Behavior tree completed successfully!");
+      timer_->cancel();
+      rclcpp::shutdown();
+    } else if (status == BT::NodeStatus::FAILURE) {
+      RCLCPP_ERROR(this->get_logger(), "Behavior tree failed!");
+      timer_->cancel();
+      rclcpp::shutdown();
+    }
+    // If RUNNING, continue ticking
+  }
+
+  BT::Tree tree_;
+  rclcpp::TimerBase::SharedPtr timer_;
+  std::unique_ptr<BT::PublisherZMQ> groot_publisher_;
+};
+
+}  // namespace can_do_challenge
+
+int main(int argc, char** argv)
+{
+  rclcpp::init(argc, argv);
+  
+  // Setup signal handler
+  signal(SIGINT, signal_handler);
+  signal(SIGTERM, signal_handler);
+  
+  auto node = std::make_shared<can_do_challenge::CanDoChallengeNode>();
+  
+  RCLCPP_INFO(node->get_logger(), "Can Do Challenge node started");
+  
+  rclcpp::spin(node);
+  rclcpp::shutdown();
+  
+  return 0;
+}
