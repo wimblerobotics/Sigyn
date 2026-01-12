@@ -599,12 +599,21 @@ def generate_launch_description():
     # )
     # ld.add_action(sigyn_to_elevator)
 
+    rviz_env = {}
+    if on_a_mac:
+        # Force software rendering for RViz on Apple Silicon/VMs to avoid shader issues
+        rviz_env["LIBGL_ALWAYS_SOFTWARE"] = "1"
+        # Optional: still keep these if software rendering adheres to them, but usually implicit
+        # rviz_env["MESA_GL_VERSION_OVERRIDE"] = "3.3"
+        # rviz_env["MESA_GLSL_VERSION_OVERRIDE"] = "330"
+
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
         name="rviz2",
         condition=IfCondition(LaunchConfiguration("do_rviz")),
         arguments=["-d", rviz_config_path],
+        additional_env=rviz_env,
     )
     ld.add_action(rviz_node)
 
