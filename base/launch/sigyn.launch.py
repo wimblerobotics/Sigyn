@@ -238,7 +238,8 @@ def generate_launch_description():
     ld.add_action(gz_resource_path)
 
     # Include the Gazebo launch file, provided by the ros_gz_sim package
-    gz_args = "-r -v4 --render-engine ogre " if on_a_mac else "-r -v4 "
+    # Mac uses ogre (ogre2 has issues), AMD/Linux uses ogre2 (required for gpu_lidar)
+    gz_args = "-r -v4 --render-engine ogre " if on_a_mac else "-r -v4 --render-engine ogre2 "
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             [
@@ -339,13 +340,29 @@ def generate_launch_description():
     )
     ld.add_action(ros_gz_bridge)
 
-    ros_gz_image_bridge = Node(
+    # OAK-D camera image bridge
+    ros_gz_image_bridge_oakd = Node(
         package="ros_gz_image",
         executable="image_bridge",
         condition=IfCondition(use_sim_time),
-        arguments=["/camera/image_raw"],
+        arguments=["/oakd/image_raw"],
+        remappings=[
+            ("/oakd/image_raw", "/oakd_top/color/image/compressed"),
+        ],
     )
-    ld.add_action(ros_gz_image_bridge)
+    ld.add_action(ros_gz_image_bridge_oakd)
+
+    # Pi camera image bridge
+    ros_gz_image_bridge_pi = Node(
+        package="ros_gz_image",
+        executable="image_bridge",
+        condition=IfCondition(use_sim_time),
+        arguments=["/pi_camera/image_raw"],
+        remappings=[
+            ("/pi_camera/image_raw", "/gripper/camera/image_raw"),
+        ],
+    )
+    ld.add_action(ros_gz_image_bridge_pi)
 
     # Bring up the navigation stack.
     navigation_launch_path = PathJoinSubstitution(
@@ -373,6 +390,7 @@ def generate_launch_description():
             "use_sim_time": use_sim_time,
             "use_localization": "True",
             "container_name": "nav2_container",
+            "bt_xml": bt_xml,
         }.items(),
     )
     ld.add_action(nav2_launch)

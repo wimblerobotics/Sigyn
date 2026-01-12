@@ -48,6 +48,7 @@ def generate_launch_description():
     use_range_sensors = LaunchConfiguration('use_range_sensors')
     params_file = LaunchConfiguration('params_file')
     autostart = LaunchConfiguration('autostart')
+    bt_xml = LaunchConfiguration('bt_xml')
     use_composition = LaunchConfiguration('use_composition')
     use_respawn = LaunchConfiguration('use_respawn')
     log_level = LaunchConfiguration('log_level')
@@ -71,8 +72,8 @@ def generate_launch_description():
         condition=IfCondition(use_namespace),
     )
 
-    base_directory_path = get_package_share_directory("base")
-    bt_xml_path = os.path.join(base_directory_path, "config", "nav_through_poses.xmlx")
+    base_directory_path = get_package_share_directory('base')
+    default_bt_xml_path = os.path.join(base_directory_path, "config", "nav_through_poses.xmlx")
 
     # Range sensors:
     # - default is 'auto': enabled on real robot, disabled in simulation
@@ -82,9 +83,13 @@ def generate_launch_description():
         "'False' if '", use_range_sensors, "'.lower() == 'false' else (",
         "'False' if '", use_sim_time, "'.lower() == 'true' else 'True'))"
     ])
+    
+    # Use bt_xml if provided (non-empty), otherwise use default
+    bt_xml_to_use = PythonExpression(["'", bt_xml, "' if '", bt_xml, "' else '", default_bt_xml_path, "'"])
 
     param_substitutions = {
-      'bt_navigator.ros__parameters.default_nav_through_poses_bt_xml': bt_xml_path,
+      'bt_navigator.ros__parameters.default_nav_through_poses_bt_xml': bt_xml_to_use,
+      'bt_navigator.ros__parameters.default_nav_to_pose_bt_xml': bt_xml_to_use,
       # Disable VL53 RangeSensorLayer in simulation (no Teensy topics), enable on real robot.
       'local_costmap.local_costmap.ros__parameters.range_sensor_layer.enabled': range_sensor_layer_enabled,
     }
@@ -168,6 +173,12 @@ def generate_launch_description():
         'log_level', default_value='info', description='log level'
     )
 
+    declare_bt_xml_cmd = DeclareLaunchArgument(
+        'bt_xml',
+        default_value='',
+        description='Full path to the behavior tree xml file to use. If empty, uses default nav_through_poses.xmlx'
+    )
+
     # Specify the actions
     bringup_cmd_group = GroupAction(
         [
@@ -247,6 +258,7 @@ def generate_launch_description():
     ld.add_action(declare_use_respawn_cmd)
     ld.add_action(declare_log_level_cmd)
     ld.add_action(declare_use_localization_cmd)
+    ld.add_action(declare_bt_xml_cmd)
 
     # Add the actions to launch all of the navigation nodes
     ld.add_action(bringup_cmd_group)
