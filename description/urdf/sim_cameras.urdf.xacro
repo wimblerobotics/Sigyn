@@ -1,0 +1,104 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- OAK-D Camera for Simulation (RGB camera on elevator) -->
+  <xacro:macro name="oakd_sim_camera" params="parent_link">
+    <joint name="oakd_sim_joint" type="fixed">
+      <parent link="${parent_link}"/>
+      <child link="oakd_sim_link"/>
+      <origin xyz="-0.12 -0.02 1.47" rpy="0 ${(pi / 4)+13*(2.0*pi/360.0)} ${-0*(2.0*pi/360.0)}"/>
+    </joint>
+
+    <link name="oakd_sim_link">
+      <visual>
+        <geometry>
+          <box size="0.09 0.03 0.025"/>
+        </geometry>
+        <material name="grey">
+          <color rgba="0.5 0.5 0.5 1"/>
+        </material>
+      </visual>
+    </link>
+
+    <joint name="oakd_sim_optical_joint" type="fixed">
+      <parent link="oakd_sim_link"/>
+      <child link="oakd_sim_optical"/>
+      <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    </joint>
+
+    <link name="oakd_sim_optical"/>
+
+    <gazebo reference="oakd_sim_link">
+      <sensor name="oakd_camera" type="camera">
+        <pose>0 0 0 0 0 0</pose>
+        <visualize>true</visualize>
+        <update_rate>30</update_rate>
+        <camera>
+          <horizontal_fov>1.2</horizontal_fov>
+          <image>
+            <format>R8G8B8</format>
+            <width>1280</width>
+            <height>720</height>
+          </image>
+          <clip>
+            <near>0.05</near>
+            <far>10.0</far>
+          </clip>
+        </camera>
+        <topic>/oakd/image_raw</topic>
+        <gz_frame_id>oakd_sim_optical</gz_frame_id>
+      </sensor>
+    </gazebo>
+  </xacro:macro>
+
+  <!-- Pi Camera for Simulation (on gripper for close-up centering) -->
+  <xacro:macro name="pi_camera_sim" params="parent_link">
+    <joint name="pi_camera_sim_joint" type="fixed">
+      <parent link="${parent_link}"/>
+      <child link="pi_camera_sim_link"/>
+      <origin xyz="0.05 0 0" rpy="0 0 0"/>
+    </joint>
+
+    <link name="pi_camera_sim_link">
+      <visual>
+        <geometry>
+          <box size="0.025 0.025 0.010"/>
+        </geometry>
+        <material name="green">
+          <color rgba="0.0 0.6 0.0 1"/>
+        </material>
+      </visual>
+    </link>
+
+    <joint name="pi_camera_sim_optical_joint" type="fixed">
+      <parent link="pi_camera_sim_link"/>
+      <child link="pi_camera_sim_optical"/>
+      <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    </joint>
+
+    <link name="pi_camera_sim_optical"/>
+
+    <gazebo reference="pi_camera_sim_link">
+      <sensor name="pi_camera" type="camera">
+        <pose>0 0 0 0 0 0</pose>
+        <visualize>true</visualize>
+        <update_rate>15</update_rate>
+        <camera>
+          <horizontal_fov>1.085</horizontal_fov>
+          <image>
+            <format>R8G8B8</format>
+            <width>640</width>
+            <height>480</height>
+          </image>
+          <clip>
+            <near>0.02</near>
+            <far>2.0</far>
+          </clip>
+        </camera>
+        <topic>/pi_camera/image_raw</topic>
+        <gz_frame_id>pi_camera_sim_optical</gz_frame_id>
+      </sensor>
+    </gazebo>
+  </xacro:macro>
+
+</robot>
