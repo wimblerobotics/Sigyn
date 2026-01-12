@@ -10,13 +10,13 @@
     <!-- ////////// -->
     <BehaviorTree ID="BehaviorTree">
         <Sequence>
-            <Action ID="SetRobotLocation" currentLocation=""/>
-            <SubTree ID="SetupFetchAnObject" __shared_blackboard="true" objectOfInterest="&quot;codeZeroCan&quot;"/>
+            <Action ID="SetRobotLocation" currentLocation="{currentLocation}"/>
+            <SubTree ID="SetupFetchAnObject" __shared_blackboard="true" objectOfInterest="&quot;cokeZeroCan&quot;"/>
             <ReactiveSequence name="FindFetchReturnObject">
                 <SubTree ID="ReactiveRobotSafety"/>
                 <SubTree ID="FindObjectOfInterest" __shared_blackboard="true" objectOfInterest="{objectOfInterest}" shouldHomeGripper="true"/>
                 <SubTree ID="FetchObjectOfInterest" __shared_blackboard="true" objectOfInterest="{objectOfInterest}"/>
-                <SubTree ID="NavigatoToLocation" __shared_blackboard="true" location="{objectOfInterest}"/>
+                <SubTree ID="NavigateToLocation" __shared_blackboard="true" location="{locationOfCokeZeroCan}"/>
             </ReactiveSequence>
         </Sequence>
     </BehaviorTree>
@@ -69,17 +69,10 @@
             <ReactiveSequence>
                 <SubTree ID="HomeGripperIfNeeded" __shared_blackboard="true" shouldHomeGripper="true"/>
                 <ForceFailure>
-                    <Action ID="NavigateToPose" pose="{objectOfInterest}"/>
+                    <SubTree ID="NavigatoToLocation" __shared_blackboard="true" location="{objectOfInterest}"/>
                 </ForceFailure>
             </ReactiveSequence>
         </ReactiveFallback>
-    </BehaviorTree>
-    <!-- ////////// -->
-    <BehaviorTree ID="GoToGoal">
-        <Sequence name="Move to a goal">
-            <Action ID="ComputePathToPose" error_code_id="" goal="{goal}" path="{path}" planner_id="{selected_planner}"/>
-            <Action ID="FollowPath" controller_id="{selected_controller}" error_code_id="{follow_path_error_code}" path="{path}"/>
-        </Sequence>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="HomeGripperIfNeeded">
@@ -99,10 +92,10 @@
     <!-- ////////// -->
     <BehaviorTree ID="ReactiveRobotSafety">
         <ReactiveSequence>
-            <SubTree ID="EnsureBatteryIsNoCritical"/>
-            <SubTree ID="RobotIsNotEStopped"/>
             <SubTree ID="RobotHasNotFallenOver"/>
             <SubTree ID="RobotIsNotAboutToFallOver"/>
+            <SubTree ID="RobotIsNotEStopped"/>
+            <SubTree ID="EnsureBatteryIsNoCritical"/>
             <SubTree ID="BatteryIsCharged"/>
         </ReactiveSequence>
     </BehaviorTree>
@@ -145,7 +138,7 @@
     <BehaviorTree ID="SetupFetchAnObject">
         <Sequence>
             <SetBlackboard output_key="whereIAm" value="{currentLocation}"/>
-            <SetBlackboard output_key="objectOfInterest" value="&quot;BeerCan&quot;"/>
+            <SetBlackboard output_key="objectOfInterest" value="&quot;{objectOfInterest{}&quot;"/>
         </Sequence>
     </BehaviorTree>
     <!-- ////////// -->
@@ -162,7 +155,7 @@
             <input_port default="{location}" name="location">Location to compute goal for</input_port>
         </Action>
         <Action ID="ComputePathToPose">
-            <output_port name="error_code_id">Start pose</output_port>
+            <output_port name="error_code_id">Error code port</output_port>
             <input_port name="goal">Goal pose</input_port>
             <output_port name="path">Path</output_port>
             <input_port name="planner_id">Planner to use</input_port>
@@ -180,20 +173,13 @@
         <SubTree ID="FindObjectOfInterest">
             <input_port default="true" name="__shared_blackboard">If false (default), the Subtree has an isolated blackboard and needs port remapping</input_port>
             <input_port default="{objectOfInterest}" name="objectOfInterest"/>
-            <input_port default="{travelWithGripperHomed}" name="shouldHomeGripper"/>
+            <input_port default="true" name="shouldHomeGripper"/>
         </SubTree>
         <Action ID="FollowPath">
             <input_port name="controller_id">Controller to use</input_port>
             <output_port name="error_code_id">Error code</output_port>
             <input_port name="path">Path to follow</input_port>
         </Action>
-        <SubTree ID="GoToGoal">
-            <input_port default="true" name="__shared_blackboard">If false (default), the Subtree has an isolated blackboard and needs port remapping</input_port>
-            <input_port name="goal">Goal pose to navigate to</input_port>
-            <input_port name="selected_controller">Controller ID to use</input_port>
-            <input_port name="selected_planner">Planner ID to use</input_port>
-        </SubTree>
-        <Condition ID="GripperIsHomed"/>
         <Action ID="HomeGripper"/>
         <SubTree ID="HomeGripperIfNeeded">
             <input_port default="true" name="__shared_blackboard">If false (default), the Subtree has an isolated blackboard and needs port remapping</input_port>
@@ -204,9 +190,6 @@
         </Condition>
         <Action ID="MoveElevatorRelative">
             <input_port default="0" name="distance_mm">+/- value to move from current position</input_port>
-        </Action>
-        <Action ID="NavigateToPose">
-            <input_port default="Home" name="pose">Pose to move robot</input_port>
         </Action>
         <SubTree ID="NavigatoToLocation">
             <input_port default="true" name="__shared_blackboard">If false (default), the Subtree has an isolated blackboard and needs port remapping</input_port>
@@ -222,10 +205,6 @@
             <input_port name="num_cycles">Number of cycles to repeat</input_port>
         </Decorator>
         <SubTree ID="ReactiveRobotSafety"/>
-        <Action ID="RecoverFromNavigateToPose"/>
-        <Action ID="ReturnToLocation">
-            <input_port default="{whereIAm}" name="location"/>
-        </Action>
         <SubTree ID="RobotHasNotFallenOver"/>
         <Condition ID="RobotIsEstopped"/>
         <SubTree ID="RobotIsNotAboutToFallOver"/>
