@@ -9,6 +9,7 @@
 #include <atomic>
 
 #include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/bool.hpp"
 #include "behaviortree_cpp_v3/bt_factory.h"
 #include "behaviortree_cpp_v3/loggers/bt_cout_logger.h"
 #include "behaviortree_cpp_v3/loggers/bt_zmq_publisher.h"
@@ -33,15 +34,20 @@ class CanDoChallengeNode : public rclcpp::Node
 {
 public:
   CanDoChallengeNode()
-  : Node("can_do_challenge_node")
+  : Node("can_do_challenge_node"),
+    step_manually_(false),
+    tick_requested_(false)
   {
+    // Note: use_sim_time is automatically declared by rclcpp::Node, don't declare it again
     this->declare_parameter<std::string>("bt_xml_filename", "");
     this->declare_parameter<bool>("enable_groot_monitoring", true);
     this->declare_parameter<int>("groot_port", 1667);
+    this->declare_parameter<bool>("step_manually", false);
     
     std::string bt_xml_filename = this->get_parameter("bt_xml_filename").as_string();
     bool enable_groot = this->get_parameter("enable_groot_monitoring").as_bool();
     int groot_port = this->get_parameter("groot_port").as_int();
+    step_manually_ = this->get_parameter("step_manually").as_bool();
 
     if (bt_xml_filename.empty()) {
       RCLCPP_ERROR(this->get_logger(), "Parameter 'bt_xml_filename' is not set.");
@@ -124,10 +130,25 @@ public:
         RCLCPP_INFO(this->get_logger(), "Groot monitoring enabled on port %d", groot_port);
       }
       
-      // Create timer to tick the behavior tree
-      timer_ = this->create_wall_timer(
-        100ms,
-        std::bind(&CanDoChallengeNode::tickTree, this));
+      // Setup manual stepping if enabled
+      if (step_manually_) {
+        RCLCPP_INFO(this->get_logger(), "Manual stepping mode enabled");
+        tick_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+          "/can_do_challenge/bt_tick",
+          10,
+          std::bind(&CanDoChallengeNode::tickCommandCallback, this, std::placeholders::_1));
+        
+        // Create timer that checks for tick requests
+        timer_ = this->create_wall_timer(
+          10ms,  // Check frequently for tick requests
+          std::bind(&CanDoChallengeNode::checkForTickRequest, this));
+      } else {
+        // Automatic mode - tick continuously
+        RCLCPP_INFO(this->get_logger(), "Automatic execution mode");
+        timer_ = this->create_wall_timer(
+          100ms,
+          std::bind(&CanDoChallengeNode::tickTree, this));
+      }
         
     } catch (const std::exception& e) {
       RCLCPP_ERROR(this->get_logger(), "Error loading behavior tree: %s", e.what());
@@ -136,6 +157,21 @@ public:
   }
 
 private:
+  void tickCommandCallback(const std_msgs::msg::Bool::SharedPtr msg)
+  {
+    if (msg->data && step_manually_) {
+      tick_requested_ = true;
+      RCLCPP_INFO(this->get_logger(), "Manual tick requested");
+    }
+  }
+  
+  void checkForTickRequest()
+  {
+    if (tick_requested_) {
+      tick_requested_ = false;
+      tickTree();
+    }
+  }
   void tickTree()
   {
     if (g_shutdown_requested) {
@@ -162,6 +198,11 @@ private:
   BT::Tree tree_;
   rclcpp::TimerBase::SharedPtr timer_;
   std::unique_ptr<BT::PublisherZMQ> groot_publisher_;
+  
+  // Manual stepping support
+  bool step_manually_;
+  std::atomic<bool> tick_requested_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr tick_sub_;
 };
 
 }  // namespace can_do_challenge
