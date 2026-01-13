@@ -3,13 +3,118 @@
 // https://github.com/wimblerobotics/Sigyn
 
 #include "can_do_challenge/bt_nodes.hpp"
+#include "sigyn_interfaces/msg/e_stop_status.hpp"
 #include <fstream>
 #include <sstream>
+#include <thread>
 
 using namespace std::chrono_literals;
 
 namespace can_do_challenge
 {
+
+// Global sensor state (updated by subscribers)
+struct SimulatedSensorState {
+  double battery_voltage = 36.0;
+  double roll_angle = 0.0;  // radians
+  double pitch_angle = 0.0; // radians
+  bool estop_triggered = false;
+  double elevator_position = 0.0;  // meters
+  double extender_position = 0.0;  // meters
+  bool use_sim_time = false;
+  
+  rclcpp::Time last_battery_update;
+  rclcpp::Time last_imu_update;
+  rclcpp::Time last_estop_update;
+  
+  // Thresholds
+  static constexpr double CHARGING_VOLTAGE = 35.0;  // Volts
+  static constexpr double CRITICAL_VOLTAGE = 30.0;   // Volts
+  static constexpr double WARNING_TILT = 20.0 * M_PI / 180.0;  // 20 degrees
+  static constexpr double CRITICAL_TILT = 30.0 * M_PI / 180.0; // 30 degrees
+};
+
+static SimulatedSensorState g_sensor_state;
+static std::mutex g_sensor_mutex;
+
+// Initialize subscribers for simulated sensors
+static void initializeSimulatedSensors(std::shared_ptr<rclcpp::Node> node) {
+  static bool initialized = false;
+  if (initialized) return;
+  
+  // Check if we're in simulation (use_sim_time is already declared by rclcpp::Node)
+  g_sensor_state.use_sim_time = node->get_parameter("use_sim_time").as_bool();
+  
+  if (!g_sensor_state.use_sim_time) {
+    RCLCPP_INFO(node->get_logger(), "Real hardware mode - subscribing to real sensor topics");
+    // TODO: Subscribe to real hardware topics
+    initialized = true;
+    return;
+  }
+  
+  RCLCPP_INFO(node->get_logger(), "Simulation mode - subscribing to simulated sensor topics");
+  
+  // Subscribe to simulated battery
+  auto battery_sub = node->create_subscription<sensor_msgs::msg::BatteryState>(
+    "/sigyn/teensy_bridge/battery/status", 10,
+    [node](const sensor_msgs::msg::BatteryState::SharedPtr msg) {
+      std::lock_guard<std::mutex> lock(g_sensor_mutex);
+      g_sensor_state.battery_voltage = msg->voltage;
+      g_sensor_state.last_battery_update = node->now();
+    });
+  
+  // Subscribe to simulated IMU
+  auto imu_sub = node->create_subscription<sensor_msgs::msg::Imu>(
+    "/sigyn/teensy_bridge/imu/sensor_0", 10,
+    [node](const sensor_msgs::msg::Imu::SharedPtr msg) {
+      std::lock_guard<std::mutex> lock(g_sensor_mutex);
+      // Extract roll and pitch from quaternion
+      double qx = msg->orientation.x;
+      double qy = msg->orientation.y;
+      double qz = msg->orientation.z;
+      double qw = msg->orientation.w;
+      
+      // Roll (x-axis rotation)
+      double sinr_cosp = 2 * (qw * qx + qy * qz);
+      double cosr_cosp = 1 - 2 * (qx * qx + qy * qy);
+      g_sensor_state.roll_angle = std::atan2(sinr_cosp, cosr_cosp);
+      
+      // Pitch (y-axis rotation)
+      double sinp = 2 * (qw * qy - qz * qx);
+      if (std::abs(sinp) >= 1)
+        g_sensor_state.pitch_angle = std::copysign(M_PI / 2, sinp);
+      else
+        g_sensor_state.pitch_angle = std::asin(sinp);
+      
+      g_sensor_state.last_imu_update = node->now();
+    });
+  
+  // Subscribe to simulated E-stop
+  auto estop_sub = node->create_subscription<sigyn_interfaces::msg::EStopStatus>(
+    "/sigyn/teensy_bridge/safety/estop_status", 10,
+    [node](const sigyn_interfaces::msg::EStopStatus::SharedPtr msg) {
+      std::lock_guard<std::mutex> lock(g_sensor_mutex);
+      g_sensor_state.estop_triggered = msg->active;  // Field is 'active' not 'estop_triggered'
+      g_sensor_state.last_estop_update = node->now();
+    });
+  
+  // Subscribe to gripper commands to track simulated positions
+  auto gripper_sub = node->create_subscription<geometry_msgs::msg::Twist>(
+    "/cmd_vel_gripper", 10,
+    [](const geometry_msgs::msg::Twist::SharedPtr msg) {
+      std::lock_guard<std::mutex> lock(g_sensor_mutex);
+      // Integrate velocities (very simple simulation)
+      double dt = 0.1;  // Assume 10Hz updates
+      g_sensor_state.elevator_position += msg->linear.x * dt;
+      g_sensor_state.extender_position += msg->angular.z * dt;
+      
+      // Clamp to physical limits
+      g_sensor_state.elevator_position = std::max(0.0, std::min(4.0, g_sensor_state.elevator_position));
+      g_sensor_state.extender_position = std::max(0.0, std::min(0.5, g_sensor_state.extender_position));
+    });
+  
+  initialized = true;
+}
 
 // ============================================================================
 // SAFETY CONDITION NODES
@@ -17,42 +122,80 @@ namespace can_do_challenge
 
 BT::NodeStatus BatteryAboveChargingVoltage::tick()
 {
-  // Placeholder: Always return SUCCESS (battery is above charging voltage)
-  // TODO: Subscribe to /sigyn/teensy_bridge/battery/status and check voltage
-  RCLCPP_DEBUG(node_->get_logger(), "[BatteryAboveChargingVoltage] Checking battery");
-  return BT::NodeStatus::SUCCESS;
+  initializeSimulatedSensors(node_);
+  
+  std::lock_guard<std::mutex> lock(g_sensor_mutex);
+  bool above_threshold = g_sensor_state.battery_voltage > SimulatedSensorState::CHARGING_VOLTAGE;
+  
+  RCLCPP_INFO(node_->get_logger(), "[BatteryAboveChargingVoltage] Voltage: %.2fV (threshold: %.2fV) -> %s",
+    g_sensor_state.battery_voltage, SimulatedSensorState::CHARGING_VOLTAGE,
+    above_threshold ? "SUCCESS" : "FAILURE");
+    
+  return above_threshold ? BT::NodeStatus::SUCCESS : BT::NodeStatus::FAILURE;
 }
 
 BT::NodeStatus BatteryAboveCriticalVoltage::tick()
 {
-  // Placeholder: Always return SUCCESS (battery is above critical voltage)
-  // TODO: Subscribe to battery state and check for critical level
-  RCLCPP_DEBUG(node_->get_logger(), "[BatteryAboveCriticalVoltage] Checking battery");
-  return BT::NodeStatus::SUCCESS;
+  initializeSimulatedSensors(node_);
+  
+  std::lock_guard<std::mutex> lock(g_sensor_mutex);
+  bool above_threshold = g_sensor_state.battery_voltage > SimulatedSensorState::CRITICAL_VOLTAGE;
+  
+  RCLCPP_INFO(node_->get_logger(), "[BatteryAboveCriticalVoltage] Voltage: %.2fV (threshold: %.2fV) -> %s",
+    g_sensor_state.battery_voltage, SimulatedSensorState::CRITICAL_VOLTAGE,
+    above_threshold ? "SUCCESS" : "FAILURE");
+  
+  return above_threshold ? BT::NodeStatus::SUCCESS : BT::NodeStatus::FAILURE;
 }
 
 BT::NodeStatus RobotIsEstopped::tick()
 {
-  // Placeholder: Always return FAILURE (not estopped)
-  // TODO: Subscribe to /sigyn/teensy_bridge/estop and check state
-  RCLCPP_DEBUG(node_->get_logger(), "[RobotIsEstopped] Checking E-stop");
+  initializeSimulatedSensors(node_);
+  
+  std::lock_guard<std::mutex> lock(g_sensor_mutex);
+  
+  if (g_sensor_state.estop_triggered) {
+    RCLCPP_WARN(node_->get_logger(), "[RobotIsEstopped] E-STOP IS TRIGGERED!");
+    return BT::NodeStatus::SUCCESS;
+  }
+  
+  RCLCPP_INFO(node_->get_logger(), "[RobotIsEstopped] E-stop check: NOT TRIGGERED (SAFE)");
+  // Returns SUCCESS if estopped, FAILURE if not (inverted logic for safety)
   return BT::NodeStatus::FAILURE;
 }
 
 BT::NodeStatus RobotTiltedCritically::tick()
 {
-  // Placeholder: Always return FAILURE (not tilted critically)
-  // TODO: Subscribe to IMU and check tilt angle
-  RCLCPP_DEBUG(node_->get_logger(), "[RobotTiltedCritically] Checking tilt");
-  return BT::NodeStatus::FAILURE;
+  initializeSimulatedSensors(node_);
+  
+  std::lock_guard<std::mutex> lock(g_sensor_mutex);
+  double max_tilt = std::max(std::abs(g_sensor_state.roll_angle), std::abs(g_sensor_state.pitch_angle));
+  bool critical = max_tilt > SimulatedSensorState::CRITICAL_TILT;
+  
+  if (critical) {
+    RCLCPP_ERROR(node_->get_logger(), "[RobotTiltedCritically] CRITICAL TILT! Roll: %.1f°, Pitch: %.1f°",
+      g_sensor_state.roll_angle * 180.0 / M_PI,
+      g_sensor_state.pitch_angle * 180.0 / M_PI);
+  }
+  
+  return critical ? BT::NodeStatus::SUCCESS : BT::NodeStatus::FAILURE;
 }
 
 BT::NodeStatus RobotTiltedWarning::tick()
 {
-  // Placeholder: Always return FAILURE (no tilt warning)
-  // TODO: Subscribe to IMU and check tilt angle
-  RCLCPP_DEBUG(node_->get_logger(), "[RobotTiltedWarning] Checking tilt");
-  return BT::NodeStatus::FAILURE;
+  initializeSimulatedSensors(node_);
+  
+  std::lock_guard<std::mutex> lock(g_sensor_mutex);
+  double max_tilt = std::max(std::abs(g_sensor_state.roll_angle), std::abs(g_sensor_state.pitch_angle));
+  bool warning = max_tilt > SimulatedSensorState::WARNING_TILT;
+  
+  if (warning) {
+    RCLCPP_WARN(node_->get_logger(), "[RobotTiltedWarning] Tilt warning! Roll: %.1f°, Pitch: %.1f°",
+      g_sensor_state.roll_angle * 180.0 / M_PI,
+      g_sensor_state.pitch_angle * 180.0 / M_PI);
+  }
+  
+  return warning ? BT::NodeStatus::SUCCESS : BT::NodeStatus::FAILURE;
 }
 
 // ============================================================================
@@ -193,7 +336,7 @@ BT::NodeStatus FollowPath::tick()
   setOutput("error_code_id", 0);
   
   // Simulate navigation time
-  rclcpp::sleep_for(2s);
+  std::this_thread::sleep_for(2s);
   
   return BT::NodeStatus::SUCCESS;
 }
@@ -208,7 +351,7 @@ BT::NodeStatus MoveTowardsCan::tick()
   RCLCPP_INFO(node_->get_logger(), "[MoveTowardsCan] Moving towards '%s'", 
               object_name.c_str());
   
-  rclcpp::sleep_for(1s);
+  std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -221,7 +364,7 @@ BT::NodeStatus RotateRobot::tick()
   // TODO: Publish twist command or use Nav2 rotate recovery
   RCLCPP_INFO(node_->get_logger(), "[RotateRobot] Rotating %.1f degrees", degrees);
   
-  rclcpp::sleep_for(500ms);
+  std::this_thread::sleep_for(500ms);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -234,7 +377,7 @@ BT::NodeStatus LowerElevator::tick()
   // Placeholder: Lower elevator to minimum height
   // TODO: Publish to gripper control topic
   RCLCPP_INFO(node_->get_logger(), "[LowerElevator] Lowering elevator to minimum");
-  rclcpp::sleep_for(1s);
+  std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -243,7 +386,7 @@ BT::NodeStatus LowerElevatorSafely::tick()
   // Placeholder: Lower elevator to safe travel height with can
   // TODO: Lower to just above base, not touching top plate
   RCLCPP_INFO(node_->get_logger(), "[LowerElevatorSafely] Lowering elevator to safe height");
-  rclcpp::sleep_for(1s);
+  std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -252,7 +395,7 @@ BT::NodeStatus LowerElevatorToTable::tick()
   // Placeholder: Lower elevator to table surface height
   // TODO: Use known table height or visual feedback
   RCLCPP_INFO(node_->get_logger(), "[LowerElevatorToTable] Lowering to table surface");
-  rclcpp::sleep_for(1s);
+  std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -265,7 +408,7 @@ BT::NodeStatus MoveElevatorToHeight::tick()
   // TODO: Publish elevator position command
   RCLCPP_INFO(node_->get_logger(), "[MoveElevatorToHeight] Moving elevator to %.2fm", 
               target_height);
-  rclcpp::sleep_for(2s);
+  std::this_thread::sleep_for(2s);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -289,7 +432,7 @@ BT::NodeStatus RetractExtender::tick()
   // Placeholder: Retract extender fully
   // TODO: Publish extender position command
   RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Retracting extender");
-  rclcpp::sleep_for(1s);
+  std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -297,7 +440,7 @@ BT::NodeStatus RetractGripper::tick()
 {
   // Placeholder: Same as RetractExtender
   RCLCPP_INFO(node_->get_logger(), "[RetractGripper] Retracting gripper assembly");
-  rclcpp::sleep_for(1s);
+  std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -306,7 +449,7 @@ BT::NodeStatus OpenGripper::tick()
   // Placeholder: Open gripper jaws
   // TODO: Publish gripper command
   RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Opening gripper");
-  rclcpp::sleep_for(500ms);
+  std::this_thread::sleep_for(500ms);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -319,7 +462,7 @@ BT::NodeStatus CloseGripperAroundCan::tick()
   // TODO: Compute gripper position based on can diameter (66mm)
   RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Closing to %.3fm diameter", 
               can_diameter);
-  rclcpp::sleep_for(1s);
+  std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -332,7 +475,7 @@ BT::NodeStatus ExtendTowardsCan::tick()
   // TODO: Use Pi Camera centroid to compute extension distance
   RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Extending towards '%s'", 
               object_name.c_str());
-  rclcpp::sleep_for(1s);
+  std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -344,7 +487,7 @@ BT::NodeStatus AdjustExtenderToCenterCan::tick()
   // Placeholder: Adjust extender left/right and forward/back
   // TODO: Use Pi Camera bounding box center vs image center to compute adjustment
   RCLCPP_DEBUG(node_->get_logger(), "[AdjustExtenderToCenterCan] Adjusting position");
-  rclcpp::sleep_for(200ms);
+  std::this_thread::sleep_for(200ms);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -428,7 +571,7 @@ BT::NodeStatus WaitForDetection::tick()
 {
   // Placeholder: Wait briefly
   RCLCPP_DEBUG(node_->get_logger(), "[WaitForDetection] Waiting for detection...");
-  rclcpp::sleep_for(500ms);
+  std::this_thread::sleep_for(500ms);
   return BT::NodeStatus::FAILURE; // Force retry
 }
 
