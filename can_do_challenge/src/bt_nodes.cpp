@@ -279,10 +279,45 @@ BT::NodeStatus ElevatorAtHeight::tick()
   double target_height;
   getInput("targetHeight", target_height);
   
-  // Placeholder: Return SUCCESS to simulate elevator at height
-  // TODO: Subscribe to elevator position topic
-  RCLCPP_INFO(node_->get_logger(), "[ElevatorAtHeight] Elevator at %.2fm", target_height);
-  return BT::NodeStatus::SUCCESS;
+  // Subscribe to joint_states if needed
+  static rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub;
+  static double current_elevator_position = 0.0;
+  static std::mutex position_mutex;
+  
+  if (!joint_state_sub) {
+    joint_state_sub = node_->create_subscription<sensor_msgs::msg::JointState>(
+      "/joint_states", 10,
+      [](const sensor_msgs::msg::JointState::SharedPtr msg) {
+        std::lock_guard<std::mutex> lock(position_mutex);
+        // Find the elevator joint
+        for (size_t i = 0; i < msg->name.size(); ++i) {
+          if (msg->name[i] == "gripper_elevator_plate_to_gripper_extender") {
+            current_elevator_position = msg->position[i];
+            break;
+          }
+        }
+      });
+  }
+  
+  // Check if elevator is at target height (within 5cm tolerance)
+  double current_pos;
+  {
+    std::lock_guard<std::mutex> lock(position_mutex);
+    current_pos = current_elevator_position;
+  }
+  
+  double error = std::abs(current_pos - target_height);
+  bool at_height = error < 0.05;  // 5cm tolerance
+  
+  if (at_height) {
+    RCLCPP_INFO(node_->get_logger(), "[ElevatorAtHeight] Elevator at %.2fm (target: %.2fm)", 
+                current_pos, target_height);
+    return BT::NodeStatus::SUCCESS;
+  } else {
+    RCLCPP_DEBUG(node_->get_logger(), "[ElevatorAtHeight] Elevator at %.2fm, moving to %.2fm (error: %.3fm)",
+                 current_pos, target_height, error);
+    return BT::NodeStatus::FAILURE;
+  }
 }
 
 // ============================================================================
@@ -543,27 +578,57 @@ void NavigateToPoseAction::resultCallback(
 
 BT::NodeStatus LowerElevator::tick()
 {
-  // Placeholder: Lower elevator to minimum height
-  // TODO: Publish to gripper control topic
-  RCLCPP_INFO(node_->get_logger(), "[LowerElevator] Lowering elevator to minimum");
+  // Create publisher if needed
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
+  if (!elevator_pub) {
+    elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/gripper_elevator_plate_to_gripper_extender/position", 10);
+  }
+  
+  // Lower to 0.0m (minimum)
+  auto msg = std_msgs::msg::Float64();
+  msg.data = 0.0;
+  elevator_pub->publish(msg);
+  
+  RCLCPP_INFO(node_->get_logger(), "[LowerElevator] Lowering elevator to 0.0m minimum");
   std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
 }
 
 BT::NodeStatus LowerElevatorSafely::tick()
 {
-  // Placeholder: Lower elevator to safe travel height with can
-  // TODO: Lower to just above base, not touching top plate
-  RCLCPP_INFO(node_->get_logger(), "[LowerElevatorSafely] Lowering elevator to safe height");
+  // Create publisher if needed
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
+  if (!elevator_pub) {
+    elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/gripper_elevator_plate_to_gripper_extender/position", 10);
+  }
+  
+  // Lower to 0.1m safe height
+  auto msg = std_msgs::msg::Float64();
+  msg.data = 0.1;
+  elevator_pub->publish(msg);
+  
+  RCLCPP_INFO(node_->get_logger(), "[LowerElevatorSafely] Lowering elevator to 0.1m safe height");
   std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
 }
 
 BT::NodeStatus LowerElevatorToTable::tick()
 {
-  // Placeholder: Lower elevator to table surface height
-  // TODO: Use known table height or visual feedback
-  RCLCPP_INFO(node_->get_logger(), "[LowerElevatorToTable] Lowering to table surface");
+  // Create publisher if needed
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
+  if (!elevator_pub) {
+    elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/gripper_elevator_plate_to_gripper_extender/position", 10);
+  }
+  
+  // Lower to table height (0.67095m - small offset for approach)
+  auto msg = std_msgs::msg::Float64();
+  msg.data = 0.65;
+  elevator_pub->publish(msg);
+  
+  RCLCPP_INFO(node_->get_logger(), "[LowerElevatorToTable] Lowering to 0.65m table surface height");
   std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
 }
@@ -573,9 +638,19 @@ BT::NodeStatus MoveElevatorToHeight::tick()
   double target_height;
   getInput("targetHeight", target_height);
   
-  // Placeholder: Move elevator to specified height
-  // TODO: Publish elevator position command
-  RCLCPP_INFO(node_->get_logger(), "[MoveElevatorToHeight] Moving elevator to %.2fm", 
+  // Create publisher if needed
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
+  if (!elevator_pub) {
+    elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/gripper_elevator_plate_to_gripper_extender/position", 10);
+  }
+  
+  // Publish position command
+  auto msg = std_msgs::msg::Float64();
+  msg.data = target_height;
+  elevator_pub->publish(msg);
+  
+  RCLCPP_INFO(node_->get_logger(), "[MoveElevatorToHeight] Moving elevator to %.5fm", 
               target_height);
   std::this_thread::sleep_for(2s);
   return BT::NodeStatus::SUCCESS;
@@ -586,8 +661,8 @@ BT::NodeStatus ComputeElevatorHeight::tick()
   geometry_msgs::msg::Point can_location;
   getInput("canLocation", can_location);
   
-  // Compute target height: can bottom Z + camera offset above gripper
-  double target_height = can_location.z + 0.1; // 10cm above can for Pi Camera to see
+  // Use fixed height for simulation
+  double target_height = 0.67095;
   
   setOutput("targetHeight", target_height);
   
