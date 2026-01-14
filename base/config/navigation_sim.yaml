@@ -47,7 +47,7 @@ amcl: # See: https://assets.researchsquare.com/files/rs-225880/v1_covered.pdf?c=
     set_initial_pose: true # Causes AMCL to set initial pose from the initial_pose* parameters instead of waiting for the initial_pose message.
     initial_pose:
       x: 8.81
-      y: 2.0
+      y: 2.64
       yaw: 0.0
 
 bt_navigator:

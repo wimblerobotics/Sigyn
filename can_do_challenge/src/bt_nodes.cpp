@@ -369,6 +369,173 @@ BT::NodeStatus RotateRobot::tick()
 }
 
 // ============================================================================
+// ASYNC NAVIGATION ACTION
+// ============================================================================
+
+BT::NodeStatus NavigateToPoseAction::onStart()
+{
+  if (!node_) {
+    RCLCPP_ERROR(rclcpp::get_logger("NavigateToPoseAction"), "ROS node not set!");
+    return BT::NodeStatus::FAILURE;
+  }
+
+  // Initialize action client if needed
+  if (!action_client_) {
+    action_client_ = rclcpp_action::create_client<NavigateAction>(
+      node_->get_node_base_interface(), node_->get_node_graph_interface(),
+      node_->get_node_logging_interface(), node_->get_node_waitables_interface(),
+      "/navigate_to_pose");
+
+    if (!action_client_->wait_for_action_server(std::chrono::seconds(5))) {
+      RCLCPP_ERROR(rclcpp::get_logger("NavigateToPoseAction"), "Nav2 action server not available!");
+      return BT::NodeStatus::FAILURE;
+    }
+  }
+
+  // Get goal from input
+  if (!getInput("goal", current_goal_)) {
+    RCLCPP_ERROR(rclcpp::get_logger("NavigateToPoseAction"), "No goal provided!");
+    return BT::NodeStatus::FAILURE;
+  }
+
+  getInput("behavior_tree", current_behavior_tree_);
+  
+  goal_start_time_ = std::chrono::steady_clock::now();
+  action_state_ = ActionState::IDLE;
+  result_received_ = false;
+  navigation_result_ = BT::NodeStatus::FAILURE;
+
+  // Send goal
+  if (sendGoal()) {
+    action_state_ = ActionState::SENDING_GOAL;
+    RCLCPP_INFO(rclcpp::get_logger("NavigateToPoseAction"), 
+                "Sent navigation goal to (%.2f, %.2f)",
+                current_goal_.pose.position.x, current_goal_.pose.position.y);
+    return BT::NodeStatus::RUNNING;
+  } else {
+    RCLCPP_ERROR(rclcpp::get_logger("NavigateToPoseAction"), "Failed to send navigation goal");
+    return BT::NodeStatus::FAILURE;
+  }
+}
+
+BT::NodeStatus NavigateToPoseAction::onRunning()
+{
+  // Handle different action states
+  switch (action_state_) {
+    case ActionState::SENDING_GOAL:
+      // Check if goal was accepted/rejected (non-blocking)
+      if (goal_handle_future_.valid() &&
+          goal_handle_future_.wait_for(std::chrono::milliseconds(1)) == std::future_status::ready) {
+        goal_handle_ = goal_handle_future_.get();
+        if (!goal_handle_) {
+          RCLCPP_ERROR(rclcpp::get_logger("NavigateToPoseAction"), "Goal was rejected!");
+          action_state_ = ActionState::GOAL_FAILED;
+          setOutput("error_code_id", -1);
+          return BT::NodeStatus::FAILURE;
+        }
+        action_state_ = ActionState::GOAL_ACTIVE;
+        RCLCPP_INFO(rclcpp::get_logger("NavigateToPoseAction"), "Goal accepted, navigation active");
+      }
+      return BT::NodeStatus::RUNNING;
+
+    case ActionState::GOAL_ACTIVE:
+      // Check result (non-blocking)
+      if (result_received_.load()) {
+        BT::NodeStatus result = navigation_result_.load();
+        if (result == BT::NodeStatus::SUCCESS) {
+          RCLCPP_INFO(rclcpp::get_logger("NavigateToPoseAction"), "Navigation succeeded!");
+          action_state_ = ActionState::GOAL_COMPLETED;
+          setOutput("error_code_id", 0);
+          return BT::NodeStatus::SUCCESS;
+        } else {
+          RCLCPP_WARN(rclcpp::get_logger("NavigateToPoseAction"), "Navigation failed!");
+          action_state_ = ActionState::GOAL_FAILED;
+          setOutput("error_code_id", -1);
+          return BT::NodeStatus::FAILURE;
+        }
+      }
+      return BT::NodeStatus::RUNNING;
+
+    case ActionState::GOAL_COMPLETED:
+      setOutput("error_code_id", 0);
+      return BT::NodeStatus::SUCCESS;
+
+    case ActionState::GOAL_FAILED:
+      setOutput("error_code_id", -1);
+      return BT::NodeStatus::FAILURE;
+
+    default:
+      return BT::NodeStatus::RUNNING;
+  }
+}
+
+void NavigateToPoseAction::onHalted()
+{
+  RCLCPP_INFO(rclcpp::get_logger("NavigateToPoseAction"), "Navigation halted - canceling goal");
+  
+  if (goal_handle_ && action_state_ == ActionState::GOAL_ACTIVE) {
+    auto future_cancel = action_client_->async_cancel_goal(goal_handle_);
+  }
+  
+  action_state_ = ActionState::IDLE;
+}
+
+bool NavigateToPoseAction::sendGoal()
+{
+  if (!action_client_) {
+    return false;
+  }
+
+  auto goal_msg = nav2_msgs::action::NavigateToPose::Goal();
+  goal_msg.pose = current_goal_;
+  goal_msg.behavior_tree = current_behavior_tree_;
+
+  auto send_goal_options = rclcpp_action::Client<NavigateAction>::SendGoalOptions();
+  send_goal_options.goal_response_callback =
+    std::bind(&NavigateToPoseAction::goalResponseCallback, this, std::placeholders::_1);
+  send_goal_options.result_callback =
+    std::bind(&NavigateToPoseAction::resultCallback, this, std::placeholders::_1);
+
+  result_received_ = false;
+  goal_handle_future_ = action_client_->async_send_goal(goal_msg, send_goal_options);
+  
+  return true;
+}
+
+void NavigateToPoseAction::goalResponseCallback(
+  const rclcpp_action::ClientGoalHandle<NavigateAction>::SharedPtr& goal_handle)
+{
+  if (!goal_handle) {
+    RCLCPP_ERROR(rclcpp::get_logger("NavigateToPoseAction"), "Goal was rejected by server");
+  }
+}
+
+void NavigateToPoseAction::resultCallback(
+  const rclcpp_action::ClientGoalHandle<NavigateAction>::WrappedResult& result)
+{
+  result_received_ = true;
+  
+  switch (result.code) {
+    case rclcpp_action::ResultCode::SUCCEEDED:
+      navigation_result_ = BT::NodeStatus::SUCCESS;
+      RCLCPP_INFO(rclcpp::get_logger("NavigateToPoseAction"), "Navigation goal succeeded");
+      break;
+    case rclcpp_action::ResultCode::ABORTED:
+      navigation_result_ = BT::NodeStatus::FAILURE;
+      RCLCPP_ERROR(rclcpp::get_logger("NavigateToPoseAction"), "Navigation goal was aborted");
+      break;
+    case rclcpp_action::ResultCode::CANCELED:
+      navigation_result_ = BT::NodeStatus::FAILURE;
+      RCLCPP_WARN(rclcpp::get_logger("NavigateToPoseAction"), "Navigation goal was canceled");
+      break;
+    default:
+      navigation_result_ = BT::NodeStatus::FAILURE;
+      RCLCPP_ERROR(rclcpp::get_logger("NavigateToPoseAction"), "Unknown result code");
+      break;
+  }
+}
+
+// ============================================================================
 // GRIPPER/ELEVATOR ACTION NODES
 // ============================================================================
 
@@ -523,8 +690,8 @@ BT::NodeStatus LoadCanLocation::tick()
   geometry_msgs::msg::Point location;
   
   if (can_name == "CokeZeroCan") {
-    location.x = 0.0;
-    location.y = 20.0;
+    location.x = 8.43;
+    location.y = 11.2;
     location.z = 0.75;
     
     setOutput("location", location);

@@ -83,6 +83,7 @@ public:
     factory.registerNodeType<ComputePathToCanLocation>("ComputePathToCanLocation");
     factory.registerNodeType<ComputePathToPose>("ComputePathToPose");
     factory.registerNodeType<FollowPath>("FollowPath");
+    factory.registerNodeType<NavigateToPoseAction>("NavigateToPoseAction");
     factory.registerNodeType<MoveTowardsCan>("MoveTowardsCan");
     factory.registerNodeType<RotateRobot>("RotateRobot");
     

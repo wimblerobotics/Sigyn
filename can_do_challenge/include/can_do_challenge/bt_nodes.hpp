@@ -264,6 +264,56 @@ public:
   BT::NodeStatus tick() override;
 };
 
+/**
+ * @brief Async NavigateToPose action using Nav2
+ */
+class NavigateToPoseAction : public BT::StatefulActionNode, public RosNodeBT
+{
+public:
+  NavigateToPoseAction(const std::string& xml_tag_name, const BT::NodeConfiguration& conf)
+    : BT::StatefulActionNode(xml_tag_name, conf) {}
+
+  static BT::PortsList providedPorts()
+  {
+    return {
+      BT::InputPort<geometry_msgs::msg::PoseStamped>("goal", "Target pose to navigate to"),
+      BT::InputPort<std::string>("behavior_tree", "Behavior tree for navigation"),
+      BT::OutputPort<int>("error_code_id", "Error code from navigation")
+    };
+  }
+
+  BT::NodeStatus onStart() override;
+  BT::NodeStatus onRunning() override;
+  void onHalted() override;
+
+private:
+  using NavigateAction = nav2_msgs::action::NavigateToPose;
+  
+  enum class ActionState {
+    IDLE,
+    SENDING_GOAL,
+    GOAL_ACTIVE,
+    GOAL_COMPLETED,
+    GOAL_FAILED
+  };
+  
+  rclcpp_action::Client<NavigateAction>::SharedPtr action_client_;
+  rclcpp_action::ClientGoalHandle<NavigateAction>::SharedPtr goal_handle_;
+  std::shared_future<rclcpp_action::ClientGoalHandle<NavigateAction>::SharedPtr> goal_handle_future_;
+  
+  ActionState action_state_ = ActionState::IDLE;
+  std::atomic<bool> result_received_{false};
+  std::atomic<BT::NodeStatus> navigation_result_{BT::NodeStatus::FAILURE};
+  
+  geometry_msgs::msg::PoseStamped current_goal_;
+  std::string current_behavior_tree_;
+  std::chrono::steady_clock::time_point goal_start_time_;
+
+  bool sendGoal();
+  void goalResponseCallback(const rclcpp_action::ClientGoalHandle<NavigateAction>::SharedPtr& goal_handle);
+  void resultCallback(const rclcpp_action::ClientGoalHandle<NavigateAction>::WrappedResult& result);
+};
+
 // ============================================================================
 // GRIPPER/ELEVATOR ACTION NODES
 // ============================================================================
