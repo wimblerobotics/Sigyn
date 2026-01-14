@@ -243,28 +243,39 @@ public:
   BT::NodeStatus tick() override;
 };
 
-class MoveTowardsCan : public BT::SyncActionNode, public RosNodeBT
+class MoveTowardsCan : public BT::StatefulActionNode, public RosNodeBT
 {
 public:
   MoveTowardsCan(const std::string & name, const BT::NodeConfiguration & config)
-  : BT::SyncActionNode(name, config) {}
+  : BT::StatefulActionNode(name, config) {}
   
   static BT::PortsList providedPorts() {
-    return { BT::InputPort<std::string>("objectOfInterest") };
+    return {BT::InputPort<std::string>("objectOfInterest", "Object to move towards")};
   }
-  BT::NodeStatus tick() override;
+  
+  BT::NodeStatus onStart() override;
+  BT::NodeStatus onRunning() override;
+  void onHalted() override {};
 };
 
-class RotateRobot : public BT::SyncActionNode, public RosNodeBT
+class RotateRobot : public BT::StatefulActionNode, public RosNodeBT
 {
 public:
   RotateRobot(const std::string & name, const BT::NodeConfiguration & config)
-  : BT::SyncActionNode(name, config) {}
+  : BT::StatefulActionNode(name, config) {}
   
   static BT::PortsList providedPorts() {
     return { BT::InputPort<double>("degrees", 0.0, "Degrees to rotate") };
   }
-  BT::NodeStatus tick() override;
+  
+  BT::NodeStatus onStart() override;
+  BT::NodeStatus onRunning() override;
+  void onHalted() override;
+
+private:
+  rclcpp::Time start_time_;
+  double target_duration_;
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
 };
 
 /**
@@ -347,7 +358,9 @@ public:
   LowerElevatorToTable(const std::string & name, const BT::NodeConfiguration & config)
   : BT::SyncActionNode(name, config) {}
   
-  static BT::PortsList providedPorts() { return {}; }
+  static BT::PortsList providedPorts() {
+    return {BT::InputPort<double>("targetHeight", "Target height for approach")};
+  }
   BT::NodeStatus tick() override;
 };
 
@@ -565,6 +578,24 @@ public:
   
 private:
   int current_cycle_;
+};
+
+class CheckBoolFlag : public BT::ConditionNode
+{
+public:
+  CheckBoolFlag(const std::string& name, const BT::NodeConfiguration& config)
+    : BT::ConditionNode(name, config)
+  {}
+
+  static BT::PortsList providedPorts()
+  {
+    return {
+      BT::InputPort<bool>("flag", "Boolean flag to check"),
+      BT::InputPort<bool>("expected", "Expected boolean value")
+    };
+  }
+
+  BT::NodeStatus tick() override;
 };
 
 }  // namespace can_do_challenge

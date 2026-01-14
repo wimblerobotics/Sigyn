@@ -66,9 +66,39 @@ def generate_launch_description():
         }],
     )
     
+    # OAK-D top camera detector
+    oakd_detector = Node(
+        package="can_do_challenge",
+        executable="simple_can_detector.py",
+        name="oakd_can_detector",
+        output="screen",
+        parameters=[{
+            "use_sim_time": True,
+            "camera_name": "oakd_top",
+            "use_depth": False,
+            "publish_debug_image": True,
+        }],
+    )
+    
+    # Pi gripper camera detector
+    pi_detector = Node(
+        package="can_do_challenge",
+        executable="simple_can_detector.py",
+        name="gripper_can_detector",
+        output="screen",
+        parameters=[{
+            "use_sim_time": True,
+            "camera_name": "gripper",
+            "use_depth": False,
+            "publish_debug_image": True,
+        }],
+    )
+    
     return LaunchDescription([
         step_manually_arg,
         use_groot_arg,
         manual_controller_gui,
         can_do_node,
+        oakd_detector,
+        pi_detector,
     ])
