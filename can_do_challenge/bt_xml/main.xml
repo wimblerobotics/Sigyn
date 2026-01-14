@@ -23,7 +23,7 @@
     <!-- Safety monitoring subtrees -->
     <BehaviorTree ID="ReactiveRobotSafety">
         <ReactiveSequence>
-            <SaySomething message="startingPose=" pose="{startingPose}" />
+            <!-- <SaySomething message="startingPose=" pose="{startingPose}" /> -->
             <SubTree ID="RobotHasNotFallenOver" />
             <SubTree ID="RobotIsNotAboutToFallOver" />
             <SubTree ID="RobotIsNotEStopped" />
@@ -74,6 +74,9 @@
     <BehaviorTree ID="SetupCanChallenge">
         <Sequence>
             <SetBlackboard output_key="objectOfInterest" value="CokeZeroCan" />
+            <SetBlackboard output_key="needToNavigate" value="true" />
+            <SetBlackboard output_key="needToVisuallyAcquire" value="true" />
+            <SetBlackboard output_key="needToGrasp" value="true" />
             <Action ID="LoadCanLocation" canName="{objectOfInterest}"
                 location="{expectedCanLocation}" />
             <Action ID="RetractGripper" />
@@ -83,21 +86,29 @@
     <!-- ////////// -->
     <!-- Navigation to can location -->
     <BehaviorTree ID="NavigateToCanLocation">
-        <ReactiveSequence>
-            <Action ID="ComputePathToCanLocation" goal="{goal}" location="{expectedCanLocation}"
-                path="{path}" />
-            <Action ID="NavigateToPoseAction" goal="{goal}" error_code_id="{nav_error_code}" />
-        </ReactiveSequence>
+        <ReactiveFallback>
+            <CheckBoolFlag expected="false" flag="{needToNavigate}" />
+            <Sequence>
+                <Action ID="ComputePathToCanLocation" goal="{goal}" location="{expectedCanLocation}"
+                    path="{path}" />
+                <Action ID="NavigateToPoseAction" goal="{goal}" error_code_id="{nav_error_code}" />
+                <SetBlackboard output_key="needToNavigate" value="false" />
+            </Sequence>
+        </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
     <!-- Visual acquisition with OAK-D -->
     <BehaviorTree ID="VisuallyAcquireCan">
-        <ReactiveSequence>
-            <SubTree ID="SearchForCanWithOAKD" __shared_blackboard="true"
-                objectOfInterest="{objectOfInterest}" />
-            <SubTree ID="ApproachCanWithOAKD" __shared_blackboard="true"
-                objectOfInterest="{objectOfInterest}" />
-        </ReactiveSequence>
+        <ReactiveFallback>
+            <CheckBoolFlag expected="false" flag="{needToVisuallyAcquire}" />
+            <ReactiveSequence>
+                <SubTree ID="SearchForCanWithOAKD" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" />
+                <SubTree ID="ApproachCanWithOAKD" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" />
+                <SetBlackboard output_key="needToVisuallyAcquire" value="false" />
+            </ReactiveSequence>
+        </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="SearchForCanWithOAKD">
@@ -120,15 +131,19 @@
     <!-- ////////// -->
     <!-- Grasping sequence -->
     <BehaviorTree ID="GraspCan">
-        <ReactiveSequence>
-            <SubTree ID="RaiseElevatorToCanHeight" __shared_blackboard="true"
-                objectOfInterest="{objectOfInterest}" />
-            <SubTree ID="CenterCanInPiCamera" __shared_blackboard="true"
-                objectOfInterest="{objectOfInterest}" />
-            <SubTree ID="ExecuteGrasp" __shared_blackboard="true"
-                objectOfInterest="{objectOfInterest}" />
-            <SubTree ID="RetractAfterGrasp" />
-        </ReactiveSequence>
+        <ReactiveFallback>
+            <CheckBoolFlag expected="false" flag="{needToGrasp}" />
+            <ReactiveSequence>
+                <SubTree ID="RaiseElevatorToCanHeight" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" />
+                <SubTree ID="CenterCanInPiCamera" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" />
+                <SubTree ID="ExecuteGrasp" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" />
+                <SubTree ID="RetractAfterGrasp" />
+                <SetBlackboard output_key="needToGrasp" value="false" />
+            </ReactiveSequence>
+        </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="RaiseElevatorToCanHeight">
@@ -161,7 +176,7 @@
     <!-- ////////// -->
     <BehaviorTree ID="ExecuteGrasp">
         <ReactiveSequence>
-            <Action ID="LowerElevatorToTable" />
+            <Action ID="LowerElevatorToTable" targetHeight="{elevatorHeight}" />
             <Action ID="OpenGripper" />
             <Action ID="ExtendTowardsCan" objectOfInterest="{objectOfInterest}" />
             <Action ID="CloseGripperAroundCan" canDiameter="0.066" />
@@ -223,7 +238,9 @@
         </Action>
         <Action ID="LowerElevator" />
         <Action ID="LowerElevatorSafely" />
-        <Action ID="LowerElevatorToTable" />
+        <Action ID="LowerElevatorToTable">
+            <input_port name="targetHeight">Target height for approach</input_port>
+        </Action>
         <Action ID="MoveElevatorToHeight">
             <input_port name="targetHeight">Target height in meters</input_port>
         </Action>
@@ -270,6 +287,10 @@
         <Condition ID="RobotIsEstopped" />
         <Condition ID="RobotTiltedCritically" />
         <Condition ID="RobotTiltedWarning" />
+        <Condition ID="CheckBoolFlag">
+            <input_port name="flag">Boolean flag to check</input_port>
+            <input_port name="expected">Expected value</input_port>
+        </Condition>
 
         <!-- Decorator -->
         <Decorator ID="ReactiveRepeat">

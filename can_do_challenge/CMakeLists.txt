@@ -53,6 +53,7 @@ install(TARGETS
 # Install Python scripts
 install(PROGRAMS
   src/manual_controller_gui.py
+  can_do_challenge/simple_can_detector.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
