@@ -23,11 +23,23 @@ class SimpleCanDetector(Node):
         self.declare_parameter('camera_name', 'oakd_top')
         self.declare_parameter('use_depth', False)
         self.declare_parameter('publish_debug_image', True)
+        self.declare_parameter('min_area_px2', 250)
+        self.declare_parameter('min_bbox_height_px', 35)
+        self.declare_parameter('max_distance_m', 1.8)
+        self.declare_parameter('min_aspect', 0.25)
+        self.declare_parameter('max_aspect', 2.0)
+        self.declare_parameter('log_throttle_sec', 5.0)
         
         # Get parameters
         camera_name = self.get_parameter('camera_name').get_parameter_value().string_value
         use_depth = self.get_parameter('use_depth').get_parameter_value().bool_value
         publish_debug = self.get_parameter('publish_debug_image').get_parameter_value().bool_value
+        self.min_area_px2 = int(self.get_parameter('min_area_px2').get_parameter_value().integer_value)
+        self.min_bbox_height_px = int(self.get_parameter('min_bbox_height_px').get_parameter_value().integer_value)
+        self.max_distance_m = float(self.get_parameter('max_distance_m').get_parameter_value().double_value)
+        self.min_aspect = float(self.get_parameter('min_aspect').get_parameter_value().double_value)
+        self.max_aspect = float(self.get_parameter('max_aspect').get_parameter_value().double_value)
+        self.log_throttle_sec = float(self.get_parameter('log_throttle_sec').get_parameter_value().double_value)
         
         self.get_logger().info(f'Starting detector for camera: {camera_name}')
         
@@ -47,13 +59,14 @@ class SimpleCanDetector(Node):
         
         # Color detection parameters for red (Coke can)
         # HSV ranges for red (need two ranges because red wraps around 0/180)
-        self.red_lower1 = np.array([0, 100, 100])
-        self.red_upper1 = np.array([10, 255, 255])
-        self.red_lower2 = np.array([160, 100, 100])
+        # Widened ranges for reliability in simulation
+        self.red_lower1 = np.array([0, 50, 50])
+        self.red_upper1 = np.array([15, 255, 255])
+        self.red_lower2 = np.array([160, 50, 50])
         self.red_upper2 = np.array([180, 255, 255])
         
-        # Minimum contour area to consider as detection
-        self.min_area = 500  # pixels²
+        # Filtering thresholds (tunable per camera instance via ROS params)
+        # These defaults intentionally suppress far-away false positives in sim.
         
         # Subscribe to camera topics
         # For OAK-D: /oakd_top/color/image
@@ -130,9 +143,18 @@ class SimpleCanDetector(Node):
                 largest_contour = max(contours, key=cv2.contourArea)
                 area = cv2.contourArea(largest_contour)
                 
-                if area > self.min_area:
+                if area > self.min_area_px2:
                     # Get bounding box
                     x, y, w, h = cv2.boundingRect(largest_contour)
+
+                    # Reject tiny boxes early (usually noise / far objects)
+                    if h < self.min_bbox_height_px:
+                        return
+
+                    # Basic shape filter: Coke can should not be extremely skinny or extremely wide
+                    aspect = float(w) / float(h) if h > 0 else 999.0
+                    if aspect < self.min_aspect or aspect > self.max_aspect:
+                        return
                     
                     # Calculate center of bounding box
                     cx = x + w // 2
@@ -144,6 +166,10 @@ class SimpleCanDetector(Node):
                     can_height_m = 0.12
                     focal_length = self.camera_info.k[4]  # fy
                     distance = (can_height_m * focal_length) / h if h > 0 else 1.0
+
+                    # Suppress far detections (very commonly false positives in this task)
+                    if distance > self.max_distance_m:
+                        return
                     
                     # Convert pixel coordinates to 3D point in camera frame
                     # Using pinhole camera model
@@ -152,7 +178,7 @@ class SimpleCanDetector(Node):
                     cx_cam = self.camera_info.k[2]
                     cy_cam = self.camera_info.k[5]
                     
-                    # 3D point in camera frame
+                    # 3D point in camera frame (Optical conventions: X Right, Y Down, Z Forward)
                     x_3d = (cx - cx_cam) * distance / fx
                     y_3d = (cy - cy_cam) * distance / fy
                     z_3d = distance
@@ -162,36 +188,22 @@ class SimpleCanDetector(Node):
                     # Use optical frame from camera info
                     point_msg.header.frame_id = self.camera_info.header.frame_id
                     point_msg.header.stamp = self.get_clock().now().to_msg()
-                    point_msg.point.x = z_3d  # Forward
-                    point_msg.point.y = -x_3d  # Left (camera x is right)
-                    point_msg.point.z = -y_3d  # Up (camera y is down)
+                    # Publish RAW optical coordinates - let TF handle the rotation to base_link
+                    point_msg.point.x = x_3d
+                    point_msg.point.y = y_3d
+                    point_msg.point.z = z_3d
                     
-                    # Try to transform to map frame
-                    try:
-                        transform = self.tf_buffer.lookup_transform(
-                            'map',
-                            point_msg.header.frame_id,
-                            rclpy.time.Time(),
-                            timeout=rclpy.duration.Duration(seconds=0.1))
+                    # Store logic for 3D point in camera frame
+                    # Do NOT transform to map to avoid artifacts from poor distance/localization during rotation
+                    self.detection_pub.publish(point_msg)
                         
-                        point_map = do_transform_point(point_msg, transform)
-                        self.detection_pub.publish(point_map)
+                    self.latest_detection = point_msg.point
+                    self.detection_time = self.get_clock().now()
                         
-                        self.latest_detection = point_map.point
-                        self.detection_time = self.get_clock().now()
-                        
-                        self.get_logger().info(
-                            f'Can detected at ({point_map.point.x:.2f}, {point_map.point.y:.2f}, '
-                            f'{point_map.point.z:.2f}) in map frame, distance: {distance:.2f}m',
-                            throttle_duration_sec=1.0)
-                    
-                    except (tf2_ros.LookupException, tf2_ros.ConnectivityException, 
-                            tf2_ros.ExtrapolationException) as e:
-                        self.get_logger().warn(f'TF transform failed: {e}', throttle_duration_sec=5.0)
-                        # Publish in camera frame anyway
-                        self.detection_pub.publish(point_msg)
-                        self.latest_detection = point_msg.point
-                        self.detection_time = self.get_clock().now()
+                    self.get_logger().info(
+                        f'Can detected at ({point_msg.point.x:.2f}, {point_msg.point.y:.2f}, '
+                        f'{point_msg.point.z:.2f}) in {point_msg.header.frame_id}, distance: {distance:.2f}m',
+                        throttle_duration_sec=self.log_throttle_sec)
                     
                     # Publish debug image if enabled
                     if hasattr(self, 'debug_image_pub'):

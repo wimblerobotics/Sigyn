@@ -77,6 +77,11 @@ def generate_launch_description():
             "camera_name": "oakd_top",
             "use_depth": False,
             "publish_debug_image": True,
+            # Reduce false positives while navigating; can should only be reliable near the end.
+            "min_area_px2": 250,
+            "min_bbox_height_px": 35,
+            "max_distance_m": 1.8,
+            "log_throttle_sec": 5.0,
         }],
     )
     
@@ -91,6 +96,11 @@ def generate_launch_description():
             "camera_name": "gripper",
             "use_depth": False,
             "publish_debug_image": True,
+            # Gripper camera should only see the can up close.
+            "min_area_px2": 500,
+            "min_bbox_height_px": 60,
+            "max_distance_m": 1.0,
+            "log_throttle_sec": 5.0,
         }],
     )
     

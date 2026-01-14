@@ -5,15 +5,19 @@
 #include "can_do_challenge/bt_nodes.hpp"
 #include "sigyn_interfaces/msg/e_stop_status.hpp"
 #include "geometry_msgs/msg/point_stamped.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist.hpp"
+#include "std_msgs/msg/string.hpp"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2/LinearMath/Matrix3x3.h"
+#include "ament_index_cpp/get_package_share_directory.hpp"
 #include <cmath>
 #include <fstream>
 #include <sstream>
 #include <thread>
+#include <regex>
 
 using namespace std::chrono_literals;
 
@@ -47,12 +51,19 @@ static std::mutex g_sensor_mutex;
 // Global object detection state
 struct ObjectDetectionState {
   // OAK-D camera detection
-  geometry_msgs::msg::Point oakd_detection_position;  // In map frame
+  // Raw point as published by the detector (typically camera optical frame)
+  geometry_msgs::msg::Point oakd_detection_position_raw;
+  std::string oakd_detection_frame_raw;
+
+  // Anchored point in a fixed frame (odom) to avoid "carrot on a stick" issues when rotating
+  geometry_msgs::msg::Point oakd_detection_position_odom;
+  bool oakd_detection_has_odom = false;
   bool oakd_can_detected = false;
   rclcpp::Time oakd_last_detection_time;
   
   // Pi camera (gripper) detection
-  geometry_msgs::msg::Point pi_detection_position;  // In camera frame
+  geometry_msgs::msg::Point pi_detection_position;
+  std::string pi_detection_frame = "map";
   bool pi_can_detected = false;
   rclcpp::Time pi_last_detection_time;
   
@@ -68,6 +79,87 @@ static std::mutex g_detection_mutex;
 // Store subscriptions so they don't get destroyed
 static rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr g_oakd_sub;
 static rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr g_pi_sub;
+static std::shared_ptr<tf2_ros::Buffer> g_tf_buffer;
+static std::shared_ptr<tf2_ros::TransformListener> g_tf_listener;
+
+// Debug publishers (optional, for diagnosing approach issues)
+struct DebugTelemetry {
+  bool enabled = true;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr status_pub;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr approach_goal_pub;
+  rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr can_in_base_pub;
+  rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr can_in_map_pub;
+};
+
+static DebugTelemetry g_debug;
+static std::mutex g_debug_mutex;
+
+static void initializeDebugTelemetry(const std::shared_ptr<rclcpp::Node>& node)
+{
+  static bool initialized = false;
+  if (initialized) {
+    return;
+  }
+
+  // Keep this always on for now; user explicitly asked for instrumentation.
+  // If we later want to gate it, add a parameter here.
+  g_debug.enabled = true;
+
+  rclcpp::QoS qos(10);
+  qos.best_effort();
+
+  g_debug.status_pub = node->create_publisher<std_msgs::msg::String>(
+    "/can_do_challenge/debug/status", qos);
+  g_debug.approach_goal_pub = node->create_publisher<geometry_msgs::msg::PoseStamped>(
+    "/can_do_challenge/debug/approach_goal", qos);
+  g_debug.can_in_base_pub = node->create_publisher<geometry_msgs::msg::PointStamped>(
+    "/can_do_challenge/debug/can_in_base_link", qos);
+  g_debug.can_in_map_pub = node->create_publisher<geometry_msgs::msg::PointStamped>(
+    "/can_do_challenge/debug/can_in_map", qos);
+
+  initialized = true;
+}
+
+static void publishDebugStatus(const std::shared_ptr<rclcpp::Node>& node, const std::string& s)
+{
+  initializeDebugTelemetry(node);
+  std::lock_guard<std::mutex> lock(g_debug_mutex);
+  if (!g_debug.enabled || !g_debug.status_pub) {
+    return;
+  }
+  std_msgs::msg::String msg;
+  msg.data = s;
+  g_debug.status_pub->publish(msg);
+}
+
+static void publishDebugPoint(const std::shared_ptr<rclcpp::Node>& node,
+                              const rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr& pub,
+                              const std::string& frame,
+                              const geometry_msgs::msg::Point& p)
+{
+  initializeDebugTelemetry(node);
+  std::lock_guard<std::mutex> lock(g_debug_mutex);
+  if (!g_debug.enabled || !pub) {
+    return;
+  }
+  geometry_msgs::msg::PointStamped msg;
+  msg.header.frame_id = frame;
+  msg.header.stamp = node->now();
+  msg.point = p;
+  pub->publish(msg);
+}
+
+static void publishDebugPose(const std::shared_ptr<rclcpp::Node>& node,
+                             const rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr& pub,
+                             const geometry_msgs::msg::PoseStamped& pose)
+{
+  initializeDebugTelemetry(node);
+  std::lock_guard<std::mutex> lock(g_debug_mutex);
+  if (!g_debug.enabled || !pub) {
+    return;
+  }
+  pub->publish(pose);
+}
 
 // Initialize object detection subscribers
 static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
@@ -76,16 +168,40 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
   
   RCLCPP_INFO(node->get_logger(), "Initializing object detection subscribers");
   
+  // Global TF listener
+  g_tf_buffer = std::make_shared<tf2_ros::Buffer>(node->get_clock());
+  g_tf_listener = std::make_shared<tf2_ros::TransformListener>(*g_tf_buffer);
+
   // Subscribe to OAK-D detection
   g_oakd_sub = node->create_subscription<geometry_msgs::msg::PointStamped>(
     "/oakd_top/can_detection", 10,
     [node](const geometry_msgs::msg::PointStamped::SharedPtr msg) {
-      std::lock_guard<std::mutex> lock(g_detection_mutex);
-      g_detection_state.oakd_detection_position = msg->point;
-      g_detection_state.oakd_can_detected = true;
-      g_detection_state.oakd_last_detection_time = node->now();
-      RCLCPP_DEBUG(node->get_logger(), "OAK-D detection received: (%.2f, %.2f, %.2f)",
-                   msg->point.x, msg->point.y, msg->point.z);
+      // Always store the raw detection
+      {
+        std::lock_guard<std::mutex> lock(g_detection_mutex);
+        g_detection_state.oakd_detection_position_raw = msg->point;
+        g_detection_state.oakd_detection_frame_raw = msg->header.frame_id;
+        g_detection_state.oakd_can_detected = true;
+        g_detection_state.oakd_last_detection_time = node->now();
+      }
+
+      // Best-effort: also transform to ODOM frame immediately
+      // This anchors the observation in the world, preventing it from moving with the camera
+      geometry_msgs::msg::PointStamped detection_odom;
+      try {
+        geometry_msgs::msg::PointStamped msg_latest = *msg;
+        msg_latest.header.stamp = rclcpp::Time(0);
+        detection_odom = g_tf_buffer->transform(msg_latest, "odom");
+
+        std::lock_guard<std::mutex> lock(g_detection_mutex);
+        g_detection_state.oakd_detection_position_odom = detection_odom.point;
+        g_detection_state.oakd_detection_has_odom = true;
+        RCLCPP_DEBUG(node->get_logger(), "OAK-D detection updated in ODOM: (%.2f, %.2f)",
+                    detection_odom.point.x, detection_odom.point.y);
+      } catch (const tf2::TransformException & ex) {
+          std::lock_guard<std::mutex> lock(g_detection_mutex);
+          g_detection_state.oakd_detection_has_odom = false;
+      }
     });
   
   // Subscribe to Pi camera detection
@@ -94,6 +210,7 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
     [node](const geometry_msgs::msg::PointStamped::SharedPtr msg) {
       std::lock_guard<std::mutex> lock(g_detection_mutex);
       g_detection_state.pi_detection_position = msg->point;
+      g_detection_state.pi_detection_frame = msg->header.frame_id;
       g_detection_state.pi_can_detected = true;
       g_detection_state.pi_last_detection_time = node->now();
       RCLCPP_DEBUG(node->get_logger(), "Pi camera detection received: (%.2f, %.2f, %.2f)",
@@ -277,23 +394,35 @@ BT::NodeStatus CanDetectedByOAKD::tick()
   
   std::lock_guard<std::mutex> lock(g_detection_mutex);
   
-  // Check if we have a recent detection
-  if (g_detection_state.oakd_can_detected) {
-    auto time_since_detection = (node_->now() - g_detection_state.oakd_last_detection_time).seconds();
-    
-    if (time_since_detection < ObjectDetectionState::DETECTION_TIMEOUT_SEC) {
-      RCLCPP_INFO(node_->get_logger(), "[CanDetectedByOAKD] Can '%s' detected at (%.2f, %.2f, %.2f)", 
-                  object_name.c_str(),
-                  g_detection_state.oakd_detection_position.x,
-                  g_detection_state.oakd_detection_position.y,
-                  g_detection_state.oakd_detection_position.z);
-      return BT::NodeStatus::SUCCESS;
-    }
+  if (!g_detection_state.oakd_can_detected) {
+    RCLCPP_DEBUG(node_->get_logger(), "[CanDetectedByOAKD] Searching for '%s' with OAK-D...",
+                 object_name.c_str());
+    return BT::NodeStatus::FAILURE;
   }
-  
-  RCLCPP_DEBUG(node_->get_logger(), "[CanDetectedByOAKD] Searching for '%s' with OAK-D...", 
-               object_name.c_str());
-  return BT::NodeStatus::FAILURE;
+
+  const auto time_since_detection = (node_->now() - g_detection_state.oakd_last_detection_time).seconds();
+  if (time_since_detection >= ObjectDetectionState::DETECTION_TIMEOUT_SEC) {
+    RCLCPP_DEBUG(node_->get_logger(), "[CanDetectedByOAKD] Detection stale (%.2fs)", time_since_detection);
+    publishDebugStatus(node_, "CanDetectedByOAKD: stale age=" + std::to_string(time_since_detection));
+    return BT::NodeStatus::FAILURE;
+  }
+
+  RCLCPP_INFO(node_->get_logger(),
+              "[CanDetectedByOAKD] Can '%s' detected (raw frame='%s' raw=(%.2f,%.2f,%.2f) age=%.2fs)",
+              object_name.c_str(),
+              g_detection_state.oakd_detection_frame_raw.c_str(),
+              g_detection_state.oakd_detection_position_raw.x,
+              g_detection_state.oakd_detection_position_raw.y,
+              g_detection_state.oakd_detection_position_raw.z,
+              time_since_detection);
+
+  publishDebugStatus(node_,
+    "CanDetectedByOAKD: ok frame=" + g_detection_state.oakd_detection_frame_raw +
+    " raw=(" + std::to_string(g_detection_state.oakd_detection_position_raw.x) + "," +
+              std::to_string(g_detection_state.oakd_detection_position_raw.y) + "," +
+              std::to_string(g_detection_state.oakd_detection_position_raw.z) + ")" +
+    " age=" + std::to_string(time_since_detection));
+  return BT::NodeStatus::SUCCESS;
 }
 
 BT::NodeStatus CanDetectedByPiCamera::tick()
@@ -355,40 +484,98 @@ BT::NodeStatus CanWithinReach::tick()
   
   initializeObjectDetection(node_);
   
-  std::lock_guard<std::mutex> lock(g_detection_mutex);
-  
-  if (!g_detection_state.oakd_can_detected) {
-    RCLCPP_DEBUG(node_->get_logger(), "[CanWithinReach] No detection available");
+  // Snapshot under lock
+  geometry_msgs::msg::Point det_raw;
+  std::string det_frame;
+  bool has_raw = false;
+  bool has_odom = false;
+  geometry_msgs::msg::Point det_odom;
+  double age_sec = 999.0;
+  {
+    std::lock_guard<std::mutex> lock(g_detection_mutex);
+    if (!g_detection_state.oakd_can_detected) {
+      RCLCPP_DEBUG(node_->get_logger(), "[CanWithinReach] No detection available");
+      return BT::NodeStatus::FAILURE;
+    }
+    age_sec = (node_->now() - g_detection_state.oakd_last_detection_time).seconds();
+    if (age_sec >= ObjectDetectionState::DETECTION_TIMEOUT_SEC) {
+      RCLCPP_DEBUG(node_->get_logger(), "[CanWithinReach] Detection stale (%.2fs)", age_sec);
+      return BT::NodeStatus::FAILURE;
+    }
+    has_raw = !g_detection_state.oakd_detection_frame_raw.empty();
+    det_raw = g_detection_state.oakd_detection_position_raw;
+    det_frame = g_detection_state.oakd_detection_frame_raw;
+    has_odom = g_detection_state.oakd_detection_has_odom;
+    det_odom = g_detection_state.oakd_detection_position_odom;
+  }
+
+  if (!g_tf_buffer) {
+    RCLCPP_WARN(node_->get_logger(), "[CanWithinReach] TF buffer not ready");
     return BT::NodeStatus::FAILURE;
   }
-  
-  // Get robot's current position
+
+  // Prefer base_link distance from raw detection (tracks what the robot can actually reach).
+  if (has_raw) {
+    try {
+      geometry_msgs::msg::PointStamped det_msg;
+      det_msg.header.frame_id = det_frame;
+      det_msg.header.stamp = rclcpp::Time(0);
+      det_msg.point = det_raw;
+
+      auto det_in_base = g_tf_buffer->transform(det_msg, "base_link");
+      const double dx = det_in_base.point.x;
+      const double dy = det_in_base.point.y;
+      const double distance = std::hypot(dx, dy);
+
+      publishDebugPoint(node_, g_debug.can_in_base_pub, "base_link", det_in_base.point);
+      publishDebugStatus(node_, "CanWithinReach: base dx=" + std::to_string(dx) +
+                  " dy=" + std::to_string(dy) +
+                  " dist=" + std::to_string(distance) +
+                  " age=" + std::to_string(age_sec));
+
+      if (dx > 0.0 && distance < ObjectDetectionState::WITHIN_REACH_DISTANCE) {
+        RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] Can '%s' within reach at %.2fm (age=%.2fs)",
+                    object_name.c_str(), distance, age_sec);
+        return BT::NodeStatus::SUCCESS;
+      }
+
+      RCLCPP_DEBUG(node_->get_logger(), "[CanWithinReach] base dx=%.2f dy=%.2f dist=%.2f (need %.2f)",
+                   dx, dy, distance, ObjectDetectionState::WITHIN_REACH_DISTANCE);
+      return BT::NodeStatus::FAILURE;
+    } catch (const tf2::TransformException& ex) {
+      RCLCPP_WARN(node_->get_logger(), "[CanWithinReach] TF base_link<-det_raw failed: %s", ex.what());
+      // fall through to odom fallback
+    }
+  }
+
+  // Fallback: anchored odom distance.
+  if (!has_odom) {
+    RCLCPP_DEBUG(node_->get_logger(), "[CanWithinReach] No odom-anchored detection available yet");
+    return BT::NodeStatus::FAILURE;
+  }
+
   try {
-    auto tf_buffer = std::make_shared<tf2_ros::Buffer>(node_->get_clock());
-    auto tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
-    
-    auto transform = tf_buffer->lookupTransform(
-      "map", "base_link", tf2::TimePointZero, tf2::durationFromSec(0.5));
-    
-    double robot_x = transform.transform.translation.x;
-    double robot_y = transform.transform.translation.y;
-    
-    // Calculate distance from robot to can
-    double dx = g_detection_state.oakd_detection_position.x - robot_x;
-    double dy = g_detection_state.oakd_detection_position.y - robot_y;
-    double distance = std::sqrt(dx * dx + dy * dy);
-    
+    auto tf_odom_base = g_tf_buffer->lookupTransform(
+      "odom", "base_link", tf2::TimePointZero, tf2::durationFromSec(0.1));
+
+    const double robot_x = tf_odom_base.transform.translation.x;
+    const double robot_y = tf_odom_base.transform.translation.y;
+
+    const double dx = det_odom.x - robot_x;
+    const double dy = det_odom.y - robot_y;
+    const double distance = std::hypot(dx, dy);
+
+    publishDebugStatus(node_, "CanWithinReach: odom dist=" + std::to_string(distance) +
+                  " age=" + std::to_string(age_sec));
+
     if (distance < ObjectDetectionState::WITHIN_REACH_DISTANCE) {
-      RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] Can '%s' within reach at %.2fm", 
+      RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] (odom) Can '%s' within reach at %.2fm", 
                   object_name.c_str(), distance);
       return BT::NodeStatus::SUCCESS;
     }
-    
-    RCLCPP_DEBUG(node_->get_logger(), "[CanWithinReach] Can at %.2fm (need %.2fm)",
-                 distance, ObjectDetectionState::WITHIN_REACH_DISTANCE);
     return BT::NodeStatus::FAILURE;
   } catch (const tf2::TransformException& ex) {
-    RCLCPP_WARN(node_->get_logger(), "[CanWithinReach] TF lookup failed: %s", ex.what());
+    RCLCPP_WARN(node_->get_logger(), "[CanWithinReach] TF odom<-base_link failed: %s", ex.what());
     return BT::NodeStatus::FAILURE;
   }
 }
@@ -509,6 +696,181 @@ BT::NodeStatus FollowPath::tick()
   return BT::NodeStatus::SUCCESS;
 }
 
+static BT::NodeStatus computeApproachGoalToCanOnce(
+  const std::shared_ptr<rclcpp::Node>& node,
+  geometry_msgs::msg::PoseStamped& out_goal_in_map)
+{
+  // Use the node instance passed by the BT wrapper.
+  initializeObjectDetection(node);
+  initializeDebugTelemetry(node);
+
+  // Snapshot detection
+  geometry_msgs::msg::Point det_raw;
+  std::string det_frame;
+  bool has_raw = false;
+  bool has_odom = false;
+  geometry_msgs::msg::Point det_odom;
+  double age_sec = 999.0;
+  {
+    std::lock_guard<std::mutex> lock(g_detection_mutex);
+    if (g_detection_state.oakd_can_detected) {
+      age_sec = (node->now() - g_detection_state.oakd_last_detection_time).seconds();
+      if (age_sec < ObjectDetectionState::DETECTION_TIMEOUT_SEC) {
+        has_raw = !g_detection_state.oakd_detection_frame_raw.empty();
+        det_raw = g_detection_state.oakd_detection_position_raw;
+        det_frame = g_detection_state.oakd_detection_frame_raw;
+        has_odom = g_detection_state.oakd_detection_has_odom;
+        det_odom = g_detection_state.oakd_detection_position_odom;
+      }
+    }
+  }
+
+  if (!has_raw && !has_odom) {
+    publishDebugStatus(node, "ComputeApproachGoalToCan: no detection (waiting)");
+    return BT::NodeStatus::RUNNING;
+  }
+
+  // Require "fresh" detections for forward progress. If we don't have a current view, don't send Nav2 forward.
+  constexpr double kFreshDetectionForGoalSec = 0.35;
+  if (age_sec > kFreshDetectionForGoalSec) {
+    publishDebugStatus(node, "ComputeApproachGoalToCan: stale age=" + std::to_string(age_sec) + " (waiting)");
+    return BT::NodeStatus::RUNNING;
+  }
+
+  if (!g_tf_buffer) {
+    publishDebugStatus(node, "ComputeApproachGoalToCan: TF buffer not ready (waiting)");
+    return BT::NodeStatus::RUNNING;
+  }
+
+  // 1) Transform detection into base_link to get a reliable bearing.
+  //    This is more robust than projecting a noisy range estimate into map.
+  geometry_msgs::msg::PointStamped det_msg;
+  if (has_raw && !det_frame.empty()) {
+    det_msg.header.frame_id = det_frame;
+    det_msg.header.stamp = rclcpp::Time(0);
+    det_msg.point = det_raw;
+  } else if (has_odom) {
+    det_msg.header.frame_id = "odom";
+    det_msg.header.stamp = rclcpp::Time(0);
+    det_msg.point = det_odom;
+  } else {
+    return BT::NodeStatus::FAILURE;
+  }
+
+  geometry_msgs::msg::PointStamped det_in_base;
+  try {
+    const auto tf_base_from_det = g_tf_buffer->lookupTransform(
+      "base_link", det_msg.header.frame_id, tf2::TimePointZero);
+    tf2::doTransform(det_msg, det_in_base, tf_base_from_det);
+  } catch (const tf2::TransformException& ex) {
+    publishDebugStatus(node, std::string("ComputeApproachGoalToCan: TF base_link<-det failed (waiting): ") + ex.what());
+    return BT::NodeStatus::RUNNING;
+  }
+
+  // base_link: x forward, y left
+  double dx_base = det_in_base.point.x;
+  double dy_base = det_in_base.point.y;
+
+  // If we have the raw optical x (right-positive) and it disagrees with base_link y sign, flip y.
+  // This is a defensive guard against sim camera frame axis wiring issues.
+  if (has_raw) {
+    const bool raw_says_right = det_raw.x > 0.0;
+    const bool base_says_left = dy_base > 0.0;
+    if (raw_says_right == base_says_left) {
+      dy_base = -dy_base;
+    }
+  }
+
+  const double bearing = std::atan2(dy_base, dx_base);
+
+  publishDebugPoint(node, g_debug.can_in_base_pub, "base_link", det_in_base.point);
+  publishDebugStatus(node,
+    "ComputeApproachGoalToCan: age=" + std::to_string(age_sec) +
+    " base(dx=" + std::to_string(dx_base) + " dy=" + std::to_string(dy_base) +
+    " bearing=" + std::to_string(bearing) + ")");
+
+  // 2) Build a goal in base_link: rotate first; translate only when roughly facing the can.
+  const double standoff = ObjectDetectionState::WITHIN_REACH_DISTANCE;
+  constexpr double kMaxStep = 0.50;             // meters
+  constexpr double kTranslateWhenAbsBearing = 0.35;  // rad (~20 deg)
+
+  // Forward component (if range estimate is bad, at least direction stays correct).
+  double forward_advance = 0.0;
+  if (std::abs(bearing) <= kTranslateWhenAbsBearing && dx_base > 0.0) {
+    forward_advance = std::clamp(dx_base - standoff, 0.0, kMaxStep);
+  }
+
+  geometry_msgs::msg::PoseStamped goal_in_base;
+  goal_in_base.header.frame_id = "base_link";
+  // Stamp is irrelevant here; we use TimePointZero when transforming.
+  goal_in_base.header.stamp = rclcpp::Time(0);
+  goal_in_base.pose.position.x = forward_advance;
+  goal_in_base.pose.position.y = 0.0;
+  goal_in_base.pose.position.z = 0.0;
+
+  tf2::Quaternion q_goal;
+  q_goal.setRPY(0.0, 0.0, bearing);
+  goal_in_base.pose.orientation = tf2::toMsg(q_goal);
+
+  // 3) Transform that goal into map for Nav2.
+  geometry_msgs::msg::PoseStamped goal_in_map;
+  try {
+    const auto tf_map_from_base = g_tf_buffer->lookupTransform(
+      "map", "base_link", tf2::TimePointZero);
+    tf2::doTransform(goal_in_base, goal_in_map, tf_map_from_base);
+    goal_in_map.header.frame_id = "map";
+    goal_in_map.header.stamp = node->now();
+  } catch (const tf2::TransformException& ex) {
+    publishDebugStatus(node, std::string("ComputeApproachGoalToCan: TF map<-base_link failed (waiting): ") + ex.what());
+    return BT::NodeStatus::RUNNING;
+  }
+
+  // Also publish a best-effort can point in map for visualization.
+  try {
+    const auto tf_map_from_det = g_tf_buffer->lookupTransform(
+      "map", det_msg.header.frame_id, tf2::TimePointZero);
+    geometry_msgs::msg::PointStamped det_in_map;
+    tf2::doTransform(det_msg, det_in_map, tf_map_from_det);
+    publishDebugPoint(node, g_debug.can_in_map_pub, "map", det_in_map.point);
+  } catch (const tf2::TransformException&) {
+    // ignore
+  }
+
+  publishDebugPose(node, g_debug.approach_goal_pub, goal_in_map);
+
+  out_goal_in_map = goal_in_map;
+  RCLCPP_INFO(node->get_logger(),
+              "[ComputeApproachGoalToCan] base dx=%.2f dy=%.2f bearing=%.2f -> step=%.2f (map goal %.2f,%.2f)",
+              dx_base, dy_base, bearing, forward_advance,
+              goal_in_map.pose.position.x, goal_in_map.pose.position.y);
+
+  publishDebugStatus(node,
+    "ComputeApproachGoalToCan: publish goal map(" + std::to_string(goal_in_map.pose.position.x) + "," +
+                                                std::to_string(goal_in_map.pose.position.y) + ") step=" +
+    std::to_string(forward_advance));
+  return BT::NodeStatus::SUCCESS;
+}
+
+BT::NodeStatus ComputeApproachGoalToCan::onStart()
+{
+  geometry_msgs::msg::PoseStamped goal;
+  const auto status = computeApproachGoalToCanOnce(node_, goal);
+  if (status == BT::NodeStatus::SUCCESS) {
+    setOutput("goal", goal);
+  }
+  return status;
+}
+
+BT::NodeStatus ComputeApproachGoalToCan::onRunning()
+{
+  geometry_msgs::msg::PoseStamped goal;
+  const auto status = computeApproachGoalToCanOnce(node_, goal);
+  if (status == BT::NodeStatus::SUCCESS) {
+    setOutput("goal", goal);
+  }
+  return status;
+}
+
 BT::NodeStatus MoveTowardsCan::onStart()
 {
   initializeObjectDetection(node_);
@@ -519,99 +881,102 @@ BT::NodeStatus MoveTowardsCan::onRunning()
 {
   std::string object_name;
   getInput("objectOfInterest", object_name);
-  
-  // Check detection first without mutex holding entire function
+
+  // Pull the most recent raw detection snapshot
   bool detection_valid = false;
-  geometry_msgs::msg::Point det_pos;
+  geometry_msgs::msg::Point det_pos_raw;
+  std::string det_frame_raw;
+  double detection_age_sec = 999.0;
   {
     std::lock_guard<std::mutex> lock(g_detection_mutex);
     if (g_detection_state.oakd_can_detected) {
-      if ((node_->now() - g_detection_state.oakd_last_detection_time).seconds() < ObjectDetectionState::DETECTION_TIMEOUT_SEC) {
+      detection_age_sec = (node_->now() - g_detection_state.oakd_last_detection_time).seconds();
+      if (detection_age_sec < ObjectDetectionState::DETECTION_TIMEOUT_SEC) {
         detection_valid = true;
-        det_pos = g_detection_state.oakd_detection_position;
+        det_pos_raw = g_detection_state.oakd_detection_position_raw;
+        det_frame_raw = g_detection_state.oakd_detection_frame_raw;
       }
     }
   }
-  
+
   if (!detection_valid) {
     RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] Lost detection of '%s'", object_name.c_str());
     return BT::NodeStatus::FAILURE;
   }
-  
-  // Get robot's current position and orientation
-  try {
-    // DO NOT create buffer locally in loop - usage of static/member if possible, or just accept overhead for now
-    static auto tf_buffer = std::make_unique<tf2_ros::Buffer>(node_->get_clock());
-    static auto tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
-    
-    // Check if within reach
-    double angle_error = 0.0;
-    double distance = 0.0;
 
-    if (tf_buffer->canTransform("map", "base_link", tf2::TimePointZero)) {
-      auto transform = tf_buffer->lookupTransform(
-        "map", "base_link", tf2::TimePointZero);
-        
-      double robot_x = transform.transform.translation.x;
-      double robot_y = transform.transform.translation.y;
-      
-      // Calculate angle to can
-      double dx = det_pos.x - robot_x;
-      double dy = det_pos.y - robot_y;
-      
-      distance = std::hypot(dx, dy);
-      double target_yaw = std::atan2(dy, dx);
-      
-      // Get robot yaw
-      tf2::Quaternion q(
-        transform.transform.rotation.x,
-        transform.transform.rotation.y,
-        transform.transform.rotation.z,
-        transform.transform.rotation.w);
-      double roll, pitch, yaw;
-      tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
-      
-      angle_error = target_yaw - yaw;
-    } else {
-        RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] Waiting for TF...");
-        return BT::NodeStatus::RUNNING;
+  // Safety: never drive forward on stale detections.
+  constexpr double kFreshDetectionForForwardSec = 0.25;
+  const bool detection_fresh_for_forward = detection_age_sec <= kFreshDetectionForForwardSec;
+
+  try {
+    geometry_msgs::msg::PointStamped det_point_raw;
+    det_point_raw.point = det_pos_raw;
+    det_point_raw.header.frame_id = det_frame_raw;
+    det_point_raw.header.stamp = rclcpp::Time(0);
+
+    if (!g_tf_buffer || !g_tf_buffer->canTransform("base_link", det_frame_raw, rclcpp::Time(0))) {
+      RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] Waiting for TF from '%s' to base_link", det_frame_raw.c_str());
+      return BT::NodeStatus::RUNNING;
     }
-    
-    // Check if we've reached the target
+
+    auto det_in_base = g_tf_buffer->transform(det_point_raw, "base_link");
+
+    // base_link: x forward, y left
+    double dx = det_in_base.point.x;
+    double dy = det_in_base.point.y;
+
+    // Heuristic sanity: if detector says "right of center" (raw x > 0 in optical), but TF says dy>0 (left), flip dy.
+    // This guards against a swapped axis in the sim camera frame definition.
+    if (det_pos_raw.x > 0.0 && dy > 0.0) {
+      dy = -dy;
+    } else if (det_pos_raw.x < 0.0 && dy < 0.0) {
+      dy = -dy;
+    }
+
+    const double distance = std::hypot(dx, dy);
+    const double angle_error = std::atan2(dy, dx);
+
     if (distance < ObjectDetectionState::WITHIN_REACH_DISTANCE) {
       RCLCPP_INFO(node_->get_logger(), "[MoveTowardsCan] Reached target distance");
       return BT::NodeStatus::SUCCESS;
     }
-    
-    // Normalize angle to [-pi, pi]
-    while (angle_error > M_PI) angle_error -= 2.0 * M_PI;
-    while (angle_error < -M_PI) angle_error += 2.0 * M_PI;
-    
-    // Create twist command
+
     static auto cmd_vel_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_nav", 10);
     geometry_msgs::msg::Twist cmd;
-    
-    // If angle error is large, rotate first
+
+    // If target isn't in front, rotate only.
+    if (dx <= 0.05) {
+      cmd.angular.z = std::copysign(0.5, angle_error);
+      cmd.linear.x = 0.0;
+      cmd_vel_pub->publish(cmd);
+      return BT::NodeStatus::RUNNING;
+    }
+
+    // Rotate towards target until roughly centered.
     if (std::abs(angle_error) > 0.1) {
       cmd.angular.z = std::copysign(std::min(0.5, std::abs(angle_error)), angle_error);
-      RCLCPP_INFO(node_->get_logger(), "[MoveTowardsCan] Rotating %.2f rad towards can",
-                  angle_error);
-    } else {
-      // Move forward slowly
-      cmd.linear.x = std::min(0.1, distance * 0.5);
-      RCLCPP_INFO(node_->get_logger(), "[MoveTowardsCan] Moving %.2fm forward towards '%s'",
-                  cmd.linear.x, object_name.c_str());
+      cmd.linear.x = 0.0;
+      cmd_vel_pub->publish(cmd);
+      return BT::NodeStatus::RUNNING;
     }
-    
+
+    // Only move forward if the can is still being detected (fresh).
+    if (!detection_fresh_for_forward) {
+      geometry_msgs::msg::Twist stop;
+      cmd_vel_pub->publish(stop);
+      RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] Detection stale (%.2fs); refusing to drive forward", detection_age_sec);
+      return BT::NodeStatus::FAILURE;
+    }
+
+    cmd.linear.x = std::min(0.15, distance * 0.5);
+    cmd.angular.z = angle_error;
     cmd_vel_pub->publish(cmd);
     return BT::NodeStatus::RUNNING;
-    
   } catch (const tf2::TransformException& ex) {
-    RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] TF lookup failed: %s", ex.what());
+    RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] TF transform failed: %s", ex.what());
     return BT::NodeStatus::FAILURE;
   }
 }
-
 BT::NodeStatus RotateRobot::onStart()
 {
   double degrees = 0.0;
@@ -676,6 +1041,8 @@ BT::NodeStatus NavigateToPoseAction::onStart()
     return BT::NodeStatus::FAILURE;
   }
 
+  initializeDebugTelemetry(node_);
+
   // Initialize action client if needed
   if (!action_client_) {
     action_client_ = rclcpp_action::create_client<NavigateAction>(
@@ -692,6 +1059,7 @@ BT::NodeStatus NavigateToPoseAction::onStart()
   // Get goal from input
   if (!getInput("goal", current_goal_)) {
     RCLCPP_ERROR(rclcpp::get_logger("NavigateToPoseAction"), "No goal provided!");
+    publishDebugStatus(node_, "NavigateToPoseAction: FAIL no goal provided");
     return BT::NodeStatus::FAILURE;
   }
 
@@ -708,9 +1076,14 @@ BT::NodeStatus NavigateToPoseAction::onStart()
     RCLCPP_INFO(rclcpp::get_logger("NavigateToPoseAction"), 
                 "Sent navigation goal to (%.2f, %.2f)",
                 current_goal_.pose.position.x, current_goal_.pose.position.y);
+    publishDebugStatus(node_,
+      "NavigateToPoseAction: sent goal frame=" + current_goal_.header.frame_id +
+      " (" + std::to_string(current_goal_.pose.position.x) + "," +
+             std::to_string(current_goal_.pose.position.y) + ")");
     return BT::NodeStatus::RUNNING;
   } else {
     RCLCPP_ERROR(rclcpp::get_logger("NavigateToPoseAction"), "Failed to send navigation goal");
+    publishDebugStatus(node_, "NavigateToPoseAction: FAIL sendGoal");
     return BT::NodeStatus::FAILURE;
   }
 }
@@ -726,12 +1099,14 @@ BT::NodeStatus NavigateToPoseAction::onRunning()
         goal_handle_ = goal_handle_future_.get();
         if (!goal_handle_) {
           RCLCPP_ERROR(rclcpp::get_logger("NavigateToPoseAction"), "Goal was rejected!");
+          publishDebugStatus(node_, "NavigateToPoseAction: rejected");
           action_state_ = ActionState::GOAL_FAILED;
           setOutput("error_code_id", -1);
           return BT::NodeStatus::FAILURE;
         }
         action_state_ = ActionState::GOAL_ACTIVE;
         RCLCPP_INFO(rclcpp::get_logger("NavigateToPoseAction"), "Goal accepted, navigation active");
+        publishDebugStatus(node_, "NavigateToPoseAction: accepted/active");
       }
       return BT::NodeStatus::RUNNING;
 
@@ -741,11 +1116,13 @@ BT::NodeStatus NavigateToPoseAction::onRunning()
         BT::NodeStatus result = navigation_result_.load();
         if (result == BT::NodeStatus::SUCCESS) {
           RCLCPP_INFO(rclcpp::get_logger("NavigateToPoseAction"), "Navigation succeeded!");
+          publishDebugStatus(node_, "NavigateToPoseAction: SUCCEEDED");
           action_state_ = ActionState::GOAL_COMPLETED;
           setOutput("error_code_id", 0);
           return BT::NodeStatus::SUCCESS;
         } else {
           RCLCPP_WARN(rclcpp::get_logger("NavigateToPoseAction"), "Navigation failed!");
+          publishDebugStatus(node_, "NavigateToPoseAction: FAILED");
           action_state_ = ActionState::GOAL_FAILED;
           setOutput("error_code_id", -1);
           return BT::NodeStatus::FAILURE;
@@ -769,6 +1146,9 @@ BT::NodeStatus NavigateToPoseAction::onRunning()
 void NavigateToPoseAction::onHalted()
 {
   RCLCPP_INFO(rclcpp::get_logger("NavigateToPoseAction"), "Navigation halted - canceling goal");
+  if (node_) {
+    publishDebugStatus(node_, "NavigateToPoseAction: HALTED cancel request");
+  }
   
   if (goal_handle_ && action_state_ == ActionState::GOAL_ACTIVE) {
     auto future_cancel = action_client_->async_cancel_goal(goal_handle_);
@@ -830,6 +1210,8 @@ void NavigateToPoseAction::resultCallback(
       RCLCPP_ERROR(rclcpp::get_logger("NavigateToPoseAction"), "Unknown result code");
       break;
   }
+
+  // Note: this callback isn't on the BT thread; keep it minimal.
 }
 
 // ============================================================================
@@ -934,9 +1316,10 @@ BT::NodeStatus ComputeElevatorHeight::tick()
   
   double target_height;
   
-  if (g_detection_state.oakd_can_detected) {
+  if (g_detection_state.oakd_can_detected && g_detection_state.oakd_detection_has_odom) {
     // Use detected can height plus gripper offset
-    double can_height = g_detection_state.oakd_detection_position.z;
+    // In odom frame, Z is height.
+    double can_height = g_detection_state.oakd_detection_position_odom.z;
     double gripper_offset = 0.05; // 5cm above can
     target_height = can_height + gripper_offset;
     
@@ -952,7 +1335,6 @@ BT::NodeStatus ComputeElevatorHeight::tick()
   setOutput("targetHeight", target_height);
   return BT::NodeStatus::SUCCESS;
 }
-
 BT::NodeStatus RetractExtender::tick()
 {
   // Placeholder: Retract extender fully
@@ -1100,27 +1482,47 @@ BT::NodeStatus LoadCanLocation::tick()
 {
   std::string can_name;
   getInput("canName", can_name);
-  
-  // Placeholder: Hardcoded location for CokeZeroCan
-  // TODO: Implement proper JSON parsing when nlohmann-json is available
+
   geometry_msgs::msg::Point location;
-  
-  if (can_name == "CokeZeroCan") {
-    location.x = 8.43;
-    location.y = 11.2;
-    location.z = 0.75;
-    
+  try {
+    const std::string pkg_share = ament_index_cpp::get_package_share_directory("can_do_challenge");
+    const std::string db_path = pkg_share + "/config/can_locations.json";
+
+    std::ifstream in(db_path);
+    if (!in.is_open()) {
+      RCLCPP_ERROR(node_->get_logger(), "[LoadCanLocation] Failed to open %s", db_path.c_str());
+      return BT::NodeStatus::FAILURE;
+    }
+
+    std::ostringstream ss;
+    ss << in.rdbuf();
+    const std::string content = ss.str();
+
+    // Minimal parser for our known config format.
+    // Matches the entry with the requested name and captures x/y/z.
+    const std::string pattern =
+      std::string(R"(\"name\"\s*:\s*\")") + can_name +
+      R"(\"[\s\S]*?\"location\"\s*:\s*\{[\s\S]*?\"x\"\s*:\s*([-+0-9.eE]+)[\s\S]*?\"y\"\s*:\s*([-+0-9.eE]+)[\s\S]*?\"z\"\s*:\s*([-+0-9.eE]+))";
+
+    std::regex re(pattern);
+    std::smatch m;
+    if (!std::regex_search(content, m, re) || m.size() != 4) {
+      RCLCPP_ERROR(node_->get_logger(), "[LoadCanLocation] Can '%s' not found in %s", can_name.c_str(), db_path.c_str());
+      return BT::NodeStatus::FAILURE;
+    }
+
+    location.x = std::stod(m[1].str());
+    location.y = std::stod(m[2].str());
+    location.z = std::stod(m[3].str());
+
     setOutput("location", location);
-    
-    RCLCPP_INFO(node_->get_logger(), 
-                "[LoadCanLocation] Loaded location for '%s': (%.2f, %.2f, %.2f)",
-                can_name.c_str(), location.x, location.y, location.z);
+    RCLCPP_INFO(node_->get_logger(), "[LoadCanLocation] Loaded '%s' from %s: (%.3f, %.3f, %.3f)",
+                can_name.c_str(), db_path.c_str(), location.x, location.y, location.z);
     return BT::NodeStatus::SUCCESS;
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(node_->get_logger(), "[LoadCanLocation] Failed: %s", e.what());
+    return BT::NodeStatus::FAILURE;
   }
-  
-  RCLCPP_ERROR(node_->get_logger(), "[LoadCanLocation] Can '%s' not found in database", 
-               can_name.c_str());
-  return BT::NodeStatus::FAILURE;
 }
 
 BT::NodeStatus ChargeBattery::tick()
