@@ -21,6 +21,8 @@
 #include "std_msgs/msg/bool.hpp"
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_listener.h"
 #include <memory>
 #include <string>
 #include <atomic>
@@ -521,6 +523,21 @@ public:
   : BT::SyncActionNode(name, config) {}
   
   static BT::PortsList providedPorts() { return {}; }
+  BT::NodeStatus tick() override;
+};
+
+class SaySomething : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  SaySomething(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return { 
+      BT::InputPort<std::string>("message", "", "Message to log"),
+      BT::InputPort<geometry_msgs::msg::PoseStamped>("pose", "Optional pose to include in message")
+    };
+  }
   BT::NodeStatus tick() override;
 };
 

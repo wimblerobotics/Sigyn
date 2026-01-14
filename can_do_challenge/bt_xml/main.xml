@@ -4,99 +4,108 @@
     <!-- Main behavior tree for CokeZero can fetching challenge -->
     <BehaviorTree ID="MainTree">
         <Sequence>
-            <Action ID="SaveRobotPose" saveTo="{startingPose}"/>
-            <SubTree ID="SetupCanChallenge" __shared_blackboard="true" objectOfInterest="CokeZeroCan"/>
-            <ReactiveSequence name="FetchAndReturnCan">
-                <SubTree ID="ReactiveRobotSafety"/>
-                <SubTree ID="NavigateToCanLocation" __shared_blackboard="true" objectOfInterest="{objectOfInterest}"/>
-                <SubTree ID="VisuallyAcquireCan" __shared_blackboard="true" objectOfInterest="{objectOfInterest}"/>
-                <SubTree ID="GraspCan" __shared_blackboard="true" objectOfInterest="{objectOfInterest}"/>
-                <SubTree ID="ReturnToStart" __shared_blackboard="true" targetPose="{startingPose}"/>
+            <Action ID="SaveRobotPose" saveTo="{startingPose}" />
+            <SubTree ID="SetupCanChallenge" __shared_blackboard="true"
+                objectOfInterest="CokeZeroCan" />
+            <ReactiveSequence name="FetchCan">
+                <SubTree ID="ReactiveRobotSafety" __shared_blackboard="true" />
+                <SubTree ID="NavigateToCanLocation" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" />
+                <SubTree ID="VisuallyAcquireCan" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" />
+                <SubTree ID="GraspCan" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" />
             </ReactiveSequence>
+            <SubTree ID="ReturnToStart" __shared_blackboard="true" />
         </Sequence>
     </BehaviorTree>
     <!-- ////////// -->
     <!-- Safety monitoring subtrees -->
     <BehaviorTree ID="ReactiveRobotSafety">
         <ReactiveSequence>
-            <SubTree ID="RobotHasNotFallenOver"/>
-            <SubTree ID="RobotIsNotAboutToFallOver"/>
-            <SubTree ID="RobotIsNotEStopped"/>
-            <SubTree ID="EnsureBatteryIsNotCritical"/>
-            <SubTree ID="BatteryIsCharged"/>
+            <SaySomething message="startingPose=" pose="{startingPose}" />
+            <SubTree ID="RobotHasNotFallenOver" />
+            <SubTree ID="RobotIsNotAboutToFallOver" />
+            <SubTree ID="RobotIsNotEStopped" />
+            <SubTree ID="EnsureBatteryIsNotCritical" />
+            <SubTree ID="BatteryIsCharged" />
         </ReactiveSequence>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="RobotHasNotFallenOver">
         <ReactiveFallback>
             <Inverter>
-                <Condition ID="RobotTiltedCritically"/>
+                <Condition ID="RobotTiltedCritically" />
             </Inverter>
-            <Action ID="ShutdownSystem"/>
+            <Action ID="ShutdownSystem" />
         </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="RobotIsNotAboutToFallOver">
         <ReactiveFallback>
             <Inverter>
-                <Condition ID="RobotTiltedWarning"/>
+                <Condition ID="RobotTiltedWarning" />
             </Inverter>
-            <Action ID="SoftwareEStop" reason="Robot is about to fall over"/>
+            <Action ID="SoftwareEStop" reason="Robot is about to fall over" />
         </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="RobotIsNotEStopped">
         <Inverter>
-            <Condition ID="RobotIsEstopped"/>
+            <Condition ID="RobotIsEstopped" />
         </Inverter>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="EnsureBatteryIsNotCritical">
         <ReactiveFallback name="SystemShutdownNotNeeded">
-            <Condition ID="BatteryAboveCriticalVoltage"/>
-            <Action ID="ShutdownSystem"/>
+            <Condition ID="BatteryAboveCriticalVoltage" />
+            <Action ID="ShutdownSystem" />
         </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="BatteryIsCharged">
         <ReactiveFallback name="ChargingNotNeeded">
-            <Condition ID="BatteryAboveChargingVoltage"/>
-            <Action ID="ChargeBattery"/>
+            <Condition ID="BatteryAboveChargingVoltage" />
+            <Action ID="ChargeBattery" />
         </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
     <!-- Setup subtree -->
     <BehaviorTree ID="SetupCanChallenge">
         <Sequence>
-            <SetBlackboard output_key="objectOfInterest" value="CokeZeroCan"/>
-            <Action ID="LoadCanLocation" canName="{objectOfInterest}" location="{expectedCanLocation}"/>
-            <Action ID="RetractGripper"/>
-            <Action ID="LowerElevator"/>
+            <SetBlackboard output_key="objectOfInterest" value="CokeZeroCan" />
+            <Action ID="LoadCanLocation" canName="{objectOfInterest}"
+                location="{expectedCanLocation}" />
+            <Action ID="RetractGripper" />
+            <Action ID="LowerElevator" />
         </Sequence>
     </BehaviorTree>
     <!-- ////////// -->
     <!-- Navigation to can location -->
     <BehaviorTree ID="NavigateToCanLocation">
         <ReactiveSequence>
-            <Action ID="ComputePathToCanLocation" goal="{goal}" location="{expectedCanLocation}" path="{path}"/>
-            <Action ID="NavigateToPoseAction" goal="{goal}" error_code_id="{nav_error_code}"/>
-        </Sequence>
+            <Action ID="ComputePathToCanLocation" goal="{goal}" location="{expectedCanLocation}"
+                path="{path}" />
+            <Action ID="NavigateToPoseAction" goal="{goal}" error_code_id="{nav_error_code}" />
+        </ReactiveSequence>
     </BehaviorTree>
     <!-- ////////// -->
     <!-- Visual acquisition with OAK-D -->
     <BehaviorTree ID="VisuallyAcquireCan">
         <ReactiveSequence>
-            <SubTree ID="SearchForCanWithOAKD" __shared_blackboard="true" objectOfInterest="{objectOfInterest}"/>
-            <SubTree ID="ApproachCanWithOAKD" __shared_blackboard="true" objectOfInterest="{objectOfInterest}"/>
+            <SubTree ID="SearchForCanWithOAKD" __shared_blackboard="true"
+                objectOfInterest="{objectOfInterest}" />
+            <SubTree ID="ApproachCanWithOAKD" __shared_blackboard="true"
+                objectOfInterest="{objectOfInterest}" />
         </ReactiveSequence>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="SearchForCanWithOAKD">
         <ReactiveFallback name="FindCanVisually">
-            <Condition ID="CanDetectedByOAKD" objectOfInterest="{objectOfInterest}"/>
+            <Condition ID="CanDetectedByOAKD" objectOfInterest="{objectOfInterest}" />
             <ForceFailure>
                 <Decorator ID="ReactiveRepeat" num_cycles="12">
-                    <Action ID="RotateRobot" degrees="30"/>
+                    <Action ID="RotateRobot" degrees="30" />
                 </Decorator>
             </ForceFailure>
         </ReactiveFallback>
@@ -104,27 +113,31 @@
     <!-- ////////// -->
     <BehaviorTree ID="ApproachCanWithOAKD">
         <ReactiveFallback name="GetWithinReach">
-            <Condition ID="CanWithinReach" objectOfInterest="{objectOfInterest}"/>
-            <Action ID="MoveTowardsCan" objectOfInterest="{objectOfInterest}"/>
+            <Condition ID="CanWithinReach" objectOfInterest="{objectOfInterest}" />
+            <Action ID="MoveTowardsCan" objectOfInterest="{objectOfInterest}" />
         </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
     <!-- Grasping sequence -->
     <BehaviorTree ID="GraspCan">
         <ReactiveSequence>
-            <SubTree ID="RaiseElevatorToCanHeight" __shared_blackboard="true" objectOfInterest="{objectOfInterest}"/>
-            <SubTree ID="CenterCanInPiCamera" __shared_blackboard="true" objectOfInterest="{objectOfInterest}"/>
-            <SubTree ID="ExecuteGrasp" __shared_blackboard="true" objectOfInterest="{objectOfInterest}"/>
-            <SubTree ID="RetractAfterGrasp"/>
+            <SubTree ID="RaiseElevatorToCanHeight" __shared_blackboard="true"
+                objectOfInterest="{objectOfInterest}" />
+            <SubTree ID="CenterCanInPiCamera" __shared_blackboard="true"
+                objectOfInterest="{objectOfInterest}" />
+            <SubTree ID="ExecuteGrasp" __shared_blackboard="true"
+                objectOfInterest="{objectOfInterest}" />
+            <SubTree ID="RetractAfterGrasp" />
         </ReactiveSequence>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="RaiseElevatorToCanHeight">
         <ReactiveSequence>
-            <Action ID="ComputeElevatorHeight" canLocation="{expectedCanLocation}" targetHeight="{elevatorHeight}"/>
+            <Action ID="ComputeElevatorHeight" canLocation="{expectedCanLocation}"
+                targetHeight="{elevatorHeight}" />
             <ReactiveFallback name="MoveElevatorToHeight">
-                <Condition ID="ElevatorAtHeight" targetHeight="{elevatorHeight}"/>
-                <Action ID="MoveElevatorToHeight" targetHeight="{elevatorHeight}"/>
+                <Condition ID="ElevatorAtHeight" targetHeight="{elevatorHeight}" />
+                <Action ID="MoveElevatorToHeight" targetHeight="{elevatorHeight}" />
             </ReactiveFallback>
         </ReactiveSequence>
     </BehaviorTree>
@@ -132,14 +145,14 @@
     <BehaviorTree ID="CenterCanInPiCamera">
         <ReactiveSequence>
             <ReactiveFallback name="WaitForPiCameraDetection">
-                <Condition ID="CanDetectedByPiCamera" objectOfInterest="{objectOfInterest}"/>
-                <Action ID="WaitForDetection"/>
+                <Condition ID="CanDetectedByPiCamera" objectOfInterest="{objectOfInterest}" />
+                <Action ID="WaitForDetection" />
             </ReactiveFallback>
             <ReactiveFallback name="CenterUsingExtender">
-                <Condition ID="CanCenteredInPiCamera" objectOfInterest="{objectOfInterest}"/>
+                <Condition ID="CanCenteredInPiCamera" objectOfInterest="{objectOfInterest}" />
                 <ForceFailure>
                     <Decorator ID="ReactiveRepeat" num_cycles="25">
-                        <Action ID="AdjustExtenderToCenterCan" objectOfInterest="{objectOfInterest}"/>
+                        <Action ID="AdjustExtenderToCenterCan" objectOfInterest="{objectOfInterest}" />
                     </Decorator>
                 </ForceFailure>
             </ReactiveFallback>
@@ -148,39 +161,36 @@
     <!-- ////////// -->
     <BehaviorTree ID="ExecuteGrasp">
         <ReactiveSequence>
-            <Action ID="LowerElevatorToTable"/>
-            <Action ID="OpenGripper"/>
-            <Action ID="ExtendTowardsCan" objectOfInterest="{objectOfInterest}"/>
-            <Action ID="CloseGripperAroundCan" canDiameter="0.066"/>
+            <Action ID="LowerElevatorToTable" />
+            <Action ID="OpenGripper" />
+            <Action ID="ExtendTowardsCan" objectOfInterest="{objectOfInterest}" />
+            <Action ID="CloseGripperAroundCan" canDiameter="0.066" />
             <ReactiveFallback name="VerifyGrasp">
-                <Condition ID="CanIsGrasped" objectOfInterest="{objectOfInterest}"/>
-                <Action ID="ReportGraspFailure"/>
+                <Condition ID="CanIsGrasped" objectOfInterest="{objectOfInterest}" />
+                <Action ID="ReportGraspFailure" />
             </ReactiveFallback>
         </ReactiveSequence>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="RetractAfterGrasp">
         <Sequence>
-            <Action ID="RetractExtender"/>
-            <Action ID="LowerElevatorSafely"/>
+            <Action ID="RetractExtender" />
+            <Action ID="LowerElevatorSafely" />
         </Sequence>
     </BehaviorTree>
     <!-- ////////// -->
-    <!-- Return to starting location -->
+    <!-- Return to starting position -->
     <BehaviorTree ID="ReturnToStart">
-        <ReactiveSequence>
-            <Action ID="ComputePathToPose" error_code_id="{compute_path_error_code}" goal="{targetPose}" path="{path}" planner_id="{selected_planner}"/>
-            <Action ID="FollowPath" controller_id="{selected_controller}" error_code_id="{follow_path_error_code}" path="{path}"/>
-        </ReactiveSequence>
+        <Action ID="NavigateToPoseAction" goal="{startingPose}" error_code_id="{nav_error_code}" />
     </BehaviorTree>
     <!-- ////////// -->
     <!-- TreeNodesModel - declare all custom nodes -->
     <TreeNodesModel>
         <!-- Actions -->
         <Action ID="AdjustExtenderToCenterCan">
-            <input_port default="{objectOfInterest}" name="objectOfInterest"/>
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </Action>
-        <Action ID="ChargeBattery"/>
+        <Action ID="ChargeBattery" />
         <Action ID="CloseGripperAroundCan">
             <input_port default="0.066" name="canDiameter">Diameter of can in meters</input_port>
         </Action>
@@ -200,7 +210,7 @@
             <output_port name="error_code_id">Error code</output_port>
         </Action>
         <Action ID="ExtendTowardsCan">
-            <input_port default="{objectOfInterest}" name="objectOfInterest"/>
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </Action>
         <Action ID="FollowPath">
             <input_port name="path">Path to follow</input_port>
@@ -211,108 +221,110 @@
             <input_port name="canName">Name of can to find</input_port>
             <output_port name="location">Expected location from database</output_port>
         </Action>
-        <Action ID="LowerElevator"/>
-        <Action ID="LowerElevatorSafely"/>
-        <Action ID="LowerElevatorToTable"/>
+        <Action ID="LowerElevator" />
+        <Action ID="LowerElevatorSafely" />
+        <Action ID="LowerElevatorToTable" />
         <Action ID="MoveElevatorToHeight">
             <input_port name="targetHeight">Target height in meters</input_port>
         </Action>
         <Action ID="MoveTowardsCan">
-            <input_port default="{objectOfInterest}" name="objectOfInterest"/>
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </Action>
-        <Action ID="OpenGripper"/>
-        <Action ID="ReportGraspFailure"/>
-        <Action ID="RetractExtender"/>
-        <Action ID="RetractGripper"/>
+        <Action ID="OpenGripper" />
+        <Action ID="ReportGraspFailure" />
+        <Action ID="RetractExtender" />
+        <Action ID="RetractGripper" />
         <Action ID="RotateRobot">
             <input_port default="0" name="degrees">Degrees to rotate</input_port>
         </Action>
         <Action ID="SaveRobotPose">
             <output_port name="saveTo">Where to save current pose</output_port>
         </Action>
-        <Action ID="ShutdownSystem"/>
+        <Action ID="ShutdownSystem" />
         <Action ID="SoftwareEStop">
-            <input_port default="Emergency stop" name="reason"/>
+            <input_port default="Emergency stop" name="reason" />
         </Action>
-        <Action ID="WaitForDetection"/>
-        
+        <Action ID="WaitForDetection" />
+
         <!-- Conditions -->
-        <Condition ID="BatteryAboveChargingVoltage"/>
-        <Condition ID="BatteryAboveCriticalVoltage"/>
+        <Condition ID="BatteryAboveChargingVoltage" />
+        <Condition ID="BatteryAboveCriticalVoltage" />
         <Condition ID="CanCenteredInPiCamera">
-            <input_port default="{objectOfInterest}" name="objectOfInterest"/>
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </Condition>
         <Condition ID="CanDetectedByOAKD">
-            <input_port default="{objectOfInterest}" name="objectOfInterest"/>
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </Condition>
         <Condition ID="CanDetectedByPiCamera">
-            <input_port default="{objectOfInterest}" name="objectOfInterest"/>
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </Condition>
         <Condition ID="CanIsGrasped">
-            <input_port default="{objectOfInterest}" name="objectOfInterest"/>
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </Condition>
         <Condition ID="CanWithinReach">
-            <input_port default="{objectOfInterest}" name="objectOfInterest"/>
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </Condition>
         <Condition ID="ElevatorAtHeight">
             <input_port name="targetHeight">Target height to check</input_port>
         </Condition>
-        <Condition ID="RobotIsEstopped"/>
-        <Condition ID="RobotTiltedCritically"/>
-        <Condition ID="RobotTiltedWarning"/>
-        
+        <Condition ID="RobotIsEstopped" />
+        <Condition ID="RobotTiltedCritically" />
+        <Condition ID="RobotTiltedWarning" />
+
         <!-- Decorator -->
         <Decorator ID="ReactiveRepeat">
             <input_port name="num_cycles">Number of cycles to repeat</input_port>
         </Decorator>
-        
+
         <!-- SubTrees -->
         <SubTree ID="ApproachCanWithOAKD">
-            <input_port default="true" name="__shared_blackboard"/>
-            <input_port default="{objectOfInterest}" name="objectOfInterest"/>
+            <input_port default="true" name="__shared_blackboard" />
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </SubTree>
-        <SubTree ID="BatteryIsCharged"/>
+        <SubTree ID="BatteryIsCharged" />
         <SubTree ID="CenterCanInPiCamera">
-            <input_port default="true" name="__shared_blackboard"/>
-            <input_port default="{objectOfInterest}" name="objectOfInterest"/>
+            <input_port default="true" name="__shared_blackboard" />
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </SubTree>
-        <SubTree ID="EnsureBatteryIsNotCritical"/>
+        <SubTree ID="EnsureBatteryIsNotCritical" />
         <SubTree ID="ExecuteGrasp">
-            <input_port default="true" name="__shared_blackboard"/>
-            <input_port default="{objectOfInterest}" name="objectOfInterest"/>
+            <input_port default="true" name="__shared_blackboard" />
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </SubTree>
         <SubTree ID="GraspCan">
-            <input_port default="true" name="__shared_blackboard"/>
-            <input_port default="{objectOfInterest}" name="objectOfInterest"/>
+            <input_port default="true" name="__shared_blackboard" />
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </SubTree>
         <SubTree ID="NavigateToCanLocation">
-            <input_port default="true" name="__shared_blackboard"/>
-            <input_port default="{objectOfInterest}" name="objectOfInterest"/>
+            <input_port default="true" name="__shared_blackboard" />
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </SubTree>
         <SubTree ID="RaiseElevatorToCanHeight">
-            <input_port default="true" name="__shared_blackboard"/>
-            <input_port default="{objectOfInterest}" name="objectOfInterest"/>
+            <input_port default="true" name="__shared_blackboard" />
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </SubTree>
-        <SubTree ID="ReactiveRobotSafety"/>
-        <SubTree ID="RetractAfterGrasp"/>
+        <SubTree ID="ReactiveRobotSafety">
+            <!-- <input_port default="{startingPose}" name="startingPose" /> -->
+        </SubTree>
+        <SubTree ID="RetractAfterGrasp" />
         <SubTree ID="ReturnToStart">
-            <input_port default="true" name="__shared_blackboard"/>
-            <input_port name="targetPose"/>
+            <input_port default="true" name="__shared_blackboard" />
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </SubTree>
-        <SubTree ID="RobotHasNotFallenOver"/>
-        <SubTree ID="RobotIsNotAboutToFallOver"/>
-        <SubTree ID="RobotIsNotEStopped"/>
+        <SubTree ID="RobotHasNotFallenOver" />
+        <SubTree ID="RobotIsNotAboutToFallOver" />
+        <SubTree ID="RobotIsNotEStopped" />
         <SubTree ID="SearchForCanWithOAKD">
-            <input_port default="true" name="__shared_blackboard"/>
-            <input_port default="{objectOfInterest}" name="objectOfInterest"/>
+            <input_port default="true" name="__shared_blackboard" />
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </SubTree>
         <SubTree ID="SetupCanChallenge">
-            <input_port default="true" name="__shared_blackboard"/>
-            <input_port default="CokeZeroCan" name="objectOfInterest"/>
+            <input_port default="true" name="__shared_blackboard" />
+            <input_port default="CokeZeroCan" name="objectOfInterest" />
         </SubTree>
         <SubTree ID="VisuallyAcquireCan">
-            <input_port default="true" name="__shared_blackboard"/>
-            <input_port default="{objectOfInterest}" name="objectOfInterest"/>
+            <input_port default="true" name="__shared_blackboard" />
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </SubTree>
     </TreeNodesModel>
 </root>

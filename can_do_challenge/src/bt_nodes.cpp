@@ -4,6 +4,8 @@
 
 #include "can_do_challenge/bt_nodes.hpp"
 #include "sigyn_interfaces/msg/e_stop_status.hpp"
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_listener.h"
 #include <fstream>
 #include <sstream>
 #include <thread>
@@ -664,20 +666,59 @@ BT::NodeStatus AdjustExtenderToCenterCan::tick()
 
 BT::NodeStatus SaveRobotPose::tick()
 {
-  // Placeholder: Get current robot pose
-  // TODO: Get pose from AMCL or TF map->base_link
+  // Get current robot pose from TF (map -> base_link)
   geometry_msgs::msg::PoseStamped current_pose;
   current_pose.header.frame_id = "map";
   current_pose.header.stamp = node_->now();
-  current_pose.pose.position.x = 0.0;
-  current_pose.pose.position.y = 0.0;
-  current_pose.pose.position.z = 0.0;
-  current_pose.pose.orientation.w = 1.0;
   
-  setOutput("saveTo", current_pose);
-  
-  RCLCPP_INFO(node_->get_logger(), "[SaveRobotPose] Saved starting pose");
-  return BT::NodeStatus::SUCCESS;
+  try {
+    // Create TF buffer and listener if needed
+    static std::shared_ptr<tf2_ros::Buffer> tf_buffer;
+    static std::shared_ptr<tf2_ros::TransformListener> tf_listener;
+    
+    if (!tf_buffer) {
+      RCLCPP_INFO(node_->get_logger(), "[SaveRobotPose] Initializing TF buffer and listener...");
+      tf_buffer = std::make_shared<tf2_ros::Buffer>(node_->get_clock());
+      tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
+      // Give TF and AMCL time to populate transforms
+      RCLCPP_INFO(node_->get_logger(), "[SaveRobotPose] Waiting 2 seconds for TF to populate...");
+      std::this_thread::sleep_for(2000ms);
+    }
+    
+    // Lookup transform from map to base_link (use latest available)
+    RCLCPP_INFO(node_->get_logger(), "[SaveRobotPose] Looking up transform from map to base_link...");
+    geometry_msgs::msg::TransformStamped transform;
+    transform = tf_buffer->lookupTransform("map", "base_link", tf2::TimePointZero, tf2::durationFromSec(5.0));
+    
+    // Convert transform to pose
+    current_pose.pose.position.x = transform.transform.translation.x;
+    current_pose.pose.position.y = transform.transform.translation.y;
+    current_pose.pose.position.z = transform.transform.translation.z;
+    current_pose.pose.orientation = transform.transform.rotation;
+    
+    setOutput("saveTo", current_pose);
+    
+    RCLCPP_INFO(node_->get_logger(), "[SaveRobotPose] *** SAVED STARTING POSE: (%.2f, %.2f, yaw=%.2f) ***",
+                current_pose.pose.position.x, current_pose.pose.position.y, 
+                atan2(2.0 * (current_pose.pose.orientation.w * current_pose.pose.orientation.z), 
+                      1.0 - 2.0 * current_pose.pose.orientation.z * current_pose.pose.orientation.z));
+    return BT::NodeStatus::SUCCESS;
+    
+  } catch (const tf2::TransformException& ex) {
+    RCLCPP_ERROR(node_->get_logger(), "[SaveRobotPose] TF lookup failed: %s", ex.what());
+    RCLCPP_ERROR(node_->get_logger(), "[SaveRobotPose] This likely means AMCL hasn't published the initial pose yet!");
+    
+    // Fallback to origin
+    current_pose.pose.position.x = 0.0;
+    current_pose.pose.position.y = 0.0;
+    current_pose.pose.position.z = 0.0;
+    current_pose.pose.orientation.w = 1.0;
+    
+    setOutput("saveTo", current_pose);
+    
+    RCLCPP_WARN(node_->get_logger(), "[SaveRobotPose] Using fallback origin pose (0, 0, 0)");
+    return BT::NodeStatus::SUCCESS;
+  }
 }
 
 BT::NodeStatus LoadCanLocation::tick()
@@ -747,6 +788,27 @@ BT::NodeStatus ReportGraspFailure::tick()
   // Placeholder: Report that grasp failed
   RCLCPP_ERROR(node_->get_logger(), "[ReportGraspFailure] GRASP FAILED - Can not detected");
   return BT::NodeStatus::FAILURE;
+}
+
+BT::NodeStatus SaySomething::tick()
+{
+  std::string message;
+  getInput("message", message);
+  
+  // Check if pose is provided
+  auto pose_input = getInput<geometry_msgs::msg::PoseStamped>("pose");
+  
+  if (pose_input) {
+    const auto& pose = pose_input.value();
+    double yaw = atan2(2.0 * (pose.pose.orientation.w * pose.pose.orientation.z), 
+                       1.0 - 2.0 * pose.pose.orientation.z * pose.pose.orientation.z);
+    RCLCPP_INFO(node_->get_logger(), "[SaySomething] %s (%.2f, %.2f, yaw=%.2f)", 
+                message.c_str(), pose.pose.position.x, pose.pose.position.y, yaw);
+  } else {
+    RCLCPP_INFO(node_->get_logger(), "[SaySomething] %s", message.c_str());
+  }
+  
+  return BT::NodeStatus::SUCCESS;
 }
 
 // ============================================================================

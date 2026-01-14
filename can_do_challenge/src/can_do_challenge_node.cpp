@@ -108,6 +108,7 @@ public:
     factory.registerNodeType<SoftwareEStop>("SoftwareEStop");
     factory.registerNodeType<WaitForDetection>("WaitForDetection");
     factory.registerNodeType<ReportGraspFailure>("ReportGraspFailure");
+    factory.registerNodeType<SaySomething>("SaySomething");
     
     // Custom Decorator
     factory.registerNodeType<ReactiveRepeat>("ReactiveRepeat");
