@@ -79,8 +79,8 @@
     <BehaviorTree ID="NavigateToCanLocation">
         <ReactiveSequence>
             <Action ID="ComputePathToCanLocation" goal="{goal}" location="{expectedCanLocation}" path="{path}"/>
-            <Action ID="FollowPath" controller_id="{selected_controller}" error_code_id="{follow_path_error_code}" path="{path}"/>
-        </ReactiveSequence>
+            <Action ID="NavigateToPoseAction" goal="{goal}" error_code_id="{nav_error_code}"/>
+        </Sequence>
     </BehaviorTree>
     <!-- ////////// -->
     <!-- Visual acquisition with OAK-D -->
