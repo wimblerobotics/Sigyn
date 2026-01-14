@@ -255,7 +255,7 @@ local_costmap:
       inflation_layer:
         enabled: True
         cost_scaling_factor: 8.0   # increased to push farther from obstacles
-        inflation_radius: 0.35   # larger buffer radius around obstacles
+        inflation_radius: 0.15   ## Was 0.35, changed for can_do_challenge # larger buffer radius around obstacles
         plugin: "nav2_costmap_2d::InflationLayer"
 
       oakd_top_layer:

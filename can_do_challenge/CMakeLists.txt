@@ -17,6 +17,7 @@ find_package(sigyn_interfaces REQUIRED)
 find_package(behaviortree_cpp_v3 REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
 
 add_executable(can_do_challenge_node 
   src/can_do_challenge_node.cpp
@@ -34,6 +35,7 @@ ament_target_dependencies(can_do_challenge_node
   behaviortree_cpp_v3
   tf2
   tf2_geometry_msgs
+  tf2_ros
 )
 
 target_link_libraries(can_do_challenge_node)
