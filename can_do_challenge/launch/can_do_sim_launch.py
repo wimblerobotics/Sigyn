@@ -28,8 +28,6 @@ def generate_launch_description():
     # World file for can challenge
     world_file = os.path.join(description_pkg, "worlds", "can_challenge.world")
     
-    # Behavior tree for can_do_challenge
-    bt_xml_file = os.path.join(can_do_pkg, "bt_xml", "main.xml")
     
     # Launch arguments
     use_groot_arg = DeclareLaunchArgument(
@@ -49,7 +47,6 @@ def generate_launch_description():
             "world": world_file,
             "do_rviz": "true",
             "make_map": "false",
-            "bt_xml": bt_xml_file,
         }.items()
     )
     

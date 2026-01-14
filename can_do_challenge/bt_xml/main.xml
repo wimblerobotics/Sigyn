@@ -8,7 +8,7 @@
             <SubTree ID="SetupCanChallenge" __shared_blackboard="true"
                 objectOfInterest="CokeZeroCan" />
             <ReactiveSequence name="FetchCan">
-                <SubTree ID="ReactiveRobotSafety" __shared_blackboard="true" />
+                <!-- <SubTree ID="ReactiveRobotSafety" __shared_blackboard="true" /> -->
                 <SubTree ID="NavigateToCanLocation" __shared_blackboard="true"
                     objectOfInterest="{objectOfInterest}" />
                 <SubTree ID="VisuallyAcquireCan" __shared_blackboard="true"
@@ -101,13 +101,13 @@
     <BehaviorTree ID="VisuallyAcquireCan">
         <ReactiveFallback>
             <CheckBoolFlag expected="false" flag="{needToVisuallyAcquire}" />
-            <ReactiveSequence>
+            <Sequence>
                 <SubTree ID="SearchForCanWithOAKD" __shared_blackboard="true"
                     objectOfInterest="{objectOfInterest}" />
                 <SubTree ID="ApproachCanWithOAKD" __shared_blackboard="true"
                     objectOfInterest="{objectOfInterest}" />
                 <SetBlackboard output_key="needToVisuallyAcquire" value="false" />
-            </ReactiveSequence>
+            </Sequence>
         </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
@@ -125,7 +125,17 @@
     <BehaviorTree ID="ApproachCanWithOAKD">
         <ReactiveFallback name="GetWithinReach">
             <Condition ID="CanWithinReach" objectOfInterest="{objectOfInterest}" />
-            <Action ID="MoveTowardsCan" objectOfInterest="{objectOfInterest}" />
+            <ReactiveFallback>
+                <!-- For small distances, servo directly with cmd_vel_nav. -->
+                <Action ID="MoveTowardsCan" objectOfInterest="{objectOfInterest}" />
+                <!-- Fallback to Nav2-based short-horizon steps if servoing can't proceed. -->
+                <Decorator ID="ReactiveRepeat" num_cycles="1000">
+                    <Sequence>
+                        <Action ID="ComputeApproachGoalToCan" objectOfInterest="{objectOfInterest}" goal="{canApproachGoal}" />
+                        <Action ID="NavigateToPoseAction" goal="{canApproachGoal}" error_code_id="{nav_error_code}" />
+                    </Sequence>
+                </Decorator>
+            </ReactiveFallback>
         </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
@@ -223,6 +233,10 @@
             <input_port name="planner_id">Planner to use</input_port>
             <output_port name="path">Computed path</output_port>
             <output_port name="error_code_id">Error code</output_port>
+        </Action>
+        <Action ID="ComputeApproachGoalToCan">
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
+            <output_port name="goal">Approach goal pose (map frame)</output_port>
         </Action>
         <Action ID="ExtendTowardsCan">
             <input_port default="{objectOfInterest}" name="objectOfInterest" />

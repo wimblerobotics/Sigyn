@@ -18,6 +18,7 @@ find_package(behaviortree_cpp_v3 REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 
 add_executable(can_do_challenge_node 
   src/can_do_challenge_node.cpp
@@ -36,6 +37,7 @@ ament_target_dependencies(can_do_challenge_node
   tf2
   tf2_geometry_msgs
   tf2_ros
+  ament_index_cpp
 )
 
 target_link_libraries(can_do_challenge_node)
