@@ -45,6 +45,15 @@ struct SimulatedSensorState {
   static constexpr double CRITICAL_TILT = 30.0 * M_PI / 180.0; // 30 degrees
 };
 
+// Physical robot constants
+// On the real robot, the elevator "home" (zero) position is technically at the lower optical stop,
+// which is mounted ~130mm (0.13m) above the physical bottom. 
+// Sim URDF treats 0.15m as the lower limit relative to the "bottom".
+// We subtract this offset from the commanded joint value so that:
+//   Real Height = (Command + Offset)
+//   Command = DesiredWorldHeight - BaseHeight - Offset
+static constexpr double kElevatorHomingOffset = 0.13;
+
 static SimulatedSensorState g_sensor_state;
 static std::mutex g_sensor_mutex;
 
@@ -69,7 +78,7 @@ struct ObjectDetectionState {
   
   // Detection parameters
   static constexpr double DETECTION_TIMEOUT_SEC = 2.0;
-  static constexpr double WITHIN_REACH_DISTANCE = 0.3;  // 30cm
+  static constexpr double WITHIN_REACH_DISTANCE = 0.5;  //### 50cm
   static constexpr double CENTERING_TOLERANCE = 0.05;   // 5cm in camera frame
 };
 
@@ -462,8 +471,10 @@ BT::NodeStatus CanCenteredInPiCamera::tick()
   }
   
   // Check if can is centered (x and y should be near zero in camera frame)
-  double offset_x = std::abs(g_detection_state.pi_detection_position.y);
-  double offset_y = std::abs(g_detection_state.pi_detection_position.z);
+  // Pi camera detector emits in Optical Frame (X=Right, Y=Down, Z=Forward).
+  // We want the can to be in the center of the image, so X and Y should be small.
+  double offset_x = std::abs(g_detection_state.pi_detection_position.x);
+  double offset_y = std::abs(g_detection_state.pi_detection_position.y);
   
   if (offset_x < ObjectDetectionState::CENTERING_TOLERANCE && 
       offset_y < ObjectDetectionState::CENTERING_TOLERANCE) {
@@ -609,7 +620,7 @@ BT::NodeStatus ElevatorAtHeight::tick()
         std::lock_guard<std::mutex> lock(position_mutex);
         // Find the elevator joint
         for (size_t i = 0; i < msg->name.size(); ++i) {
-          if (msg->name[i] == "gripper_elevator_plate_to_gripper_extender") {
+          if (msg->name[i] == "elevator_pole_to_elevator_connector_plate") {
             current_elevator_position = msg->position[i];
             break;
           }
@@ -936,6 +947,10 @@ BT::NodeStatus MoveTowardsCan::onRunning()
     const double distance = std::hypot(dx, dy);
     const double angle_error = std::atan2(dy, dx);
 
+    // Safety: don't rotate in-place too close to the table/can. Back up first to create clearance.
+    constexpr double kRotateClearanceDistance = 0.45;  // meters
+    constexpr double kBackUpSpeed = -0.08;             // m/s
+
     if (distance < ObjectDetectionState::WITHIN_REACH_DISTANCE) {
       RCLCPP_INFO(node_->get_logger(), "[MoveTowardsCan] Reached target distance");
       return BT::NodeStatus::SUCCESS;
@@ -946,6 +961,19 @@ BT::NodeStatus MoveTowardsCan::onRunning()
 
     // If target isn't in front, rotate only.
     if (dx <= 0.05) {
+      if (distance < kRotateClearanceDistance) {
+        if (!detection_fresh_for_forward) {
+          geometry_msgs::msg::Twist stop;
+          cmd_vel_pub->publish(stop);
+          RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] Detection stale (%.2fs); refusing to move", detection_age_sec);
+          return BT::NodeStatus::FAILURE;
+        }
+        cmd.linear.x = kBackUpSpeed;
+        cmd.angular.z = 0.0;
+        cmd_vel_pub->publish(cmd);
+        return BT::NodeStatus::RUNNING;
+      }
+
       cmd.angular.z = std::copysign(0.5, angle_error);
       cmd.linear.x = 0.0;
       cmd_vel_pub->publish(cmd);
@@ -954,6 +982,19 @@ BT::NodeStatus MoveTowardsCan::onRunning()
 
     // Rotate towards target until roughly centered.
     if (std::abs(angle_error) > 0.1) {
+      if (distance < kRotateClearanceDistance) {
+        if (!detection_fresh_for_forward) {
+          geometry_msgs::msg::Twist stop;
+          cmd_vel_pub->publish(stop);
+          RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] Detection stale (%.2fs); refusing to move", detection_age_sec);
+          return BT::NodeStatus::FAILURE;
+        }
+        cmd.linear.x = kBackUpSpeed;
+        cmd.angular.z = 0.0;
+        cmd_vel_pub->publish(cmd);
+        return BT::NodeStatus::RUNNING;
+      }
+
       cmd.angular.z = std::copysign(std::min(0.5, std::abs(angle_error)), angle_error);
       cmd.linear.x = 0.0;
       cmd_vel_pub->publish(cmd);
@@ -1224,15 +1265,16 @@ BT::NodeStatus LowerElevator::tick()
   static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
   if (!elevator_pub) {
     elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/gripper_elevator_plate_to_gripper_extender/position", 10);
+      "/elevator_connector_plate/position", 10);
   }
   
   // Lower to 0.0m (minimum)
   auto msg = std_msgs::msg::Float64();
-  msg.data = 0.0;
+  // Respect the URDF lower limit (0.15m).
+  msg.data = 0.15;
   elevator_pub->publish(msg);
   
-  RCLCPP_INFO(node_->get_logger(), "[LowerElevator] Lowering elevator to 0.0m minimum");
+  RCLCPP_INFO(node_->get_logger(), "[LowerElevator] Lowering elevator to 0.15m minimum");
   std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
 }
@@ -1243,7 +1285,7 @@ BT::NodeStatus LowerElevatorSafely::tick()
   static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
   if (!elevator_pub) {
     elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/gripper_elevator_plate_to_gripper_extender/position", 10);
+      "/elevator_connector_plate/position", 10);
   }
   
   // Lower to 0.1m safe height
@@ -1258,49 +1300,115 @@ BT::NodeStatus LowerElevatorSafely::tick()
 
 BT::NodeStatus LowerElevatorToTable::tick()
 {
+  initializeSimulatedSensors(node_);
+
   // Get target height from blackboard (set by ComputeElevatorHeight)
   double target_height = 0.67095;  // Default to can height
   auto height_input = getInput<double>("targetHeight");
   if (height_input) {
     target_height = height_input.value() - 0.02;  // Lower 2cm below can for approach
   }
+
+  // NOTE: target_height is in world Z (odom). The elevator controller topic expects
+  // a joint position relative to the robot, and base_link is not on the floor.
+  // Convert world Z -> joint position by adding the base_link height in odom.
+  double base_link_z = 0.0;
+  if (g_tf_buffer) {
+    try {
+      const auto tf_odom_from_base = g_tf_buffer->lookupTransform(
+        "odom", "base_link", tf2::TimePointZero);
+      base_link_z = tf_odom_from_base.transform.translation.z;
+    } catch (const tf2::TransformException&) {
+      // best-effort; leave base_link_z as 0
+    }
+  }
+  // Subtract homing offset to match real robot kinematics
+  // BUT: In simulation, the URDF might not model this offset (zero is zero).
+  double homing_offset = kElevatorHomingOffset;
+  {
+      std::lock_guard<std::mutex> lock(g_sensor_mutex);
+      if (g_sensor_state.use_sim_time) {
+          homing_offset = 0.0;
+      }
+  }
+
+  const double commanded_joint = target_height + base_link_z - homing_offset;
   
   // Create publisher if needed
   static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
   if (!elevator_pub) {
     elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/gripper_elevator_plate_to_gripper_extender/position", 10);
+      "/elevator_connector_plate/position", 10);
   }
   
   // Publish position command
   auto msg = std_msgs::msg::Float64();
-  msg.data = target_height;
+  msg.data = commanded_joint;
   elevator_pub->publish(msg);
   
-  RCLCPP_INFO(node_->get_logger(), "[LowerElevatorToTable] Lowering to %.5fm table surface height", target_height);
+  RCLCPP_INFO(node_->get_logger(),
+              "[LowerElevatorToTable] Lowering to world_z=%.5fm (base_link_z=%.3fm -> joint=%.5fm)",
+              target_height, base_link_z, commanded_joint);
   std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
 }
 
 BT::NodeStatus MoveElevatorToHeight::tick()
 {
+  initializeSimulatedSensors(node_);
+
   double target_height;
   getInput("targetHeight", target_height);
+
+    // When raising for centering/approach, add extra clearance.
+    // In simulation, use a slightly smaller clearance to reduce overshoot.
+    double kExtraTableClearance = 0.22;  // meters
+    {
+      std::lock_guard<std::mutex> lock(g_sensor_mutex);
+      if (g_sensor_state.use_sim_time) {
+        kExtraTableClearance = 0.18;
+      }
+    }
+
+  // Convert world Z -> joint position by adding base_link height in odom.
+  double base_link_z = 0.0;
+  if (g_tf_buffer) {
+    try {
+      const auto tf_odom_from_base = g_tf_buffer->lookupTransform(
+        "odom", "base_link", tf2::TimePointZero);
+      base_link_z = tf_odom_from_base.transform.translation.z;
+    } catch (const tf2::TransformException&) {
+      // best-effort; leave base_link_z as 0
+    }
+  }
+  // Subtract homing offset to match real robot kinematics
+  // BUT: In simulation, the URDF might not model this offset (zero is zero).
+  // If we subtract it in sim, we end up 13cm too low and crash into the table.
+  double homing_offset = kElevatorHomingOffset;
+  {
+      std::lock_guard<std::mutex> lock(g_sensor_mutex);
+      if (g_sensor_state.use_sim_time) {
+          homing_offset = 0.0;
+      }
+  }
+  
+  const double commanded_joint = target_height + base_link_z + kExtraTableClearance - homing_offset;
   
   // Create publisher if needed
   static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
   if (!elevator_pub) {
     elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/gripper_elevator_plate_to_gripper_extender/position", 10);
+      "/elevator_connector_plate/position", 10);
   }
   
   // Publish position command
   auto msg = std_msgs::msg::Float64();
-  msg.data = target_height;
+  msg.data = commanded_joint;
   elevator_pub->publish(msg);
   
-  RCLCPP_INFO(node_->get_logger(), "[MoveElevatorToHeight] Moving elevator to %.5fm", 
-              target_height);
+  RCLCPP_INFO(node_->get_logger(),
+              "[MoveElevatorToHeight] Moving elevator to world_z=%.5fm (base_link_z=%.3fm + clearance=%.2fm -> joint=%.5fm)",
+              target_height, base_link_z, kExtraTableClearance, commanded_joint);
   std::this_thread::sleep_for(2s);
   return BT::NodeStatus::SUCCESS;
 }
@@ -1310,6 +1418,7 @@ BT::NodeStatus ComputeElevatorHeight::tick()
   geometry_msgs::msg::Point can_location;
   getInput("canLocation", can_location);
   
+  initializeSimulatedSensors(node_);
   initializeObjectDetection(node_);
   
   std::lock_guard<std::mutex> lock(g_detection_mutex);
@@ -1320,7 +1429,10 @@ BT::NodeStatus ComputeElevatorHeight::tick()
     // Use detected can height plus gripper offset
     // In odom frame, Z is height.
     double can_height = g_detection_state.oakd_detection_position_odom.z;
-    double gripper_offset = 0.05; // 5cm above can
+    
+    // Gripper offset: 0.0 means we target the can't detected height (e.g. centroid).
+    // Previous value (-0.18) was causing the elevator to go too low (into the table).
+    double gripper_offset = 0.0; 
     target_height = can_height + gripper_offset;
     
     RCLCPP_INFO(node_->get_logger(), "[ComputeElevatorHeight] Can at %.3fm, setting elevator to %.3fm",
@@ -1337,9 +1449,18 @@ BT::NodeStatus ComputeElevatorHeight::tick()
 }
 BT::NodeStatus RetractExtender::tick()
 {
-  // Placeholder: Retract extender fully
-  // TODO: Publish extender position command
   RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Retracting extender");
+
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr extender_pub;
+  if (!extender_pub) {
+    extender_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/gripper_elevator_plate_to_gripper_extender/position", 10);
+  }
+
+  std_msgs::msg::Float64 msg;
+  msg.data = 0.0;
+  extender_pub->publish(msg);
+
   std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
 }
@@ -1388,20 +1509,27 @@ BT::NodeStatus ExtendTowardsCan::tick()
     return BT::NodeStatus::FAILURE;
   }
   
-  // Distance forward to can is the x coordinate in camera frame
-  double distance_to_can = g_detection_state.pi_detection_position.x;
+  // Distance forward to can is the Z coordinate in camera optical frame
+  double distance_to_can = g_detection_state.pi_detection_position.z;
   
   // Leave some margin (don't extend all the way)
   double extension_distance = std::max(0.0, distance_to_can - 0.03); // Stop 3cm before
   
-  RCLCPP_INFO(node_->get_logger(), 
+  RCLCPP_INFO(node_->get_logger(),
               "[ExtendTowardsCan] Extending gripper %.3fm toward '%s' (detected at %.3fm)",
               extension_distance, object_name.c_str(), distance_to_can);
-  
-  // TODO: Publish to gripper extension controller
-  // For now, just simulate extension time
+
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr extender_pub;
+  if (!extender_pub) {
+    extender_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/gripper_elevator_plate_to_gripper_extender/position", 10);
+  }
+
+  std_msgs::msg::Float64 msg;
+  msg.data = extension_distance;
+  extender_pub->publish(msg);
+
   std::this_thread::sleep_for(1s);
-  
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -1552,12 +1680,34 @@ BT::NodeStatus SoftwareEStop::tick()
   return BT::NodeStatus::FAILURE;
 }
 
-BT::NodeStatus WaitForDetection::tick()
+BT::NodeStatus WaitForDetection::onStart()
 {
-  // Placeholder: Wait briefly
+  start_time_ = node_->now();
   RCLCPP_DEBUG(node_->get_logger(), "[WaitForDetection] Waiting for detection...");
-  std::this_thread::sleep_for(500ms);
-  return BT::NodeStatus::FAILURE; // Force retry
+  return BT::NodeStatus::RUNNING;
+}
+
+BT::NodeStatus WaitForDetection::onRunning()
+{
+  // Keep the tree alive while we wait for the camera condition to become true.
+  // Sleep a little to avoid busy-spinning if the BT is ticked fast.
+  std::this_thread::sleep_for(100ms);
+
+  // Optional safety timeout: if nothing arrives for a long time, fail so higher-level
+  // logic can decide what to do. (But do not fail quickly and abort the whole mission.)
+  constexpr double kTimeoutSec = 15.0;
+  const double elapsed = (node_->now() - start_time_).seconds();
+  if (elapsed > kTimeoutSec) {
+    RCLCPP_ERROR(node_->get_logger(), "[WaitForDetection] Timed out after %.1fs", elapsed);
+    return BT::NodeStatus::FAILURE;
+  }
+
+  return BT::NodeStatus::RUNNING;
+}
+
+void WaitForDetection::onHalted()
+{
+  // Nothing to clean up.
 }
 
 BT::NodeStatus ReportGraspFailure::tick()

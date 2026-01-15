@@ -67,6 +67,13 @@
   gz_type_name: "gz.msgs.Double"
   direction: ROS_TO_GZ
 
+# Vertical elevator position control
+- ros_topic_name: "/elevator_connector_plate/position"
+  gz_topic_name: "/elevator_connector_plate/position"
+  ros_type_name: "std_msgs/msg/Float64"
+  gz_type_name: "gz.msgs.Double"
+  direction: ROS_TO_GZ
+
 # gz topic published by JointState plugin
 - ros_topic_name: "joint_states"
   gz_topic_name: "joint_states"

@@ -540,14 +540,19 @@ public:
   BT::NodeStatus tick() override;
 };
 
-class WaitForDetection : public BT::SyncActionNode, public RosNodeBT
+class WaitForDetection : public BT::StatefulActionNode, public RosNodeBT
 {
 public:
   WaitForDetection(const std::string & name, const BT::NodeConfiguration & config)
-  : BT::SyncActionNode(name, config) {}
+  : BT::StatefulActionNode(name, config) {}
   
   static BT::PortsList providedPorts() { return {}; }
-  BT::NodeStatus tick() override;
+  BT::NodeStatus onStart() override;
+  BT::NodeStatus onRunning() override;
+  void onHalted() override;
+
+private:
+  rclcpp::Time start_time_;
 };
 
 class ReportGraspFailure : public BT::SyncActionNode, public RosNodeBT
