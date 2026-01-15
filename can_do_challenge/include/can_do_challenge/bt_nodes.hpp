@@ -404,10 +404,7 @@ public:
 
   static BT::PortsList providedPorts() {
     return {
-      BT::InputPort<double>("stepMeters", 0.01, "Step size in meters"),
-      BT::InputPort<double>("maxTravelMeters", 0.91, "Max travel from home"),
-      BT::InputPort<int>("maxSteps", 400, "Maximum step count"),
-      BT::OutputPort<double>("elevatorHeight", "Estimated elevator height")
+      BT::InputPort<double>("stepMeters", 0.01, "Step size in meters")
     };
   }
 
@@ -420,6 +417,22 @@ private:
   double home_position_ = 0.0;
   double last_commanded_ = 0.0;
   int step_count_ = 0;
+};
+
+class BackAwayFromTable : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  BackAwayFromTable(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+
+  static BT::PortsList providedPorts() {
+    return {
+      BT::InputPort<double>("distance", 0.3, "Distance to back away in meters"),
+      BT::InputPort<double>("speed", 0.1, "Backing speed (m/s)")
+    };
+  }
+
+  BT::NodeStatus tick() override;
 };
 
 class ComputeElevatorHeight : public BT::SyncActionNode, public RosNodeBT

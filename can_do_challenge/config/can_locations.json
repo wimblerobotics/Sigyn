@@ -4,7 +4,7 @@
       "name": "CokeZeroCan",
       "location": {
         "x": 8.355,
-        "y": 11.5524,
+        "y": 11.5,
         "z": 0.67095,
         "comment": "Simulation: matches description/worlds/can_challenge.world pose"
       }

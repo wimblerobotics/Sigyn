@@ -99,7 +99,7 @@ def generate_launch_description():
             # Gripper camera should only see the can up close.
             "min_area_px2": 500,
             "min_bbox_height_px": 60,
-            "max_distance_m": 1.0,
+            "max_distance_m": 0.8,
             "log_throttle_sec": 5.0,
         }],
     )
