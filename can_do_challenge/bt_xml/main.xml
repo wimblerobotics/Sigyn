@@ -157,14 +157,15 @@
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="RaiseElevatorToCanHeight">
-        <ReactiveSequence>
-            <Action ID="ComputeElevatorHeight" canLocation="{expectedCanLocation}"
-                targetHeight="{elevatorHeight}" />
-            <ReactiveFallback name="MoveElevatorToHeight">
-                <Condition ID="ElevatorAtHeight" targetHeight="{elevatorHeight}" />
-                <Action ID="MoveElevatorToHeight" targetHeight="{elevatorHeight}" />
-            </ReactiveFallback>
-        </ReactiveSequence>
+        <ReactiveFallback>
+            <Condition ID="ElevatorAtHeight" />
+            <ForceFailure>
+                <Decorator ID="ReactiveRepeat" num_cycles="400">
+                    <Action ID="StepElevatorUp" stepMeters="0.01" maxTravelMeters="0.91" maxSteps="400"
+                        elevatorHeight="{elevatorHeight}" />
+                </Decorator>
+            </ForceFailure>
+        </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="CenterCanInPiCamera">
@@ -214,6 +215,12 @@
         <!-- Actions -->
         <Action ID="AdjustExtenderToCenterCan">
             <input_port default="{objectOfInterest}" name="objectOfInterest" />
+        </Action>
+        <Action ID="StepElevatorUp">
+            <input_port default="0.01" name="stepMeters">Step size in meters</input_port>
+            <input_port default="0.91" name="maxTravelMeters">Max travel from home</input_port>
+            <input_port default="400" name="maxSteps">Maximum step count</input_port>
+            <output_port name="elevatorHeight">Estimated elevator height</output_port>
         </Action>
         <Action ID="ChargeBattery" />
         <Action ID="CloseGripperAroundCan">

@@ -93,6 +93,7 @@ public:
     factory.registerNodeType<LowerElevatorSafely>("LowerElevatorSafely");
     factory.registerNodeType<LowerElevatorToTable>("LowerElevatorToTable");
     factory.registerNodeType<MoveElevatorToHeight>("MoveElevatorToHeight");
+    factory.registerNodeType<StepElevatorUp>("StepElevatorUp");
     factory.registerNodeType<ComputeElevatorHeight>("ComputeElevatorHeight");
     factory.registerNodeType<RetractExtender>("RetractExtender");
     factory.registerNodeType<RetractGripper>("RetractGripper");
