@@ -605,48 +605,33 @@ BT::NodeStatus CanIsGrasped::tick()
 
 BT::NodeStatus ElevatorAtHeight::tick()
 {
-  double target_height;
-  getInput("targetHeight", target_height);
-  
-  // Subscribe to joint_states if needed
-  static rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub;
-  static double current_elevator_position = 0.0;
-  static std::mutex position_mutex;
-  
-  if (!joint_state_sub) {
-    joint_state_sub = node_->create_subscription<sensor_msgs::msg::JointState>(
-      "/joint_states", 10,
-      [](const sensor_msgs::msg::JointState::SharedPtr msg) {
-        std::lock_guard<std::mutex> lock(position_mutex);
-        // Find the elevator joint
-        for (size_t i = 0; i < msg->name.size(); ++i) {
-          if (msg->name[i] == "elevator_pole_to_elevator_connector_plate") {
-            current_elevator_position = msg->position[i];
-            break;
-          }
-        }
-      });
-  }
-  
-  // Check if elevator is at target height (within 5cm tolerance)
-  double current_pos;
-  {
-    std::lock_guard<std::mutex> lock(position_mutex);
-    current_pos = current_elevator_position;
-  }
-  
-  double error = std::abs(current_pos - target_height);
-  bool at_height = error < 0.05;  // 5cm tolerance
-  
-  if (at_height) {
-    RCLCPP_INFO(node_->get_logger(), "[ElevatorAtHeight] Elevator at %.2fm (target: %.2fm)", 
-                current_pos, target_height);
-    return BT::NodeStatus::SUCCESS;
-  } else {
-    RCLCPP_DEBUG(node_->get_logger(), "[ElevatorAtHeight] Elevator at %.2fm, moving to %.2fm (error: %.3fm)",
-                 current_pos, target_height, error);
+  initializeObjectDetection(node_);
+
+  std::lock_guard<std::mutex> lock(g_detection_mutex);
+
+  if (!g_detection_state.pi_can_detected) {
+    RCLCPP_DEBUG(node_->get_logger(), "[ElevatorAtHeight] No Pi camera detection yet");
     return BT::NodeStatus::FAILURE;
   }
+
+  const auto age_sec = (node_->now() - g_detection_state.pi_last_detection_time).seconds();
+  if (age_sec >= ObjectDetectionState::DETECTION_TIMEOUT_SEC) {
+    RCLCPP_DEBUG(node_->get_logger(), "[ElevatorAtHeight] Pi detection stale (%.2fs)", age_sec);
+    return BT::NodeStatus::FAILURE;
+  }
+
+  const double vertical_offset = std::abs(g_detection_state.pi_detection_position.y);
+  const bool at_height = vertical_offset < ObjectDetectionState::CENTERING_TOLERANCE;
+
+  if (at_height) {
+    RCLCPP_INFO(node_->get_logger(), "[ElevatorAtHeight] Pi camera vertical offset %.3fm (centered)",
+                vertical_offset);
+    return BT::NodeStatus::SUCCESS;
+  }
+
+  RCLCPP_DEBUG(node_->get_logger(), "[ElevatorAtHeight] Pi camera vertical offset %.3fm (not centered)",
+               vertical_offset);
+  return BT::NodeStatus::FAILURE;
 }
 
 // ============================================================================
@@ -1413,6 +1398,95 @@ BT::NodeStatus MoveElevatorToHeight::tick()
   return BT::NodeStatus::SUCCESS;
 }
 
+BT::NodeStatus StepElevatorUp::onStart()
+{
+  initializeSimulatedSensors(node_);
+
+  double step_m = 0.01;
+  double max_travel_m = 0.91;
+  int max_steps = 400;
+  getInput("stepMeters", step_m);
+  getInput("maxTravelMeters", max_travel_m);
+  getInput("maxSteps", max_steps);
+
+  static rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub;
+  static double current_elevator_position = 0.0;
+  static std::mutex position_mutex;
+
+  if (!joint_state_sub) {
+    joint_state_sub = node_->create_subscription<sensor_msgs::msg::JointState>(
+      "/joint_states", 10,
+      [](const sensor_msgs::msg::JointState::SharedPtr msg) {
+        std::lock_guard<std::mutex> lock(position_mutex);
+        for (size_t i = 0; i < msg->name.size(); ++i) {
+          if (msg->name[i] == "elevator_pole_to_elevator_connector_plate") {
+            current_elevator_position = msg->position[i];
+            break;
+          }
+        }
+      });
+  }
+
+  double current_pos = 0.0;
+  {
+    std::lock_guard<std::mutex> lock(position_mutex);
+    current_pos = current_elevator_position;
+  }
+
+  if (!home_position_set_) {
+    home_position_ = current_pos;
+    home_position_set_ = true;
+    step_count_ = 0;
+    last_commanded_ = current_pos;
+  }
+
+  if (step_count_ >= max_steps) {
+    RCLCPP_WARN(node_->get_logger(), "[StepElevatorUp] Max steps reached (%d)", max_steps);
+    return BT::NodeStatus::FAILURE;
+  }
+
+  const double max_pos = home_position_ + max_travel_m;
+  const double base_pos = std::max(current_pos, last_commanded_);
+  const double next_pos = std::min(base_pos + step_m, max_pos);
+
+  if (next_pos <= last_commanded_ + 1e-4) {
+    RCLCPP_WARN(node_->get_logger(), "[StepElevatorUp] Reached max travel (%.3f)", max_pos);
+    return BT::NodeStatus::FAILURE;
+  }
+
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
+  if (!elevator_pub) {
+    elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/elevator_connector_plate/position", 10);
+  }
+
+  std_msgs::msg::Float64 msg;
+  msg.data = next_pos;
+  elevator_pub->publish(msg);
+
+  last_commanded_ = next_pos;
+  step_count_++;
+  setOutput("elevatorHeight", next_pos);
+
+  RCLCPP_INFO(node_->get_logger(),
+              "[StepElevatorUp] Step %d: joint %.3f -> %.3f (max %.3f)",
+              step_count_, base_pos, next_pos, max_pos);
+
+  return BT::NodeStatus::SUCCESS;
+}
+
+BT::NodeStatus StepElevatorUp::onRunning()
+{
+  return BT::NodeStatus::SUCCESS;
+}
+
+void StepElevatorUp::onHalted()
+{
+  home_position_set_ = false;
+  step_count_ = 0;
+  last_commanded_ = 0.0;
+}
+
 BT::NodeStatus ComputeElevatorHeight::tick()
 {
   geometry_msgs::msg::Point can_location;
@@ -1423,9 +1497,26 @@ BT::NodeStatus ComputeElevatorHeight::tick()
   
   std::lock_guard<std::mutex> lock(g_detection_mutex);
   
+  static bool latched_height_valid = false;
+  static double latched_height = 0.0;
+  static rclcpp::Time latched_time;
+
+  const auto now = node_->now();
+  if (latched_height_valid && (now - latched_time).seconds() < 5.0) {
+    setOutput("targetHeight", latched_height);
+    RCLCPP_INFO(node_->get_logger(),
+                "[ComputeElevatorHeight] Using latched height %.3fm",
+                latched_height);
+    return BT::NodeStatus::SUCCESS;
+  }
+
   double target_height;
+  const double oakd_age = (now - g_detection_state.oakd_last_detection_time).seconds();
+  const bool oakd_fresh = g_detection_state.oakd_can_detected &&
+                          g_detection_state.oakd_detection_has_odom &&
+                          oakd_age < ObjectDetectionState::DETECTION_TIMEOUT_SEC;
   
-  if (g_detection_state.oakd_can_detected && g_detection_state.oakd_detection_has_odom) {
+  if (oakd_fresh) {
     // Use detected can height plus gripper offset
     // In odom frame, Z is height.
     double can_height = g_detection_state.oakd_detection_position_odom.z;
@@ -1435,7 +1526,12 @@ BT::NodeStatus ComputeElevatorHeight::tick()
     double gripper_offset = 0.0; 
     target_height = can_height + gripper_offset;
     
-    RCLCPP_INFO(node_->get_logger(), "[ComputeElevatorHeight] Can at %.3fm, setting elevator to %.3fm",
+    latched_height = target_height;
+    latched_time = now;
+    latched_height_valid = true;
+
+    RCLCPP_INFO(node_->get_logger(),
+                "[ComputeElevatorHeight] Can at %.3fm, setting elevator to %.3fm",
                 can_height, target_height);
   } else {
     // Fallback to default height
@@ -1467,8 +1563,18 @@ BT::NodeStatus RetractExtender::tick()
 
 BT::NodeStatus RetractGripper::tick()
 {
-  // Placeholder: Same as RetractExtender
   RCLCPP_INFO(node_->get_logger(), "[RetractGripper] Retracting gripper assembly");
+
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr extender_pub;
+  if (!extender_pub) {
+    extender_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/gripper_elevator_plate_to_gripper_extender/position", 10);
+  }
+
+  std_msgs::msg::Float64 msg;
+  msg.data = 0.0;
+  extender_pub->publish(msg);
+
   std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
 }
@@ -1506,6 +1612,22 @@ BT::NodeStatus ExtendTowardsCan::tick()
   
   if (!g_detection_state.pi_can_detected) {
     RCLCPP_WARN(node_->get_logger(), "[ExtendTowardsCan] No Pi camera detection available");
+    return BT::NodeStatus::FAILURE;
+  }
+
+  const double pi_age = (node_->now() - g_detection_state.pi_last_detection_time).seconds();
+  if (pi_age >= ObjectDetectionState::DETECTION_TIMEOUT_SEC) {
+    RCLCPP_WARN(node_->get_logger(), "[ExtendTowardsCan] Pi camera detection stale (%.2fs)", pi_age);
+    return BT::NodeStatus::FAILURE;
+  }
+
+  const double offset_x = std::abs(g_detection_state.pi_detection_position.x);
+  const double offset_y = std::abs(g_detection_state.pi_detection_position.y);
+  if (offset_x > ObjectDetectionState::CENTERING_TOLERANCE ||
+      offset_y > ObjectDetectionState::CENTERING_TOLERANCE) {
+    RCLCPP_WARN(node_->get_logger(),
+                "[ExtendTowardsCan] Can not centered (x=%.3f, y=%.3f)",
+                offset_x, offset_y);
     return BT::NodeStatus::FAILURE;
   }
   
