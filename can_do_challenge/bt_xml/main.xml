@@ -16,6 +16,7 @@
                 <SubTree ID="GraspCan" __shared_blackboard="true"
                     objectOfInterest="{objectOfInterest}" />
             </ReactiveSequence>
+            <Action ID="BackAwayFromTable" distance="0.3" speed="0.1" />
             <SubTree ID="ReturnToStart" __shared_blackboard="true" />
         </Sequence>
     </BehaviorTree>
@@ -159,12 +160,11 @@
     <BehaviorTree ID="RaiseElevatorToCanHeight">
         <ReactiveFallback>
             <Condition ID="ElevatorAtHeight" />
-            <ForceFailure>
-                <Decorator ID="ReactiveRepeat" num_cycles="400">
-                    <Action ID="StepElevatorUp" stepMeters="0.01" maxTravelMeters="0.91" maxSteps="400"
-                        elevatorHeight="{elevatorHeight}" />
-                </Decorator>
-            </ForceFailure>
+            <Decorator ID="ReactiveRepeat" num_cycles="400">
+                <ForceFailure>
+                    <Action ID="StepElevatorUp" stepMeters="0.01" />
+                </ForceFailure>
+            </Decorator>
         </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
@@ -218,9 +218,10 @@
         </Action>
         <Action ID="StepElevatorUp">
             <input_port default="0.01" name="stepMeters">Step size in meters</input_port>
-            <input_port default="0.91" name="maxTravelMeters">Max travel from home</input_port>
-            <input_port default="400" name="maxSteps">Maximum step count</input_port>
-            <output_port name="elevatorHeight">Estimated elevator height</output_port>
+        </Action>
+        <Action ID="BackAwayFromTable">
+            <input_port default="0.3" name="distance">Distance to back away in meters</input_port>
+            <input_port default="0.1" name="speed">Backing speed (m/s)</input_port>
         </Action>
         <Action ID="ChargeBattery" />
         <Action ID="CloseGripperAroundCan">

@@ -1265,7 +1265,7 @@ Visualization Manager:
     - Class: rviz_default_plugins/Camera
       Enabled: true
       Far Plane Distance: 100
-      Image Rendering: background
+      Image Rendering: overlay
       Name: GripperCamera
       Overlay Alpha: 0.5
       Topic:

@@ -78,12 +78,39 @@ struct ObjectDetectionState {
   
   // Detection parameters
   static constexpr double DETECTION_TIMEOUT_SEC = 2.0;
-  static constexpr double WITHIN_REACH_DISTANCE = 0.5;  //### 50cm
+  static constexpr double WITHIN_REACH_DISTANCE = 0.6;  // 60cm
   static constexpr double CENTERING_TOLERANCE = 0.05;   // 5cm in camera frame
+  static constexpr double PI_VERTICAL_TOLERANCE = 0.05; // 5cm for elevator height check
+  static constexpr double PI_MIN_DISTANCE_M = 0.15;
+  static constexpr double PI_MAX_DISTANCE_M = 0.80;
 };
 
 static ObjectDetectionState g_detection_state;
 static std::mutex g_detection_mutex;
+
+static bool getFreshPiDetection(const std::shared_ptr<rclcpp::Node>& node,
+                                geometry_msgs::msg::Point& out_point,
+                                double& out_age_sec)
+{
+  std::lock_guard<std::mutex> lock(g_detection_mutex);
+  if (!g_detection_state.pi_can_detected) {
+    return false;
+  }
+
+  out_age_sec = (node->now() - g_detection_state.pi_last_detection_time).seconds();
+  if (out_age_sec >= ObjectDetectionState::DETECTION_TIMEOUT_SEC) {
+    return false;
+  }
+
+  out_point = g_detection_state.pi_detection_position;
+  return true;
+}
+
+static bool piDetectionInRange(const geometry_msgs::msg::Point& point)
+{
+  return point.z >= ObjectDetectionState::PI_MIN_DISTANCE_M &&
+         point.z <= ObjectDetectionState::PI_MAX_DISTANCE_M;
+}
 
 // Store subscriptions so they don't get destroyed
 static rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr g_oakd_sub;
@@ -440,21 +467,25 @@ BT::NodeStatus CanDetectedByPiCamera::tick()
   getInput("objectOfInterest", object_name);
   
   initializeObjectDetection(node_);
-  
-  std::lock_guard<std::mutex> lock(g_detection_mutex);
-  
-  if (g_detection_state.pi_can_detected) {
-    auto time_since_detection = (node_->now() - g_detection_state.pi_last_detection_time).seconds();
-    
-    if (time_since_detection < ObjectDetectionState::DETECTION_TIMEOUT_SEC) {
-      RCLCPP_INFO(node_->get_logger(), "[CanDetectedByPiCamera] Can '%s' detected", 
-                  object_name.c_str());
-      return BT::NodeStatus::SUCCESS;
-    }
+
+  geometry_msgs::msg::Point det_point;
+  double age_sec = 999.0;
+  if (!getFreshPiDetection(node_, det_point, age_sec)) {
+    RCLCPP_DEBUG(node_->get_logger(), "[CanDetectedByPiCamera] Waiting for Pi camera detection...");
+    return BT::NodeStatus::FAILURE;
   }
-  
-  RCLCPP_DEBUG(node_->get_logger(), "[CanDetectedByPiCamera] Waiting for Pi camera detection...");
-  return BT::NodeStatus::FAILURE;
+
+  if (!piDetectionInRange(det_point)) {
+    RCLCPP_DEBUG(node_->get_logger(),
+                 "[CanDetectedByPiCamera] Detection out of range z=%.2f (allowed %.2f-%.2f)",
+                 det_point.z, ObjectDetectionState::PI_MIN_DISTANCE_M,
+                 ObjectDetectionState::PI_MAX_DISTANCE_M);
+    return BT::NodeStatus::FAILURE;
+  }
+
+  RCLCPP_INFO(node_->get_logger(), "[CanDetectedByPiCamera] Can '%s' detected (age=%.2fs)",
+              object_name.c_str(), age_sec);
+  return BT::NodeStatus::SUCCESS;
 }
 
 BT::NodeStatus CanCenteredInPiCamera::tick()
@@ -463,23 +494,31 @@ BT::NodeStatus CanCenteredInPiCamera::tick()
   getInput("objectOfInterest", object_name);
   
   initializeObjectDetection(node_);
-  
-  std::lock_guard<std::mutex> lock(g_detection_mutex);
-  
-  if (!g_detection_state.pi_can_detected) {
+
+  geometry_msgs::msg::Point det_point;
+  double age_sec = 999.0;
+  if (!getFreshPiDetection(node_, det_point, age_sec)) {
     return BT::NodeStatus::FAILURE;
   }
-  
+
+  if (!piDetectionInRange(det_point)) {
+    RCLCPP_DEBUG(node_->get_logger(),
+                 "[CanCenteredInPiCamera] Detection out of range z=%.2f (allowed %.2f-%.2f)",
+                 det_point.z, ObjectDetectionState::PI_MIN_DISTANCE_M,
+                 ObjectDetectionState::PI_MAX_DISTANCE_M);
+    return BT::NodeStatus::FAILURE;
+  }
+
   // Check if can is centered (x and y should be near zero in camera frame)
   // Pi camera detector emits in Optical Frame (X=Right, Y=Down, Z=Forward).
   // We want the can to be in the center of the image, so X and Y should be small.
-  double offset_x = std::abs(g_detection_state.pi_detection_position.x);
-  double offset_y = std::abs(g_detection_state.pi_detection_position.y);
+  const double offset_x = std::abs(det_point.x);
+  const double offset_y = std::abs(det_point.y);
   
   if (offset_x < ObjectDetectionState::CENTERING_TOLERANCE && 
       offset_y < ObjectDetectionState::CENTERING_TOLERANCE) {
-    RCLCPP_INFO(node_->get_logger(), "[CanCenteredInPiCamera] Can '%s' is centered", 
-                object_name.c_str());
+    RCLCPP_INFO(node_->get_logger(), "[CanCenteredInPiCamera] Can '%s' is centered (age=%.2fs)", 
+                object_name.c_str(), age_sec);
     return BT::NodeStatus::SUCCESS;
   }
   
@@ -607,25 +646,28 @@ BT::NodeStatus ElevatorAtHeight::tick()
 {
   initializeObjectDetection(node_);
 
-  std::lock_guard<std::mutex> lock(g_detection_mutex);
-
-  if (!g_detection_state.pi_can_detected) {
-    RCLCPP_DEBUG(node_->get_logger(), "[ElevatorAtHeight] No Pi camera detection yet");
+  geometry_msgs::msg::Point det_point;
+  double age_sec = 999.0;
+  if (!getFreshPiDetection(node_, det_point, age_sec)) {
+    RCLCPP_DEBUG(node_->get_logger(), "[ElevatorAtHeight] No fresh Pi camera detection yet");
     return BT::NodeStatus::FAILURE;
   }
 
-  const auto age_sec = (node_->now() - g_detection_state.pi_last_detection_time).seconds();
-  if (age_sec >= ObjectDetectionState::DETECTION_TIMEOUT_SEC) {
-    RCLCPP_DEBUG(node_->get_logger(), "[ElevatorAtHeight] Pi detection stale (%.2fs)", age_sec);
+  if (!piDetectionInRange(det_point)) {
+    RCLCPP_DEBUG(node_->get_logger(),
+                 "[ElevatorAtHeight] Detection out of range z=%.2f (allowed %.2f-%.2f)",
+                 det_point.z, ObjectDetectionState::PI_MIN_DISTANCE_M,
+                 ObjectDetectionState::PI_MAX_DISTANCE_M);
     return BT::NodeStatus::FAILURE;
   }
 
-  const double vertical_offset = std::abs(g_detection_state.pi_detection_position.y);
-  const bool at_height = vertical_offset < ObjectDetectionState::CENTERING_TOLERANCE;
+  const double vertical_offset = std::abs(det_point.y);
+  const bool at_height = vertical_offset <= ObjectDetectionState::PI_VERTICAL_TOLERANCE;
 
   if (at_height) {
-    RCLCPP_INFO(node_->get_logger(), "[ElevatorAtHeight] Pi camera vertical offset %.3fm (centered)",
-                vertical_offset);
+    RCLCPP_INFO(node_->get_logger(),
+                "[ElevatorAtHeight] Pi camera vertical offset %.3fm (centered, age=%.2fs)",
+                vertical_offset, age_sec);
     return BT::NodeStatus::SUCCESS;
   }
 
@@ -652,9 +694,10 @@ BT::NodeStatus ComputePathToCanLocation::tick()
   goal.header.frame_id = "map";
   goal.header.stamp = node_->now();
   
-  // Stand 0.5m in front of table
+  const double standoff = ObjectDetectionState::WITHIN_REACH_DISTANCE;
+  // Stand in front of table by standoff distance
   goal.pose.position.x = location.value().x;
-  goal.pose.position.y = location.value().y - 0.5;
+  goal.pose.position.y = location.value().y - standoff;
   goal.pose.position.z = 0.0;
   
   tf2::Quaternion q;
@@ -1403,15 +1446,14 @@ BT::NodeStatus StepElevatorUp::onStart()
   initializeSimulatedSensors(node_);
 
   double step_m = 0.01;
-  double max_travel_m = 0.91;
-  int max_steps = 400;
   getInput("stepMeters", step_m);
-  getInput("maxTravelMeters", max_travel_m);
-  getInput("maxSteps", max_steps);
+  const double max_travel_m = 0.91;
+  const int max_steps = 400;
 
   static rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub;
   static double current_elevator_position = 0.0;
   static std::mutex position_mutex;
+  static bool joint_state_seen = false;
 
   if (!joint_state_sub) {
     joint_state_sub = node_->create_subscription<sensor_msgs::msg::JointState>(
@@ -1421,6 +1463,7 @@ BT::NodeStatus StepElevatorUp::onStart()
         for (size_t i = 0; i < msg->name.size(); ++i) {
           if (msg->name[i] == "elevator_pole_to_elevator_connector_plate") {
             current_elevator_position = msg->position[i];
+            joint_state_seen = true;
             break;
           }
         }
@@ -1430,14 +1473,18 @@ BT::NodeStatus StepElevatorUp::onStart()
   double current_pos = 0.0;
   {
     std::lock_guard<std::mutex> lock(position_mutex);
-    current_pos = current_elevator_position;
+    if (joint_state_seen) {
+      current_pos = current_elevator_position;
+    } else {
+      current_pos = 0.15;
+    }
   }
 
   if (!home_position_set_) {
-    home_position_ = current_pos;
+    home_position_ = std::max(current_pos, 0.15);
     home_position_set_ = true;
     step_count_ = 0;
-    last_commanded_ = current_pos;
+    last_commanded_ = home_position_;
   }
 
   if (step_count_ >= max_steps) {
@@ -1466,8 +1513,6 @@ BT::NodeStatus StepElevatorUp::onStart()
 
   last_commanded_ = next_pos;
   step_count_++;
-  setOutput("elevatorHeight", next_pos);
-
   RCLCPP_INFO(node_->get_logger(),
               "[StepElevatorUp] Step %d: joint %.3f -> %.3f (max %.3f)",
               step_count_, base_pos, next_pos, max_pos);
@@ -1485,6 +1530,34 @@ void StepElevatorUp::onHalted()
   home_position_set_ = false;
   step_count_ = 0;
   last_commanded_ = 0.0;
+}
+
+BT::NodeStatus BackAwayFromTable::tick()
+{
+  double distance = 0.3;
+  double speed = 0.1;
+  getInput("distance", distance);
+  getInput("speed", speed);
+
+  if (speed <= 0.0) {
+    RCLCPP_WARN(node_->get_logger(), "[BackAwayFromTable] Invalid speed %.3f", speed);
+    return BT::NodeStatus::FAILURE;
+  }
+
+  const double duration_sec = std::abs(distance / speed);
+
+  auto cmd_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_nav", 10);
+  geometry_msgs::msg::Twist cmd;
+  cmd.linear.x = -std::abs(speed);
+  cmd_pub->publish(cmd);
+
+  RCLCPP_INFO(node_->get_logger(), "[BackAwayFromTable] Backing away %.2fm at %.2fm/s",
+              distance, speed);
+  std::this_thread::sleep_for(std::chrono::duration<double>(duration_sec));
+
+  geometry_msgs::msg::Twist stop;
+  cmd_pub->publish(stop);
+  return BT::NodeStatus::SUCCESS;
 }
 
 BT::NodeStatus ComputeElevatorHeight::tick()
@@ -1879,15 +1952,15 @@ BT::NodeStatus ReactiveRepeat::tick()
   if (child_status == BT::NodeStatus::RUNNING) {
     return BT::NodeStatus::RUNNING;
   }
-  
+
   current_cycle_++;
-  
-  if (current_cycle_ < num_cycles) {
-    return BT::NodeStatus::RUNNING; // Continue repeating
-  } else {
+
+  if (current_cycle_ >= num_cycles) {
     current_cycle_ = 0;
-    return BT::NodeStatus::SUCCESS; // All cycles completed
+    return BT::NodeStatus::FAILURE; // Completed all cycles
   }
+
+  return child_status;
 }
 
 // ============================================================================
