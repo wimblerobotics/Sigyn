@@ -38,6 +38,9 @@ public:
     step_manually_(false),
     tick_requested_(false)
   {
+    // Create a separate callback group for the BT execution to avoid blocking sensor callbacks
+    bt_timer_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
     // Note: use_sim_time is automatically declared by rclcpp::Node, don't declare it again
     this->declare_parameter<std::string>("bt_xml_filename", "");
     this->declare_parameter<bool>("enable_groot_monitoring", true);
@@ -148,13 +151,15 @@ public:
         // Create timer that checks for tick requests
         timer_ = this->create_wall_timer(
           10ms,  // Check frequently for tick requests
-          std::bind(&CanDoChallengeNode::checkForTickRequest, this));
+          std::bind(&CanDoChallengeNode::checkForTickRequest, this),
+          bt_timer_cb_group_);
       } else {
         // Automatic mode - tick continuously
         RCLCPP_INFO(this->get_logger(), "Automatic execution mode");
         timer_ = this->create_wall_timer(
           100ms,
-          std::bind(&CanDoChallengeNode::tickTree, this));
+          std::bind(&CanDoChallengeNode::tickTree, this),
+          bt_timer_cb_group_);
       }
         
     } catch (const std::exception& e) {
@@ -204,6 +209,7 @@ private:
 
   BT::Tree tree_;
   rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::CallbackGroup::SharedPtr bt_timer_cb_group_;
   std::unique_ptr<BT::PublisherZMQ> groot_publisher_;
   
   // Manual stepping support
@@ -223,10 +229,12 @@ int main(int argc, char** argv)
   signal(SIGTERM, signal_handler);
   
   auto node = std::make_shared<can_do_challenge::CanDoChallengeNode>();
-  
+
   RCLCPP_INFO(node->get_logger(), "Can Do Challenge node started");
-  
-  rclcpp::spin(node);
+
+  rclcpp::executors::MultiThreadedExecutor executor;
+  executor.add_node(node);
+  executor.spin();
   rclcpp::shutdown();
   
   return 0;

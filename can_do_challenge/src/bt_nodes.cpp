@@ -76,6 +76,7 @@ struct ObjectDetectionState {
   // Pi camera (gripper) detection
   geometry_msgs::msg::Point pi_detection_position;
   std::string pi_detection_frame = "map";
+  rclcpp::Time pi_detection_stamp;
   bool pi_can_detected = false;
   rclcpp::Time pi_last_detection_time;
   
@@ -84,7 +85,7 @@ struct ObjectDetectionState {
   static constexpr double PI_DETECTION_TIMEOUT_SEC = 6.0;
   static constexpr int PI_WAIT_TIMEOUT_MS = 1000;
   static constexpr double WITHIN_REACH_DISTANCE = 0.6;  // 60cm
-  static constexpr double CENTERING_TOLERANCE = 0.05;   // 5cm in camera frame
+  static constexpr double CENTERING_TOLERANCE = 0.02;   // Tightened to 2cm for precision
   static constexpr double PI_VERTICAL_TOLERANCE = 0.05; // 5cm for elevator height check
   static constexpr double PI_VERTICAL_TARGET_OFFSET = 0.0; // target offset in optical Y (positive down)
   static constexpr double PI_MIN_DISTANCE_M = 0.15;
@@ -103,6 +104,8 @@ static bool getFreshPiDetection(const std::shared_ptr<rclcpp::Node>& node,
                                 geometry_msgs::msg::Point& out_point,
                                 double& out_age_sec)
 {
+  static int missing_count = 0;
+  static int stale_count = 0;
   std::unique_lock<std::mutex> lock(g_detection_mutex);
   const auto last_seen = g_detection_state.pi_last_detection_time;
 
@@ -111,16 +114,28 @@ static bool getFreshPiDetection(const std::shared_ptr<rclcpp::Node>& node,
     std::chrono::milliseconds(ObjectDetectionState::PI_WAIT_TIMEOUT_MS),
     [&]() {
       return g_detection_state.pi_can_detected &&
-             g_detection_state.pi_last_detection_time != last_seen;
+             g_detection_state.pi_last_detection_time.nanoseconds() != last_seen.nanoseconds();
     });
 
   if (!g_detection_state.pi_can_detected) {
     out_age_sec = 999.0;
+    missing_count++;
+    if (missing_count % 10 == 0) {
+      RCLCPP_INFO(node->get_logger(),
+                  "[PiDetection] No detection available yet (count=%d)",
+                  missing_count);
+    }
     return false;
   }
 
   out_age_sec = (node->now() - g_detection_state.pi_last_detection_time).seconds();
   if (out_age_sec >= ObjectDetectionState::PI_DETECTION_TIMEOUT_SEC) {
+    stale_count++;
+    if (stale_count % 10 == 0) {
+      RCLCPP_INFO(node->get_logger(),
+                  "[PiDetection] Detection stale age=%.2fs (count=%d)",
+                  out_age_sec, stale_count);
+    }
     return false;
   }
 
@@ -232,8 +247,10 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
   g_tf_listener = std::make_shared<tf2_ros::TransformListener>(*g_tf_buffer);
 
   // Subscribe to OAK-D detection
+  rclcpp::QoS oakd_qos(10);
+  oakd_qos.best_effort();
   g_oakd_sub = node->create_subscription<geometry_msgs::msg::PointStamped>(
-    "/oakd_top/can_detection", 10,
+    "/oakd_top/can_detection", oakd_qos,
     [node](const geometry_msgs::msg::PointStamped::SharedPtr msg) {
       // Always store the raw detection
       {
@@ -243,6 +260,12 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
         g_detection_state.oakd_can_detected = true;
         g_detection_state.oakd_last_detection_time = node->now();
       }
+
+      RCLCPP_INFO(node->get_logger(),
+                  "[OAKDDetection] Received detection frame=%s stamp=%.3f x=%.3f y=%.3f z=%.3f",
+                  msg->header.frame_id.c_str(),
+                  rclcpp::Time(msg->header.stamp).seconds(),
+                  msg->point.x, msg->point.y, msg->point.z);
 
       // Best-effort: also transform to ODOM frame immediately
       // This anchors the observation in the world, preventing it from moving with the camera
@@ -262,34 +285,45 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
           g_detection_state.oakd_detection_has_odom = false;
       }
     });
+  RCLCPP_INFO(node->get_logger(), "Subscribed to /oakd_top/can_detection (best_effort)");
   
   // Subscribe to Pi camera detection
+  rclcpp::QoS pi_qos(10);
+  pi_qos.best_effort();
+
   g_pi_sub = node->create_subscription<geometry_msgs::msg::PointStamped>(
-    "/gripper/can_detection", 10,
+    "/gripper/can_detection", pi_qos,
     [node](const geometry_msgs::msg::PointStamped::SharedPtr msg) {
       {
         std::lock_guard<std::mutex> lock(g_detection_mutex);
         g_detection_state.pi_detection_position = msg->point;
         g_detection_state.pi_detection_frame = msg->header.frame_id;
+        g_detection_state.pi_detection_stamp = rclcpp::Time(msg->header.stamp);
         g_detection_state.pi_can_detected = true;
         g_detection_state.pi_last_detection_time = node->now();
       }
       g_pi_detection_cv.notify_all();
-      RCLCPP_DEBUG(node->get_logger(), "Pi camera detection received: (%.2f, %.2f, %.2f)",
-                   msg->point.x, msg->point.y, msg->point.z);
+      RCLCPP_INFO(node->get_logger(), "[PiDetection] Received detection frame=%s stamp=%.3f x=%.3f y=%.3f z=%.3f",
+                  msg->header.frame_id.c_str(),
+                  rclcpp::Time(msg->header.stamp).seconds(),
+                  msg->point.x, msg->point.y, msg->point.z);
     });
+  RCLCPP_INFO(node->get_logger(), "Subscribed to /gripper/can_detection (best_effort)");
 
   // Subscribe to Pi detector processed-frame heartbeat
   g_pi_processed_sub = node->create_subscription<std_msgs::msg::Header>(
-    "/gripper/can_detection/processed", 10,
+    "/gripper/can_detection/processed", pi_qos,
     [node](const std_msgs::msg::Header::SharedPtr msg) {
       {
         std::lock_guard<std::mutex> lock(g_pi_frame_mutex);
         g_pi_last_frame_time = rclcpp::Time(msg->stamp);
       }
       g_pi_frame_cv.notify_all();
+      RCLCPP_INFO(node->get_logger(), "[PiDetection] Processed heartbeat frame=%s stamp=%.3f",
+                  msg->frame_id.c_str(), rclcpp::Time(msg->stamp).seconds());
       (void)node;
     });
+  RCLCPP_INFO(node->get_logger(), "Subscribed to /gripper/can_detection/processed (best_effort)");
   
   initialized = true;
 }
@@ -553,13 +587,13 @@ BT::NodeStatus CanCenteredInPiCamera::tick()
   const double offset_x = std::abs(det_point.x);
   
   if (offset_x < ObjectDetectionState::CENTERING_TOLERANCE) {
-    RCLCPP_INFO(node_->get_logger(), "[CanCenteredInPiCamera] Can '%s' is horizontally centered x_offset=%.3fm (age=%.2fs)", 
-                object_name.c_str(), offset_x, age_sec);
+    RCLCPP_INFO(node_->get_logger(), "[CanCenteredInPiCamera] SUCCESS: Can '%s' check passed. x_offset=%.4fm < tolerance=%.4fm (age=%.2fs)", 
+                object_name.c_str(), offset_x, ObjectDetectionState::CENTERING_TOLERANCE, age_sec);
     return BT::NodeStatus::SUCCESS;
   }
   
-  RCLCPP_INFO(node_->get_logger(), "[CanCenteredInPiCamera] Can not centered, x_offset: %.3fm",
-              offset_x);
+  RCLCPP_INFO(node_->get_logger(), "[CanCenteredInPiCamera] FAILURE: Can not centered. x_offset=%.4fm >= tolerance=%.4fm",
+              offset_x, ObjectDetectionState::CENTERING_TOLERANCE);
   return BT::NodeStatus::FAILURE;
 }
 
@@ -690,6 +724,9 @@ BT::NodeStatus WaitForNewPiFrameProcessed::tick()
     std::lock_guard<std::mutex> lock(g_pi_frame_mutex);
     last_frame_time_ = g_pi_last_frame_time;
     waiting_ = true;
+    RCLCPP_INFO(node_->get_logger(),
+                "[WaitForNewPiFrameProcessed] Waiting for next processed frame (last=%.3f)",
+                last_frame_time_.seconds());
   }
   
   // Check if we've exceeded timeout
@@ -709,9 +746,12 @@ BT::NodeStatus WaitForNewPiFrameProcessed::tick()
     current_frame_time = g_pi_last_frame_time;
   }
   
-  if (current_frame_time != last_frame_time_ && current_frame_time.nanoseconds() > 0) {
+  if (current_frame_time.nanoseconds() != last_frame_time_.nanoseconds() && current_frame_time.nanoseconds() > 0) {
     // New frame processed! Bounding box data (if any) is now available. Reset state and return success.
     waiting_ = false;
+    RCLCPP_INFO(node_->get_logger(),
+                "[WaitForNewPiFrameProcessed] New processed frame at %.3f (prev %.3f)",
+                current_frame_time.seconds(), last_frame_time_.seconds());
     return BT::NodeStatus::SUCCESS;
   }
   
@@ -738,8 +778,9 @@ BT::NodeStatus ElevatorAtHeight::tick()
 
   if (!piDetectionInRange(det_point)) {
     RCLCPP_INFO(node_->get_logger(),
-                "[ElevatorAtHeight] Detection out of range z=%.2f (allowed %.2f-%.2f)",
-                det_point.z, ObjectDetectionState::PI_MIN_DISTANCE_M,
+                "[ElevatorAtHeight] Detection out of range x=%.3f y=%.3f z=%.3f age=%.2fs (allowed z %.2f-%.2f)",
+                det_point.x, det_point.y, det_point.z, age_sec,
+                ObjectDetectionState::PI_MIN_DISTANCE_M,
                 ObjectDetectionState::PI_MAX_DISTANCE_M);
     return BT::NodeStatus::FAILURE;
   }
@@ -758,19 +799,36 @@ BT::NodeStatus ElevatorAtHeight::tick()
     // Get can position in base_link frame
     geometry_msgs::msg::PointStamped det_stamped;
     std::string detection_frame;
+    rclcpp::Time detection_stamp;
     {
       std::lock_guard<std::mutex> lock(g_detection_mutex);
       detection_frame = g_detection_state.pi_detection_frame;
+      detection_stamp = g_detection_state.pi_detection_stamp;
       det_stamped.header.frame_id = detection_frame;
-      det_stamped.header.stamp = rclcpp::Time(0); // Use latest available transform
+      det_stamped.header.stamp = detection_stamp;
       det_stamped.point = det_point;
     }
 
     RCLCPP_INFO(node_->get_logger(),
-                "[ElevatorAtHeight] Using detection frame '%s' for transform",
-                detection_frame.c_str());
+          "[ElevatorAtHeight] Using detection frame '%s' stamp=%.3f for transform",
+          detection_frame.c_str(), detection_stamp.seconds());
+
+    if (detection_frame.empty() || detection_frame == "map") {
+      RCLCPP_INFO(node_->get_logger(),
+                  "[ElevatorAtHeight] Warning: detection frame is '%s' (expected camera optical frame)",
+                  detection_frame.c_str());
+    }
     
-    auto can_in_base = g_tf_buffer->transform(det_stamped, "base_link", tf2::durationFromSec(0.1));
+    geometry_msgs::msg::PointStamped can_in_base;
+    try {
+      can_in_base = g_tf_buffer->transform(det_stamped, "base_link", tf2::durationFromSec(0.1));
+    } catch (const tf2::TransformException& ex) {
+      RCLCPP_WARN(node_->get_logger(),
+                  "[ElevatorAtHeight] TF transform at stamp=%.3f failed: %s. Falling back to latest TF.",
+                  detection_stamp.seconds(), ex.what());
+      det_stamped.header.stamp = rclcpp::Time(0);
+      can_in_base = g_tf_buffer->transform(det_stamped, "base_link", tf2::durationFromSec(0.1));
+    }
     RCLCPP_INFO(node_->get_logger(),
           "[ElevatorAtHeight] Can in base_link x=%.3f y=%.3f z=%.3f",
           can_in_base.point.x, can_in_base.point.y, can_in_base.point.z);
@@ -781,12 +839,14 @@ BT::NodeStatus ElevatorAtHeight::tick()
     double gripper_z = gripper_tf.transform.translation.z;
     double can_z = can_in_base.point.z;
     
-    // Check if Z-heights match (tolerance of 0.04m since we step 0.02m at a time)
+    // Check if Z-heights match (tolerance of 0.015m since we step 0.02m at a time)
+    // Tighter tolerance forces the elevator to climb to the closest step.
     const double z_error = std::abs(can_z - gripper_z);
-    const bool at_height = z_error <= 0.04;
+    // Use 0.015m tolerance (1.5cm). Since step is 2cm, this ensures we align within <1 step.
+    const bool at_height = z_error <= 0.018; 
 
     RCLCPP_INFO(node_->get_logger(),
-          "[ElevatorAtHeight] Gripper Z=%.3f Can Z=%.3f | z_error=%.3f (tol=0.04)",
+          "[ElevatorAtHeight] Gripper Z=%.3f Can Z=%.3f | z_error=%.3f (tol=0.018)",
           gripper_z, can_z, z_error);
 
     if (at_height) {
@@ -1888,21 +1948,70 @@ BT::NodeStatus AdjustExtenderToCenterCan::tick()
     return BT::NodeStatus::SUCCESS;
   }
 
-  // Calculate rotation needed (proportional control)
-  // Positive x_offset means can is to the right, need to rotate CCW (positive angular.z)
-  const double k_rotation = 0.5; // Proportional gain
-  double angular_z = k_rotation * x_offset;
+  // Calculate rotation needed
+  // Positive x_offset means can is to the right (Camera Frame X+).
+  // Robot Base Frame: Positive Z is Left (CCW), Negative Z is Right (CW).
+  // Therefore, we need a NEGATIVE angular_z for a POSITIVE x_offset.
   
-  // Limit rotation rate
-  const double max_angular = 0.2; // rad/s
+  // Use distance to calculate precise rotation angle needed:
+  double distance = det_point.z;
+  double angle_error_rad = std::atan2(x_offset, distance);
+  
+  // We desire to zero this angle error.
+  
+  // Bse duration for the rotation maneuver
+  double duration_sec = 0.5;
+
+  // Calculate required velocity to complete correction in 'duration_sec'
+  // angular_z * duration = -angle_error
+  double required_omega = -angle_error_rad / duration_sec;
+  
+  RCLCPP_INFO(node_->get_logger(), 
+            "[AdjustExtenderToCenterCan] Plan: err=%.4fm, dist=%.3fm -> angle_err=%.4f rad. Need omega=%.3f rad/s for %.1fs", 
+             x_offset, distance, angle_error_rad, required_omega, duration_sec);
+  
+  const double min_angular = 0.15; // Minimum robust rotation speed
+  double angular_z = 0.0;
+  
+  if (std::abs(required_omega) < min_angular) {
+      // If required velocity is too low for the robot to move reliably,
+      // we set velocity to min_angular and reduce duration proportionally
+      // to achieve the same total rotation angle.
+      double direction = (required_omega >= 0) ? 1.0 : -1.0;
+      angular_z = direction * min_angular;
+      
+      // New duration: time = angle / velocity
+      duration_sec = std::abs(angle_error_rad / min_angular);
+      
+      RCLCPP_INFO(node_->get_logger(), 
+            "[AdjustExtenderToCenterCan] Micro-adjust: Required %.3f < min %.3f. Boosting to %.3f, reducing time to %.3fs", 
+             required_omega, min_angular, angular_z, duration_sec);
+
+      // Ensure we don't have excessively short pulses
+      if (duration_sec < 0.1) {
+          duration_sec = 0.1;
+      }
+  } else {
+      angular_z = required_omega;
+  }
+
+  // Cap at maximum angular velocity
+  const double max_angular = 1.0; 
   if (std::abs(angular_z) > max_angular) {
-    angular_z = (angular_z > 0) ? max_angular : -max_angular;
+      angular_z = (angular_z > 0) ? max_angular : -max_angular;
+      // Note: If we cap velocity, we won't complete rotation in original duration,
+      // but we iterate so next frame will catch remaining error.
+      RCLCPP_WARN(node_->get_logger(), 
+            "[AdjustExtenderToCenterCan] Saturated: %.3f > max %.3f. Capped at %.3f", 
+             std::abs(required_omega), max_angular, angular_z);
   }
 
   // Publish twist command to rotate robot
+  // Use cmd_vel_smoothed to bypass velocity smoother latency for small movements
+  // and go directly to the twist multiplexer.
   static rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr twist_pub;
   if (!twist_pub) {
-    twist_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
+    twist_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_smoothed", 10);
   }
 
   geometry_msgs::msg::Twist twist;
@@ -1913,14 +2022,16 @@ BT::NodeStatus AdjustExtenderToCenterCan::tick()
   twist.angular.y = 0.0;
   twist.angular.z = angular_z;
   
+  long duration_ms = static_cast<long>(duration_sec * 1000);
+  
   twist_pub->publish(twist);
   
   RCLCPP_INFO(node_->get_logger(), 
-              "[AdjustExtenderToCenterCan] Rotating %.3f rad/s to center can (x_offset=%.3fm)",
-              angular_z, x_offset);
-  
-  // Let the rotation happen
-  std::this_thread::sleep_for(200ms);
+              "[AdjustExtenderToCenterCan] EXECUTING: z=%.3f rad/s for %ldms", 
+              angular_z, duration_ms);
+
+  // Sleep for the calculated duration to allow movement
+  std::this_thread::sleep_for(std::chrono::milliseconds(duration_ms));
   
   // Stop rotation
   twist.angular.z = 0.0;
