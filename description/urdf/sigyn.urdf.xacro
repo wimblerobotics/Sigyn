@@ -77,9 +77,9 @@
     <plugin filename="gz-sim-joint-position-controller-system"
       name="gz::sim::systems::JointPositionController">
       <joint_name>elevator_pole_to_elevator_connector_plate</joint_name>
-      <p_gain>10000.0</p_gain>
+      <p_gain>500.0</p_gain>
       <i_gain>0.0</i_gain>
-      <d_gain>0.0</d_gain>
+      <d_gain>50.0</d_gain>
       <i_max>0.0</i_max>
       <i_min>0.0</i_min>
 
@@ -91,9 +91,9 @@
     <plugin filename="gz-sim-joint-position-controller-system"
       name="gz::sim::systems::JointPositionController">
       <joint_name>gripper_elevator_plate_to_gripper_extender</joint_name>
-      <p_gain>10000.0</p_gain>
+      <p_gain>500.0</p_gain>
       <i_gain>0.0</i_gain>
-      <d_gain>0.0</d_gain>
+      <d_gain>50.0</d_gain>
       <i_max>0.0</i_max>
       <i_min>0.0</i_min>
 
