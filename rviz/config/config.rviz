@@ -30,7 +30,6 @@ Panels:
         - /TOF1/VL53L0X-61/Topic1
         - /TOF1/VL53L0X-71
         - /TOF1/VL53L0X-71/Topic1
-        - /GripperCamera1
       Splitter Ratio: 0.5437352061271667
     Tree Height: 294
   - Class: rviz_common/Selection
@@ -723,7 +722,7 @@ Visualization Manager:
           Scale: 1
           Value: true
         Value: false
-      Enabled: true
+      Enabled: false
       Keep: 1
       Name: Odometry
       Position Tolerance: 0.10000000149011612
@@ -744,7 +743,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Best Effort
         Value: /odom
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -795,7 +794,7 @@ Visualization Manager:
     - Alpha: 1
       Class: rviz_default_plugins/Polygon
       Color: 25; 255; 0
-      Enabled: true
+      Enabled: false
       Name: Local footprint
       Topic:
         Depth: 5
@@ -804,7 +803,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /local_costmap/published_footprint
-      Value: true
+      Value: false
     - Class: rviz_default_plugins/Marker
       Enabled: false
       Name: Marker
@@ -938,7 +937,7 @@ Visualization Manager:
         Value: /oakd_top/color/image/compressed
       Value: true
     - Class: rviz_default_plugins/MarkerArray
-      Enabled: true
+      Enabled: false
       Name: Waypoints.
       Namespaces:
         {}
@@ -948,7 +947,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Best Effort
         Value: /waypoints
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -1232,13 +1231,13 @@ Visualization Manager:
             Reliability Policy: Best Effort
             Value: /sigyn/teensy_bridge/range/vl53l0x_7
           Value: true
-      Enabled: true
+      Enabled: false
       Name: TOF
     - Align Bottom: false
       Background Alpha: 0.800000011920929
       Background Color: 0; 0; 0
       Class: rviz_2d_overlay_plugins/TextOverlay
-      Enabled: true
+      Enabled: false
       Foreground Alpha: 0.800000011920929
       Foreground Color: 25; 255; 240
       Invert Shadow: false
@@ -1252,7 +1251,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /battery_overlay_text
-      Value: true
+      Value: false
       font: DejaVu Sans Mono
       height: 128
       hor_alignment: left

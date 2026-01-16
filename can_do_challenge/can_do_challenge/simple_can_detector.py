@@ -4,9 +4,11 @@ Simple color-based Coke can detector for OAK-D and Pi cameras.
 Detects red objects (Coke cans) and provides bounding boxes and distance estimates.
 """
 
+import os
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image, CameraInfo
+from std_msgs.msg import Header
 from geometry_msgs.msg import PointStamped
 from cv_bridge import CvBridge
 import cv2
@@ -28,7 +30,17 @@ class SimpleCanDetector(Node):
         self.declare_parameter('max_distance_m', 1.8)
         self.declare_parameter('min_aspect', 0.25)
         self.declare_parameter('max_aspect', 2.0)
+        self.declare_parameter('min_center_y_ratio', 0.0)
+        self.declare_parameter('max_center_y_ratio', 1.0)
+        self.declare_parameter('max_abs_x_m', 0.0)
         self.declare_parameter('log_throttle_sec', 5.0)
+        self.declare_parameter('publish_process_heartbeat', True)
+        self.declare_parameter('dump_debug_images', False)
+        self.declare_parameter('debug_dump_dir', '/tmp/can_detector_debug')
+        self.declare_parameter('debug_dump_every_n', 5)
+        self.declare_parameter('dump_raw_images', False)
+        self.declare_parameter('raw_dump_dir', '/tmp/can_detector_raw')
+        self.declare_parameter('raw_dump_every_n', 10)
         
         # Get parameters
         camera_name = self.get_parameter('camera_name').get_parameter_value().string_value
@@ -39,7 +51,17 @@ class SimpleCanDetector(Node):
         self.max_distance_m = float(self.get_parameter('max_distance_m').get_parameter_value().double_value)
         self.min_aspect = float(self.get_parameter('min_aspect').get_parameter_value().double_value)
         self.max_aspect = float(self.get_parameter('max_aspect').get_parameter_value().double_value)
+        self.min_center_y_ratio = float(self.get_parameter('min_center_y_ratio').get_parameter_value().double_value)
+        self.max_center_y_ratio = float(self.get_parameter('max_center_y_ratio').get_parameter_value().double_value)
+        self.max_abs_x_m = float(self.get_parameter('max_abs_x_m').get_parameter_value().double_value)
         self.log_throttle_sec = float(self.get_parameter('log_throttle_sec').get_parameter_value().double_value)
+        self.publish_process_heartbeat = bool(self.get_parameter('publish_process_heartbeat').get_parameter_value().bool_value)
+        self.dump_debug_images = bool(self.get_parameter('dump_debug_images').get_parameter_value().bool_value)
+        self.debug_dump_dir = self.get_parameter('debug_dump_dir').get_parameter_value().string_value
+        self.debug_dump_every_n = int(self.get_parameter('debug_dump_every_n').get_parameter_value().integer_value)
+        self.dump_raw_images = bool(self.get_parameter('dump_raw_images').get_parameter_value().bool_value)
+        self.raw_dump_dir = self.get_parameter('raw_dump_dir').get_parameter_value().string_value
+        self.raw_dump_every_n = int(self.get_parameter('raw_dump_every_n').get_parameter_value().integer_value)
         
         self.get_logger().info(f'Starting detector for camera: {camera_name}')
         
@@ -56,6 +78,8 @@ class SimpleCanDetector(Node):
         # Detection state
         self.latest_detection = None
         self.detection_time = None
+        self.dump_counter = 0
+        self.frame_counter = 0
         
         # Color detection parameters for red (Coke can)
         # HSV ranges for red (need two ranges because red wraps around 0/180)
@@ -97,6 +121,12 @@ class SimpleCanDetector(Node):
             PointStamped,
             f'/{camera_name}/can_detection',
             10)
+
+        # Publisher to signal each processed frame (even when no detection)
+        self.processed_pub = self.create_publisher(
+            Header,
+            f'/{camera_name}/can_detection/processed',
+            10)
         
         # Optional debug image publisher
         if publish_debug:
@@ -121,6 +151,19 @@ class SimpleCanDetector(Node):
         try:
             # Convert ROS Image to OpenCV
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+
+            # Optional raw frame dump (independent of detection)
+            if self.dump_raw_images:
+                self.frame_counter += 1
+                if self.frame_counter % max(self.raw_dump_every_n, 1) == 0:
+                    os.makedirs(self.raw_dump_dir, exist_ok=True)
+                    stamp = msg.header.stamp
+                    filename = f"{self.get_name()}_{stamp.sec}_{stamp.nanosec}_raw.jpg"
+                    filepath = os.path.join(self.raw_dump_dir, filename)
+                    cv2.imwrite(filepath, cv_image)
+                    self.get_logger().info(
+                        f"Raw frame dumped: {filepath}",
+                        throttle_duration_sec=self.log_throttle_sec)
             
             # Convert BGR to HSV
             hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
@@ -134,6 +177,14 @@ class SimpleCanDetector(Node):
             kernel = np.ones((5, 5), np.uint8)
             mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+            
+            # Publish heartbeat that this frame was processed (regardless of whether can is detected)
+            # This allows BT nodes to synchronize with frame rate even when no valid detection
+            if self.publish_process_heartbeat:
+                header = Header()
+                header.stamp = msg.header.stamp
+                header.frame_id = msg.header.frame_id
+                self.processed_pub.publish(header)
             
             # Find contours
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -159,6 +210,13 @@ class SimpleCanDetector(Node):
                     # Calculate center of bounding box
                     cx = x + w // 2
                     cy = y + h // 2
+
+                    # Reject detections outside the allowed vertical ROI (image-relative)
+                    img_h = cv_image.shape[0]
+                    if img_h > 0:
+                        cy_ratio = cy / float(img_h)
+                        if cy_ratio < self.min_center_y_ratio or cy_ratio > self.max_center_y_ratio:
+                            return
                     
                     # Estimate distance using bounding box height
                     # Assuming Coke can is ~12cm tall and standard focal length
@@ -182,6 +240,10 @@ class SimpleCanDetector(Node):
                     x_3d = (cx - cx_cam) * distance / fx
                     y_3d = (cy - cy_cam) * distance / fy
                     z_3d = distance
+
+                    # Reject detections too far off-center horizontally in 3D (optional)
+                    if self.max_abs_x_m > 0.0 and abs(x_3d) > self.max_abs_x_m:
+                        return
                     
                     # Create PointStamped message in camera optical frame
                     point_msg = PointStamped()
@@ -202,7 +264,8 @@ class SimpleCanDetector(Node):
                         
                     self.get_logger().info(
                         f'Can detected at ({point_msg.point.x:.2f}, {point_msg.point.y:.2f}, '
-                        f'{point_msg.point.z:.2f}) in {point_msg.header.frame_id}, distance: {distance:.2f}m',
+                        f'{point_msg.point.z:.2f}) in {point_msg.header.frame_id}, '
+                        f'distance: {distance:.2f}m bbox=({x},{y},{w},{h})',
                         throttle_duration_sec=self.log_throttle_sec)
                     
                     # Publish debug image if enabled
@@ -216,6 +279,21 @@ class SimpleCanDetector(Node):
                         debug_msg = self.bridge.cv2_to_imgmsg(debug_img, encoding='bgr8')
                         debug_msg.header = msg.header
                         self.debug_image_pub.publish(debug_msg)
+
+                    # Optionally dump debug images to disk
+                    if self.dump_debug_images:
+                        self.dump_counter += 1
+                        if self.dump_counter % max(self.debug_dump_every_n, 1) == 0:
+                            os.makedirs(self.debug_dump_dir, exist_ok=True)
+                            stamp = msg.header.stamp
+                            filename = f"{self.get_name()}_{stamp.sec}_{stamp.nanosec}.jpg"
+                            filepath = os.path.join(self.debug_dump_dir, filename)
+                            debug_img = cv_image.copy()
+                            cv2.rectangle(debug_img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                            cv2.circle(debug_img, (cx, cy), 5, (0, 0, 255), -1)
+                            cv2.putText(debug_img, f'{distance:.2f}m', (x, y - 10),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                            cv2.imwrite(filepath, debug_img)
         
         except Exception as e:
             self.get_logger().error(f'Error processing image: {e}')

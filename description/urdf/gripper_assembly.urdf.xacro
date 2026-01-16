@@ -66,7 +66,7 @@
         <child link="elevator_connector_plate" />
         <limit lower="0.15" upper="${elevator_pole_height-(elevator_connector_plate_width)}" effort="1" velocity="0.5" />
         <axis xyz="0 0 1" />
-        <dynamics damping="0.7"/>
+        <dynamics damping="0.0"/>
     </joint>
 
     <joint name="elevator_connector_plate_to_gripper_elevator_plate" type="fixed">
