@@ -51,7 +51,9 @@
                 <Condition ID="WaitForNewPiFrameProcessed" />
                 <Action ID="ExtendTowardsCan" objectOfInterest="{objectOfInterest}" />
             </Sequence>
-            <Action ID="CloseGripperAroundCan" canDiameter="0.066" />
+            <Action ID="CloseGripperAroundCan" canDiameter="0.06" />
+            <Action ID="StepElevatorUp" stepMeters="0.1" />
+            <!-- <Action ID="RotateRobot" degrees="20" /> -->
             <ReactiveFallback name="VerifyGrasp">
                 <Sequence>
                     <Condition ID="WaitForNewPiFrameProcessed" />

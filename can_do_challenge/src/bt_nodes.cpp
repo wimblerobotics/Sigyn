@@ -14,6 +14,7 @@
 #include "tf2/LinearMath/Matrix3x3.h"
 #include "ament_index_cpp/get_package_share_directory.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include "sensor_msgs/msg/joint_state.hpp"
 #include "std_msgs/msg/header.hpp"
 #include <cmath>
 #include <fstream>
@@ -35,11 +36,13 @@ struct SimulatedSensorState {
   bool estop_triggered = false;
   double elevator_position = 0.0;  // meters
   double extender_position = 0.0;  // meters
+  double last_extender_command = 0.0;  // meters
   bool use_sim_time = false;
   
   rclcpp::Time last_battery_update;
   rclcpp::Time last_imu_update;
   rclcpp::Time last_estop_update;
+  rclcpp::Time last_joint_state_update;
   
   // Thresholds
   static constexpr double CHARGING_VOLTAGE = 35.0;  // Volts
@@ -334,6 +337,11 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
 // Initialize subscribers for simulated sensors
 static void initializeSimulatedSensors(std::shared_ptr<rclcpp::Node> node) {
   static bool initialized = false;
+  static rclcpp::Subscription<sensor_msgs::msg::BatteryState>::SharedPtr battery_sub;
+  static rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub;
+  static rclcpp::Subscription<sigyn_interfaces::msg::EStopStatus>::SharedPtr estop_sub;
+  static rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr gripper_sub;
+  static rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub;
   if (initialized) return;
   
   // Check if we're in simulation (use_sim_time is already declared by rclcpp::Node)
@@ -349,7 +357,7 @@ static void initializeSimulatedSensors(std::shared_ptr<rclcpp::Node> node) {
   RCLCPP_INFO(node->get_logger(), "Simulation mode - subscribing to simulated sensor topics");
   
   // Subscribe to simulated battery
-  auto battery_sub = node->create_subscription<sensor_msgs::msg::BatteryState>(
+  battery_sub = node->create_subscription<sensor_msgs::msg::BatteryState>(
     "/sigyn/teensy_bridge/battery/status", 10,
     [node](const sensor_msgs::msg::BatteryState::SharedPtr msg) {
       std::lock_guard<std::mutex> lock(g_sensor_mutex);
@@ -358,7 +366,7 @@ static void initializeSimulatedSensors(std::shared_ptr<rclcpp::Node> node) {
     });
   
   // Subscribe to simulated IMU
-  auto imu_sub = node->create_subscription<sensor_msgs::msg::Imu>(
+  imu_sub = node->create_subscription<sensor_msgs::msg::Imu>(
     "/sigyn/teensy_bridge/imu/sensor_0", 10,
     [node](const sensor_msgs::msg::Imu::SharedPtr msg) {
       std::lock_guard<std::mutex> lock(g_sensor_mutex);
@@ -384,7 +392,7 @@ static void initializeSimulatedSensors(std::shared_ptr<rclcpp::Node> node) {
     });
   
   // Subscribe to simulated E-stop
-  auto estop_sub = node->create_subscription<sigyn_interfaces::msg::EStopStatus>(
+  estop_sub = node->create_subscription<sigyn_interfaces::msg::EStopStatus>(
     "/sigyn/teensy_bridge/safety/estop_status", 10,
     [node](const sigyn_interfaces::msg::EStopStatus::SharedPtr msg) {
       std::lock_guard<std::mutex> lock(g_sensor_mutex);
@@ -393,7 +401,7 @@ static void initializeSimulatedSensors(std::shared_ptr<rclcpp::Node> node) {
     });
   
   // Subscribe to gripper commands to track simulated positions
-  auto gripper_sub = node->create_subscription<geometry_msgs::msg::Twist>(
+  gripper_sub = node->create_subscription<geometry_msgs::msg::Twist>(
     "/cmd_vel_gripper", 10,
     [](const geometry_msgs::msg::Twist::SharedPtr msg) {
       std::lock_guard<std::mutex> lock(g_sensor_mutex);
@@ -405,6 +413,22 @@ static void initializeSimulatedSensors(std::shared_ptr<rclcpp::Node> node) {
       // Clamp to physical limits
       g_sensor_state.elevator_position = std::max(0.0, std::min(4.0, g_sensor_state.elevator_position));
       g_sensor_state.extender_position = std::max(0.0, std::min(0.5, g_sensor_state.extender_position));
+    });
+
+  joint_state_sub = node->create_subscription<sensor_msgs::msg::JointState>(
+    "/joint_states", 10,
+    [node](const sensor_msgs::msg::JointState::SharedPtr msg) {
+      std::lock_guard<std::mutex> lock(g_sensor_mutex);
+      for (size_t i = 0; i < msg->name.size() && i < msg->position.size(); ++i) {
+        const auto &name = msg->name[i];
+        const double position = msg->position[i];
+        if (name == "gripper_elevator_plate_to_gripper_extender") {
+          g_sensor_state.extender_position = position;
+        } else if (name == "elevator_pole_to_elevator_connector_plate") {
+          g_sensor_state.elevator_position = position;
+        }
+      }
+      g_sensor_state.last_joint_state_update = node->now();
     });
   
   initialized = true;
@@ -1584,7 +1608,7 @@ BT::NodeStatus MoveElevatorToHeight::tick()
 
     // When raising for centering/approach, add extra clearance.
     // In simulation, use a slightly smaller clearance to reduce overshoot.
-    double kExtraTableClearance = 0.22;  // meters
+    double kExtraTableClearance = 0.0;  // ###meters
     {
       std::lock_guard<std::mutex> lock(g_sensor_mutex);
       if (g_sensor_state.use_sim_time) {
@@ -1814,6 +1838,8 @@ BT::NodeStatus RetractExtender::tick()
 {
   RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Retracting extender");
 
+  initializeSimulatedSensors(node_);
+
   static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr extender_pub;
   if (!extender_pub) {
     extender_pub = node_->create_publisher<std_msgs::msg::Float64>(
@@ -1821,6 +1847,21 @@ BT::NodeStatus RetractExtender::tick()
   }
 
   std_msgs::msg::Float64 msg;
+  double current_position = g_sensor_state.extender_position;
+  if (current_position < 0.001 && g_sensor_state.last_extender_command > 0.01) {
+    RCLCPP_INFO(node_->get_logger(),
+                "[RetractExtender] Using last command %.3f as current position", 
+                g_sensor_state.last_extender_command);
+    current_position = g_sensor_state.last_extender_command;
+  }
+  const double tug_target = std::max(0.0, current_position - 0.02);
+
+  RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Tug step: current=%.3f -> target=%.3f", current_position, tug_target);
+  msg.data = tug_target;
+  extender_pub->publish(msg);
+  std::this_thread::sleep_for(500ms);
+
+  RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Full retract to 0.0");
   msg.data = 0.0;
   extender_pub->publish(msg);
 
@@ -1848,26 +1889,38 @@ BT::NodeStatus RetractGripper::tick()
 
 BT::NodeStatus OpenGripper::tick()
 {
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr gripper_pub;
-  if (!gripper_pub) {
-    gripper_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/parallel_gripper_base_plate_to_parallel_gripper_left_finger/position", 10);
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr left_gripper_pub;
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr right_gripper_pub;
+  
+  if (!left_gripper_pub) {
+    RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Creating publishers...");
+    
+    // Use reliable QoS to ensure delivery to Gazebo
+    auto qos = rclcpp::QoS(10).reliable();
+    
+    left_gripper_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/parallel_gripper_base_plate_to_left_finger/position", qos);
+    right_gripper_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/parallel_gripper_base_plate_to_right_finger/position", qos);
+    
+    RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Publishers created with reliable QoS");
+    
+    // Give publishers time to connect
+    std::this_thread::sleep_for(100ms);
   }
 
-  // Open gripper (move finger to max position, presumably)
-  // Assuming 0.0 is closed and say 0.1 is open? Or vice versa?
-  // Usually "position" is from 0 (closed) to Max.
-  // 66mm can + clearance = 100mm opening = 0.1m?
-  // Let's assume 0.05m per finger (total 10cm).
-  // Wait, if it's a parallel gripper, usually one joint drives both or we publish to both?
-  // Topic name: ..._left_finger/position. Does right follow?
-  // Assuming we need to publish to the controller.
-  
+  // Open gripper = 0.0 for both (based on URDF limits where 0 is the starting wide position)
+  // Left limit [-0.044, 0], Right limit [0, 0.044]
   std_msgs::msg::Float64 msg;
-  msg.data = 0.05; // Open 5cm (half stroke?) for now.
-  gripper_pub->publish(msg);
+  msg.data = 0.0; 
   
-  RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Opening gripper (cmd=0.05)");
+  RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Publishing left=0.0 to /parallel_gripper_base_plate_to_left_finger/position");
+  left_gripper_pub->publish(msg);
+  
+  RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Publishing right=0.0 to /parallel_gripper_base_plate_to_right_finger/position");
+  right_gripper_pub->publish(msg);
+  
+  RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Opening gripper complete (cmd=0.0)");
   std::this_thread::sleep_for(500ms);
   return BT::NodeStatus::SUCCESS;
 }
@@ -1877,31 +1930,73 @@ BT::NodeStatus CloseGripperAroundCan::tick()
   double can_diameter;
   getInput("canDiameter", can_diameter);
   
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr gripper_pub;
-  if (!gripper_pub) {
-    gripper_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/parallel_gripper_base_plate_to_parallel_gripper_left_finger/position", 10);
+  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] START: can_diameter=%.4f", can_diameter);
+  
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr left_gripper_pub;
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr right_gripper_pub;
+  
+  if (!left_gripper_pub) {
+    RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Creating publishers...");
+    
+    // Use reliable QoS to ensure delivery to Gazebo
+    auto qos = rclcpp::QoS(10).reliable();
+    
+    left_gripper_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/parallel_gripper_base_plate_to_left_finger/position", qos);
+    right_gripper_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/parallel_gripper_base_plate_to_right_finger/position", qos);
+    
+    RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Publishers created with reliable QoS");
+    
+    // Give publishers time to connect
+    std::this_thread::sleep_for(100ms);
   }
   
-  // Close to diameter.
-  // Radius = diameter / 2.
-  // If 0 is closed (fingers touching), then position = radius?
-  // Can diameter 0.066m. Radius 0.033m.
-  // Let's command slightly less to apply force?
-  // Or is it effort controlled? Topic says /position.
-  // Let's try can_diameter / 2.0.
+  // Calculate squeeze position
+  // Finger Origin is at approx 0.047m from center.
+  // We want finger surface at (diameter/2).
+  // Target Joint = (diameter/2) - 0.047.
+  // Example: 0.033 - 0.047 = -0.014.
+  // User feedback: "no movement at all" - close even tighter to 0.02m gap (0.01m from center each side).
+  // Gap = 0.02m means each finger at 0.01m from center.
+  // Target Joint = 0.01 - 0.047 = -0.037m.
   
-  double target_pos = (can_diameter / 2.0) - 0.005; // 5mm squeeze
-  if (target_pos < 0.0) target_pos = 0.0;
+  double gripper_half_width_approx = 0.047;
+  double target_pos_left = 0.010 - gripper_half_width_approx;
   
-  std_msgs::msg::Float64 msg;
-  msg.data = target_pos;
+  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] RAW Calc: target_pos_left = (%.4f / 2) - %.4f - 0.010 = %.4f", 
+              can_diameter, gripper_half_width_approx, target_pos_left);
   
-  gripper_pub->publish(msg);
+  // Clamp to limits just in case
+  if (target_pos_left < -0.044) {
+    RCLCPP_WARN(node_->get_logger(), "[CloseGripperAroundCan] Clamping left from %.4f to -0.044", target_pos_left);
+    target_pos_left = -0.044;
+  }
+  if (target_pos_left > 0.0) {
+    RCLCPP_WARN(node_->get_logger(), "[CloseGripperAroundCan] Clamping left from %.4f to 0.0", target_pos_left);
+    target_pos_left = 0.0;
+  }
+  
+  double target_pos_right = -target_pos_left; // Right is symmetric positive
 
-  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Closing to %.3fm (cmd=%.3f)", 
-              can_diameter, target_pos);
-  std::this_thread::sleep_for(1s);
+  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] FINAL: Left=%.4f, Right=%.4f", 
+              target_pos_left, target_pos_right);
+
+  std_msgs::msg::Float64 msg_left;
+  msg_left.data = target_pos_left;
+  
+  std_msgs::msg::Float64 msg_right;
+  msg_right.data = target_pos_right; // Right move inwards is positive
+  
+  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Publishing left=%.4f to /parallel_gripper_base_plate_to_left_finger/position", target_pos_left);
+  left_gripper_pub->publish(msg_left);
+  
+  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Publishing right=%.4f to /parallel_gripper_base_plate_to_right_finger/position", target_pos_right);
+  right_gripper_pub->publish(msg_right);
+
+  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Closing complete for diameter %.3fm (Left=%.4f, Right=%.4f)", 
+              can_diameter, target_pos_left, target_pos_right);
+  std::this_thread::sleep_for(1500ms);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -1986,6 +2081,11 @@ BT::NodeStatus ExtendTowardsCan::tick()
   msg.data = extension_distance;
   extender_pub->publish(msg);
   RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Published extension command: %.3f", extension_distance);
+
+  {
+    std::lock_guard<std::mutex> lock(g_sensor_mutex);
+    g_sensor_state.last_extender_command = extension_distance;
+  }
 
   std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
