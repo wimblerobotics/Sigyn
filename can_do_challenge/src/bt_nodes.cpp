@@ -1848,9 +1848,26 @@ BT::NodeStatus RetractGripper::tick()
 
 BT::NodeStatus OpenGripper::tick()
 {
-  // Placeholder: Open gripper jaws
-  // TODO: Publish gripper command
-  RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Opening gripper");
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr gripper_pub;
+  if (!gripper_pub) {
+    gripper_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/parallel_gripper_base_plate_to_parallel_gripper_left_finger/position", 10);
+  }
+
+  // Open gripper (move finger to max position, presumably)
+  // Assuming 0.0 is closed and say 0.1 is open? Or vice versa?
+  // Usually "position" is from 0 (closed) to Max.
+  // 66mm can + clearance = 100mm opening = 0.1m?
+  // Let's assume 0.05m per finger (total 10cm).
+  // Wait, if it's a parallel gripper, usually one joint drives both or we publish to both?
+  // Topic name: ..._left_finger/position. Does right follow?
+  // Assuming we need to publish to the controller.
+  
+  std_msgs::msg::Float64 msg;
+  msg.data = 0.05; // Open 5cm (half stroke?) for now.
+  gripper_pub->publish(msg);
+  
+  RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Opening gripper (cmd=0.05)");
   std::this_thread::sleep_for(500ms);
   return BT::NodeStatus::SUCCESS;
 }
@@ -1860,10 +1877,30 @@ BT::NodeStatus CloseGripperAroundCan::tick()
   double can_diameter;
   getInput("canDiameter", can_diameter);
   
-  // Placeholder: Close gripper to diameter
-  // TODO: Compute gripper position based on can diameter (66mm)
-  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Closing to %.3fm diameter", 
-              can_diameter);
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr gripper_pub;
+  if (!gripper_pub) {
+    gripper_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/parallel_gripper_base_plate_to_parallel_gripper_left_finger/position", 10);
+  }
+  
+  // Close to diameter.
+  // Radius = diameter / 2.
+  // If 0 is closed (fingers touching), then position = radius?
+  // Can diameter 0.066m. Radius 0.033m.
+  // Let's command slightly less to apply force?
+  // Or is it effort controlled? Topic says /position.
+  // Let's try can_diameter / 2.0.
+  
+  double target_pos = (can_diameter / 2.0) - 0.005; // 5mm squeeze
+  if (target_pos < 0.0) target_pos = 0.0;
+  
+  std_msgs::msg::Float64 msg;
+  msg.data = target_pos;
+  
+  gripper_pub->publish(msg);
+
+  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Closing to %.3fm (cmd=%.3f)", 
+              can_diameter, target_pos);
   std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
 }
@@ -1924,11 +1961,17 @@ BT::NodeStatus ExtendTowardsCan::tick()
   // Distance forward to can is the Z coordinate in camera optical frame
   double distance_to_can = g_detection_state.pi_detection_position.z;
   
-  // Leave some margin (don't extend all the way)
-  double extension_distance = std::max(0.0, distance_to_can - 0.03); // Stop 3cm before
+  // Target: Place the 'parallel_gripper_base_plate' (palm) ~5mm from the front of the can.
+  // Previous test with 0.03m offset resulted in pushing the can (too long).
+  // Can Radius is 33mm.
+  // A safe offset estimate:
+  // If 0.03m caused contact, we need to retract.
+  // Let's increase offset to 0.045m (4.5cm). This reduces extension by 1.5cm vs the "pushing" case.
+  // This aims to achieve the requested ~5mm gap without touching.
+  double extension_distance = std::max(0.0, distance_to_can - 0.045); 
   
   RCLCPP_INFO(node_->get_logger(),
-              "[ExtendTowardsCan] Extending gripper %.3fm toward '%s' (detected at %.3fm)",
+              "[ExtendTowardsCan] Extending gripper %.3fm toward '%s' (detected at %.3fm) [Offset 0.045]",
               extension_distance, object_name.c_str(), distance_to_can);
               
   // Log every step
