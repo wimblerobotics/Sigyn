@@ -118,7 +118,7 @@ public:
     factory.registerNodeType<SaySomething>("SaySomething");
     
     // Custom Decorator
-    factory.registerNodeType<ReactiveRepeat>("ReactiveRepeat");
+    factory.registerNodeType<ReactiveRepeatUntilSuccessOrCount>("ReactiveRepeatUntilSuccessOrCount");
     factory.registerNodeType<CheckBoolFlag>("CheckBoolFlag");
 
     // Create the behavior tree

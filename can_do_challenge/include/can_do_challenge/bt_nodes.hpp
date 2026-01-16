@@ -638,10 +638,10 @@ public:
 // CUSTOM DECORATOR
 // ============================================================================
 
-class ReactiveRepeat : public BT::DecoratorNode
+class ReactiveRepeatUntilSuccessOrCount : public BT::DecoratorNode
 {
 public:
-  ReactiveRepeat(const std::string & name, const BT::NodeConfiguration & config)
+  ReactiveRepeatUntilSuccessOrCount(const std::string & name, const BT::NodeConfiguration & config)
   : BT::DecoratorNode(name, config), current_cycle_(0) {}
   
   static BT::PortsList providedPorts() {

@@ -6,7 +6,7 @@
             <Condition ID="CanWithinReach" objectOfInterest="{objectOfInterest}" />
             <ReactiveFallback>
                 <Action ID="MoveTowardsCan" objectOfInterest="{objectOfInterest}" />
-                <Decorator ID="ReactiveRepeat" num_cycles="1000">
+                <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="1000">
                     <Sequence>
                         <Action ID="ComputeApproachGoalToCan" goal="{canApproachGoal}"
                             objectOfInterest="{objectOfInterest}" />
@@ -26,7 +26,7 @@
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="CenterCanInPiCamera">
-        <Decorator ID="ReactiveRepeat" num_cycles="5">
+        <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="5">
             <Sequence>
                 <Condition ID="WaitForNewPiFrameProcessed" />
                 <ReactiveFallback name="CheckOrAdjust">
@@ -174,7 +174,7 @@
         <ReactiveFallback name="FindCanVisually">
             <Condition ID="CanDetectedByOAKD" objectOfInterest="{objectOfInterest}" />
             <ForceFailure>
-                <Decorator ID="ReactiveRepeat" num_cycles="12">
+                <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="12">
                     <Action ID="RotateRobot" degrees="30" />
                 </Decorator>
             </ForceFailure>
@@ -316,7 +316,7 @@
             <input_port default="true" name="__shared_blackboard" />
             <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </SubTree>
-        <Decorator ID="ReactiveRepeat">
+        <Decorator ID="ReactiveRepeatUntilSuccessOrCount">
             <input_port name="num_cycles">Number of cycles to repeat</input_port>
         </Decorator>
         <SubTree ID="ReactiveRobotSafety" />

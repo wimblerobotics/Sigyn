@@ -261,11 +261,12 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
         g_detection_state.oakd_last_detection_time = node->now();
       }
 
-      RCLCPP_INFO(node->get_logger(),
-                  "[OAKDDetection] Received detection frame=%s stamp=%.3f x=%.3f y=%.3f z=%.3f",
-                  msg->header.frame_id.c_str(),
-                  rclcpp::Time(msg->header.stamp).seconds(),
-                  msg->point.x, msg->point.y, msg->point.z);
+      // Logging reduced
+      // RCLCPP_INFO(node->get_logger(),
+      //             "[OAKDDetection] Received detection frame=%s stamp=%.3f x=%.3f y=%.3f z=%.3f",
+      //             msg->header.frame_id.c_str(),
+      //             rclcpp::Time(msg->header.stamp).seconds(),
+      //             msg->point.x, msg->point.y, msg->point.z);
 
       // Best-effort: also transform to ODOM frame immediately
       // This anchors the observation in the world, preventing it from moving with the camera
@@ -303,10 +304,11 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
         g_detection_state.pi_last_detection_time = node->now();
       }
       g_pi_detection_cv.notify_all();
-      RCLCPP_INFO(node->get_logger(), "[PiDetection] Received detection frame=%s stamp=%.3f x=%.3f y=%.3f z=%.3f",
-                  msg->header.frame_id.c_str(),
-                  rclcpp::Time(msg->header.stamp).seconds(),
-                  msg->point.x, msg->point.y, msg->point.z);
+      // Logging reduced to reduce noise
+      // RCLCPP_INFO(node->get_logger(), "[PiDetection] Received detection frame=%s stamp=%.3f x=%.3f y=%.3f z=%.3f",
+      //             msg->header.frame_id.c_str(),
+      //             rclcpp::Time(msg->header.stamp).seconds(),
+      //             msg->point.x, msg->point.y, msg->point.z);
     });
   RCLCPP_INFO(node->get_logger(), "Subscribed to /gripper/can_detection (best_effort)");
 
@@ -319,8 +321,9 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
         g_pi_last_frame_time = rclcpp::Time(msg->stamp);
       }
       g_pi_frame_cv.notify_all();
-      RCLCPP_INFO(node->get_logger(), "[PiDetection] Processed heartbeat frame=%s stamp=%.3f",
-                  msg->frame_id.c_str(), rclcpp::Time(msg->stamp).seconds());
+      // Logging reduced to reduce noise
+      // RCLCPP_INFO(node->get_logger(), "[PiDetection] Processed heartbeat frame=%s stamp=%.3f",
+      //             msg->frame_id.c_str(), rclcpp::Time(msg->stamp).seconds());
       (void)node;
     });
   RCLCPP_INFO(node->get_logger(), "Subscribed to /gripper/can_detection/processed (best_effort)");
@@ -1887,13 +1890,36 @@ BT::NodeStatus ExtendTowardsCan::tick()
 
   const double offset_x = std::abs(g_detection_state.pi_detection_position.x);
   const double offset_y = std::abs(g_detection_state.pi_detection_position.y);
-  if (offset_x > ObjectDetectionState::CENTERING_TOLERANCE ||
-      offset_y > ObjectDetectionState::CENTERING_TOLERANCE) {
+  
+  // Use loose tolerances for this final sanity check. 
+  // X: Check horizontal alignment angle (Yaw). 
+  //    The user clarified: "The test should only be about the theta deviation"
+  //    atan2(x, z) gives us the horizontal angle. Z is forward, X is right.
+  double angle_x_rad = std::atan2(offset_x, g_detection_state.pi_detection_position.z);
+  
+  // Tolerance: 5 degrees (approx 0.087 rad)
+  if (std::abs(angle_x_rad) > 0.1) {
     RCLCPP_WARN(node_->get_logger(),
-                "[ExtendTowardsCan] Can not centered (x=%.3f, y=%.3f)",
-                offset_x, offset_y);
+                "[ExtendTowardsCan] Alignment Check Failed: Horizontal Angle %.3f rad too high (limit 0.1)",
+                angle_x_rad);
+    // return BT::NodeStatus::FAILURE; // Allow proceed for now per user request? 
+    // Actually, user said "The test should only be about the theta deviation". So if theta is bad, fail.
     return BT::NodeStatus::FAILURE;
   }
+
+  // Y: User explicitly said "I'm not sure what the y misalignment is about... RaiseElevatorToCanHeight fixed the z axis alighment"
+  // If the user believes vertical alignment is solved, we should ignore Y error or just warn about it.
+  // The log showed a 5.6cm error. If we fail on Y, we stop. If we ignore Y, we extend.
+  // We will log Y error but NOT fail on it.
+  if (offset_y > 0.08) {
+      RCLCPP_WARN(node_->get_logger(),
+                  "[ExtendTowardsCan] WARN: Vertical misalignment y=%.3f exceeds 8cm. Extending anyway per user instruction.",
+                  offset_y);
+  } else {
+      RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Vertical misalignment y=%.3f (acceptable)", offset_y);
+  }
+  
+  RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Alignment passed. Calculating extension...");
   
   // Distance forward to can is the Z coordinate in camera optical frame
   double distance_to_can = g_detection_state.pi_detection_position.z;
@@ -1904,9 +1930,11 @@ BT::NodeStatus ExtendTowardsCan::tick()
   RCLCPP_INFO(node_->get_logger(),
               "[ExtendTowardsCan] Extending gripper %.3fm toward '%s' (detected at %.3fm)",
               extension_distance, object_name.c_str(), distance_to_can);
-
+              
+  // Log every step
   static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr extender_pub;
   if (!extender_pub) {
+      RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Creating publisher...");
     extender_pub = node_->create_publisher<std_msgs::msg::Float64>(
       "/gripper_elevator_plate_to_gripper_extender/position", 10);
   }
@@ -1914,6 +1942,7 @@ BT::NodeStatus ExtendTowardsCan::tick()
   std_msgs::msg::Float64 msg;
   msg.data = extension_distance;
   extender_pub->publish(msg);
+  RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Published extension command: %.3f", extension_distance);
 
   std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
@@ -2037,7 +2066,11 @@ BT::NodeStatus AdjustExtenderToCenterCan::tick()
   twist.angular.z = 0.0;
   twist_pub->publish(twist);
   
-  return BT::NodeStatus::SUCCESS;
+  // Wait a bit for settling
+  std::this_thread::sleep_for(500ms);
+
+  // Return FAILURE to indicate we had to move (not stable yet), prompting a retry
+  return BT::NodeStatus::FAILURE;
 }
 
 // ============================================================================
@@ -2237,7 +2270,7 @@ BT::NodeStatus SaySomething::tick()
 // CUSTOM DECORATOR
 // ============================================================================
 
-BT::NodeStatus ReactiveRepeat::tick()
+BT::NodeStatus ReactiveRepeatUntilSuccessOrCount::tick()
 {
   int num_cycles;
   getInput("num_cycles", num_cycles);
@@ -2253,11 +2286,19 @@ BT::NodeStatus ReactiveRepeat::tick()
     return BT::NodeStatus::RUNNING;
   }
 
+  // If the child succeeds (e.g. "CenterCan" confirms we are centered), we are done.
+  if (child_status == BT::NodeStatus::SUCCESS) {
+    current_cycle_ = 0;
+    return BT::NodeStatus::SUCCESS;
+  }
+
+  // If child failed (e.g. "CenterCan" had to move and thus wasn't centered yet),
+  // we count this as a cycle used and retry.
   current_cycle_++;
 
   if (current_cycle_ >= num_cycles) {
     current_cycle_ = 0;
-    return BT::NodeStatus::FAILURE; // Completed all cycles
+    return BT::NodeStatus::FAILURE; // Completed all cycles without Success
   }
 
   return BT::NodeStatus::RUNNING;
