@@ -547,21 +547,19 @@ BT::NodeStatus CanCenteredInPiCamera::tick()
     return BT::NodeStatus::FAILURE;
   }
 
-  // Check if can is centered (x and y should be near zero in camera frame)
+  // Check if can is centered HORIZONTALLY only (X axis in camera frame).
   // Pi camera detector emits in Optical Frame (X=Right, Y=Down, Z=Forward).
-  // We want the can to be in the center of the image, so X and Y should be small.
+  // We only care about horizontal (X) centering - vertical (Y) is handled by ElevatorAtHeight.
   const double offset_x = std::abs(det_point.x);
-  const double offset_y = std::abs(det_point.y);
   
-  if (offset_x < ObjectDetectionState::CENTERING_TOLERANCE && 
-      offset_y < ObjectDetectionState::CENTERING_TOLERANCE) {
-    RCLCPP_INFO(node_->get_logger(), "[CanCenteredInPiCamera] Can '%s' is centered (age=%.2fs)", 
-                object_name.c_str(), age_sec);
+  if (offset_x < ObjectDetectionState::CENTERING_TOLERANCE) {
+    RCLCPP_INFO(node_->get_logger(), "[CanCenteredInPiCamera] Can '%s' is horizontally centered x_offset=%.3fm (age=%.2fs)", 
+                object_name.c_str(), offset_x, age_sec);
     return BT::NodeStatus::SUCCESS;
   }
   
-  RCLCPP_INFO(node_->get_logger(), "[CanCenteredInPiCamera] Can offset: (%.3f, %.3f)",
-              offset_x, offset_y);
+  RCLCPP_INFO(node_->get_logger(), "[CanCenteredInPiCamera] Can not centered, x_offset: %.3fm",
+              offset_x);
   return BT::NodeStatus::FAILURE;
 }
 
@@ -746,27 +744,67 @@ BT::NodeStatus ElevatorAtHeight::tick()
     return BT::NodeStatus::FAILURE;
   }
 
-  RCLCPP_DEBUG(node_->get_logger(),
-               "[ElevatorAtHeight] Pi detection raw x=%.3f y=%.3f z=%.3f age=%.2fs target_y=%.3f tol_y=%.3f tol_x=%.3f",
-               det_point.x, det_point.y, det_point.z, age_sec,
-               ObjectDetectionState::PI_VERTICAL_TARGET_OFFSET,
-               ObjectDetectionState::PI_VERTICAL_TOLERANCE,
-               ObjectDetectionState::CENTERING_TOLERANCE);
+  RCLCPP_INFO(node_->get_logger(),
+              "[ElevatorAtHeight] Pi detection raw x=%.3f y=%.3f z=%.3f age=%.2fs",
+              det_point.x, det_point.y, det_point.z, age_sec);
 
-  const double vertical_error = std::abs(det_point.y - ObjectDetectionState::PI_VERTICAL_TARGET_OFFSET);
-  const bool at_height = vertical_error <= ObjectDetectionState::PI_VERTICAL_TOLERANCE;
-
-  if (at_height) {
-    RCLCPP_INFO(node_->get_logger(),
-          "[ElevatorAtHeight] Pi camera y_err=%.3fm (centered, age=%.2fs)",
-          vertical_error, age_sec);
-    return BT::NodeStatus::SUCCESS;
+  // Transform detection to base_link to get real 3D Z-height
+  if (!g_tf_buffer) {
+    RCLCPP_WARN(node_->get_logger(), "[ElevatorAtHeight] TF buffer not ready");
+    return BT::NodeStatus::FAILURE;
   }
 
-  RCLCPP_INFO(node_->get_logger(),
-              "[ElevatorAtHeight] Pi camera y_err=%.3fm (not centered)",
-              vertical_error);
-  return BT::NodeStatus::FAILURE;
+  try {
+    // Get can position in base_link frame
+    geometry_msgs::msg::PointStamped det_stamped;
+    std::string detection_frame;
+    {
+      std::lock_guard<std::mutex> lock(g_detection_mutex);
+      detection_frame = g_detection_state.pi_detection_frame;
+      det_stamped.header.frame_id = detection_frame;
+      det_stamped.header.stamp = rclcpp::Time(0); // Use latest available transform
+      det_stamped.point = det_point;
+    }
+
+    RCLCPP_INFO(node_->get_logger(),
+                "[ElevatorAtHeight] Using detection frame '%s' for transform",
+                detection_frame.c_str());
+    
+    auto can_in_base = g_tf_buffer->transform(det_stamped, "base_link", tf2::durationFromSec(0.1));
+    RCLCPP_INFO(node_->get_logger(),
+          "[ElevatorAtHeight] Can in base_link x=%.3f y=%.3f z=%.3f",
+          can_in_base.point.x, can_in_base.point.y, can_in_base.point.z);
+    
+    // Get gripper plate position in base_link frame
+    auto gripper_tf = g_tf_buffer->lookupTransform("base_link", "parallel_gripper_base_plate", 
+                            rclcpp::Time(0), tf2::durationFromSec(0.1));
+    double gripper_z = gripper_tf.transform.translation.z;
+    double can_z = can_in_base.point.z;
+    
+    // Check if Z-heights match (tolerance of 0.04m since we step 0.02m at a time)
+    const double z_error = std::abs(can_z - gripper_z);
+    const bool at_height = z_error <= 0.04;
+
+    RCLCPP_INFO(node_->get_logger(),
+          "[ElevatorAtHeight] Gripper Z=%.3f Can Z=%.3f | z_error=%.3f (tol=0.04)",
+          gripper_z, can_z, z_error);
+
+    if (at_height) {
+      RCLCPP_INFO(node_->get_logger(),
+            "[ElevatorAtHeight] Can Z-height matched! can_z=%.3fm gripper_z=%.3fm error=%.3fm (age=%.2fs)",
+            can_z, gripper_z, z_error, age_sec);
+      return BT::NodeStatus::SUCCESS;
+    }
+
+    RCLCPP_INFO(node_->get_logger(),
+                "[ElevatorAtHeight] Can Z-height mismatch: can_z=%.3fm gripper_z=%.3fm error=%.3fm",
+                can_z, gripper_z, z_error);
+    return BT::NodeStatus::FAILURE;
+    
+  } catch (const tf2::TransformException& ex) {
+    RCLCPP_WARN(node_->get_logger(), "[ElevatorAtHeight] TF transform failed: %s", ex.what());
+    return BT::NodeStatus::FAILURE;
+  }
 }
 
 // ============================================================================
@@ -1826,10 +1864,68 @@ BT::NodeStatus AdjustExtenderToCenterCan::tick()
   std::string object_name;
   getInput("objectOfInterest", object_name);
   
-  // Placeholder: Adjust extender left/right and forward/back
-  // TODO: Use Pi Camera bounding box center vs image center to compute adjustment
-  RCLCPP_DEBUG(node_->get_logger(), "[AdjustExtenderToCenterCan] Adjusting position");
+  initializeObjectDetection(node_);
+  
+  // Get fresh detection
+  geometry_msgs::msg::Point det_point;
+  double age_sec = 999.0;
+  if (!getFreshPiDetection(node_, det_point, age_sec)) {
+    RCLCPP_WARN(node_->get_logger(), "[AdjustExtenderToCenterCan] No fresh detection");
+    return BT::NodeStatus::FAILURE;
+  }
+
+  if (!piDetectionInRange(det_point)) {
+    RCLCPP_WARN(node_->get_logger(), "[AdjustExtenderToCenterCan] Detection out of range");
+    return BT::NodeStatus::FAILURE;
+  }
+
+  // Get horizontal offset in camera frame (X axis, positive = right)
+  const double x_offset = det_point.x;
+  
+  // If already centered, we're done
+  if (std::abs(x_offset) < ObjectDetectionState::CENTERING_TOLERANCE) {
+    RCLCPP_INFO(node_->get_logger(), "[AdjustExtenderToCenterCan] Already centered");
+    return BT::NodeStatus::SUCCESS;
+  }
+
+  // Calculate rotation needed (proportional control)
+  // Positive x_offset means can is to the right, need to rotate CCW (positive angular.z)
+  const double k_rotation = 0.5; // Proportional gain
+  double angular_z = k_rotation * x_offset;
+  
+  // Limit rotation rate
+  const double max_angular = 0.2; // rad/s
+  if (std::abs(angular_z) > max_angular) {
+    angular_z = (angular_z > 0) ? max_angular : -max_angular;
+  }
+
+  // Publish twist command to rotate robot
+  static rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr twist_pub;
+  if (!twist_pub) {
+    twist_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
+  }
+
+  geometry_msgs::msg::Twist twist;
+  twist.linear.x = 0.0;
+  twist.linear.y = 0.0;
+  twist.linear.z = 0.0;
+  twist.angular.x = 0.0;
+  twist.angular.y = 0.0;
+  twist.angular.z = angular_z;
+  
+  twist_pub->publish(twist);
+  
+  RCLCPP_INFO(node_->get_logger(), 
+              "[AdjustExtenderToCenterCan] Rotating %.3f rad/s to center can (x_offset=%.3fm)",
+              angular_z, x_offset);
+  
+  // Let the rotation happen
   std::this_thread::sleep_for(200ms);
+  
+  // Stop rotation
+  twist.angular.z = 0.0;
+  twist_pub->publish(twist);
+  
   return BT::NodeStatus::SUCCESS;
 }
 
