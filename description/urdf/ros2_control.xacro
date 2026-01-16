@@ -120,9 +120,13 @@
         <state_interface name="position"/>
       </joint>
 
-      <!-- <joint name="parallel_gripper_base_plate_to_right_finger">
+      <joint name="parallel_gripper_base_plate_to_right_finger">
+        <command_interface name="position">
+          <param name="min">-100</param>
+          <param name="max">100</param>
+        </command_interface>
         <state_interface name="position"/>
-      </joint> -->
+      </joint>
 
     </ros2_control>
   </xacro:if>

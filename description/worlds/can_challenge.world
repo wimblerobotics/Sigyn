@@ -1259,6 +1259,22 @@
               <length>0.1227</length>
             </cylinder>
           </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>3.0</mu>
+                <mu2>3.0</mu2>
+                <slip1>0.001</slip1>
+                <slip2>0.001</slip2>
+              </ode>
+            </friction>
+            <contact>
+              <ode>
+                <kp>200000.0</kp>
+                <kd>1.0</kd>
+              </ode>
+            </contact>
+          </surface>
         </collision>
         <visual name="visual">
           <geometry>
