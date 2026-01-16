@@ -27,11 +27,13 @@
     <!-- ////////// -->
     <BehaviorTree ID="CenterCanInPiCamera">
         <Decorator ID="ReactiveRepeat" num_cycles="5">
-            <ReactiveFallback name="WaitForCentering">
+            <Sequence>
                 <Condition ID="WaitForNewPiFrameProcessed" />
-                <Condition ID="CanCenteredInPiCamera" objectOfInterest="{objectOfInterest}" />
-                <Action ID="AdjustExtenderToCenterCan" objectOfInterest="{objectOfInterest}" />
-            </ReactiveFallback>
+                <ReactiveFallback name="CheckOrAdjust">
+                    <Condition ID="CanCenteredInPiCamera" objectOfInterest="{objectOfInterest}" />
+                    <Action ID="AdjustExtenderToCenterCan" objectOfInterest="{objectOfInterest}" />
+                </ReactiveFallback>
+            </Sequence>
         </Decorator>
     </BehaviorTree>
     <!-- ////////// -->
@@ -43,7 +45,7 @@
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="ExecuteGrasp">
-        <ReactiveSequence>
+        <Sequence>
             <Action ID="OpenGripper" />
             <Sequence>
                 <Condition ID="WaitForNewPiFrameProcessed" />
@@ -57,13 +59,13 @@
                 </Sequence>
                 <Action ID="ReportGraspFailure" />
             </ReactiveFallback>
-        </ReactiveSequence>
+        </Sequence>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="GraspCan">
         <ReactiveFallback>
             <Condition ID="CheckBoolFlag" expected="false" flag="{needToGrasp}" />
-            <ReactiveSequence>
+            <Sequence>
                 <SubTree ID="RaiseElevatorToCanHeight" __shared_blackboard="true"
                     objectOfInterest="{objectOfInterest}" />
                 <SubTree ID="CenterCanInPiCamera" __shared_blackboard="true"
@@ -72,7 +74,7 @@
                     objectOfInterest="{objectOfInterest}" />
                 <SubTree ID="RetractAfterGrasp" />
                 <SetBlackboard output_key="needToGrasp" value="false" />
-            </ReactiveSequence>
+            </Sequence>
         </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
@@ -109,7 +111,6 @@
     <!-- ////////// -->
     <BehaviorTree ID="RaiseElevatorToCanHeight">
         <Sequence>
-            <Condition ID="WaitForNewPiFrameProcessed" />
             <RetryUntilSuccessful num_attempts="45">
                 <ReactiveFallback>
                     <Condition ID="ElevatorAtHeight" targetHeight="" />

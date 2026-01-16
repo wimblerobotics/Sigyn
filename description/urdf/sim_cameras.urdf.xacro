@@ -54,7 +54,7 @@
   <!-- Pi Camera for Simulation (on gripper for close-up centering) -->
   <xacro:macro name="pi_camera_sim" params="parent_link">
     <!-- Pitch down angle in degrees -->
-    <xacro:property name="pitch_down_degrees" value="35"/>
+    <xacro:property name="pitch_down_degrees" value="25"/>
     
     <joint name="pi_camera_sim_joint" type="fixed">
       <parent link="${parent_link}"/>

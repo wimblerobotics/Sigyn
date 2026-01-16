@@ -80,6 +80,7 @@ def generate_launch_description():
             # Reduce false positives while navigating; can should only be reliable near the end.
             "min_area_px2": 250,
             "min_bbox_height_px": 35,
+            "min_aspect": 0.15,
             "max_distance_m": 1.8,
             "log_throttle_sec": 5.0,
         }],
@@ -100,7 +101,7 @@ def generate_launch_description():
             "min_area_px2": 500,
             "min_bbox_height_px": 60,
             "max_distance_m": 0.8,
-            "min_center_y_ratio": 0.2,
+            "min_center_y_ratio": 0.1,
             "max_center_y_ratio": 0.85,
             "max_abs_x_m": 0.12,
             "dump_debug_images": True,
