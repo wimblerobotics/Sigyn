@@ -13,11 +13,14 @@
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2/LinearMath/Matrix3x3.h"
 #include "ament_index_cpp/get_package_share_directory.hpp"
+#include "sensor_msgs/msg/image.hpp"
+#include "std_msgs/msg/header.hpp"
 #include <cmath>
 #include <fstream>
 #include <sstream>
 #include <thread>
 #include <regex>
+#include <condition_variable>
 
 using namespace std::chrono_literals;
 
@@ -78,27 +81,46 @@ struct ObjectDetectionState {
   
   // Detection parameters
   static constexpr double DETECTION_TIMEOUT_SEC = 2.0;
+  static constexpr double PI_DETECTION_TIMEOUT_SEC = 6.0;
+  static constexpr int PI_WAIT_TIMEOUT_MS = 1000;
   static constexpr double WITHIN_REACH_DISTANCE = 0.6;  // 60cm
   static constexpr double CENTERING_TOLERANCE = 0.05;   // 5cm in camera frame
   static constexpr double PI_VERTICAL_TOLERANCE = 0.05; // 5cm for elevator height check
+  static constexpr double PI_VERTICAL_TARGET_OFFSET = 0.0; // target offset in optical Y (positive down)
   static constexpr double PI_MIN_DISTANCE_M = 0.15;
   static constexpr double PI_MAX_DISTANCE_M = 0.80;
 };
 
 static ObjectDetectionState g_detection_state;
 static std::mutex g_detection_mutex;
+static std::condition_variable g_pi_detection_cv;
+
+static std::mutex g_pi_frame_mutex;
+static std::condition_variable g_pi_frame_cv;
+static rclcpp::Time g_pi_last_frame_time;
 
 static bool getFreshPiDetection(const std::shared_ptr<rclcpp::Node>& node,
                                 geometry_msgs::msg::Point& out_point,
                                 double& out_age_sec)
 {
-  std::lock_guard<std::mutex> lock(g_detection_mutex);
+  std::unique_lock<std::mutex> lock(g_detection_mutex);
+  const auto last_seen = g_detection_state.pi_last_detection_time;
+
+  g_pi_detection_cv.wait_for(
+    lock,
+    std::chrono::milliseconds(ObjectDetectionState::PI_WAIT_TIMEOUT_MS),
+    [&]() {
+      return g_detection_state.pi_can_detected &&
+             g_detection_state.pi_last_detection_time != last_seen;
+    });
+
   if (!g_detection_state.pi_can_detected) {
+    out_age_sec = 999.0;
     return false;
   }
 
   out_age_sec = (node->now() - g_detection_state.pi_last_detection_time).seconds();
-  if (out_age_sec >= ObjectDetectionState::DETECTION_TIMEOUT_SEC) {
+  if (out_age_sec >= ObjectDetectionState::PI_DETECTION_TIMEOUT_SEC) {
     return false;
   }
 
@@ -115,6 +137,7 @@ static bool piDetectionInRange(const geometry_msgs::msg::Point& point)
 // Store subscriptions so they don't get destroyed
 static rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr g_oakd_sub;
 static rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr g_pi_sub;
+static rclcpp::Subscription<std_msgs::msg::Header>::SharedPtr g_pi_processed_sub;
 static std::shared_ptr<tf2_ros::Buffer> g_tf_buffer;
 static std::shared_ptr<tf2_ros::TransformListener> g_tf_listener;
 
@@ -244,13 +267,28 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
   g_pi_sub = node->create_subscription<geometry_msgs::msg::PointStamped>(
     "/gripper/can_detection", 10,
     [node](const geometry_msgs::msg::PointStamped::SharedPtr msg) {
-      std::lock_guard<std::mutex> lock(g_detection_mutex);
-      g_detection_state.pi_detection_position = msg->point;
-      g_detection_state.pi_detection_frame = msg->header.frame_id;
-      g_detection_state.pi_can_detected = true;
-      g_detection_state.pi_last_detection_time = node->now();
+      {
+        std::lock_guard<std::mutex> lock(g_detection_mutex);
+        g_detection_state.pi_detection_position = msg->point;
+        g_detection_state.pi_detection_frame = msg->header.frame_id;
+        g_detection_state.pi_can_detected = true;
+        g_detection_state.pi_last_detection_time = node->now();
+      }
+      g_pi_detection_cv.notify_all();
       RCLCPP_DEBUG(node->get_logger(), "Pi camera detection received: (%.2f, %.2f, %.2f)",
                    msg->point.x, msg->point.y, msg->point.z);
+    });
+
+  // Subscribe to Pi detector processed-frame heartbeat
+  g_pi_processed_sub = node->create_subscription<std_msgs::msg::Header>(
+    "/gripper/can_detection/processed", 10,
+    [node](const std_msgs::msg::Header::SharedPtr msg) {
+      {
+        std::lock_guard<std::mutex> lock(g_pi_frame_mutex);
+        g_pi_last_frame_time = rclcpp::Time(msg->stamp);
+      }
+      g_pi_frame_cv.notify_all();
+      (void)node;
     });
   
   initialized = true;
@@ -471,15 +509,15 @@ BT::NodeStatus CanDetectedByPiCamera::tick()
   geometry_msgs::msg::Point det_point;
   double age_sec = 999.0;
   if (!getFreshPiDetection(node_, det_point, age_sec)) {
-    RCLCPP_DEBUG(node_->get_logger(), "[CanDetectedByPiCamera] Waiting for Pi camera detection...");
+    RCLCPP_INFO(node_->get_logger(), "[CanDetectedByPiCamera] Waiting for Pi camera detection...");
     return BT::NodeStatus::FAILURE;
   }
 
   if (!piDetectionInRange(det_point)) {
-    RCLCPP_DEBUG(node_->get_logger(),
-                 "[CanDetectedByPiCamera] Detection out of range z=%.2f (allowed %.2f-%.2f)",
-                 det_point.z, ObjectDetectionState::PI_MIN_DISTANCE_M,
-                 ObjectDetectionState::PI_MAX_DISTANCE_M);
+    RCLCPP_INFO(node_->get_logger(),
+                "[CanDetectedByPiCamera] Detection out of range z=%.2f (allowed %.2f-%.2f)",
+                det_point.z, ObjectDetectionState::PI_MIN_DISTANCE_M,
+                ObjectDetectionState::PI_MAX_DISTANCE_M);
     return BT::NodeStatus::FAILURE;
   }
 
@@ -502,10 +540,10 @@ BT::NodeStatus CanCenteredInPiCamera::tick()
   }
 
   if (!piDetectionInRange(det_point)) {
-    RCLCPP_DEBUG(node_->get_logger(),
-                 "[CanCenteredInPiCamera] Detection out of range z=%.2f (allowed %.2f-%.2f)",
-                 det_point.z, ObjectDetectionState::PI_MIN_DISTANCE_M,
-                 ObjectDetectionState::PI_MAX_DISTANCE_M);
+    RCLCPP_INFO(node_->get_logger(),
+                "[CanCenteredInPiCamera] Detection out of range z=%.2f (allowed %.2f-%.2f)",
+                det_point.z, ObjectDetectionState::PI_MIN_DISTANCE_M,
+                ObjectDetectionState::PI_MAX_DISTANCE_M);
     return BT::NodeStatus::FAILURE;
   }
 
@@ -522,8 +560,8 @@ BT::NodeStatus CanCenteredInPiCamera::tick()
     return BT::NodeStatus::SUCCESS;
   }
   
-  RCLCPP_DEBUG(node_->get_logger(), "[CanCenteredInPiCamera] Can offset: (%.3f, %.3f)",
-               offset_x, offset_y);
+  RCLCPP_INFO(node_->get_logger(), "[CanCenteredInPiCamera] Can offset: (%.3f, %.3f)",
+              offset_x, offset_y);
   return BT::NodeStatus::FAILURE;
 }
 
@@ -544,12 +582,12 @@ BT::NodeStatus CanWithinReach::tick()
   {
     std::lock_guard<std::mutex> lock(g_detection_mutex);
     if (!g_detection_state.oakd_can_detected) {
-      RCLCPP_DEBUG(node_->get_logger(), "[CanWithinReach] No detection available");
+      RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] No detection available");
       return BT::NodeStatus::FAILURE;
     }
     age_sec = (node_->now() - g_detection_state.oakd_last_detection_time).seconds();
     if (age_sec >= ObjectDetectionState::DETECTION_TIMEOUT_SEC) {
-      RCLCPP_DEBUG(node_->get_logger(), "[CanWithinReach] Detection stale (%.2fs)", age_sec);
+      RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] Detection stale (%.2fs)", age_sec);
       return BT::NodeStatus::FAILURE;
     }
     has_raw = !g_detection_state.oakd_detection_frame_raw.empty();
@@ -589,8 +627,8 @@ BT::NodeStatus CanWithinReach::tick()
         return BT::NodeStatus::SUCCESS;
       }
 
-      RCLCPP_DEBUG(node_->get_logger(), "[CanWithinReach] base dx=%.2f dy=%.2f dist=%.2f (need %.2f)",
-                   dx, dy, distance, ObjectDetectionState::WITHIN_REACH_DISTANCE);
+      RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] base dx=%.2f dy=%.2f dist=%.2f (need %.2f)",
+          dx, dy, distance, ObjectDetectionState::WITHIN_REACH_DISTANCE);
       return BT::NodeStatus::FAILURE;
     } catch (const tf2::TransformException& ex) {
       RCLCPP_WARN(node_->get_logger(), "[CanWithinReach] TF base_link<-det_raw failed: %s", ex.what());
@@ -600,7 +638,7 @@ BT::NodeStatus CanWithinReach::tick()
 
   // Fallback: anchored odom distance.
   if (!has_odom) {
-    RCLCPP_DEBUG(node_->get_logger(), "[CanWithinReach] No odom-anchored detection available yet");
+    RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] No odom-anchored detection available yet");
     return BT::NodeStatus::FAILURE;
   }
 
@@ -642,37 +680,92 @@ BT::NodeStatus CanIsGrasped::tick()
   return BT::NodeStatus::SUCCESS;
 }
 
+BT::NodeStatus WaitForNewPiFrameProcessed::tick()
+{
+  initializeObjectDetection(node_);
+
+  auto current_time = node_->now();
+  
+  // On first tick or after reset, initialize state
+  if (!waiting_) {
+    wait_start_time_ = current_time;
+    std::lock_guard<std::mutex> lock(g_pi_frame_mutex);
+    last_frame_time_ = g_pi_last_frame_time;
+    waiting_ = true;
+  }
+  
+  // Check if we've exceeded timeout
+  auto elapsed = (current_time - wait_start_time_).seconds();
+  if (elapsed > (ObjectDetectionState::PI_WAIT_TIMEOUT_MS / 1000.0)) {
+    RCLCPP_INFO(node_->get_logger(), "[WaitForNewPiFrameProcessed] Timeout after %.1fs waiting for processed frame",
+                elapsed);
+    waiting_ = false;  // Reset for next attempt
+    return BT::NodeStatus::FAILURE;
+  }
+  
+  // Check if new frame has been processed (non-blocking)
+  // The heartbeat is published after object detection runs, regardless of whether can was found
+  rclcpp::Time current_frame_time;
+  {
+    std::lock_guard<std::mutex> lock(g_pi_frame_mutex);
+    current_frame_time = g_pi_last_frame_time;
+  }
+  
+  if (current_frame_time != last_frame_time_ && current_frame_time.nanoseconds() > 0) {
+    // New frame processed! Bounding box data (if any) is now available. Reset state and return success.
+    waiting_ = false;
+    return BT::NodeStatus::SUCCESS;
+  }
+  
+  // Still waiting for frame to be processed
+  return BT::NodeStatus::RUNNING;
+}
+
 BT::NodeStatus ElevatorAtHeight::tick()
 {
   initializeObjectDetection(node_);
 
+  static int tick_count = 0;
+  tick_count++;
+
   geometry_msgs::msg::Point det_point;
   double age_sec = 999.0;
   if (!getFreshPiDetection(node_, det_point, age_sec)) {
-    RCLCPP_DEBUG(node_->get_logger(), "[ElevatorAtHeight] No fresh Pi camera detection yet");
+    if (tick_count % 10 == 0) {
+      RCLCPP_INFO(node_->get_logger(),
+                  "[ElevatorAtHeight] No fresh Pi camera detection (age=%.2fs)", age_sec);
+    }
     return BT::NodeStatus::FAILURE;
   }
 
   if (!piDetectionInRange(det_point)) {
-    RCLCPP_DEBUG(node_->get_logger(),
-                 "[ElevatorAtHeight] Detection out of range z=%.2f (allowed %.2f-%.2f)",
-                 det_point.z, ObjectDetectionState::PI_MIN_DISTANCE_M,
-                 ObjectDetectionState::PI_MAX_DISTANCE_M);
+    RCLCPP_INFO(node_->get_logger(),
+                "[ElevatorAtHeight] Detection out of range z=%.2f (allowed %.2f-%.2f)",
+                det_point.z, ObjectDetectionState::PI_MIN_DISTANCE_M,
+                ObjectDetectionState::PI_MAX_DISTANCE_M);
     return BT::NodeStatus::FAILURE;
   }
 
-  const double vertical_offset = std::abs(det_point.y);
-  const bool at_height = vertical_offset <= ObjectDetectionState::PI_VERTICAL_TOLERANCE;
+  RCLCPP_DEBUG(node_->get_logger(),
+               "[ElevatorAtHeight] Pi detection raw x=%.3f y=%.3f z=%.3f age=%.2fs target_y=%.3f tol_y=%.3f tol_x=%.3f",
+               det_point.x, det_point.y, det_point.z, age_sec,
+               ObjectDetectionState::PI_VERTICAL_TARGET_OFFSET,
+               ObjectDetectionState::PI_VERTICAL_TOLERANCE,
+               ObjectDetectionState::CENTERING_TOLERANCE);
+
+  const double vertical_error = std::abs(det_point.y - ObjectDetectionState::PI_VERTICAL_TARGET_OFFSET);
+  const bool at_height = vertical_error <= ObjectDetectionState::PI_VERTICAL_TOLERANCE;
 
   if (at_height) {
     RCLCPP_INFO(node_->get_logger(),
-                "[ElevatorAtHeight] Pi camera vertical offset %.3fm (centered, age=%.2fs)",
-                vertical_offset, age_sec);
+          "[ElevatorAtHeight] Pi camera y_err=%.3fm (centered, age=%.2fs)",
+          vertical_error, age_sec);
     return BT::NodeStatus::SUCCESS;
   }
 
-  RCLCPP_DEBUG(node_->get_logger(), "[ElevatorAtHeight] Pi camera vertical offset %.3fm (not centered)",
-               vertical_offset);
+  RCLCPP_INFO(node_->get_logger(),
+              "[ElevatorAtHeight] Pi camera y_err=%.3fm (not centered)",
+              vertical_error);
   return BT::NodeStatus::FAILURE;
 }
 
@@ -1960,7 +2053,7 @@ BT::NodeStatus ReactiveRepeat::tick()
     return BT::NodeStatus::FAILURE; // Completed all cycles
   }
 
-  return child_status;
+  return BT::NodeStatus::RUNNING;
 }
 
 // ============================================================================

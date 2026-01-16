@@ -77,6 +77,7 @@ public:
     factory.registerNodeType<CanCenteredInPiCamera>("CanCenteredInPiCamera");
     factory.registerNodeType<CanWithinReach>("CanWithinReach");
     factory.registerNodeType<CanIsGrasped>("CanIsGrasped");
+    factory.registerNodeType<WaitForNewPiFrameProcessed>("WaitForNewPiFrameProcessed");
     factory.registerNodeType<ElevatorAtHeight>("ElevatorAtHeight");
     
     // Navigation Actions

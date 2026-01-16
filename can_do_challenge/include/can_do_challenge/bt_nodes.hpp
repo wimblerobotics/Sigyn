@@ -178,6 +178,21 @@ public:
   BT::NodeStatus tick() override;
 };
 
+class WaitForNewPiFrameProcessed : public BT::ConditionNode, public RosNodeBT
+{
+public:
+  WaitForNewPiFrameProcessed(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::ConditionNode(name, config), wait_start_time_(rclcpp::Time(0)), last_frame_time_(rclcpp::Time(0)), waiting_(false) {}
+
+  static BT::PortsList providedPorts() { return {}; }
+  BT::NodeStatus tick() override;
+
+private:
+  rclcpp::Time wait_start_time_;
+  rclcpp::Time last_frame_time_;
+  bool waiting_;
+};
+
 class ElevatorAtHeight : public BT::ConditionNode, public RosNodeBT
 {
 public:
