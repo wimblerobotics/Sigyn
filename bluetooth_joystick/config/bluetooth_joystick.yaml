@@ -1,6 +1,6 @@
 bluetooth_joystick:
   ros__parameters:
-    device_name: "/dev/input/nimbus_steelseries"
+    device_name: "/dev/input/js0"
     cmdvel_topic: "cmd_vel_joystick"
     deadzone_percent: 5.0
     scale_x: 0.25

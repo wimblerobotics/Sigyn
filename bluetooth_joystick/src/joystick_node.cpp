@@ -117,7 +117,7 @@ inline bool IsStickZero(int16_t lr, int16_t ud) {
 
 void PublishCmdvelTimerCallback() {
   static bool was_active = false;
-  if (message.button_l2 == 1) {
+  if (message.button_l1 == 1) {  // L1 is now button 6 (L shoulder)
     geometry_msgs::msg::Twist twist;
     twist.linear.x = (double)message.axis0_ud / axis_range_normalizer;
     twist.angular.z = (double)message.axis0_lr / axis_range_normalizer;
@@ -142,7 +142,7 @@ void PublishCmdvelTimerCallback() {
 }
 
 void PublishGripperTimerCallback() {
-  if (message.button_l2 == 1) {
+  if (message.button_l1 == 1) {  // L1 is now button 6 (L shoulder)
     geometry_msgs::msg::Twist twist;
     twist.linear.x = (double)message.axis1_ud / axis_range_normalizer;
     twist.angular.z = (double)message.axis1_lr / axis_range_normalizer;
@@ -172,6 +172,24 @@ void CaptureJoystickEvent() {
 
   device = device_name.c_str();
 
+  // Declare state variables outside loop so they persist
+  int8_t a = 0;
+  int8_t b = 0;
+  int8_t l1 = 0;
+  int8_t l2 = 0;
+  int8_t r1 = 0;
+  int8_t r2 = 0;
+  int8_t x = 0;
+  int8_t y = 0;
+  int16_t lr0 = 0;
+  int16_t ud0 = 0;
+  int16_t lr1 = 0;
+  int16_t ud1 = 0;
+  int16_t lr2 = 0;
+  int16_t ud2 = 0;
+  int16_t dpad_lr = 0;
+  int16_t dpad_ud = 0;
+
   while (rclcpp::ok()) {
     if (js == -1) {
       js = open(device, O_RDONLY);
@@ -184,22 +202,6 @@ void CaptureJoystickEvent() {
       }
     }
 
-    int8_t a = 0;
-    int8_t b = 0;
-    int8_t l1 = 0;
-    int8_t l2 = 0;
-    int8_t r1 = 0;
-    int8_t r2 = 0;
-    int8_t x = 0;
-    int8_t y = 0;
-    int16_t lr0 = 0;
-    int16_t ud0 = 0;
-    int16_t lr1 = 0;
-    int16_t ud1 = 0;
-    int16_t lr2 = 0;
-    int16_t ud2 = 0;
-    int16_t dpad_lr = 0;
-    int16_t dpad_ud = 0;
     while (ReadEvent(js, &event) == 0) {
       message.axis0_lr = lr0;
       message.axis0_ud = ud0;
@@ -230,22 +232,22 @@ void CaptureJoystickEvent() {
             case 1:
               message.button_b = b = event.value ? 1 : 0;
               break;
-            case 2:
+            case 3:
               message.button_x = x = event.value ? 1 : 0;
               break;
-            case 3:
+            case 4:
               message.button_y = y = event.value ? 1 : 0;
               break;
-            case 4:
+            case 6:
               message.button_l1 = l1 = event.value ? 1 : 0;
               break;
-            case 5:
+            case 7:
               message.button_r1 = r1 = event.value ? 1 : 0;
               break;
-            case 6:
+            case 8:
               message.button_l2 = l2 = event.value ? 1 : 0;
               break;
-            case 7:
+            case 9:
               message.button_r2 = r2 = event.value ? 1 : 0;
               break;
           }
@@ -254,11 +256,11 @@ void CaptureJoystickEvent() {
           axis = GetAxisState(&event, axes);
           if (axis < 3) {
             if (axis == 0) {
-              message.axis0_lr = lr0 = -axes[axis].x;
-              message.axis0_ud = ud0 = axes[axis].y;
+              message.axis0_lr = lr0 = axes[axis].x;  // Left joystick - reversed
+              message.axis0_ud = ud0 = -axes[axis].y;  // Left joystick - reversed
             } else if (axis == 1) {
-              message.axis1_lr = lr1 = -axes[axis].x;
-              message.axis1_ud = ud1 = axes[axis].y;
+              message.axis1_lr = lr1 = axes[axis].x;  // Right joystick - reversed
+              message.axis1_ud = ud1 = -axes[axis].y;  // Right joystick - reversed
             } else if (axis == 2) {
               message.axis2_lr = lr2 = -axes[axis].x;
               message.axis2_ud = ud2 = axes[axis].y;
@@ -283,29 +285,30 @@ void CaptureJoystickEvent() {
 
 void TwisterButtonThread() {
   rclcpp::Rate rate(10);
-  int last_r1 = 0;
-  int last_r2 = 0;
+  int last_x = 0;
+  int last_b = 0;
   while (rclcpp::ok()) {
-    int r1, r2;
+    int x, b, l1;
     {
       // Lock mutex to safely read button states
       const std::lock_guard<std::mutex> lock(some_button_changed_state_guard);
-      r1 = message.button_r1;
-      r2 = message.button_r2;
+      x = message.button_x;
+      b = message.button_b;
+      l1 = message.button_l1;
     }
-    // Only send if button_r1 or button_r2 is pressed (edge or level)
-    if (r1 && !last_r1) {
+    // Only send if deadman (L1) is pressed AND button_x or button_b is pressed
+    if (l1 && x && !last_x) {
       geometry_msgs::msg::Twist twist;
       twist.linear.x = gripper_open_value;
       twister_publisher->publish(twist);
     }
-    if (r2 && !last_r2) {
+    if (l1 && b && !last_b) {
       geometry_msgs::msg::Twist twist;
       twist.linear.x = gripper_close_value;
       twister_publisher->publish(twist);
     }
-    last_r1 = r1;
-    last_r2 = r2;
+    last_x = x;
+    last_b = b;
     rate.sleep();
   }
 }

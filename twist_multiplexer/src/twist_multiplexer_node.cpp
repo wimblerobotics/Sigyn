@@ -246,8 +246,8 @@ void processConfiguration(int argc, char *argv[])
 void bluetoothJoystickCallback(const msgs::msg::BluetoothJoystick::SharedPtr msg)
 {
     bool prevDeadman = deadmanSwitch;
-    deadmanSwitch = msg->button_l2 == 0;
-    RCUTILS_LOG_DEBUG("[twist_multiplexer_node] BluetoothJoystick callback: button_l2=%d, deadmanSwitch=%d", msg->button_l2, deadmanSwitch);
+    deadmanSwitch = msg->button_l1 == 0;  // Changed from button_l2 to button_l1
+    RCUTILS_LOG_DEBUG("[twist_multiplexer_node] BluetoothJoystick callback: button_l1=%d, deadmanSwitch=%d", msg->button_l1, deadmanSwitch);
     if (deadmanSwitch && !prevDeadman) {
         // Deadman just activated: clear queue and reset current message
         RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Deadman switch activated: clearing joystick messages from queue and stopping output");

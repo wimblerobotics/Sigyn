@@ -64,6 +64,7 @@ setup(
     entry_points={
         'console_scripts': [
             'oiv7_detector_node = oakd_detector.oiv7:main',
+            'oakd_detector_node = oakd_detector.oakd_detector_node:main',
         ],
     },
     cmdclass={
