@@ -866,13 +866,13 @@ void TeensyBridge::HandleEstopMessage(const MessageData & data, rclcpp::Time tim
     RCLCPP_WARN(this->get_logger(), "E-STOP TRIGGERED");
     if (log_estop_raw_lines_) {
       RCLCPP_WARN(this->get_logger(), "E-STOP RAW (board %d): %s", current_board_id,
-        sanitize_frame_for_log(current_serial_frame, 512).c_str());
+        sanitize_frame_for_log(current_serial_frame, 768).c_str());
     }
   } else {
     RCLCPP_INFO(this->get_logger(), "E-STOP CLEARED");
     if (log_estop_raw_lines_) {
       RCLCPP_INFO(this->get_logger(), "E-STOP RAW (board %d): %s", current_board_id,
-        sanitize_frame_for_log(current_serial_frame, 512).c_str());
+        sanitize_frame_for_log(current_serial_frame, 768).c_str());
     }
     
     // Clear faults from this board only in V2 status
@@ -960,7 +960,7 @@ void TeensyBridge::HandleDiagnosticMessage(const MessageData & data, rclcpp::Tim
 
         if (log_estop_raw_lines_) {
           RCLCPP_WARN(this->get_logger(), "E-STOP RAW (board %d): %s", current_board_id,
-            sanitize_frame_for_log(current_serial_frame, 512).c_str());
+            sanitize_frame_for_log(current_serial_frame, 768).c_str());
         }
 
         // Update V2 Status
@@ -1064,7 +1064,7 @@ void TeensyBridge::HandleFaultMessage(const MessageData & data, rclcpp::Time tim
 
         if (log_estop_raw_lines_) {
           RCLCPP_WARN(this->get_logger(), "E-STOP RAW (board %d): %s", current_board_id,
-            sanitize_frame_for_log(current_serial_frame, 512).c_str());
+            sanitize_frame_for_log(current_serial_frame, 768).c_str());
         }
 
         // Update V2 status
@@ -1451,7 +1451,7 @@ void TeensyBridge::CmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg
 void TeensyBridge::CmdVelGripperCallback(const geometry_msgs::msg::Twist::SharedPtr msg)
 {
     // Queue the twist message for the gripper board (board3)
-  RCLCPP_INFO(this->get_logger(), "Received cmd_vel_gripper: linear.x=%.3f, angular.z=%.3f",
+  RCLCPP_DEBUG(this->get_logger(), "Received cmd_vel_gripper: linear.x=%.3f, angular.z=%.3f",
       msg->linear.x, msg->angular.z);
 
   std::ostringstream oss;
@@ -1460,7 +1460,7 @@ void TeensyBridge::CmdVelGripperCallback(const geometry_msgs::msg::Twist::Shared
   std::lock_guard<std::mutex> lock(gripper_queue_mutex_);
   gripper_message_queue_.push(oss.str());
 
-  RCLCPP_INFO(this->get_logger(), "Queued gripper TWIST command: %s", oss.str().c_str());
+  RCLCPP_DEBUG(this->get_logger(), "Queued gripper TWIST command: %s", oss.str().c_str());
 }
 
 void TeensyBridge::SendQueuedMessages()
@@ -1497,7 +1497,7 @@ void TeensyBridge::SendGripperMessages()
   while (!gripper_message_queue_.empty()) {
     const std::string & message = gripper_message_queue_.front();
 
-    RCLCPP_INFO(this->get_logger(), "Sending gripper message: '%s'", message.c_str());
+    RCLCPP_DEBUG(this->get_logger(), "Sending gripper message: '%s'", message.c_str());
 
     if (board3_fd_ >= 0) {
       ssize_t bytes_written = write(board3_fd_, message.c_str(), message.length());
@@ -1505,7 +1505,7 @@ void TeensyBridge::SendGripperMessages()
         RCLCPP_ERROR(this->get_logger(), "Failed to write to gripper board (board3)");
         break;
       } else {
-        RCLCPP_INFO(this->get_logger(), "Sent %zd bytes to gripper board", bytes_written);
+        RCLCPP_DEBUG(this->get_logger(), "Sent %zd bytes to gripper board", bytes_written);
           // Force immediate transmission
         fsync(board3_fd_);
       }
