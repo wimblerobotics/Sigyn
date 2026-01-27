@@ -14,6 +14,7 @@ Panels:
         - /Odometry1/Shape1
         - /Cost cloud1/Topic1
         - /Marker1/Topic1
+        - /Camera Top1
         - /Camera Top1/Topic1
         - /Waypoints.1/Topic1
         - /OAK-D Top As Laser1/Topic1
@@ -934,7 +935,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /oakd_top/color/image/compressed
+        Value: /oakd/annotated_image
       Value: true
     - Class: rviz_default_plugins/MarkerArray
       Enabled: false
