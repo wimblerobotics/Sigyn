@@ -119,7 +119,8 @@ inline bool IsStickZero(int16_t lr, int16_t ud) {
 
 void PublishCmdvelTimerCallback() {
   static bool was_active = false;
-  if (message.button_l1 == 1) {  // L1 is now button 6 (L shoulder)
+  // L2 trigger is axis2_ud - goes to +32767 when pressed
+  if (message.axis2_ud > 16000) {  // Threshold for L2 being pressed
     geometry_msgs::msg::Twist twist;
     twist.linear.x = (double)message.axis0_ud / axis_range_normalizer;
     twist.angular.z = (double)message.axis0_lr / axis_range_normalizer;
@@ -132,7 +133,7 @@ void PublishCmdvelTimerCallback() {
                       twist.linear.x, twist.angular.z);
     was_active = true;
   } else if (was_active) {
-    // Deadman stick released, send zero message
+    // Deadman switch released, send zero message
     geometry_msgs::msg::Twist twist;
     twist.linear.x = 0.0;
     twist.angular.z = 0.0;
@@ -144,7 +145,8 @@ void PublishCmdvelTimerCallback() {
 }
 
 void PublishGripperTimerCallback() {
-  if (message.button_l1 == 1) {  // L1 is now button 6 (L shoulder)
+  // L2 trigger is axis2_ud - goes to +32767 when pressed
+  if (message.axis2_ud > 16000) {  // Threshold for L2 being pressed
     geometry_msgs::msg::Twist twist;
     twist.linear.x = (double)message.axis1_ud / axis_range_normalizer;
     twist.angular.z = (double)message.axis1_lr / axis_range_normalizer;
