@@ -43,6 +43,7 @@ setup(
         ('share/' + package_name, ['package.xml']),
         (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch', '*launch.[pxy][yma]*'))),
         (os.path.join('share', package_name, 'config'), glob(os.path.join('config', '*.yaml'))),
+        (os.path.join('share', package_name, 'resources'), glob(os.path.join('resources', '*.pt'))),
     ],
     install_requires=[
         'setuptools',
@@ -64,6 +65,8 @@ setup(
     entry_points={
         'console_scripts': [
             'oiv7_detector_node = oakd_detector.oiv7:main',
+            'oakd_detector_node = oakd_detector.oakd_detector_node:main',
+            'yolo26_oakd_detector_node = oakd_detector.yolo26_oakd_detector_node:main',
         ],
     },
     cmdclass={

@@ -285,7 +285,7 @@ namespace sigyn_teensy {
         uint32_t current_time = millis();
 
         // Create timestamped log entry using fixed buffers
-        char entry[512] = {0};
+        char entry[1024] = {0};
         const unsigned long secs = static_cast<unsigned long>(current_time / 1000);
         const unsigned long ms = static_cast<unsigned long>(current_time % 1000);
         snprintf(entry, sizeof(entry), "[%lu.%03lu] %s\n", secs, ms, message ? message : "");
