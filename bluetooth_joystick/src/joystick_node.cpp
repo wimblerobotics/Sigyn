@@ -228,40 +228,39 @@ void CaptureJoystickEvent() {
           some_button_changed_state = true;
         }
           switch (event.number) {
-            case 0:
+            case 0:  // Physical A button -> button_a
               message.button_a = a = event.value ? 1 : 0;
               break;
-            case 1:
+            case 1:  // Physical B button -> button_b
               message.button_b = b = event.value ? 1 : 0;
               break;
-            case 3:
-              message.button_x = x = event.value ? 1 : 0;
-              break;
-            case 4:
+            case 2:  // Physical X button -> button_y
               message.button_y = y = event.value ? 1 : 0;
               break;
-            case 6:
+            case 3:  // Physical X button (actual) -> button_l1 - triggers OAK-D picture capture
               message.button_l1 = l1 = event.value ? 1 : 0;
-              break;
-            case 7:
-              message.button_r1 = r1 = event.value ? 1 : 0;
-              break;
-            case 3:  // X button for taking OAK-D pictures
-              message.button_x = x = event.value ? 1 : 0;
               if (event.value == 1) {  // Button pressed (not released)
                 std_msgs::msg::Bool capture_msg;
                 capture_msg.data = true;
                 take_oakd_picture_publisher->publish(capture_msg);
-                RCUTILS_LOG_INFO("[bluetooth_joystick_node] OAK-D picture capture triggered");
+                RCUTILS_LOG_INFO("[bluetooth_joystick_node] OAK-D picture capture triggered by X button");
               }
               break;
-            case 8:
+            case 4:  // Physical L button -> button_l2
               message.button_l2 = l2 = event.value ? 1 : 0;
               break;
-            case 9:
+            case 5:  // Physical R button -> button_r2
               message.button_r2 = r2 = event.value ? 1 : 0;
               break;
-            case 10:  // Select/Back button
+            case 6:  // Back/Select button
+              break;
+            case 7:  // Start button
+              break;
+            case 8:  // Left stick button
+              break;
+            case 9:  // Right stick button
+              break;
+            case 10:  // Guide/Home button
               break;
           }
           break;
