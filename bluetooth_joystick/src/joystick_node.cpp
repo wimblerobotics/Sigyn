@@ -13,6 +13,7 @@
 #include <mutex>
 #include <rclcpp/rclcpp.hpp>
 #include <thread>
+#include <std_msgs/msg/bool.hpp>
 
 #include "msgs/msg/bluetooth_joystick.hpp"
 
@@ -23,6 +24,7 @@ rclcpp::Publisher<msgs::msg::BluetoothJoystick>::SharedPtr
 rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmdvel_publisher;
 rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr gripper_publisher;
 rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr twister_publisher;
+rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr take_oakd_picture_publisher;
 std::shared_ptr<rclcpp::TimerBase> publish_timer;
 std::shared_ptr<rclcpp::TimerBase> cmdvel_publish_timer;
 std::shared_ptr<rclcpp::TimerBase> gripper_publish_timer;
@@ -244,11 +246,22 @@ void CaptureJoystickEvent() {
             case 7:
               message.button_r1 = r1 = event.value ? 1 : 0;
               break;
+            case 3:  // X button for taking OAK-D pictures
+              message.button_x = x = event.value ? 1 : 0;
+              if (event.value == 1) {  // Button pressed (not released)
+                std_msgs::msg::Bool capture_msg;
+                capture_msg.data = true;
+                take_oakd_picture_publisher->publish(capture_msg);
+                RCUTILS_LOG_INFO("[bluetooth_joystick_node] OAK-D picture capture triggered");
+              }
+              break;
             case 8:
               message.button_l2 = l2 = event.value ? 1 : 0;
               break;
             case 9:
               message.button_r2 = r2 = event.value ? 1 : 0;
+              break;
+            case 10:  // Select/Back button
               break;
           }
           break;
@@ -387,6 +400,11 @@ int main(int argc, char* argv[]) {
   node->get_parameter("cmdvel_twister_topic", cmdvel_twister_topic);
   twister_publisher = node->create_publisher<geometry_msgs::msg::Twist>(
       cmdvel_twister_topic, qos);
+
+  // Create publisher for OAK-D picture capture trigger
+  take_oakd_picture_publisher = node->create_publisher<std_msgs::msg::Bool>(
+      "/sigyn/take_oakd_picture", qos);
+  RCUTILS_LOG_INFO("[bluetooth_joystick_node] Created publisher for /sigyn/take_oakd_picture");
 
   // Start the joystick event thread
   std::thread deviceEventThread(CaptureJoystickEvent);

@@ -455,7 +455,7 @@ def generate_launch_description():
     
     oakd_elevator_top = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-          [base_pgk, "/launch/sub_launch/oakd_stereo.launch.py"]
+          [base_pgk, "/launch/sub_launch/oakd_yolo26_detector.launch.py"]
         ),
         condition=IfCondition(AndSubstitution(NotSubstitution(use_sim_time), do_oakd)),
     )
