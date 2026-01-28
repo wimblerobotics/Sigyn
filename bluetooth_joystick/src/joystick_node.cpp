@@ -12,8 +12,8 @@
 #include <geometry_msgs/msg/twist.hpp>
 #include <mutex>
 #include <rclcpp/rclcpp.hpp>
-#include <std_msgs/msg/bool.hpp>
 #include <thread>
+#include <std_msgs/msg/bool.hpp>
 
 #include "msgs/msg/bluetooth_joystick.hpp"
 
@@ -24,8 +24,7 @@ rclcpp::Publisher<msgs::msg::BluetoothJoystick>::SharedPtr
 rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmdvel_publisher;
 rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr gripper_publisher;
 rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr twister_publisher;
-rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr oakd_picture_publisher;
-rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr gripper_picture_publisher;
+rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr take_oakd_picture_publisher;
 std::shared_ptr<rclcpp::TimerBase> publish_timer;
 std::shared_ptr<rclcpp::TimerBase> cmdvel_publish_timer;
 std::shared_ptr<rclcpp::TimerBase> gripper_publish_timer;
@@ -120,7 +119,8 @@ inline bool IsStickZero(int16_t lr, int16_t ud) {
 
 void PublishCmdvelTimerCallback() {
   static bool was_active = false;
-  if (message.button_l1 == 1) {  // L1 is now button 6 (L shoulder)
+  // L2 trigger is axis2_ud - goes to +32767 when pressed
+  if (message.axis2_ud > 16000) {  // Threshold for L2 being pressed
     geometry_msgs::msg::Twist twist;
     twist.linear.x = (double)message.axis0_ud / axis_range_normalizer;
     twist.angular.z = (double)message.axis0_lr / axis_range_normalizer;
@@ -133,7 +133,7 @@ void PublishCmdvelTimerCallback() {
                       twist.linear.x, twist.angular.z);
     was_active = true;
   } else if (was_active) {
-    // Deadman stick released, send zero message
+    // Deadman switch released, send zero message
     geometry_msgs::msg::Twist twist;
     twist.linear.x = 0.0;
     twist.angular.z = 0.0;
@@ -145,7 +145,8 @@ void PublishCmdvelTimerCallback() {
 }
 
 void PublishGripperTimerCallback() {
-  if (message.button_l1 == 1) {  // L1 is now button 6 (L shoulder)
+  // L2 trigger is axis2_ud - goes to +32767 when pressed
+  if (message.axis2_ud > 16000) {  // Threshold for L2 being pressed
     geometry_msgs::msg::Twist twist;
     twist.linear.x = (double)message.axis1_ud / axis_range_normalizer;
     twist.angular.z = (double)message.axis1_lr / axis_range_normalizer;
@@ -229,29 +230,39 @@ void CaptureJoystickEvent() {
           some_button_changed_state = true;
         }
           switch (event.number) {
-            case 0:
+            case 0:  // Physical A button -> button_a
               message.button_a = a = event.value ? 1 : 0;
               break;
-            case 1:
+            case 1:  // Physical B button -> button_b
               message.button_b = b = event.value ? 1 : 0;
               break;
-            case 3:
-              message.button_x = x = event.value ? 1 : 0;
-              break;
-            case 4:
+            case 2:  // Physical X button -> button_y
               message.button_y = y = event.value ? 1 : 0;
               break;
-            case 6:
+            case 3:  // Physical X button (actual) -> button_l1 - triggers OAK-D picture capture
               message.button_l1 = l1 = event.value ? 1 : 0;
+              if (event.value == 1) {  // Button pressed (not released)
+                std_msgs::msg::Bool capture_msg;
+                capture_msg.data = true;
+                take_oakd_picture_publisher->publish(capture_msg);
+                RCUTILS_LOG_INFO("[bluetooth_joystick_node] OAK-D picture capture triggered by X button");
+              }
               break;
-            case 7:
-              message.button_r1 = r1 = event.value ? 1 : 0;
-              break;
-            case 8:
+            case 4:  // Physical L button -> button_l2
               message.button_l2 = l2 = event.value ? 1 : 0;
               break;
-            case 9:
+            case 5:  // Physical R button -> button_r2
               message.button_r2 = r2 = event.value ? 1 : 0;
+              break;
+            case 6:  // Back/Select button
+              break;
+            case 7:  // Start button
+              break;
+            case 8:  // Left stick button
+              break;
+            case 9:  // Right stick button
+              break;
+            case 10:  // Guide/Home button
               break;
           }
           break;
@@ -290,45 +301,28 @@ void TwisterButtonThread() {
   rclcpp::Rate rate(10);
   int last_x = 0;
   int last_b = 0;
-  int last_r1 = 0;
-  int last_r2 = 0;
   while (rclcpp::ok()) {
-    int x, b, r1, r2, l1;
+    int x, b, l1;
     {
       // Lock mutex to safely read button states
       const std::lock_guard<std::mutex> lock(some_button_changed_state_guard);
       x = message.button_x;
       b = message.button_b;
-      r1 = message.button_r1;
-      r2 = message.button_r2;
       l1 = message.button_l1;
     }
-    // R1/R2 for gripper control (only when deadman L1 is pressed)
-    if (l1 && r1 && !last_r1) {
+    // Only send if deadman (L1) is pressed AND button_x or button_b is pressed
+    if (l1 && x && !last_x) {
       geometry_msgs::msg::Twist twist;
       twist.linear.x = gripper_open_value;
       twister_publisher->publish(twist);
     }
-    if (l1 && r2 && !last_r2) {
+    if (l1 && b && !last_b) {
       geometry_msgs::msg::Twist twist;
       twist.linear.x = gripper_close_value;
       twister_publisher->publish(twist);
     }
-    // X/B for camera triggers (no deadman required)
-    if (x && !last_x) {
-      std_msgs::msg::Bool msg;
-      msg.data = true;
-      oakd_picture_publisher->publish(msg);
-    }
-    if (b && !last_b) {
-      std_msgs::msg::Bool msg;
-      msg.data = true;
-      gripper_picture_publisher->publish(msg);
-    }
     last_x = x;
     last_b = b;
-    last_r1 = r1;
-    last_r2 = r2;
     rate.sleep();
   }
 }
@@ -408,23 +402,10 @@ int main(int argc, char* argv[]) {
   twister_publisher = node->create_publisher<geometry_msgs::msg::Twist>(
       cmdvel_twister_topic, qos);
 
-  std::string oakd_picture_topic;
-  node->declare_parameter<std::string>("oakd_picture_topic",
-                                       "/sigyn/take_oakd_picture");
-  node->get_parameter("oakd_picture_topic", oakd_picture_topic);
-  RCUTILS_LOG_INFO("[bluetooth_joystick_node] oakd_picture_topic: %s",
-                   oakd_picture_topic.c_str());
-  oakd_picture_publisher = node->create_publisher<std_msgs::msg::Bool>(
-      oakd_picture_topic, qos);
-
-  std::string gripper_picture_topic;
-  node->declare_parameter<std::string>("gripper_picture_topic",
-                                       "/sigyn/take_gripper_picture");
-  node->get_parameter("gripper_picture_topic", gripper_picture_topic);
-  RCUTILS_LOG_INFO("[bluetooth_joystick_node] gripper_picture_topic: %s",
-                   gripper_picture_topic.c_str());
-  gripper_picture_publisher = node->create_publisher<std_msgs::msg::Bool>(
-      gripper_picture_topic, qos);
+  // Create publisher for OAK-D picture capture trigger
+  take_oakd_picture_publisher = node->create_publisher<std_msgs::msg::Bool>(
+      "/sigyn/take_oakd_picture", qos);
+  RCUTILS_LOG_INFO("[bluetooth_joystick_node] Created publisher for /sigyn/take_oakd_picture");
 
   // Start the joystick event thread
   std::thread deviceEventThread(CaptureJoystickEvent);

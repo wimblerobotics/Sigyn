@@ -246,10 +246,12 @@ void processConfiguration(int argc, char *argv[])
 void bluetoothJoystickCallback(const msgs::msg::BluetoothJoystick::SharedPtr msg)
 {
     bool prevDeadman = deadmanSwitch;
-    deadmanSwitch = msg->button_l2 == 0;
-    RCUTILS_LOG_DEBUG("[twist_multiplexer_node] BluetoothJoystick callback: button_l2=%d, deadmanSwitch=%d", msg->button_l2, deadmanSwitch);
+    // L2 trigger is axis2_ud: +32767 when pressed, negative when released
+    // Deadman is TRUE when L2 is NOT pressed (blocks joystick)
+    deadmanSwitch = msg->axis2_ud < 16000;  // L2 not pressed -> block joystick
+    RCUTILS_LOG_DEBUG("[twist_multiplexer_node] BluetoothJoystick callback: axis2_ud=%d, deadmanSwitch=%d", msg->axis2_ud, deadmanSwitch);
     if (deadmanSwitch && !prevDeadman) {
-        // Deadman just activated: clear queue and reset current message
+        // Deadman just activated (L2 released): clear queue and reset current message
         RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Deadman switch activated: clearing joystick messages from queue and stopping output");
         // Remove all messages from cmd_vel_joystick from the queue
         std::priority_queue<CmdVelMessage> newQueue;

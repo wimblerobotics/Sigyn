@@ -38,9 +38,8 @@ constexpr uint32_t kFatalRoboclawErrorMask =
     static_cast<uint32_t>(RoboClawError::M1_SPEED_ERROR) |
     static_cast<uint32_t>(RoboClawError::M2_SPEED_ERROR) |
     static_cast<uint32_t>(RoboClawError::M1_POSITION_ERROR) |
-    static_cast<uint32_t>(RoboClawError::M2_POSITION_ERROR) |
-    static_cast<uint32_t>(RoboClawError::M1_CURRENT_ERROR) |
-    static_cast<uint32_t>(RoboClawError::M2_CURRENT_ERROR);
+    static_cast<uint32_t>(RoboClawError::M2_POSITION_ERROR);
+    // Note: M1_CURRENT_ERROR and M2_CURRENT_ERROR removed to allow auto-clearing
 
 bool isPowerCycleLikelyRequired(uint32_t error_status) {
   // Based on RoboClaw manual behavior: E-stop may be configured as latching;

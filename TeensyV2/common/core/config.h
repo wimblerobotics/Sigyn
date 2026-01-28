@@ -39,7 +39,7 @@
 #define BOARD_HAS_SD_LOGGING     1
 #define BOARD_HAS_MOTOR_CONTROL  1
 #define BOARD_HAS_VL53L0X        1
-#define BOARD_HAS_TEMPERATURE    1
+#define BOARD_HAS_TEMPERATURE    0 //###
 #define BOARD_HAS_PERFORMANCE    1
 #define BOARD_HAS_SAFETY         1
 #define BOARD_HAS_BATTERY        0
@@ -139,7 +139,7 @@
 #ifdef UNIT_TEST_DISABLE_ROBOCLAW
 #define CONTROLS_ROBOCLAW_ESTOP_PIN   0   ///< Disabled for unit testing
 #else
-#define CONTROLS_ROBOCLAW_ESTOP_PIN   1   ///< Board 1 controls RoboClaw E-stop
+#define CONTROLS_ROBOCLAW_ESTOP_PIN   0 ///###1   ///< Board 1 controls RoboClaw E-stop
 #endif
 #define INTER_BOARD_SIGNAL_OUTPUT_PIN 10  ///< Pin to signal other boards
 #define PIN_SAFETY_IN_BOARD2          11  ///< Pin to receive signals from Board 2
