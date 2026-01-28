@@ -84,6 +84,15 @@ Edit `config/can_locations.json` to add/modify can locations:
 }
 ```
 
+### Vision Model Artifacts
+Place the latest Hailo model artifacts here (tracked in repo):
+- `/home/ros/sigyn_ws/src/Sigyn/can_do_challenge/resources/models/`
+
+Expected files:
+- `fcc2_best.hef` (required)
+- `fcc2_labels.txt` (required)
+- `fcc2_best.onnx` (optional, reference/debug)
+
 ## Next Steps (Phase 2 & 3)
 
 ### TODO - Vision Integration:
