@@ -1,7 +1,4 @@
 TODO list:
-# Temperature sensors
-* Add battery sensor.
-
 # RoboClawMonitor
 * Get localization info, see if it aligns with motor movement to detect wheels spinning but not moving.
 * Add ability to cycle power to clear latching hardware faults (see roboclaw_monitor.cpp TODOs)

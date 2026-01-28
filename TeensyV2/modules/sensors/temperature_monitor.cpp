@@ -15,9 +15,9 @@
 #include <cstdarg>
 #include <cstring>
 
-#include "analog_reader_hw.h"
 #include "../../common/core/serial_manager.h"
 #include "../../modules/safety/safety_coordinator.h"
+#include "analog_reader_hw.h"
 
 namespace sigyn_teensy {
 
@@ -83,6 +83,7 @@ TemperatureMonitor::TemperatureMonitor()
       last_diagnostic_report_time_ms_(0),
       last_sensor_scan_time_ms_(0),
       last_safety_check_time_ms_(0),
+      laset_sensor_update_time_ms_(0),
       system_start_time_ms_(0),
       total_system_readings_(0),
       total_system_errors_(0),
@@ -148,8 +149,8 @@ void TemperatureMonitor::setup() {
       pinMode(sensor_configs_[i].analog_pin, INPUT);
 
       char msg[128] = {0};
-      snprintf(msg, sizeof(msg), "Configured pin %u for sensor %s", static_cast<unsigned int>(sensor_configs_[i].analog_pin),
-               sensor_configs_[i].sensor_name);
+      snprintf(msg, sizeof(msg), "Configured pin %u for sensor %s",
+               static_cast<unsigned int>(sensor_configs_[i].analog_pin), sensor_configs_[i].sensor_name);
       SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
     }
   }
@@ -179,6 +180,7 @@ void TemperatureMonitor::setup() {
   last_status_report_time_ms_ = now;
   last_diagnostic_report_time_ms_ = now;
   last_safety_check_time_ms_ = now;
+  laset_sensor_update_time_ms_ = now;
 
   {
     char msg[96] = {0};
@@ -190,11 +192,15 @@ void TemperatureMonitor::setup() {
 void TemperatureMonitor::loop() {
   uint32_t now = millis();
 
-  // Update temperature readings
-  updateTemperatureReadings();
+  if (now - laset_sensor_update_time_ms_ >= 100) {  // 10Hz sensor updates
+    laset_sensor_update_time_ms_ = now;
 
-  // Update system status
-  updateSystemStatus();
+    // Update temperature readings
+    updateTemperatureReadings();
+
+    // Update system status
+    updateSystemStatus();
+  }
 
   // Periodic safety checks
   if (now - last_safety_check_time_ms_ >= 100) {  // 10Hz safety checks
@@ -417,16 +423,8 @@ bool TemperatureMonitor::readSingleSensor(uint8_t sensor_index) {
     return false;
   }
 
-  // Take multiple readings and average them to reduce noise
-  uint32_t raw_sum = 0;
-  const uint8_t num_samples = 8;
-
-  for (uint8_t sample = 0; sample < num_samples; sample++) {
-    raw_sum += analog_reader_->readAnalog(pin);
-    delayMicroseconds(100);  // Small delay between samples
-  }
-
-  int16_t raw_value = raw_sum / num_samples;
+  // Take a single reading per loop; smoothing is handled via EMA over time
+  int16_t raw_value = analog_reader_->readAnalog(pin);
 
   // Convert to voltage (in millivolts)
   float voltage_mv = (raw_value * REFERENCE_VOLTAGE * 1000.0f) / ADC_MAX_VALUE;
@@ -563,7 +561,7 @@ void TemperatureMonitor::checkSafetyConditions() {
       }
       if (can_log) {
         char msg[256];
-        snprintf(msg, sizeof(msg), "DEGRADED temp sensor: sensor=%s idx=%u age_ms=%lu timeout_ms=%lu", 
+        snprintf(msg, sizeof(msg), "DEGRADED temp sensor: sensor=%s idx=%u age_ms=%lu timeout_ms=%lu",
                  sensor_configs_[i].sensor_name, i, (unsigned long)age_ms, (unsigned long)timeout_ms);
         SerialManager::getInstance().sendDiagnosticMessage("WARNING", name(), msg);
       }
@@ -640,13 +638,13 @@ void TemperatureMonitor::checkSafetyConditions() {
       const TemperatureSensorStatus& status = sensor_status_[idx];
       if (runaway_idx >= 0) {
         snprintf(desired_description, sizeof(desired_description),
-                 "Thermal runaway: sensor=%s idx=%d temp=%.1fC trend=%.1fC/min thr=%.1fC/min",
-                 config.sensor_name, static_cast<int>(idx), static_cast<double>(status.temperature_c),
+                 "Thermal runaway: sensor=%s idx=%d temp=%.1fC trend=%.1fC/min thr=%.1fC/min", config.sensor_name,
+                 static_cast<int>(idx), static_cast<double>(status.temperature_c),
                  static_cast<double>(status.temperature_trend), static_cast<double>(config.thermal_runaway_rate));
       } else {
         snprintf(desired_description, sizeof(desired_description),
-                 "Temp critical: sensor=%s idx=%d temp=%.1fC (crit_high>=%.1fC crit_low<=%.1fC)",
-                 config.sensor_name, static_cast<int>(idx), static_cast<double>(status.temperature_c),
+                 "Temp critical: sensor=%s idx=%d temp=%.1fC (crit_high>=%.1fC crit_low<=%.1fC)", config.sensor_name,
+                 static_cast<int>(idx), static_cast<double>(status.temperature_c),
                  static_cast<double>(config.critical_high_temp), static_cast<double>(config.critical_low_temp));
       }
     } else {
@@ -662,8 +660,8 @@ void TemperatureMonitor::checkSafetyConditions() {
       const TemperatureSensorConfig& config = sensor_configs_[idx];
       const TemperatureSensorStatus& status = sensor_status_[idx];
       snprintf(desired_description, sizeof(desired_description),
-               "Temp warning: sensor=%s idx=%d temp=%.1fC (warn_high>=%.1fC warn_low<=%.1fC)",
-               config.sensor_name, static_cast<int>(idx), static_cast<double>(status.temperature_c),
+               "Temp warning: sensor=%s idx=%d temp=%.1fC (warn_high>=%.1fC warn_low<=%.1fC)", config.sensor_name,
+               static_cast<int>(idx), static_cast<double>(status.temperature_c),
                static_cast<double>(config.warning_high_temp), static_cast<double>(config.warning_low_temp));
     } else {
       snprintf(desired_description, sizeof(desired_description), "Temperature warning");
@@ -687,7 +685,8 @@ void TemperatureMonitor::checkSafetyConditions() {
       snprintf(desired_description, sizeof(desired_description), "Temperature sensor stale");
     }
     if (can_log) {
-      SerialManager::getInstance().sendDiagnosticMessage("WARNING", name(), "System thermal DEGRADED (sensor timeout) active");
+      SerialManager::getInstance().sendDiagnosticMessage("WARNING", name(),
+                                                         "System thermal DEGRADED (sensor timeout) active");
     }
   }
 
@@ -699,7 +698,8 @@ void TemperatureMonitor::checkSafetyConditions() {
       safety.deactivateFault(name());
     }
   } else {
-    if (!current.active || current.severity != desired_severity || strcmp(current.description, desired_description) != 0) {
+    if (!current.active || current.severity != desired_severity ||
+        strcmp(current.description, desired_description) != 0) {
       safety.activateFault(desired_severity, name(), desired_description);
     }
   }
@@ -746,10 +746,11 @@ void TemperatureMonitor::detectThermalRunaway() {
         // Rate limit thermal runaway messages (max once per 1s)
         if (now - last_thermal_message_time >= 1000) {
           char msg[256] = {0};
-          snprintf(msg, sizeof(msg),
-                   "active:true,source:THERMAL_RUNAWAY,reason:%s thermal runaway detected,value:%.1f,rate:%.1fC_per_min,manual_reset:false,time:%lu",
-                   sensor_configs_[i].sensor_name, static_cast<double>(sensor_status_[i].temperature_c),
-                   static_cast<double>(trend), static_cast<unsigned long>(millis()));
+          snprintf(
+              msg, sizeof(msg),
+              "active:true,source:THERMAL_RUNAWAY,reason:%s thermal runaway detected,value:%.1f,rate:%.1fC_per_min,manual_reset:false,time:%lu",
+              sensor_configs_[i].sensor_name, static_cast<double>(sensor_status_[i].temperature_c),
+              static_cast<double>(trend), static_cast<unsigned long>(millis()));
           SerialManager::getInstance().sendDiagnosticMessage("CRITICAL", name(), msg);
           last_thermal_message_time = now;
         }
@@ -757,13 +758,14 @@ void TemperatureMonitor::detectThermalRunaway() {
     } else if (sensor_status_[i].thermal_runaway) {
       // Self-healing: Clear thermal runaway when trend returns to safe levels
       sensor_status_[i].thermal_runaway = false;
-      
+
       if (now - last_thermal_message_time >= 1000) {
         char msg[256] = {0};
-        snprintf(msg, sizeof(msg),
-                 "active:false,source:THERMAL_RUNAWAY,reason:%s thermal runaway cleared,value:%.1f,rate:%.1fC_per_min,time:%lu",
-                 sensor_configs_[i].sensor_name, static_cast<double>(sensor_status_[i].temperature_c),
-                 static_cast<double>(trend), static_cast<unsigned long>(millis()));
+        snprintf(
+            msg, sizeof(msg),
+            "active:false,source:THERMAL_RUNAWAY,reason:%s thermal runaway cleared,value:%.1f,rate:%.1fC_per_min,time:%lu",
+            sensor_configs_[i].sensor_name, static_cast<double>(sensor_status_[i].temperature_c),
+            static_cast<double>(trend), static_cast<unsigned long>(millis()));
         SerialManager::getInstance().sendDiagnosticMessage("INFO", name(), msg);
         last_thermal_message_time = now;
       }
@@ -856,13 +858,16 @@ void TemperatureMonitor::sendStatusReports() {
     }
   }
 
-  snappend(json, sizeof(json), off,
-           "],\"avg_temp\":%.1f,\"max_temp\":%.1f,\"min_temp\":%.1f,\"hottest_sensor\":%u,\"system_warning\":%s,\"system_critical\":%s,\"rate_hz\":%.1f,\"readings\":%lu,\"errors\":%lu}",
-           static_cast<double>(system_status_.average_temperature), static_cast<double>(system_status_.highest_temperature),
-           static_cast<double>(system_status_.lowest_temperature), static_cast<unsigned int>(system_status_.hottest_sensor),
-           system_status_.system_thermal_warning ? "true" : "false", system_status_.system_thermal_critical ? "true" : "false",
-           static_cast<double>(system_status_.system_reading_rate_hz), static_cast<unsigned long>(system_status_.total_readings),
-           static_cast<unsigned long>(system_status_.total_errors));
+  snappend(
+      json, sizeof(json), off,
+      "],\"avg_temp\":%.1f,\"max_temp\":%.1f,\"min_temp\":%.1f,\"hottest_sensor\":%u,\"system_warning\":%s,\"system_critical\":%s,\"rate_hz\":%.1f,\"readings\":%lu,\"errors\":%lu}",
+      static_cast<double>(system_status_.average_temperature), static_cast<double>(system_status_.highest_temperature),
+      static_cast<double>(system_status_.lowest_temperature), static_cast<unsigned int>(system_status_.hottest_sensor),
+      system_status_.system_thermal_warning ? "true" : "false",
+      system_status_.system_thermal_critical ? "true" : "false",
+      static_cast<double>(system_status_.system_reading_rate_hz),
+      static_cast<unsigned long>(system_status_.total_readings),
+      static_cast<unsigned long>(system_status_.total_errors));
 
   SerialManager::getInstance().sendMessage("TEMPERATURE", json);
 }
@@ -870,9 +875,12 @@ void TemperatureMonitor::sendStatusReports() {
 void TemperatureMonitor::sendDiagnosticReports() {
   // Send diagnostic information
   char diag_msg[192] = {0};
-  snprintf(diag_msg, sizeof(diag_msg), "active:%u,readings:%lu,errors:%lu,rate_hz:%.1f,warning_time:%lu,critical_time:%lu",
-           static_cast<unsigned int>(system_status_.active_sensors), static_cast<unsigned long>(system_status_.total_readings),
-           static_cast<unsigned long>(system_status_.total_errors), static_cast<double>(system_status_.system_reading_rate_hz),
+  snprintf(diag_msg, sizeof(diag_msg),
+           "active:%u,readings:%lu,errors:%lu,rate_hz:%.1f,warning_time:%lu,critical_time:%lu",
+           static_cast<unsigned int>(system_status_.active_sensors),
+           static_cast<unsigned long>(system_status_.total_readings),
+           static_cast<unsigned long>(system_status_.total_errors),
+           static_cast<double>(system_status_.system_reading_rate_hz),
            static_cast<unsigned long>(system_status_.time_in_warning_ms),
            static_cast<unsigned long>(system_status_.time_in_critical_ms));
 

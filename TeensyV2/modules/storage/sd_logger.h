@@ -252,7 +252,7 @@ private:
   static constexpr uint8_t SD_CS_PIN = 10;  // Use standard SD CS pin
   static constexpr uint32_t SD_SPI_SPEED = 25000000;  // 25MHz
   static constexpr uint32_t MAX_FILENAME_LENGTH = 32;
-  static constexpr uint32_t DUMP_CHUNK_SIZE = 512;
+  static constexpr uint32_t DUMP_CHUNK_SIZE = 1024;
 
   // Internal bookkeeping file to keep log numbering monotonic even after deletions
   static constexpr const char* kLogSequenceFilename = "LOGSEQ.TXT";

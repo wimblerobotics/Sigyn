@@ -269,6 +269,7 @@ protected:
   uint32_t last_diagnostic_report_time_ms_ = 0;
   uint32_t last_sensor_scan_time_ms_ = 0;
   uint32_t last_safety_check_time_ms_ = 0;
+  uint32_t laset_sensor_update_time_ms_ = 0;
   
   // Performance tracking
   uint32_t system_start_time_ms_ = 0;
