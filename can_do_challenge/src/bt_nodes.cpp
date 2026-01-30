@@ -15,6 +15,7 @@
 #include "ament_index_cpp/get_package_share_directory.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
+#include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "std_msgs/msg/header.hpp"
 #include <cmath>
 #include <fstream>
@@ -1889,38 +1890,28 @@ BT::NodeStatus RetractGripper::tick()
 
 BT::NodeStatus OpenGripper::tick()
 {
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr left_gripper_pub;
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr right_gripper_pub;
+  static rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr traj_pub;
   
-  if (!left_gripper_pub) {
-    RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Creating publishers...");
-    
-    // Use reliable QoS to ensure delivery to Gazebo
-    auto qos = rclcpp::QoS(10).reliable();
-    
-    left_gripper_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/parallel_gripper_base_plate_to_left_finger/position", qos);
-    right_gripper_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/parallel_gripper_base_plate_to_right_finger/position", qos);
-    
-    RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Publishers created with reliable QoS");
-    
-    // Give publishers time to connect
+  if (!traj_pub) {
+    RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Creating JTC publisher...");
+    traj_pub = node_->create_publisher<trajectory_msgs::msg::JointTrajectory>(
+      "/forward_position_controller/joint_trajectory", 10);
     std::this_thread::sleep_for(100ms);
   }
 
+  trajectory_msgs::msg::JointTrajectory msg;
+  msg.header.stamp = node_->now();
+  msg.joint_names = {"parallel_gripper_base_plate_to_left_finger", "parallel_gripper_base_plate_to_right_finger"};
+  
+  trajectory_msgs::msg::JointTrajectoryPoint point;
   // Open gripper = 0.0 for both (based on URDF limits where 0 is the starting wide position)
-  // Left limit [-0.044, 0], Right limit [0, 0.044]
-  std_msgs::msg::Float64 msg;
-  msg.data = 0.0; 
+  point.positions = {0.0, 0.0};
+  point.time_from_start = rclcpp::Duration::from_seconds(0.5);
+  msg.points.push_back(point);
   
-  RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Publishing left=0.0 to /parallel_gripper_base_plate_to_left_finger/position");
-  left_gripper_pub->publish(msg);
+  RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Sending trajectory to open fingers (0.0)");
+  traj_pub->publish(msg);
   
-  RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Publishing right=0.0 to /parallel_gripper_base_plate_to_right_finger/position");
-  right_gripper_pub->publish(msg);
-  
-  RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Opening gripper complete (cmd=0.0)");
   std::this_thread::sleep_for(500ms);
   return BT::NodeStatus::SUCCESS;
 }
@@ -1932,23 +1923,12 @@ BT::NodeStatus CloseGripperAroundCan::tick()
   
   RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] START: can_diameter=%.4f", can_diameter);
   
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr left_gripper_pub;
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr right_gripper_pub;
+  static rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr traj_pub;
   
-  if (!left_gripper_pub) {
-    RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Creating publishers...");
-    
-    // Use reliable QoS to ensure delivery to Gazebo
-    auto qos = rclcpp::QoS(10).reliable();
-    
-    left_gripper_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/parallel_gripper_base_plate_to_left_finger/position", qos);
-    right_gripper_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/parallel_gripper_base_plate_to_right_finger/position", qos);
-    
-    RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Publishers created with reliable QoS");
-    
-    // Give publishers time to connect
+  if (!traj_pub) {
+    RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Creating JTC publisher...");
+    traj_pub = node_->create_publisher<trajectory_msgs::msg::JointTrajectory>(
+      "/forward_position_controller/joint_trajectory", 10);
     std::this_thread::sleep_for(100ms);
   }
   
@@ -1956,16 +1936,8 @@ BT::NodeStatus CloseGripperAroundCan::tick()
   // Finger Origin is at approx 0.047m from center.
   // We want finger surface at (diameter/2).
   // Target Joint = (diameter/2) - 0.047.
-  // Example: 0.033 - 0.047 = -0.014.
-  // User feedback: "no movement at all" - close even tighter to 0.02m gap (0.01m from center each side).
-  // Gap = 0.02m means each finger at 0.01m from center.
-  // Target Joint = 0.01 - 0.047 = -0.037m.
-  
   double gripper_half_width_approx = 0.047;
   double target_pos_left = 0.010 - gripper_half_width_approx;
-  
-  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] RAW Calc: target_pos_left = (%.4f / 2) - %.4f - 0.010 = %.4f", 
-              can_diameter, gripper_half_width_approx, target_pos_left);
   
   // Clamp to limits just in case
   if (target_pos_left < -0.044) {
@@ -1979,23 +1951,20 @@ BT::NodeStatus CloseGripperAroundCan::tick()
   
   double target_pos_right = -target_pos_left; // Right is symmetric positive
 
-  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] FINAL: Left=%.4f, Right=%.4f", 
+  trajectory_msgs::msg::JointTrajectory msg;
+  msg.header.stamp = node_->now();
+  msg.joint_names = {"parallel_gripper_base_plate_to_left_finger", "parallel_gripper_base_plate_to_right_finger"};
+  
+  trajectory_msgs::msg::JointTrajectoryPoint point;
+  point.positions = {target_pos_left, target_pos_right};
+  point.time_from_start = rclcpp::Duration::from_seconds(1.0); // Slower for grasp
+  msg.points.push_back(point);
+
+  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Sending JTC Trajectory: Left=%.4f, Right=%.4f", 
               target_pos_left, target_pos_right);
+  
+  traj_pub->publish(msg);
 
-  std_msgs::msg::Float64 msg_left;
-  msg_left.data = target_pos_left;
-  
-  std_msgs::msg::Float64 msg_right;
-  msg_right.data = target_pos_right; // Right move inwards is positive
-  
-  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Publishing left=%.4f to /parallel_gripper_base_plate_to_left_finger/position", target_pos_left);
-  left_gripper_pub->publish(msg_left);
-  
-  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Publishing right=%.4f to /parallel_gripper_base_plate_to_right_finger/position", target_pos_right);
-  right_gripper_pub->publish(msg_right);
-
-  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Closing complete for diameter %.3fm (Left=%.4f, Right=%.4f)", 
-              can_diameter, target_pos_left, target_pos_right);
   std::this_thread::sleep_for(1500ms);
   return BT::NodeStatus::SUCCESS;
 }

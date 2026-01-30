@@ -23,7 +23,7 @@ def generate_launch_description():
 
     bluetooth_joystick_node = Node(
         emulate_tty=True,
-        executable='bluetooth_joystick',
+        executable='bluetooth_joystick_node',
         name='bluetooth_joystick_node',
         package='bluetooth_joystick',
         parameters=[configParams],

@@ -19,8 +19,8 @@ add_compile_options(-g)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(bluetooth_joystick REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(msgs)
 find_package(rclcpp REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
@@ -31,8 +31,8 @@ add_executable(twist_multiplexer
 ament_target_dependencies(
   twist_multiplexer
   rclcpp
+  bluetooth_joystick
   geometry_msgs
-  msgs
   yaml-cpp
 )
 

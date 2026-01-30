@@ -30,7 +30,7 @@ forward_position_controller:
       # - gripper_elevator_plate_to_gripper_extender
       # - gripper_wrist_to_parallel_gripper_base_plate
       - parallel_gripper_base_plate_to_left_finger
-      # - parallel_gripper_base_plate_to_right_finger
+      - parallel_gripper_base_plate_to_right_finger
     command_interfaces:
       - position
     state_interfaces:

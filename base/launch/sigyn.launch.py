@@ -286,16 +286,16 @@ def generate_launch_description():
         [description_pkg, "config", "my_controllers.yaml"])
 
     # Add delays to ensure Gazebo's controller manager is ready
-    delayed_joint_broad_spawner = TimerAction(
+    delayed_joint_broadcaster_spawner = TimerAction(
         period=3.0,  # Wait for Gazebo controller manager
         actions=[Node(
             package="controller_manager",
             executable="spawner",
             condition=IfCondition(use_sim_time),
-            arguments=["joint_broad"],
+            arguments=["joint_broadcaster"],
         )]
     )
-    ld.add_action(delayed_joint_broad_spawner)
+    ld.add_action(delayed_joint_broadcaster_spawner)
     
     delayed_fwcommand_spawner = TimerAction(
         period=4.0,  # Wait after joint broadcaster

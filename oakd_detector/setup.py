@@ -64,8 +64,6 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'oiv7_detector_node = oakd_detector.oiv7:main',
-            'oakd_detector_node = oakd_detector.oakd_detector_node:main',
             'yolo26_oakd_detector_node = oakd_detector.yolo26_oakd_detector_node:main',
         ],
     },

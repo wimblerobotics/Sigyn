@@ -16,7 +16,7 @@
 #include <vector>
 #include "yaml-cpp/yaml.h"
 
-#include "msgs/msg/bluetooth_joystick.hpp"
+#include "bluetooth_joystick/msg/bluetooth_joystick.hpp"
 
 using namespace std;
 using namespace YAML;
@@ -51,7 +51,7 @@ typedef struct CmdVelMessage
 } CmdVelMessage;
 
 bool deadmanSwitch = false;
-rclcpp::Subscription<msgs::msg::BluetoothJoystick>::SharedPtr joystickSubscriber;
+rclcpp::Subscription<bluetooth_joystick::msg::BluetoothJoystick>::SharedPtr joystickSubscriber;
 double loopRateHz;
 priority_queue<CmdVelMessage> messageQueue;
 
@@ -243,7 +243,7 @@ void processConfiguration(int argc, char *argv[])
     }
 }
 
-void bluetoothJoystickCallback(const msgs::msg::BluetoothJoystick::SharedPtr msg)
+void bluetoothJoystickCallback(const bluetooth_joystick::msg::BluetoothJoystick::SharedPtr msg)
 {
     bool prevDeadman = deadmanSwitch;
     // L2 trigger is axis2_ud: +32767 when pressed, negative when released
@@ -282,7 +282,7 @@ int main(int argc, char *argv[])
     qos.avoid_ros_namespace_conventions(false);
 
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr twistPublisher = rosNode->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
-    joystickSubscriber = rosNode->create_subscription<msgs::msg::BluetoothJoystick>("/bluetoothJoystick", qos, bluetoothJoystickCallback);
+    joystickSubscriber = rosNode->create_subscription<bluetooth_joystick::msg::BluetoothJoystick>("/bluetoothJoystick", qos, bluetoothJoystickCallback);
 
     rclcpp::Rate loopRate(loopRateHz);
     while (rclcpp::ok())
