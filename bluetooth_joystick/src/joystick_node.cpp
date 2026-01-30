@@ -268,6 +268,10 @@ void CaptureJoystickEvent() {
           break;
         case JS_EVENT_AXIS:
           axis = GetAxisState(&event, axes);
+          if (event.number == 2) {
+             message.axis2_ud = ud2 = event.value;
+             RCUTILS_LOG_DEBUG("L2 (Axis 2) mapped to Deadman (axis2_ud): %d", ud2);
+          }
           if (axis < 3) {
             if (axis == 0) {
               message.axis0_lr = lr0 = axes[axis].x;  // Left joystick - reversed

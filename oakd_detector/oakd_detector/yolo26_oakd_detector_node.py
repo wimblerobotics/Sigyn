@@ -215,7 +215,7 @@ class YOLO26OakdDetectorNode(Node):
                         detections_msg.detections.append(detection)
                     
                     self.detections_pub.publish(detections_msg)
-                    self.get_logger().info(f"Published {len(result.boxes)} detection(s)")
+                    # self.get_logger().info(f"Published {len(result.boxes)} detection(s)")
             
         except Exception as e:
             self.get_logger().error(f"Error processing frame: {e}", throttle_duration_sec=1.0)
