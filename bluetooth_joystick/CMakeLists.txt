@@ -20,20 +20,28 @@ add_compile_options(-g)
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(msgs REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 find_package(Threads REQUIRED)
 find_package(rclcpp REQUIRED)
 
-add_executable(bluetooth_joystick src/joystick_node.cpp)
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/BluetoothJoystick.msg"
+)
+
+add_executable(bluetooth_joystick_node src/joystick_node.cpp)
 ament_target_dependencies(
-  bluetooth_joystick
+  bluetooth_joystick_node
   geometry_msgs
-  msgs
   rclcpp
   Threads
 )
 
-install(TARGETS bluetooth_joystick
+rosidl_get_typesupport_target(cpp_typesupport_target
+  ${PROJECT_NAME} rosidl_typesupport_cpp)
+
+target_link_libraries(bluetooth_joystick_node "${cpp_typesupport_target}")
+
+install(TARGETS bluetooth_joystick_node
   DESTINATION lib/${PROJECT_NAME})
 
 # Install config files.

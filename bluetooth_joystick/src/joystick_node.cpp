@@ -15,11 +15,11 @@
 #include <thread>
 #include <std_msgs/msg/bool.hpp>
 
-#include "msgs/msg/bluetooth_joystick.hpp"
+#include "bluetooth_joystick/msg/bluetooth_joystick.hpp"
 
 static const double axis_range_normalizer = 32768.0;
 
-rclcpp::Publisher<msgs::msg::BluetoothJoystick>::SharedPtr
+rclcpp::Publisher<bluetooth_joystick::msg::BluetoothJoystick>::SharedPtr
     bluetooth_joystick_publisher;
 rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmdvel_publisher;
 rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr gripper_publisher;
@@ -108,7 +108,7 @@ size_t GetAxisState(struct js_event* event, struct AxisState axes[3]) {
   return axis;
 }
 
-msgs::msg::BluetoothJoystick message;
+bluetooth_joystick::msg::BluetoothJoystick message;
 bool some_button_changed_state = false;
 std::mutex some_button_changed_state_guard;
 
@@ -338,7 +338,7 @@ int main(int argc, char* argv[]) {
   qos.avoid_ros_namespace_conventions(false);
 
   bluetooth_joystick_publisher =
-      node->create_publisher<msgs::msg::BluetoothJoystick>("bluetoothJoystick",
+      node->create_publisher<bluetooth_joystick::msg::BluetoothJoystick>("bluetoothJoystick",
                                                            qos);
 
   std::string cmdvel_topic;
