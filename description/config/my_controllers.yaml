@@ -22,16 +22,3 @@ diff_cont:
     wheel_separation: 0.4072
     wheel_radius: 0.05
 
-forward_position_controller:
-  ros__parameters:
-    type: joint_trajectory_controller/JointTrajectoryController
-    joints:
-      # - elevator_pole_to_elevator_connector_plate
-      # - gripper_elevator_plate_to_gripper_extender
-      # - gripper_wrist_to_parallel_gripper_base_plate
-      - parallel_gripper_base_plate_to_left_finger
-      - parallel_gripper_base_plate_to_right_finger
-    command_interfaces:
-      - position
-    state_interfaces:
-      - position
