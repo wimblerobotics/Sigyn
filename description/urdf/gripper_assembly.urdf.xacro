@@ -188,21 +188,20 @@
                 <surface>
                     <friction>
                         <ode>
-                            <mu>3.0</mu>
-                            <mu2>3.0</mu2>
-                            <slip1>0.01</slip1>
-                            <slip2>0.01</slip2>
+                            <mu>100.0</mu>
+                            <mu2>100.0</mu2>
+                            <min_depth>0.001</min_depth>
                         </ode>
                     </friction>
                     <contact>
                         <ode>
-                            <kp>100000000.0</kp>
+                            <kp>10000000.0</kp>
                             <kd>1.0</kd>
                         </ode>
                     </contact>
                 </surface>
             </collision>
-            <xacro:solid_cuboid_inertial rpy="0 0 0" xyz="0 0 0" mass_kg="0.001" x="${finger_length}" y="${finger_width}" z="${finger_depth}" />
+            <xacro:solid_cuboid_inertial rpy="0 0 0" xyz="0 0 0" mass_kg="0.1" x="${finger_length}" y="${finger_width}" z="${finger_depth}" />
         </foo>
     </xacro:colorize_link>
 
@@ -210,7 +209,7 @@
         <origin xyz="${(parallel_gripper_base_plate_length/2) - (finger_depth/2)} 0 ${(parallel_gripper_base_plate_depth/2) + (finger_length/2)}" rpy="0 ${pi/2} 0" />
         <parent link="parallel_gripper_base_plate" />
         <child link="left_finger" />
-        <limit lower="-${(parallel_gripper_base_plate_length/2) - (finger_depth)}" upper="0" effort="200" velocity="0.5" />
+        <limit lower="-${(parallel_gripper_base_plate_length/2) - (finger_depth)}" upper="0" effort="1000" velocity="0.5" />
         <axis xyz="0 0 1" />
         <dynamics damping="0.1"/>
     </joint>
@@ -230,15 +229,14 @@
                 <surface>
                     <friction>
                         <ode>
-                            <mu>3.0</mu>
-                            <mu2>3.0</mu2>
-                            <slip1>0.001</slip1>
-                            <slip2>0.001</slip2>
+                            <mu>100.0</mu>
+                            <mu2>100.0</mu2>
+                            <min_depth>0.001</min_depth>
                         </ode>
                     </friction>
                     <contact>
                         <ode>
-                            <kp>100000000.0</kp>
+                            <kp>10000000.0</kp>
                             <kd>1.0</kd>
                         </ode>
                     </contact>
@@ -252,7 +250,7 @@
         <origin xyz="${-(parallel_gripper_base_plate_length/2) + (finger_depth/2)} 0 ${(parallel_gripper_base_plate_depth/2) + (finger_length/2)}" rpy="0 ${pi/2} 0" />
         <parent link="parallel_gripper_base_plate" />
         <child link="right_finger" />
-        <limit lower="0" upper="${(parallel_gripper_base_plate_length/2) - (finger_depth)}" effort="200" velocity="0.5" />
+        <limit lower="0" upper="${(parallel_gripper_base_plate_length/2) - (finger_depth)}" effort="1000" velocity="0.5" />
         <axis xyz="0 0 1" />
         <dynamics damping="0.1"/>
     </joint>

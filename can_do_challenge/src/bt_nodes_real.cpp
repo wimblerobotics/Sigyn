@@ -93,7 +93,7 @@ struct ObjectDetectionState {
   static constexpr double DETECTION_TIMEOUT_SEC = 2.0;
   static constexpr double PI_DETECTION_TIMEOUT_SEC = 6.0;
   static constexpr int PI_WAIT_TIMEOUT_MS = 1000;
-  static constexpr double WITHIN_REACH_DISTANCE = 0.6;  // 60cm
+  static constexpr double WITHIN_REACH_DISTANCE = 0.55;  // 55cm
   static constexpr double CENTERING_TOLERANCE = 0.02;   // Tightened to 2cm for precision
   static constexpr double PI_VERTICAL_TOLERANCE = 0.05; // 5cm for elevator height check
   static constexpr double PI_VERTICAL_TARGET_OFFSET = 0.0; // target offset in optical Y (positive down)

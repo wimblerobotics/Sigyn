@@ -30,7 +30,7 @@ def generate_launch_description():
     # Launch arguments
     step_manually_arg = DeclareLaunchArgument(
         "step_manually",
-        default_value="true",
+        default_value="false",
         description="Enable manual stepping mode (true) or automatic execution (false)"
     )
     
