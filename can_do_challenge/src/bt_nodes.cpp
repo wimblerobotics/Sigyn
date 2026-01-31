@@ -1890,27 +1890,24 @@ BT::NodeStatus RetractGripper::tick()
 
 BT::NodeStatus OpenGripper::tick()
 {
-  static rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr traj_pub;
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr left_finger_pub;
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr right_finger_pub;
   
-  if (!traj_pub) {
-    RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Creating JTC publisher...");
-    traj_pub = node_->create_publisher<trajectory_msgs::msg::JointTrajectory>(
-      "/forward_position_controller/joint_trajectory", 10);
+  if (!left_finger_pub) {
+    RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Creating publishers...");
+    left_finger_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/parallel_gripper_base_plate_to_left_finger/position", 10);
+    right_finger_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/parallel_gripper_base_plate_to_right_finger/position", 10);
     std::this_thread::sleep_for(100ms);
   }
 
-  trajectory_msgs::msg::JointTrajectory msg;
-  msg.header.stamp = node_->now();
-  msg.joint_names = {"parallel_gripper_base_plate_to_left_finger", "parallel_gripper_base_plate_to_right_finger"};
+  std_msgs::msg::Float64 msg;
+  msg.data = 0.0;
   
-  trajectory_msgs::msg::JointTrajectoryPoint point;
-  // Open gripper = 0.0 for both (based on URDF limits where 0 is the starting wide position)
-  point.positions = {0.0, 0.0};
-  point.time_from_start = rclcpp::Duration::from_seconds(0.5);
-  msg.points.push_back(point);
-  
-  RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Sending trajectory to open fingers (0.0)");
-  traj_pub->publish(msg);
+  RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Opening fingers (0.0)");
+  left_finger_pub->publish(msg);
+  right_finger_pub->publish(msg);
   
   std::this_thread::sleep_for(500ms);
   return BT::NodeStatus::SUCCESS;
@@ -1923,12 +1920,15 @@ BT::NodeStatus CloseGripperAroundCan::tick()
   
   RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] START: can_diameter=%.4f", can_diameter);
   
-  static rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr traj_pub;
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr left_finger_pub;
+  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr right_finger_pub;
   
-  if (!traj_pub) {
-    RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Creating JTC publisher...");
-    traj_pub = node_->create_publisher<trajectory_msgs::msg::JointTrajectory>(
-      "/forward_position_controller/joint_trajectory", 10);
+  if (!left_finger_pub) {
+    RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Creating publishers...");
+    left_finger_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/parallel_gripper_base_plate_to_left_finger/position", 10);
+    right_finger_pub = node_->create_publisher<std_msgs::msg::Float64>(
+      "/parallel_gripper_base_plate_to_right_finger/position", 10);
     std::this_thread::sleep_for(100ms);
   }
   
@@ -1951,19 +1951,14 @@ BT::NodeStatus CloseGripperAroundCan::tick()
   
   double target_pos_right = -target_pos_left; // Right is symmetric positive
 
-  trajectory_msgs::msg::JointTrajectory msg;
-  msg.header.stamp = node_->now();
-  msg.joint_names = {"parallel_gripper_base_plate_to_left_finger", "parallel_gripper_base_plate_to_right_finger"};
-  
-  trajectory_msgs::msg::JointTrajectoryPoint point;
-  point.positions = {target_pos_left, target_pos_right};
-  point.time_from_start = rclcpp::Duration::from_seconds(1.0); // Slower for grasp
-  msg.points.push_back(point);
+  std_msgs::msg::Float64 msg_left, msg_right;
+  msg_left.data = target_pos_left;
+  msg_right.data = target_pos_right;
 
-  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Sending JTC Trajectory: Left=%.4f, Right=%.4f", 
+  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Closing to Left=%.4f, Right=%.4f", 
               target_pos_left, target_pos_right);
-  
-  traj_pub->publish(msg);
+  left_finger_pub->publish(msg_left);
+  right_finger_pub->publish(msg_right);
 
   std::this_thread::sleep_for(1500ms);
   return BT::NodeStatus::SUCCESS;
