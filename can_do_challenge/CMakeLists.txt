@@ -13,6 +13,7 @@ find_package(nav2_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(vision_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(sigyn_interfaces REQUIRED)
 find_package(behaviortree_cpp_v3 REQUIRED)
@@ -26,6 +27,11 @@ add_executable(can_do_challenge_node
   src/bt_nodes.cpp
 )
 
+add_executable(can_do_challenge_node_real 
+  src/can_do_challenge_node_real.cpp
+  src/bt_nodes_real.cpp
+)
+
 ament_target_dependencies(can_do_challenge_node
   rclcpp
   rclcpp_action
@@ -33,6 +39,24 @@ ament_target_dependencies(can_do_challenge_node
   geometry_msgs
   sensor_msgs
   std_msgs
+  vision_msgs
+  trajectory_msgs
+  sigyn_interfaces
+  behaviortree_cpp_v3
+  tf2
+  tf2_geometry_msgs
+  tf2_ros
+  ament_index_cpp
+)
+
+ament_target_dependencies(can_do_challenge_node_real
+  rclcpp
+  rclcpp_action
+  nav2_msgs
+  geometry_msgs
+  sensor_msgs
+  std_msgs
+  vision_msgs
   trajectory_msgs
   sigyn_interfaces
   behaviortree_cpp_v3
@@ -43,14 +67,21 @@ ament_target_dependencies(can_do_challenge_node
 )
 
 target_link_libraries(can_do_challenge_node)
+target_link_libraries(can_do_challenge_node_real)
 
 target_include_directories(can_do_challenge_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
 
+target_include_directories(can_do_challenge_node_real PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
 install(TARGETS
   can_do_challenge_node
+  can_do_challenge_node_real
   DESTINATION lib/${PROJECT_NAME}
 )
 
