@@ -297,17 +297,6 @@ def generate_launch_description():
     )
     ld.add_action(delayed_joint_broadcaster_spawner)
     
-    delayed_fwcommand_spawner = TimerAction(
-        period=4.0,  # Wait after joint broadcaster
-        actions=[Node(
-            package="controller_manager",
-            executable="spawner",
-            condition=IfCondition(use_sim_time),
-            arguments=["forward_position_controller", "--param-file", controller_params_file],
-        )]
-    )
-    ld.add_action(delayed_fwcommand_spawner)
-
     delayed_diff_drive_spawner = TimerAction(
         period=5.0,  # Wait after other controllers
         actions=[Node(
