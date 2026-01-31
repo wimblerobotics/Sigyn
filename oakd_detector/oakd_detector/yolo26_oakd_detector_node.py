@@ -188,13 +188,13 @@ class YOLO26OakdDetectorNode(Node):
                 annotated_msg.header.frame_id = "oakd_rgb_camera_optical_frame"
                 self.annotated_image_pub.publish(annotated_msg)
                 
+                # Create Detection2DArray message (Publish empty if no detections)
+                detections_msg = Detection2DArray()
+                detections_msg.header.stamp = self.get_clock().now().to_msg()
+                detections_msg.header.frame_id = "oakd_rgb_camera_optical_frame"
+                
                 # Process detections if any found
                 if len(result.boxes) > 0:
-                    # Create Detection2DArray message
-                    detections_msg = Detection2DArray()
-                    detections_msg.header.stamp = self.get_clock().now().to_msg()
-                    detections_msg.header.frame_id = "oakd_rgb_camera_optical_frame"
-                    
                     # Process each detection
                     for box in result.boxes:
                         detection = Detection2D()
@@ -214,8 +214,8 @@ class YOLO26OakdDetectorNode(Node):
                         
                         detections_msg.detections.append(detection)
                     
-                    self.detections_pub.publish(detections_msg)
-                    # self.get_logger().info(f"Published {len(result.boxes)} detection(s)")
+                self.detections_pub.publish(detections_msg)
+                # self.get_logger().info(f"Published {len(result.boxes)} detection(s)")
             
         except Exception as e:
             self.get_logger().error(f"Error processing frame: {e}", throttle_duration_sec=1.0)

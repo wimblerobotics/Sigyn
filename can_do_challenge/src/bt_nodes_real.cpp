@@ -99,6 +99,10 @@ struct ObjectDetectionState {
   static constexpr double PI_VERTICAL_TARGET_OFFSET = 0.0; // target offset in optical Y (positive down)
   static constexpr double PI_MIN_DISTANCE_M = 0.15;
   static constexpr double PI_MAX_DISTANCE_M = 0.80;
+  
+  // System Health
+  rclcpp::Time oakd_last_heartbeat_time;
+  bool oakd_alive = false;
 };
 
 static ObjectDetectionState g_detection_state;
@@ -264,6 +268,12 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
   g_oakd_real_sub = node->create_subscription<vision_msgs::msg::Detection2DArray>(
     "/oakd/detections", oakd_qos,
     [node](const vision_msgs::msg::Detection2DArray::SharedPtr msg) {
+        {
+            std::lock_guard<std::mutex> lock(g_detection_mutex);
+            g_detection_state.oakd_last_heartbeat_time = node->now();
+            g_detection_state.oakd_alive = true;
+        }
+
         if (!msg->detections.empty()) {
             std::lock_guard<std::mutex> lock(g_detection_mutex);
             // Just grab the first detection for Step 1 logging
@@ -1329,7 +1339,7 @@ BT::NodeStatus RotateRobot::onStart()
   getInput("degrees", degrees);
 
   if (!cmd_vel_pub_) {
-    cmd_vel_pub_ = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_nav", 10);
+    cmd_vel_pub_ = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_smoothed", 10);
   }
 
   // Calculate duration
@@ -2381,24 +2391,41 @@ BT::NodeStatus SoftwareEStop::tick()
 BT::NodeStatus WaitForDetection::onStart()
 {
   start_time_ = node_->now();
-  RCLCPP_DEBUG(node_->get_logger(), "[WaitForDetection] Waiting for detection...");
+  RCLCPP_INFO(node_->get_logger(), "[WaitForDetection] Waiting for camera system to come online (heartbeat)...");
   return BT::NodeStatus::RUNNING;
 }
 
 BT::NodeStatus WaitForDetection::onRunning()
 {
-  // Keep the tree alive while we wait for the camera condition to become true.
-  // Sleep a little to avoid busy-spinning if the BT is ticked fast.
+  initializeObjectDetection(node_);
+  
+  bool alive = false;
+  double age = 999.0;
+  
+  {
+      std::lock_guard<std::mutex> lock(g_detection_mutex);
+      alive = g_detection_state.oakd_alive;
+      if (alive) {
+          age = (node_->now() - g_detection_state.oakd_last_heartbeat_time).seconds();
+      }
+  }
+
+  if (alive && age < 1.0) {
+      RCLCPP_INFO(node_->get_logger(), "[WaitForDetection] OAK-D system is online (heartbeat age=%.3fs)", age);
+      return BT::NodeStatus::SUCCESS;
+  }
+
+  // Keep the tree alive while we wait
   std::this_thread::sleep_for(100ms);
 
-  // Optional safety timeout: if nothing arrives for a long time, fail so higher-level
-  // logic can decide what to do. (But do not fail quickly and abort the whole mission.)
-  constexpr double kTimeoutSec = 15.0;
   const double elapsed = (node_->now() - start_time_).seconds();
-  if (elapsed > kTimeoutSec) {
-    RCLCPP_ERROR(node_->get_logger(), "[WaitForDetection] Timed out after %.1fs", elapsed);
+  if (elapsed > 15.0) {
+    RCLCPP_ERROR(node_->get_logger(), "[WaitForDetection] Timed out waiting for OAK-D heartbeat (%.1fs)", elapsed);
     return BT::NodeStatus::FAILURE;
   }
+
+  RCLCPP_INFO_THROTTLE(node_->get_logger(), *node_->get_clock(), 1000, 
+      "[WaitForDetection] Still waiting for OAK-D... (elapsed=%.1fs)", elapsed);
 
   return BT::NodeStatus::RUNNING;
 }
@@ -2406,6 +2433,50 @@ BT::NodeStatus WaitForDetection::onRunning()
 void WaitForDetection::onHalted()
 {
   // Nothing to clean up.
+}
+
+BT::NodeStatus WaitForNewOAKDFrame::onStart()
+{
+  start_wait_time_ = node_->now();
+  // We don't block here, just record the time we started waiting.
+  // Ideally, we want a frame that was captured AFTER this moment.
+  return BT::NodeStatus::RUNNING;
+}
+
+BT::NodeStatus WaitForNewOAKDFrame::onRunning()
+{
+  initializeObjectDetection(node_);
+  
+  bool fresh_frame_available = false;
+  rclcpp::Time heartbeat_time;
+  
+  {
+      std::lock_guard<std::mutex> lock(g_detection_mutex);
+      if (g_detection_state.oakd_alive) {
+          heartbeat_time = g_detection_state.oakd_last_heartbeat_time;
+          // Check if heartbeat is newer than start_wait_time_
+          if (heartbeat_time.nanoseconds() > start_wait_time_.nanoseconds()) {
+              fresh_frame_available = true;
+          }
+      }
+  }
+
+  if (fresh_frame_available) {
+      double latency = (node_->now() - heartbeat_time).seconds();
+      RCLCPP_INFO(node_->get_logger(), "[WaitForNewOAKDFrame] New frame acquired (latency=%.3fs)", latency);
+      return BT::NodeStatus::SUCCESS;
+  }
+  
+  // Timeout check (e.g. 5 seconds)
+  const double elapsed = (node_->now() - start_wait_time_).seconds();
+  if (elapsed > 5.0) {
+      RCLCPP_WARN(node_->get_logger(), "[WaitForNewOAKDFrame] Timed out waiting for new frame (%.1fs)", elapsed);
+      return BT::NodeStatus::FAILURE;
+  }
+
+  // Sleep slightly
+  std::this_thread::sleep_for(50ms);
+  return BT::NodeStatus::RUNNING;
 }
 
 BT::NodeStatus ReportGraspFailure::tick()
@@ -2473,6 +2544,7 @@ BT::NodeStatus ReactiveRepeatUntilSuccessOrCount::tick()
 
   return BT::NodeStatus::RUNNING;
 }
+
 
 // ============================================================================
 // CHECK BOOL FLAG CONDITION
