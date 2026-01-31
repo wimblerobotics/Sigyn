@@ -1,0 +1,30 @@
+<root main_tree_to_execute="MainTree">
+    <BehaviorTree ID="MainTree">
+        <Sequence>
+             <Action ID="SaySomething" message="Starting Search" />
+             <Action ID="WaitForDetection" />
+             <Fallback>
+                 <Sequence>
+                     <SubTree ID="SearchForCanWithOAKD_Fix" objectOfInterest="coke_can" />
+                     <Action ID="SaySomething" message="Can Detected!" />
+                 </Sequence>
+                 <Action ID="SaySomething" message="Search Failed. Giving up." />
+             </Fallback>
+        </Sequence>
+    </BehaviorTree>
+
+    <BehaviorTree ID="SearchForCanWithOAKD_Fix">
+        <ReactiveFallback name="FindCanVisually">
+            <Condition ID="CanDetectedByOAKD" objectOfInterest="coke_can" />
+            <ForceFailure>
+                <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="12">
+                    <Sequence>
+                        <Action ID="RotateRobot" degrees="30" />
+                        <Action ID="WaitForNewOAKDFrame" />
+                        <AlwaysFailure />
+                    </Sequence>
+                </Decorator>
+            </ForceFailure>
+        </ReactiveFallback>
+    </BehaviorTree>
+</root>
