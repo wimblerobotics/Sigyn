@@ -84,6 +84,73 @@ Edit `config/can_locations.json` to add/modify can locations:
 }
 ```
 
+### Vision Model Artifacts
+Place the latest Hailo model artifacts here (tracked in repo):
+- `/home/ros/sigyn_ws/src/Sigyn/can_do_challenge/resources/models/`
+
+Expected files:
+- `fcc2_best.hef` (required)
+- `fcc2_labels.txt` (required)
+- `fcc2_best.onnx` (optional, reference/debug)
+
+#### Compiling ONNX to HEF for Hailo-8
+
+**IMPORTANT**: The HEF file must be compiled specifically for Hailo-8 (not Hailo-8L) to match the hardware on the Raspberry Pi.
+
+**Prerequisites**:
+- Docker installed on your system
+- Hailo AI Software Suite Docker image: `hailo8_ai_sw_suite_2025-10:1`
+- ONNX model file: `resources/models/fcc2_best.onnx`
+
+**Compilation Steps**:
+
+1. **Interactive Docker Session** (recommended for debugging):
+   ```bash
+   cd ~
+   docker run --rm -it \
+     -v ~/sigyn_ws/src/Sigyn/can_do_challenge:/workspace \
+     hailo8_ai_sw_suite_2025-10:1 \
+     /bin/bash
+   
+   # Inside the container:
+   cd /workspace/resources/models
+   hailo parser onnx fcc2_best.onnx
+   hailo compiler --hw-arch hailo8 fcc2_best.har
+   ```
+
+2. **One-line Compilation** (automated):
+   ```bash
+   cd ~
+   docker run --rm -it \
+     -v ~/sigyn_ws/src/Sigyn/can_do_challenge:/workspace \
+     hailo8_ai_sw_suite_2025-10:1 \
+     /bin/bash -c "set -e && cd /tmp && \
+      hailo parser onnx /workspace/resources/models/fcc2_best.onnx \
+        --end-node-names /model.22/Sigmoid /model.22/Concat \
+        --har-path /tmp/fcc2_best.har -y && \
+      hailo optimize --use-random-calib-set /tmp/fcc2_best.har \
+        --output-har-path /tmp/fcc2_best_optimized.har && \
+      hailo compiler --hw-arch hailo8 /tmp/fcc2_best_optimized.har \
+        --output-dir /tmp && \
+      cp -f /tmp/fcc2_best.har /tmp/fcc2_best_optimized.har /tmp/fcc2_best.hef /workspace/resources/models/"
+   ```
+
+   Note: Output files may be owned by root. Fix permissions after compilation:
+   ```bash
+   sudo chown -R $(id -u):$(id -g) ~/sigyn_ws/src/Sigyn/can_do_challenge/resources/models/
+   ```
+
+The resulting `fcc2_best.hef` file will be saved in `resources/models/` and is ready for deployment on the Raspberry Pi with Hailo-8.
+
+**Troubleshooting**:
+- **Permission denied in `/workspace/resources/models`** (e.g., `pyhailort.log`):
+  - Run Hailo commands from `/tmp` and use absolute paths so logs are written to `/tmp` instead of the mounted folder.
+- **Copy failed with Permission denied** (root-owned artifacts): remove or change ownership of existing `fcc2_best.*` files in `resources/models/` on the host, then rerun the one-liner.
+- If you see "HEF was compiled for Hailo8L", recompile with `--hw-arch hailo8` (not `hailo8l`)
+- **No calibration images available**: Use `hailo optimize --use-random-calib-set` to generate a quantized HAR before compiling.
+- Ensure the ONNX model uses opset 11-13 and fixed input dimensions (no dynamic axes)
+- For model optimization options, consult the Hailo Dataflow Compiler documentation
+
 ## Next Steps (Phase 2 & 3)
 
 ### TODO - Vision Integration:
