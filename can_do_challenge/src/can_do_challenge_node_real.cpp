@@ -114,6 +114,7 @@ public:
     factory.registerNodeType<ShutdownSystem>("ShutdownSystem");
     factory.registerNodeType<SoftwareEStop>("SoftwareEStop");
     factory.registerNodeType<WaitForDetection>("WaitForDetection");
+    factory.registerNodeType<WaitForNewOAKDFrame>("WaitForNewOAKDFrame");
     factory.registerNodeType<ReportGraspFailure>("ReportGraspFailure");
     factory.registerNodeType<SaySomething>("SaySomething");
     
@@ -201,6 +202,10 @@ private:
       rclcpp::shutdown();
     } else if (status == BT::NodeStatus::FAILURE) {
       RCLCPP_ERROR(this->get_logger(), "Behavior tree failed!");
+      timer_->cancel();
+      rclcpp::shutdown();
+    } else if (status == BT::NodeStatus::IDLE) {
+      RCLCPP_WARN(this->get_logger(), "Behavior tree returned IDLE. Shutting down.");
       timer_->cancel();
       rclcpp::shutdown();
     }

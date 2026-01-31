@@ -273,6 +273,22 @@ public:
   void onHalted() override {};
 };
 
+class WaitForNewOAKDFrame : public BT::StatefulActionNode, public RosNodeBT
+{
+public:
+  WaitForNewOAKDFrame(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::StatefulActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() { return {}; }
+  
+  BT::NodeStatus onStart() override;
+  BT::NodeStatus onRunning() override;
+  void onHalted() override {};
+  
+private:
+  rclcpp::Time start_wait_time_;
+};
+
 // Compute a short-horizon Nav2 goal from the current OAK-D detection.
 // The goal is expressed in the global frame expected by Nav2 (typically "map").
 class ComputeApproachGoalToCan : public BT::StatefulActionNode, public RosNodeBT
