@@ -164,6 +164,7 @@ static bool piDetectionInRange(const geometry_msgs::msg::Point& point)
 
 // Store subscriptions so they don't get destroyed
 static rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr g_oakd_sub;
+static rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr g_oakd_point_real_sub;
 static rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr g_oakd_real_sub;
 static rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr g_pi_sub;
 static rclcpp::Subscription<std_msgs::msg::Header>::SharedPtr g_pi_processed_sub;
@@ -345,6 +346,34 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
       }
     });
   RCLCPP_INFO(node->get_logger(), "Subscribed to /oakd_top/can_detection (best_effort)");
+
+  // Subscribe to OAK-D detection (Real depth-assisted 3D)
+  g_oakd_point_real_sub = node->create_subscription<geometry_msgs::msg::PointStamped>(
+    "/oakd/can_detection", oakd_qos,
+    [node](const geometry_msgs::msg::PointStamped::SharedPtr msg) {
+      {
+        std::lock_guard<std::mutex> lock(g_detection_mutex);
+        g_detection_state.oakd_detection_position_raw = msg->point;
+        g_detection_state.oakd_detection_frame_raw = msg->header.frame_id;
+        g_detection_state.oakd_can_detected = true;
+        g_detection_state.oakd_last_detection_time = node->now();
+      }
+
+      geometry_msgs::msg::PointStamped detection_odom;
+      try {
+        geometry_msgs::msg::PointStamped msg_latest = *msg;
+        msg_latest.header.stamp = rclcpp::Time(0);
+        detection_odom = g_tf_buffer->transform(msg_latest, "odom");
+
+        std::lock_guard<std::mutex> lock(g_detection_mutex);
+        g_detection_state.oakd_detection_position_odom = detection_odom.point;
+        g_detection_state.oakd_detection_has_odom = true;
+      } catch (const tf2::TransformException & ex) {
+        std::lock_guard<std::mutex> lock(g_detection_mutex);
+        g_detection_state.oakd_detection_has_odom = false;
+      }
+    });
+  RCLCPP_INFO(node->get_logger(), "Subscribed to /oakd/can_detection (best_effort)");
   
   // Subscribe to Pi camera detection
   rclcpp::QoS pi_qos(10);
@@ -697,6 +726,8 @@ BT::NodeStatus CanWithinReach::tick()
 {
   std::string object_name;
   getInput("objectOfInterest", object_name);
+  double within_distance = kDefaultWithinReachDistance;
+  getInput("within_distance", within_distance);
   
   initializeObjectDetection(node_);
   
@@ -749,14 +780,14 @@ BT::NodeStatus CanWithinReach::tick()
                   " dist=" + std::to_string(distance) +
                   " age=" + std::to_string(age_sec));
 
-      if (dx > 0.0 && distance < ObjectDetectionState::WITHIN_REACH_DISTANCE) {
+      if (dx > 0.0 && distance < within_distance) {
         RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] Can '%s' within reach at %.2fm (age=%.2fs)",
                     object_name.c_str(), distance, age_sec);
         return BT::NodeStatus::SUCCESS;
       }
 
       RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] base dx=%.2f dy=%.2f dist=%.2f (need %.2f)",
-          dx, dy, distance, ObjectDetectionState::WITHIN_REACH_DISTANCE);
+          dx, dy, distance, within_distance);
       return BT::NodeStatus::FAILURE;
     } catch (const tf2::TransformException& ex) {
       RCLCPP_WARN(node_->get_logger(), "[CanWithinReach] TF base_link<-det_raw failed: %s", ex.what());
@@ -784,7 +815,7 @@ BT::NodeStatus CanWithinReach::tick()
     publishDebugStatus(node_, "CanWithinReach: odom dist=" + std::to_string(distance) +
                   " age=" + std::to_string(age_sec));
 
-    if (distance < ObjectDetectionState::WITHIN_REACH_DISTANCE) {
+    if (distance < within_distance) {
       RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] (odom) Can '%s' within reach at %.2fm", 
                   object_name.c_str(), distance);
       return BT::NodeStatus::SUCCESS;
