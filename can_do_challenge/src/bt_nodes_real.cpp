@@ -2480,6 +2480,26 @@ BT::NodeStatus WaitForNewOAKDFrame::onRunning()
   return BT::NodeStatus::RUNNING;
 }
 
+BT::NodeStatus SleepSeconds::onStart()
+{
+  double seconds = 1.0;
+  getInput("seconds", seconds);
+  wait_seconds_ = std::max(0.0, seconds);
+  start_time_ = node_->now();
+  RCLCPP_INFO(node_->get_logger(), "[SleepSeconds] Waiting %.2f seconds", wait_seconds_);
+  return BT::NodeStatus::RUNNING;
+}
+
+BT::NodeStatus SleepSeconds::onRunning()
+{
+  const double elapsed = (node_->now() - start_time_).seconds();
+  if (elapsed >= wait_seconds_) {
+    return BT::NodeStatus::SUCCESS;
+  }
+  std::this_thread::sleep_for(50ms);
+  return BT::NodeStatus::RUNNING;
+}
+
 BT::NodeStatus ReportGraspFailure::tick()
 {
   // Placeholder: Report that grasp failed
