@@ -14,17 +14,23 @@
     </BehaviorTree>
 
     <BehaviorTree ID="SearchForCanWithOAKD_Fix">
-        <ReactiveFallback name="FindCanVisually">
-            <Condition ID="CanDetectedByOAKD" objectOfInterest="coke_can" />
-            <ForceFailure>
-                <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="12">
-                    <Sequence>
-                        <Action ID="RotateRobot" degrees="30" />
-                        <Action ID="WaitForNewOAKDFrame" />
-                        <AlwaysFailure />
-                    </Sequence>
-                </Decorator>
-            </ForceFailure>
-        </ReactiveFallback>
+        <Sequence>
+            <Action ID="WaitForDetection" />
+            <ReactiveFallback name="FindCanVisually">
+                <Sequence>
+                    <Action ID="WaitForNewOAKDFrame" />
+                    <Condition ID="CanDetectedByOAKD" objectOfInterest="coke_can" />
+                </Sequence>
+                <ForceFailure>
+                    <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="12">
+                        <Sequence>
+                            <Action ID="RotateRobot" degrees="30" />
+                            <Action ID="WaitForNewOAKDFrame" />
+                            <AlwaysFailure />
+                        </Sequence>
+                    </Decorator>
+                </ForceFailure>
+            </ReactiveFallback>
+        </Sequence>
     </BehaviorTree>
 </root>
