@@ -6,7 +6,7 @@ controller_manager:
     diff_cont:
       type: diff_drive_controller/DiffDriveController
 
-    joint_broad:
+    joint_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
 
@@ -21,4 +21,3 @@ diff_cont:
     right_wheel_names: ['right_wheel_joint']
     wheel_separation: 0.4072
     wheel_radius: 0.05
-

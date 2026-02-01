@@ -114,6 +114,7 @@ public:
     factory.registerNodeType<ShutdownSystem>("ShutdownSystem");
     factory.registerNodeType<SoftwareEStop>("SoftwareEStop");
     factory.registerNodeType<WaitForDetection>("WaitForDetection");
+    factory.registerNodeType<WaitForNewOAKDFrame>("WaitForNewOAKDFrame");
     factory.registerNodeType<ReportGraspFailure>("ReportGraspFailure");
     factory.registerNodeType<SaySomething>("SaySomething");
     
