@@ -88,7 +88,7 @@ struct ObjectDetectionState {
   static constexpr double DETECTION_TIMEOUT_SEC = 2.0;
   static constexpr double PI_DETECTION_TIMEOUT_SEC = 6.0;
   static constexpr int PI_WAIT_TIMEOUT_MS = 1000;
-  static constexpr double WITHIN_REACH_DISTANCE = 0.6;  // 60cm
+  static constexpr double WITHIN_REACH_DISTANCE = 0.55;  // 55cm
   static constexpr double CENTERING_TOLERANCE = 0.02;   // Tightened to 2cm for precision
   static constexpr double PI_VERTICAL_TOLERANCE = 0.05; // 5cm for elevator height check
   static constexpr double PI_VERTICAL_TARGET_OFFSET = 0.0; // target offset in optical Y (positive down)
@@ -1265,6 +1265,27 @@ BT::NodeStatus MoveTowardsCan::onRunning()
     return BT::NodeStatus::FAILURE;
   }
 }
+
+// ----------------------------------------------------------------------------
+// WaitForNewOAKDFrame (Simulation Version)
+// ----------------------------------------------------------------------------
+BT::NodeStatus WaitForNewOAKDFrame::onStart()
+{
+  start_wait_time_ = node_->now();
+  return BT::NodeStatus::RUNNING;
+}
+
+BT::NodeStatus WaitForNewOAKDFrame::onRunning()
+{
+  // In simulation, we assume a fixed delay is sufficient to "wait for a new frame"
+  // since tracking frame ID/timestamp is harder without consistent heartbeats.
+  const double elapsed = (node_->now() - start_wait_time_).seconds();
+  if (elapsed > 0.5) {
+      return BT::NodeStatus::SUCCESS;
+  }
+  return BT::NodeStatus::RUNNING;
+}
+
 BT::NodeStatus RotateRobot::onStart()
 {
   double degrees = 0.0;
@@ -2243,6 +2264,7 @@ BT::NodeStatus SaveRobotPose::tick()
 
 BT::NodeStatus LoadCanLocation::tick()
 {
+  RCLCPP_INFO(node_->get_logger(), "### EXECUTING FROM SIMULATION (bt_nodes.cpp) ###");
   std::string can_name;
   getInput("canName", can_name);
 

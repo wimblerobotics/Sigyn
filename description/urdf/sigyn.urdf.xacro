@@ -73,6 +73,7 @@
     </xacro:oakd_joint>
   </xacro:unless>
 
+  <xacro:if value="$(arg sim_mode)">
   <gazebo>
     <plugin filename="gz-sim-joint-position-controller-system"
       name="gz::sim::systems::JointPositionController">
@@ -145,6 +146,7 @@
     </plugin>
 
   </gazebo>
+  </xacro:if>
 
   <xacro:diff_drive_controller config="${props}" instances1="${props.wheels.instances}"
     instances2="${props.wheels.instances}" />

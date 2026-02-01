@@ -2316,6 +2316,7 @@ BT::NodeStatus SaveRobotPose::tick()
 
 BT::NodeStatus LoadCanLocation::tick()
 {
+  RCLCPP_INFO(node_->get_logger(), "### EXECUTING FROM REAL ROBOT (bt_nodes_real.cpp) ###");
   std::string can_name;
   getInput("canName", can_name);
 

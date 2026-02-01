@@ -178,7 +178,11 @@
             <Condition ID="CanDetectedByOAKD" objectOfInterest="{objectOfInterest}" />
             <ForceFailure>
                 <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="12">
-                    <Action ID="RotateRobot" degrees="30" />
+                    <Sequence>
+                        <Action ID="RotateRobot" degrees="30" />
+                        <Action ID="WaitForNewOAKDFrame" />
+                        <AlwaysFailure />
+                    </Sequence>
                 </Decorator>
             </ForceFailure>
         </ReactiveFallback>
@@ -363,6 +367,7 @@
             <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </SubTree>
         <Action ID="WaitForDetection" />
+        <Action ID="WaitForNewOAKDFrame" />
         <Condition ID="WaitForNewPiFrameProcessed" />
     </TreeNodesModel>
     <!-- ////////// -->
