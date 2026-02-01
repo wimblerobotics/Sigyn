@@ -2,6 +2,8 @@
     <BehaviorTree ID="MainTree">
         <Sequence>
              <Action ID="SaySomething" message="Starting Search" />
+             <Action ID="SleepSeconds" seconds="5.0" />
+               <Action ID="SaySomething" message="Sleep complete" />
              <Action ID="WaitForDetection" />
              <Fallback>
                  <Sequence>
@@ -17,10 +19,7 @@
         <Sequence>
             <Action ID="WaitForDetection" />
             <ReactiveFallback name="FindCanVisually">
-                <Sequence>
-                    <Action ID="WaitForNewOAKDFrame" />
-                    <Condition ID="CanDetectedByOAKD" objectOfInterest="coke_can" />
-                </Sequence>
+                <Condition ID="CanDetectedByOAKD" objectOfInterest="coke_can" />
                 <ForceFailure>
                     <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="12">
                         <Sequence>

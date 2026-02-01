@@ -289,6 +289,25 @@ private:
   rclcpp::Time start_wait_time_;
 };
 
+class SleepSeconds : public BT::StatefulActionNode, public RosNodeBT
+{
+public:
+  SleepSeconds(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::StatefulActionNode(name, config) {}
+
+  static BT::PortsList providedPorts() {
+    return { BT::InputPort<double>("seconds", 1.0, "Seconds to wait") };
+  }
+
+  BT::NodeStatus onStart() override;
+  BT::NodeStatus onRunning() override;
+  void onHalted() override {};
+
+private:
+  rclcpp::Time start_time_;
+  double wait_seconds_ = 1.0;
+};
+
 // Compute a short-horizon Nav2 goal from the current OAK-D detection.
 // The goal is expressed in the global frame expected by Nav2 (typically "map").
 class ComputeApproachGoalToCan : public BT::StatefulActionNode, public RosNodeBT
