@@ -52,7 +52,8 @@ class YOLO26OakdDetectorNode(Node):
         self.declare_parameter('confidence_threshold', 0.5)
         self.declare_parameter('image_size', 640)
         self.declare_parameter('trained_images_dir', '')
-        self.declare_parameter('depth_topic', '/oakd_top/out/compressedDepth')
+        self.declare_parameter('depth_topic', '/oakd_top/oak/stereo/image_raw')
+        self.declare_parameter('image_topic', '/oakd_top/oak/rgb/image_raw')
         self.declare_parameter('depth_window_px', 5)
         
         # Get parameters
@@ -62,6 +63,7 @@ class YOLO26OakdDetectorNode(Node):
         self.image_size = self.get_parameter('image_size').get_parameter_value().integer_value
         trained_images_dir = self.get_parameter('trained_images_dir').get_parameter_value().string_value
         self.depth_topic = self.get_parameter('depth_topic').get_parameter_value().string_value
+        self.image_topic = self.get_parameter('image_topic').get_parameter_value().string_value
         self.depth_window_px = int(self.get_parameter('depth_window_px').get_parameter_value().integer_value)
         
         # Set up trained images directory
@@ -115,18 +117,27 @@ class YOLO26OakdDetectorNode(Node):
         self.latest_depth = None
         self.latest_depth_stamp = None
         self.latest_depth_frame = None
+        self.latest_image = None
+        self.latest_image_stamp = None
 
         self.camera_info_sub = self.create_subscription(
             CameraInfo,
-            '/oakd_top/color/camera_info',
+            '/oakd_top/oak/rgb/camera_info',
             self.camera_info_callback,
             10
         )
 
         self.depth_sub = self.create_subscription(
-            CompressedImage,
+            Image,
             self.depth_topic,
             self.depth_callback,
+            10
+        )
+        
+        self.image_sub = self.create_subscription(
+            Image,
+            self.image_topic,
+            self.image_callback,
             10
         )
         
@@ -138,19 +149,7 @@ class YOLO26OakdDetectorNode(Node):
             10
         )
         
-        # Initialize OAK-D pipeline
-        try:
-            self.setup_oakd_pipeline()
-        except Exception as e:
-            self.get_logger().error(f"Failed to setup OAK-D pipeline: {e}")
-            if hasattr(self, 'pipeline') and self.pipeline is not None:
-                try:
-                    self.pipeline.stop()
-                except:
-                    pass
-            raise
-        
-        # Timer for processing frames
+        # Timer for processing frames (only when new image arrives)
         self.timer = self.create_timer(0.03, self.process_frame)  # ~30 FPS
         
         self.get_logger().info("Node initialization complete.")
@@ -160,55 +159,34 @@ class YOLO26OakdDetectorNode(Node):
             self.camera_info = msg
             self.get_logger().info("Camera info received for OAK-D")
 
-    def depth_callback(self, msg: CompressedImage):
+    def depth_callback(self, msg: Image):
         try:
-            depth_img = self.bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='passthrough')
+            depth_img = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
             self.latest_depth = depth_img
             self.latest_depth_stamp = msg.header.stamp
             self.latest_depth_frame = msg.header.frame_id
         except Exception as e:
-            self.get_logger().error(f"Failed to decode compressed depth: {e}", throttle_duration_sec=1.0)
+            self.get_logger().error(f"Failed to decode depth image: {e}", throttle_duration_sec=1.0)
     
-    def setup_oakd_pipeline(self):
-        """Set up the OAK-D camera pipeline."""
-        self.get_logger().info("Setting up OAK-D pipeline...")
-        
-        pipeline = dai.Pipeline()
-        
-        # Create RGB color camera for both detection and capture
-        cam_rgb = pipeline.create(dai.node.ColorCamera)
-        cam_rgb.setBoardSocket(dai.CameraBoardSocket.CAM_A)
-        cam_rgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
-        cam_rgb.setPreviewSize(self.image_size, self.image_size)
-        cam_rgb.setInterleaved(False)
-        cam_rgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
-        
-        # Create output queues BEFORE starting pipeline (depthai 3.x requirement)
-        # Use preview for detection and video for high-res captures
-        self.q_rgb = cam_rgb.preview.createOutputQueue(maxSize=4, blocking=False)
-        self.q_video = cam_rgb.video.createOutputQueue(maxSize=4, blocking=False)
-        self.get_logger().info("Output queues created")
-        
-        # Start the pipeline (internally creates and manages device connection)
-        pipeline.start()
-        self.get_logger().info("OAK-D pipeline started successfully")
-        
-        # Store pipeline reference to keep it alive
-        self.pipeline = pipeline
+    def image_callback(self, msg: Image):
+        try:
+            image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+            self.latest_image = image
+            self.latest_image_stamp = msg.header.stamp
+        except Exception as e:
+            self.get_logger().error(f"Failed to decode RGB image: {e}", throttle_duration_sec=1.0)
     
     def process_frame(self):
-        """Process frames from OAK-D and run YOLO26 detection."""
-        try:
-            # Get RGB frame
-            in_rgb = self.q_rgb.tryGet()
-            if in_rgb is None:
-                return
+        """Process frames from subscribed image topic and run YOLO26 detection."""
+        if self.latest_image is None:
+            return
             
-            frame = in_rgb.getCvFrame()
+        try:
+            frame = self.latest_image
             
             # Publish raw image
             raw_msg = self.bridge.cv2_to_imgmsg(frame, 'bgr8')
-            raw_msg.header.stamp = self.get_clock().now().to_msg()
+            raw_msg.header.stamp = self.latest_image_stamp if self.latest_image_stamp else self.get_clock().now().to_msg()
             raw_msg.header.frame_id = "oak_rgb_camera_optical_frame"
             self.raw_image_pub.publish(raw_msg)
             
@@ -324,24 +302,20 @@ class YOLO26OakdDetectorNode(Node):
         """Handle image capture requests."""
         if msg.data:
             try:
-                # Get high-res frame from video queue
-                if self.q_video is not None:
-                    frame = self.q_video.get()
-                    if frame is not None:
-                        img = frame.getCvFrame()
-                        
-                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        filename = f"oakd_capture_{timestamp}.jpg"
-                        filepath = self.trained_images_dir / filename
-                        
-                        # Save the RGB video image
-                        cv2.imwrite(str(filepath), img)
-                        
-                        self.get_logger().info(f"Captured image saved: {filepath}")
-                    else:
-                        self.get_logger().warn("Capture requested but no frame available.")
+                # Use the latest image from subscription
+                if self.latest_image is not None:
+                    img = self.latest_image
+                    
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    filename = f"oakd_capture_{timestamp}.jpg"
+                    filepath = self.trained_images_dir / filename
+                    
+                    # Save the RGB image
+                    cv2.imwrite(str(filepath), img)
+                    
+                    self.get_logger().info(f"Captured image saved: {filepath}")
                 else:
-                    self.get_logger().warn("Video queue not available for capture.")
+                    self.get_logger().warn("Capture requested but no image available.")
             except Exception as e:
                 self.get_logger().error(f"Failed to save captured image: {e}")
 

@@ -32,6 +32,8 @@ def generate_launch_description():
             'confidence_threshold': '0.5',
             'image_size': '640',
             'trained_images_dir': '/home/ros/sigyn_ws/src/Sigyn/trained_images',
+            'depth_topic': '/oakd_top/oak/stereo/image_raw',
+            'image_topic': '/oakd_top/oak/rgb/image_raw',
         }.items()
     )
     
