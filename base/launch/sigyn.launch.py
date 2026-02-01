@@ -454,6 +454,16 @@ def generate_launch_description():
         )
     )
     
+    # Launch OAK-D camera driver (provides depth stream)
+    oakd_camera = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+          [base_pgk, "/launch/sub_launch/oakd_stereo.launch.py"]
+        ),
+        condition=IfCondition(AndSubstitution(NotSubstitution(use_sim_time), do_oakd)),
+    )
+    ld.add_action(oakd_camera)
+    
+    # Launch YOLO26 detector (subscribes to OAK-D streams)
     oakd_elevator_top = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
           [base_pgk, "/launch/sub_launch/oakd_yolo26_detector.launch.py"]

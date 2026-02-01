@@ -41,6 +41,18 @@ def generate_launch_description():
         description='Directory to save captured images'
     )
     
+    depth_topic_arg = DeclareLaunchArgument(
+        'depth_topic',
+        default_value='/oakd_top/oak/stereo/image_raw',
+        description='Depth image topic from depthai_ros_driver'
+    )
+    
+    image_topic_arg = DeclareLaunchArgument(
+        'image_topic',
+        default_value='/oakd_top/oak/rgb/image_raw',
+        description='RGB image topic from depthai_ros_driver'
+    )
+    
     # Create the node
     yolo26_oakd_node = Node(
         package='oakd_detector',
@@ -53,6 +65,8 @@ def generate_launch_description():
             'confidence_threshold': LaunchConfiguration('confidence_threshold'),
             'image_size': LaunchConfiguration('image_size'),
             'trained_images_dir': LaunchConfiguration('trained_images_dir'),
+            'depth_topic': LaunchConfiguration('depth_topic'),
+            'image_topic': LaunchConfiguration('image_topic'),
         }]
     )
     
@@ -62,5 +76,7 @@ def generate_launch_description():
         confidence_threshold_arg,
         image_size_arg,
         trained_images_dir_arg,
+        depth_topic_arg,
+        image_topic_arg,
         yolo26_oakd_node
     ])
