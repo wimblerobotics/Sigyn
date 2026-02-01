@@ -1,0 +1,61 @@
+<root main_tree_to_execute="MainTree">
+    <BehaviorTree ID="MainTree">
+        <Sequence>
+            <Action ID="SaySomething" message="Starting Step3: VisuallyAcquireCan" />
+            <Action ID="SetBlackboard" output_key="objectOfInterest" value="CokeZeroCan" />
+            <Action ID="SetBlackboard" output_key="needToVisuallyAcquire" value="true" />
+            <Action ID="SetBlackboard" output_key="within_distance" value="0.55" />
+            <SubTree ID="VisuallyAcquireCan" __shared_blackboard="true"
+                objectOfInterest="{objectOfInterest}" />
+            <Action ID="SaySomething" message="Step3 complete" />
+        </Sequence>
+    </BehaviorTree>
+
+    <BehaviorTree ID="ApproachCanWithOAKD">
+        <ReactiveFallback name="GetWithinReach">
+            <Condition ID="CanWithinReach" objectOfInterest="{objectOfInterest}" within_distance="{within_distance}" />
+            <ReactiveFallback>
+                <Action ID="MoveTowardsCan" objectOfInterest="{objectOfInterest}" />
+                <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="1000">
+                    <Sequence>
+                        <Action ID="ComputeApproachGoalToCan" goal="{canApproachGoal}"
+                            objectOfInterest="{objectOfInterest}" />
+                        <Action ID="NavigateToPoseAction" error_code_id="{nav_error_code}"
+                            goal="{canApproachGoal}" />
+                    </Sequence>
+                </Decorator>
+            </ReactiveFallback>
+        </ReactiveFallback>
+    </BehaviorTree>
+
+    <BehaviorTree ID="SearchForCanWithOAKD">
+        <Sequence>
+            <Action ID="WaitForDetection" />
+            <ReactiveFallback name="FindCanVisually">
+                <Condition ID="CanDetectedByOAKD" objectOfInterest="{objectOfInterest}" />
+                <ForceFailure>
+                    <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="12">
+                        <Sequence>
+                            <Action ID="RotateRobot" degrees="30" />
+                            <Action ID="WaitForNewOAKDFrame" />
+                            <AlwaysFailure />
+                        </Sequence>
+                    </Decorator>
+                </ForceFailure>
+            </ReactiveFallback>
+        </Sequence>
+    </BehaviorTree>
+
+    <BehaviorTree ID="VisuallyAcquireCan">
+        <ReactiveFallback>
+            <Condition ID="CheckBoolFlag" expected="false" flag="{needToVisuallyAcquire}" />
+            <Sequence>
+                <SubTree ID="SearchForCanWithOAKD" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" />
+                <SubTree ID="ApproachCanWithOAKD" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" />
+                <SetBlackboard output_key="needToVisuallyAcquire" value="false" />
+            </Sequence>
+        </ReactiveFallback>
+    </BehaviorTree>
+</root>

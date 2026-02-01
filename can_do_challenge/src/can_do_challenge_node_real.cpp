@@ -82,6 +82,23 @@ public:
     factory.registerNodeType<CanIsGrasped>("CanIsGrasped");
     factory.registerNodeType<WaitForNewPiFrameProcessed>("WaitForNewPiFrameProcessed");
     factory.registerNodeType<ElevatorAtHeight>("ElevatorAtHeight");
+
+    {
+      const auto& manifests = factory.manifests();
+      auto it = manifests.find("CanWithinReach");
+      if (it != manifests.end()) {
+        std::string ports;
+        for (const auto& entry : it->second.ports) {
+          if (!ports.empty()) {
+            ports += ", ";
+          }
+          ports += entry.first;
+        }
+        RCLCPP_INFO(this->get_logger(), "CanWithinReach ports: [%s]", ports.c_str());
+      } else {
+        RCLCPP_WARN(this->get_logger(), "CanWithinReach manifest not found in factory");
+      }
+    }
     
     // Navigation Actions
     factory.registerNodeType<ComputePathToCanLocation>("ComputePathToCanLocation");

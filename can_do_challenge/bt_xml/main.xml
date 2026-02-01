@@ -3,7 +3,7 @@
     <!-- ////////// -->
     <BehaviorTree ID="ApproachCanWithOAKD">
         <ReactiveFallback name="GetWithinReach">
-            <Condition ID="CanWithinReach" objectOfInterest="{objectOfInterest}" />
+            <Condition ID="CanWithinReach" objectOfInterest="{objectOfInterest}" within_distance="{within_distance}" />
             <ReactiveFallback>
                 <Action ID="MoveTowardsCan" objectOfInterest="{objectOfInterest}" />
                 <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="1000">
@@ -174,18 +174,21 @@
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="SearchForCanWithOAKD">
-        <ReactiveFallback name="FindCanVisually">
-            <Condition ID="CanDetectedByOAKD" objectOfInterest="{objectOfInterest}" />
-            <ForceFailure>
-                <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="12">
-                    <Sequence>
-                        <Action ID="RotateRobot" degrees="30" />
-                        <Action ID="WaitForNewOAKDFrame" />
-                        <AlwaysFailure />
-                    </Sequence>
-                </Decorator>
-            </ForceFailure>
-        </ReactiveFallback>
+        <Sequence>
+            <Action ID="WaitForDetection" />
+            <ReactiveFallback name="FindCanVisually">
+                <Condition ID="CanDetectedByOAKD" objectOfInterest="{objectOfInterest}" />
+                <ForceFailure>
+                    <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="12">
+                        <Sequence>
+                            <Action ID="RotateRobot" degrees="30" />
+                            <Action ID="WaitForNewOAKDFrame" />
+                            <AlwaysFailure />
+                        </Sequence>
+                    </Decorator>
+                </ForceFailure>
+            </ReactiveFallback>
+        </Sequence>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="SetupCanChallenge">
@@ -194,6 +197,7 @@
             <SetBlackboard output_key="needToNavigate" value="true" />
             <SetBlackboard output_key="needToVisuallyAcquire" value="true" />
             <SetBlackboard output_key="needToGrasp" value="true" />
+            <SetBlackboard output_key="within_distance" value="0.55" />
             <Action ID="LoadCanLocation" canName="{objectOfInterest}"
                 location="{expectedCanLocation}" />
             <Action ID="RetractGripper" />
@@ -243,6 +247,7 @@
         </Condition>
         <Condition ID="CanWithinReach">
             <input_port default="{objectOfInterest}" name="objectOfInterest" />
+            <input_port default="0.55" name="within_distance">Distance threshold (m) to consider the can within reach</input_port>
         </Condition>
         <SubTree ID="CenterCanInPiCamera">
             <input_port default="true" name="__shared_blackboard" />

@@ -77,6 +77,10 @@ struct ObjectDetectionState {
   bool oakd_can_detected = false;
   rclcpp::Time oakd_last_detection_time;
   
+  // OAK-D heartbeat tracking
+  bool oakd_alive = false;
+  rclcpp::Time oakd_last_heartbeat_time;
+  
   // Pi camera (gripper) detection
   geometry_msgs::msg::Point pi_detection_position;
   std::string pi_detection_frame = "map";
@@ -155,6 +159,7 @@ static bool piDetectionInRange(const geometry_msgs::msg::Point& point)
 
 // Store subscriptions so they don't get destroyed
 static rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr g_oakd_sub;
+static rclcpp::Subscription<std_msgs::msg::Header>::SharedPtr g_oakd_processed_sub;
 static rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr g_pi_sub;
 static rclcpp::Subscription<std_msgs::msg::Header>::SharedPtr g_pi_processed_sub;
 static std::shared_ptr<tf2_ros::Buffer> g_tf_buffer;
@@ -291,6 +296,22 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
       }
     });
   RCLCPP_INFO(node->get_logger(), "Subscribed to /oakd_top/can_detection (best_effort)");
+  
+  // Subscribe to OAK-D processed-frame heartbeat
+  g_oakd_processed_sub = node->create_subscription<std_msgs::msg::Header>(
+    "/oakd_top/can_detection/processed", oakd_qos,
+    [node](const std_msgs::msg::Header::SharedPtr msg) {
+      {
+        std::lock_guard<std::mutex> lock(g_detection_mutex);
+        g_detection_state.oakd_last_heartbeat_time = node->now();
+        g_detection_state.oakd_alive = true;
+      }
+      // Logging reduced to reduce noise
+      // RCLCPP_INFO(node->get_logger(), "[OAKDDetection] Processed heartbeat frame=%s stamp=%.3f",
+      //             msg->frame_id.c_str(), rclcpp::Time(msg->stamp).seconds());
+      (void)node;
+    });
+  RCLCPP_INFO(node->get_logger(), "Subscribed to /oakd_top/can_detection/processed (best_effort)");
   
   // Subscribe to Pi camera detection
   rclcpp::QoS pi_qos(10);
@@ -629,6 +650,8 @@ BT::NodeStatus CanWithinReach::tick()
 {
   std::string object_name;
   getInput("objectOfInterest", object_name);
+  double within_distance = kDefaultWithinReachDistance;
+  getInput("within_distance", within_distance);
   
   initializeObjectDetection(node_);
   
@@ -681,14 +704,14 @@ BT::NodeStatus CanWithinReach::tick()
                   " dist=" + std::to_string(distance) +
                   " age=" + std::to_string(age_sec));
 
-      if (dx > 0.0 && distance < ObjectDetectionState::WITHIN_REACH_DISTANCE) {
+      if (dx > 0.0 && distance < within_distance) {
         RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] Can '%s' within reach at %.2fm (age=%.2fs)",
                     object_name.c_str(), distance, age_sec);
         return BT::NodeStatus::SUCCESS;
       }
 
       RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] base dx=%.2f dy=%.2f dist=%.2f (need %.2f)",
-          dx, dy, distance, ObjectDetectionState::WITHIN_REACH_DISTANCE);
+          dx, dy, distance, within_distance);
       return BT::NodeStatus::FAILURE;
     } catch (const tf2::TransformException& ex) {
       RCLCPP_WARN(node_->get_logger(), "[CanWithinReach] TF base_link<-det_raw failed: %s", ex.what());
@@ -716,7 +739,7 @@ BT::NodeStatus CanWithinReach::tick()
     publishDebugStatus(node_, "CanWithinReach: odom dist=" + std::to_string(distance) +
                   " age=" + std::to_string(age_sec));
 
-    if (distance < ObjectDetectionState::WITHIN_REACH_DISTANCE) {
+    if (distance < within_distance) {
       RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] (odom) Can '%s' within reach at %.2fm", 
                   object_name.c_str(), distance);
       return BT::NodeStatus::SUCCESS;
@@ -1977,8 +2000,10 @@ BT::NodeStatus CloseGripperAroundCan::tick()
   // Finger Origin is at approx 0.047m from center.
   // We want finger surface at (diameter/2).
   // Target Joint = (diameter/2) - 0.047.
+  // Add small squeeze offset (3mm) to ensure firm grip
   double gripper_half_width_approx = 0.047;
-  double target_pos_left = 0.010 - gripper_half_width_approx;
+  double squeeze_offset = 0.003;  // 3mm tighter for firm grip
+  double target_pos_left = (can_diameter / 2.0) - gripper_half_width_approx - squeeze_offset;
   
   // Clamp to limits just in case
   if (target_pos_left < -0.044) {
@@ -2360,24 +2385,41 @@ BT::NodeStatus SoftwareEStop::tick()
 BT::NodeStatus WaitForDetection::onStart()
 {
   start_time_ = node_->now();
-  RCLCPP_DEBUG(node_->get_logger(), "[WaitForDetection] Waiting for detection...");
+  RCLCPP_INFO(node_->get_logger(), "[WaitForDetection] Waiting for camera system to come online (heartbeat)...");
   return BT::NodeStatus::RUNNING;
 }
 
 BT::NodeStatus WaitForDetection::onRunning()
 {
-  // Keep the tree alive while we wait for the camera condition to become true.
-  // Sleep a little to avoid busy-spinning if the BT is ticked fast.
+  initializeObjectDetection(node_);
+  
+  bool alive = false;
+  double age = 999.0;
+  
+  {
+      std::lock_guard<std::mutex> lock(g_detection_mutex);
+      alive = g_detection_state.oakd_alive;
+      if (alive) {
+          age = (node_->now() - g_detection_state.oakd_last_heartbeat_time).seconds();
+      }
+  }
+
+  if (alive && age < 1.0) {
+      RCLCPP_INFO(node_->get_logger(), "[WaitForDetection] OAK-D system is online (heartbeat age=%.3fs)", age);
+      return BT::NodeStatus::SUCCESS;
+  }
+
+  // Keep the tree alive while we wait
   std::this_thread::sleep_for(100ms);
 
-  // Optional safety timeout: if nothing arrives for a long time, fail so higher-level
-  // logic can decide what to do. (But do not fail quickly and abort the whole mission.)
-  constexpr double kTimeoutSec = 15.0;
   const double elapsed = (node_->now() - start_time_).seconds();
-  if (elapsed > kTimeoutSec) {
-    RCLCPP_ERROR(node_->get_logger(), "[WaitForDetection] Timed out after %.1fs", elapsed);
+  if (elapsed > 15.0) {
+    RCLCPP_ERROR(node_->get_logger(), "[WaitForDetection] Timed out waiting for OAK-D heartbeat (%.1fs)", elapsed);
     return BT::NodeStatus::FAILURE;
   }
+
+  RCLCPP_INFO_THROTTLE(node_->get_logger(), *node_->get_clock(), 1000, 
+      "[WaitForDetection] Still waiting for OAK-D... (elapsed=%.1fs)", elapsed);
 
   return BT::NodeStatus::RUNNING;
 }

@@ -5,11 +5,11 @@
   <xacro:macro name="oakd_sim_camera" params="parent_link">
     <joint name="oakd_sim_joint" type="fixed">
       <parent link="${parent_link}"/>
-      <child link="oakd_sim_link"/>
+      <child link="oak-d-base-frame"/>
       <origin xyz="-0.12 -0.02 1.47" rpy="0 ${(pi / 4)+13*(2.0*pi/360.0)} ${-0*(2.0*pi/360.0)}"/>
     </joint>
 
-    <link name="oakd_sim_link">
+    <link name="oak-d-base-frame">
       <visual>
         <geometry>
           <box size="0.09 0.03 0.025"/>
@@ -20,15 +20,28 @@
       </visual>
     </link>
 
-    <joint name="oakd_sim_optical_joint" type="fixed">
-      <parent link="oakd_sim_link"/>
-      <child link="oakd_sim_optical"/>
+    <link name="oak" />
+    <joint name="oak_sim_center_joint" type="fixed">
+      <parent link="oak-d-base-frame"/>
+      <child link="oak"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
+    <link name="oak_rgb_camera_frame" />
+    <joint name="oak_rgb_camera_joint" type="fixed">
+      <parent link="oak"/>
+      <child link="oak_rgb_camera_frame"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
+    <link name="oak_rgb_camera_optical_frame" />
+    <joint name="oak_rgb_camera_optical_joint" type="fixed">
+      <parent link="oak_rgb_camera_frame"/>
+      <child link="oak_rgb_camera_optical_frame"/>
       <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
     </joint>
 
-    <link name="oakd_sim_optical"/>
-
-    <gazebo reference="oakd_sim_link">
+    <gazebo reference="oak_rgb_camera_frame">
       <sensor name="oakd_camera" type="camera">
         <pose>0 0 0 0 0 0</pose>
         <visualize>true</visualize>
@@ -46,7 +59,7 @@
           </clip>
         </camera>
         <topic>/oakd_top/color/image</topic>
-        <gz_frame_id>oakd_sim_optical</gz_frame_id>
+        <gz_frame_id>oak_rgb_camera_optical_frame</gz_frame_id>
       </sensor>
     </gazebo>
   </xacro:macro>

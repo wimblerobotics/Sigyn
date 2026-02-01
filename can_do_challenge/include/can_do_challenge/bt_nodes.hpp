@@ -33,6 +33,8 @@
 namespace can_do_challenge
 {
 
+static constexpr double kDefaultWithinReachDistance = 0.55;
+
 /**
  * @brief Structure to hold detected object information
  */
@@ -161,7 +163,11 @@ public:
   : BT::ConditionNode(name, config) {}
   
   static BT::PortsList providedPorts() {
-    return { BT::InputPort<std::string>("objectOfInterest") };
+    return {
+      BT::InputPort<std::string>("objectOfInterest"),
+      BT::InputPort<double>("within_distance", kDefaultWithinReachDistance,
+                            "Distance threshold (m) to consider the can within reach")
+    };
   }
   BT::NodeStatus tick() override;
 };

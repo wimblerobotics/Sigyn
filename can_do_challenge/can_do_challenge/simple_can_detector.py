@@ -245,10 +245,15 @@ class SimpleCanDetector(Node):
                     
                     # Convert pixel coordinates to 3D point in camera frame
                     # Using pinhole camera model
-                    fx = self.camera_info.k[0]
-                    fy = self.camera_info.k[4]
-                    cx_cam = self.camera_info.k[2]
-                    cy_cam = self.camera_info.k[5]
+                    info_width = float(self.camera_info.width) if self.camera_info.width > 0 else float(msg.width)
+                    info_height = float(self.camera_info.height) if self.camera_info.height > 0 else float(msg.height)
+                    scale_x = float(msg.width) / info_width if info_width > 0 else 1.0
+                    scale_y = float(msg.height) / info_height if info_height > 0 else 1.0
+
+                    fx = self.camera_info.k[0] * scale_x
+                    fy = self.camera_info.k[4] * scale_y
+                    cx_cam = self.camera_info.k[2] * scale_x
+                    cy_cam = self.camera_info.k[5] * scale_y
                     
                     # 3D point in camera frame (Optical conventions: X Right, Y Down, Z Forward)
                     x_3d = (cx - cx_cam) * distance / fx

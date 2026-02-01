@@ -2,8 +2,8 @@
 // Copyright 2026 Wimblerobotics
 // https://github.com/wimblerobotics/Sigyn
 
-#ifndef CAN_DO_CHALLENGE__BT_NODES_HPP_
-#define CAN_DO_CHALLENGE__BT_NODES_HPP_
+#ifndef CAN_DO_CHALLENGE__BT_NODES_REAL_HPP_
+#define CAN_DO_CHALLENGE__BT_NODES_REAL_HPP_
 
 #include "behaviortree_cpp_v3/behavior_tree.h"
 #include "behaviortree_cpp_v3/bt_factory.h"
@@ -32,6 +32,8 @@
 
 namespace can_do_challenge
 {
+
+static constexpr double kDefaultWithinReachDistance = 0.55;
 
 /**
  * @brief Structure to hold detected object information
@@ -161,7 +163,11 @@ public:
   : BT::ConditionNode(name, config) {}
   
   static BT::PortsList providedPorts() {
-    return { BT::InputPort<std::string>("objectOfInterest") };
+    return {
+      BT::InputPort<std::string>("objectOfInterest"),
+      BT::InputPort<double>("within_distance", kDefaultWithinReachDistance,
+                            "Distance threshold (m) to consider the can within reach")
+    };
   }
   BT::NodeStatus tick() override;
 };
@@ -714,4 +720,4 @@ public:
 
 }  // namespace can_do_challenge
 
-#endif  // CAN_DO_CHALLENGE__BT_NODES_HPP_
+#endif  // CAN_DO_CHALLENGE__BT_NODES_REAL_HPP_
