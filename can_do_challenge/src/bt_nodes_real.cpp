@@ -9,6 +9,7 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "vision_msgs/msg/detection2_d_array.hpp"
+#include "gripper_camera_detector/msg/detection_array.hpp"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
 #include "tf2/LinearMath/Quaternion.h"
@@ -119,21 +120,15 @@ static bool getFreshPiDetection(const std::shared_ptr<rclcpp::Node>& node,
 {
   static int missing_count = 0;
   static int stale_count = 0;
-  std::unique_lock<std::mutex> lock(g_detection_mutex);
-  const auto last_seen = g_detection_state.pi_last_detection_time;
-
-  g_pi_detection_cv.wait_for(
-    lock,
-    std::chrono::milliseconds(ObjectDetectionState::PI_WAIT_TIMEOUT_MS),
-    [&]() {
-      return g_detection_state.pi_can_detected &&
-             g_detection_state.pi_last_detection_time.nanoseconds() != last_seen.nanoseconds();
-    });
+  
+  // Non-blocking check for detection
+  std::lock_guard<std::mutex> lock(g_detection_mutex);
 
   if (!g_detection_state.pi_can_detected) {
     out_age_sec = 999.0;
     missing_count++;
-    if (missing_count % 10 == 0) {
+    // Log less frequently to avoid flooding
+    if (missing_count % 50 == 0) {
       RCLCPP_INFO(node->get_logger(),
                   "[PiDetection] No detection available yet (count=%d)",
                   missing_count);
@@ -144,7 +139,7 @@ static bool getFreshPiDetection(const std::shared_ptr<rclcpp::Node>& node,
   out_age_sec = (node->now() - g_detection_state.pi_last_detection_time).seconds();
   if (out_age_sec >= ObjectDetectionState::PI_DETECTION_TIMEOUT_SEC) {
     stale_count++;
-    if (stale_count % 10 == 0) {
+    if (stale_count % 50 == 0) {
       RCLCPP_INFO(node->get_logger(),
                   "[PiDetection] Detection stale age=%.2fs (count=%d)",
                   out_age_sec, stale_count);
@@ -158,6 +153,9 @@ static bool getFreshPiDetection(const std::shared_ptr<rclcpp::Node>& node,
 
 static bool piDetectionInRange(const geometry_msgs::msg::Point& point)
 {
+  // Accept 0.30 as the default "unknown depth" from 2D-only detections
+  // Or check if in valid depth range for 3D detections  
+  if (std::abs(point.z - 0.30) < 0.01) return true;  // Default gripper camera distance
   return point.z >= ObjectDetectionState::PI_MIN_DISTANCE_M &&
          point.z <= ObjectDetectionState::PI_MAX_DISTANCE_M;
 }
@@ -166,7 +164,7 @@ static bool piDetectionInRange(const geometry_msgs::msg::Point& point)
 static rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr g_oakd_sub;
 static rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr g_oakd_point_real_sub;
 static rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr g_oakd_real_sub;
-static rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr g_pi_sub;
+static rclcpp::Subscription<gripper_camera_detector::msg::DetectionArray>::SharedPtr g_pi_sub;
 static rclcpp::Subscription<std_msgs::msg::Header>::SharedPtr g_pi_processed_sub;
 static std::shared_ptr<tf2_ros::Buffer> g_tf_buffer;
 static std::shared_ptr<tf2_ros::TransformListener> g_tf_listener;
@@ -295,15 +293,15 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
             g_detection_state.oakd_can_detected = true;
             
             // Log for Step 1
-            if (!det.results.empty()) {
-               float conf = det.results[0].hypothesis.score;
-               std::string cls = det.results[0].hypothesis.class_id;
-               float cx = det.bbox.center.position.x;
-               float cy = det.bbox.center.position.y;
-               RCLCPP_INFO(node->get_logger(), 
-                   "[OAKD-Real] Class: %s, Conf: %.2f, Box: [x=%.1f, y=%.1f]", 
-                   cls.c_str(), conf, cx, cy);
-            }
+            // if (!det.results.empty()) {
+            //    float conf = det.results[0].hypothesis.score;
+            //    std::string cls = det.results[0].hypothesis.class_id;
+            //    float cx = det.bbox.center.position.x;
+            //    float cy = det.bbox.center.position.y;
+            //    RCLCPP_INFO(node->get_logger(), 
+            //        "[OAKD-Real] Class: %s, Conf: %.2f, Box: [x=%.1f, y=%.1f]", 
+            //        cls.c_str(), conf, cx, cy);
+            // }
         }
     });
 
@@ -375,45 +373,45 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
     });
   RCLCPP_INFO(node->get_logger(), "Subscribed to /oakd/can_detection (best_effort)");
   
-  // Subscribe to Pi camera detection
+  // Subscribe to Pi camera detection (gripper_camera_detector package)
   rclcpp::QoS pi_qos(10);
   pi_qos.best_effort();
 
-  g_pi_sub = node->create_subscription<geometry_msgs::msg::PointStamped>(
-    "/gripper/can_detection", pi_qos,
-    [node](const geometry_msgs::msg::PointStamped::SharedPtr msg) {
-      {
-        std::lock_guard<std::mutex> lock(g_detection_mutex);
-        g_detection_state.pi_detection_position = msg->point;
-        g_detection_state.pi_detection_frame = msg->header.frame_id;
-        g_detection_state.pi_detection_stamp = rclcpp::Time(msg->header.stamp);
-        g_detection_state.pi_can_detected = true;
-        g_detection_state.pi_last_detection_time = node->now();
-      }
-      g_pi_detection_cv.notify_all();
-      // Logging reduced to reduce noise
-      // RCLCPP_INFO(node->get_logger(), "[PiDetection] Received detection frame=%s stamp=%.3f x=%.3f y=%.3f z=%.3f",
-      //             msg->header.frame_id.c_str(),
-      //             rclcpp::Time(msg->header.stamp).seconds(),
-      //             msg->point.x, msg->point.y, msg->point.z);
-    });
-  RCLCPP_INFO(node->get_logger(), "Subscribed to /gripper/can_detection (best_effort)");
-
-  // Subscribe to Pi detector processed-frame heartbeat
-  g_pi_processed_sub = node->create_subscription<std_msgs::msg::Header>(
-    "/gripper/can_detection/processed", pi_qos,
-    [node](const std_msgs::msg::Header::SharedPtr msg) {
+  g_pi_sub = node->create_subscription<gripper_camera_detector::msg::DetectionArray>(
+    "/gripper/camera/detections", pi_qos,
+    [node](const gripper_camera_detector::msg::DetectionArray::SharedPtr msg) {
+      // Update frame timestamp for WaitForNewPiFrameProcessed
       {
         std::lock_guard<std::mutex> lock(g_pi_frame_mutex);
-        g_pi_last_frame_time = rclcpp::Time(msg->stamp);
+        g_pi_last_frame_time = rclcpp::Time(msg->header.stamp);
       }
       g_pi_frame_cv.notify_all();
-      // Logging reduced to reduce noise
-      // RCLCPP_INFO(node->get_logger(), "[PiDetection] Processed heartbeat frame=%s stamp=%.3f",
-      //             msg->frame_id.c_str(), rclcpp::Time(msg->stamp).seconds());
-      (void)node;
+      
+      // Process first detection if available
+      if (!msg->detections.empty()) {
+        const auto& det = msg->detections[0];
+        
+        // Store detection position
+        geometry_msgs::msg::Point pos;
+        pos.x = det.center.x;
+        pos.y = det.center.y;
+        pos.z = det.center.z;
+        
+        {
+          std::lock_guard<std::mutex> lock(g_detection_mutex);
+          g_detection_state.pi_detection_position = pos;
+          g_detection_state.pi_detection_frame = msg->header.frame_id;
+          g_detection_state.pi_detection_stamp = rclcpp::Time(msg->header.stamp);
+          g_detection_state.pi_can_detected = true;
+          g_detection_state.pi_last_detection_time = node->now();
+        }
+        g_pi_detection_cv.notify_all();
+        
+        RCLCPP_INFO(node->get_logger(), "[Pi-Camera] Can detected: center=(%.1f, %.1f, %.1f) conf=%.2f frame='%s'",
+                pos.x, pos.y, pos.z, det.confidence, msg->header.frame_id.c_str());
+      }
     });
-  RCLCPP_INFO(node->get_logger(), "Subscribed to /gripper/can_detection/processed (best_effort)");
+  RCLCPP_INFO(node->get_logger(), "Subscribed to /gripper/camera/detections (best_effort, gripper_camera_detector::msg::DetectionArray)");
   
   initialized = true;
 }

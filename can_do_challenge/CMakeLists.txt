@@ -14,6 +14,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
+find_package(gripper_camera_detector REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(sigyn_interfaces REQUIRED)
 find_package(behaviortree_cpp_v3 REQUIRED)
@@ -57,6 +58,7 @@ ament_target_dependencies(can_do_challenge_node_real
   sensor_msgs
   std_msgs
   vision_msgs
+  gripper_camera_detector
   trajectory_msgs
   sigyn_interfaces
   behaviortree_cpp_v3
