@@ -116,7 +116,7 @@
         <Sequence>
             <RetryUntilSuccessful num_attempts="45">
                 <ReactiveFallback>
-                    <Condition ID="ElevatorAtHeight" targetHeight="" />
+                    <Condition ID="ElevatorAtHeight" targetHeightPixels="342.0" z_tolerance_pixels="10.0" />
                     <Sequence>
                         <Action ID="StepElevatorUp" stepMeters="0.02" />
                         <ForceFailure>
@@ -281,7 +281,8 @@
             <input_port name="planner_id">Planner to use</input_port>
         </Action>
         <Condition ID="ElevatorAtHeight">
-            <input_port name="targetHeight">Target height to check</input_port>
+            <input_port name="targetHeightPixels">Target Y pixel height (2D logic)</input_port>
+            <input_port name="z_tolerance_pixels">Tolerance in pixels</input_port>
         </Condition>
         <SubTree ID="EnsureBatteryIsNotCritical" />
         <SubTree ID="ExecuteGrasp">
