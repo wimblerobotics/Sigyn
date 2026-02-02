@@ -26,7 +26,7 @@ def generate_launch_description():
             "enable_groot_monitoring": True,
             "groot_port": 1667,
             # Point to the Step 4 BT XML
-            "bt_xml_filename": os.path.join(can_do_pkg, "bt_xml", "step4_elevator_height.xml") 
+            "bt_xml_filename": os.path.join(can_do_pkg, "bt_xml", "step4_can_detection.xml") 
         }],
     )
     
