@@ -25,6 +25,7 @@ rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmdvel_publisher;
 rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr gripper_publisher;
 rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr twister_publisher;
 rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr take_oakd_picture_publisher;
+rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr take_gripper_picture_publisher;
 std::shared_ptr<rclcpp::TimerBase> publish_timer;
 std::shared_ptr<rclcpp::TimerBase> cmdvel_publish_timer;
 std::shared_ptr<rclcpp::TimerBase> gripper_publish_timer;
@@ -111,6 +112,7 @@ size_t GetAxisState(struct js_event* event, struct AxisState axes[3]) {
 bluetooth_joystick::msg::BluetoothJoystick message;
 bool some_button_changed_state = false;
 std::mutex some_button_changed_state_guard;
+int8_t deadman_button = 0;  // Button 6 (L button) for deadman switch
 
 // Helper to check if a joystick is at zero
 inline bool IsStickZero(int16_t lr, int16_t ud) {
@@ -119,8 +121,8 @@ inline bool IsStickZero(int16_t lr, int16_t ud) {
 
 void PublishCmdvelTimerCallback() {
   static bool was_active = false;
-  // L2 trigger is axis2_ud - goes to +32767 when pressed
-  if (message.axis2_ud > 16000) {  // Threshold for L2 being pressed
+  // Button 6 (L button) is the deadman switch
+  if (deadman_button == 1) {  // Deadman button pressed
     geometry_msgs::msg::Twist twist;
     twist.linear.x = (double)message.axis0_ud / axis_range_normalizer;
     twist.angular.z = (double)message.axis0_lr / axis_range_normalizer;
@@ -145,12 +147,27 @@ void PublishCmdvelTimerCallback() {
 }
 
 void PublishGripperTimerCallback() {
-  // L2 trigger is axis2_ud - goes to +32767 when pressed
-  if (message.axis2_ud > 16000) {  // Threshold for L2 being pressed
+  static bool was_active = false;
+  // Button 6 (L button) is the deadman switch
+  if (deadman_button == 1) {  // Deadman button pressed
     geometry_msgs::msg::Twist twist;
     twist.linear.x = (double)message.axis1_ud / axis_range_normalizer;
     twist.angular.z = (double)message.axis1_lr / axis_range_normalizer;
+    if (abs(twist.linear.x) < dead_zone) twist.linear.x = 0.0;
+    if (abs(twist.angular.z) < dead_zone) twist.angular.z = 0.0;
     gripper_publisher->publish(twist);
+    RCUTILS_LOG_DEBUG("Publishing gripper: linear.x = %f, angular.z = %f",
+                      twist.linear.x, twist.angular.z);
+    was_active = true;
+  } else if (was_active) {
+    // Deadman switch released, send zero message
+    geometry_msgs::msg::Twist twist;
+    twist.linear.x = 0.0;
+    twist.angular.z = 0.0;
+    gripper_publisher->publish(twist);
+    RCUTILS_LOG_DEBUG(
+        "deadman released Publishing gripper: linear.x = 0.0, angular.z = 0.0");
+    was_active = false;
   }
 }
 
@@ -233,8 +250,14 @@ void CaptureJoystickEvent() {
             case 0:  // Physical A button -> button_a
               message.button_a = a = event.value ? 1 : 0;
               break;
-            case 1:  // Physical B button -> button_b
+            case 1:  // Physical B button -> button_b - triggers Pi camera picture capture
               message.button_b = b = event.value ? 1 : 0;
+              if (event.value == 1) {  // Button pressed (not released)
+                std_msgs::msg::Bool capture_msg;
+                capture_msg.data = true;
+                take_gripper_picture_publisher->publish(capture_msg);
+                RCUTILS_LOG_INFO("[bluetooth_joystick_node] Pi camera picture capture triggered by B button");
+              }
               break;
             case 2:  // Physical X button -> button_y
               message.button_y = y = event.value ? 1 : 0;
@@ -254,7 +277,9 @@ void CaptureJoystickEvent() {
             case 5:  // Physical R button -> button_r2
               message.button_r2 = r2 = event.value ? 1 : 0;
               break;
-            case 6:  // Back/Select button
+            case 6:  // L button - deadman switch
+              deadman_button = event.value ? 1 : 0;
+              RCUTILS_LOG_DEBUG("Deadman button (button 6): %d", deadman_button);
               break;
             case 7:  // Start button
               break;
@@ -410,6 +435,11 @@ int main(int argc, char* argv[]) {
   take_oakd_picture_publisher = node->create_publisher<std_msgs::msg::Bool>(
       "/sigyn/take_oakd_picture", qos);
   RCUTILS_LOG_INFO("[bluetooth_joystick_node] Created publisher for /sigyn/take_oakd_picture");
+
+  // Create publisher for Pi camera picture capture trigger
+  take_gripper_picture_publisher = node->create_publisher<std_msgs::msg::Bool>(
+      "/sigyn/take_gripper_picture", qos);
+  RCUTILS_LOG_INFO("[bluetooth_joystick_node] Created publisher for /sigyn/take_gripper_picture");
 
   // Start the joystick event thread
   std::thread deviceEventThread(CaptureJoystickEvent);
