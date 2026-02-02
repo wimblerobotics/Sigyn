@@ -206,7 +206,11 @@ public:
   : BT::ConditionNode(name, config) {}
   
   static BT::PortsList providedPorts() {
-    return { BT::InputPort<double>("targetHeight") };
+    return { 
+      BT::InputPort<double>("targetHeight"),
+      BT::InputPort<double>("targetHeightPixels"),
+      BT::InputPort<double>("z_tolerance_pixels")
+    };
   }
   BT::NodeStatus tick() override;
 };

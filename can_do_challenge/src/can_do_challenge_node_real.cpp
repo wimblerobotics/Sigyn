@@ -85,7 +85,7 @@ public:
 
     {
       const auto& manifests = factory.manifests();
-      auto it = manifests.find("CanWithinReach");
+      auto it = manifests.find("ElevatorAtHeight");
       if (it != manifests.end()) {
         std::string ports;
         for (const auto& entry : it->second.ports) {
@@ -94,9 +94,9 @@ public:
           }
           ports += entry.first;
         }
-        RCLCPP_INFO(this->get_logger(), "CanWithinReach ports: [%s]", ports.c_str());
+        RCLCPP_INFO(this->get_logger(), "ElevatorAtHeight ports: [%s]", ports.c_str());
       } else {
-        RCLCPP_WARN(this->get_logger(), "CanWithinReach manifest not found in factory");
+        RCLCPP_WARN(this->get_logger(), "ElevatorAtHeight manifest not found in factory");
       }
     }
     

@@ -153,6 +153,9 @@ static bool getFreshPiDetection(const std::shared_ptr<rclcpp::Node>& node,
 
 static bool piDetectionInRange(const geometry_msgs::msg::Point& point)
 {
+  // Accept 2D-only detections (Z approx 0)
+  if (std::abs(point.z) < 0.001) return true; 
+  
   // Accept 0.30 as the default "unknown depth" from 2D-only detections
   // Or check if in valid depth range for 3D detections  
   if (std::abs(point.z - 0.30) < 0.01) return true;  // Default gripper camera distance
@@ -901,96 +904,49 @@ BT::NodeStatus ElevatorAtHeight::tick()
     return BT::NodeStatus::FAILURE;
   }
 
-  if (!piDetectionInRange(det_point)) {
-    RCLCPP_INFO(node_->get_logger(),
-                "[ElevatorAtHeight] Detection out of range x=%.3f y=%.3f z=%.3f age=%.2fs (allowed z %.2f-%.2f)",
-                det_point.x, det_point.y, det_point.z, age_sec,
-                ObjectDetectionState::PI_MIN_DISTANCE_M,
-                ObjectDetectionState::PI_MAX_DISTANCE_M);
-    return BT::NodeStatus::FAILURE;
-  }
-
+  // Debug log 2D values now (before filtering)
   RCLCPP_INFO(node_->get_logger(),
-              "[ElevatorAtHeight] Pi detection raw x=%.3f y=%.3f z=%.3f age=%.2fs",
-              det_point.x, det_point.y, det_point.z, age_sec);
+           "[ElevatorAtHeight] RAW detection: x=%.3f y=%.3f age=%.2fs",
+           det_point.x, det_point.y, age_sec);
 
-  // Transform detection to base_link to get real 3D Z-height
-  if (!g_tf_buffer) {
-    RCLCPP_WARN(node_->get_logger(), "[ElevatorAtHeight] TF buffer not ready");
-    return BT::NodeStatus::FAILURE;
+  // Check if we assume 2D pixel-based check (if targetHeightPixels is provided)
+  bool use_2d_pixels = false;
+  double target_y_pixels = 342.0; // Default
+  double tol_pixels = 20.0;
+  
+  if (getInput("targetHeightPixels", target_y_pixels)) {
+      use_2d_pixels = true;
+      getInput("z_tolerance_pixels", tol_pixels);
+  } else {
+     // Fallback to param if not provided by port
+     try {
+        if (!node_->has_parameter("pi_target_y")) {
+            node_->declare_parameter<double>("pi_target_y", 342.0);
+        }
+        node_->get_parameter("pi_target_y", target_y_pixels);
+     } catch (...) {}
+     
+     try {
+          if (!node_->has_parameter("pi_target_tolerance")) {
+               node_->declare_parameter<double>("pi_target_tolerance", 20.0);
+          }
+           node_->get_parameter("pi_target_tolerance", tol_pixels);
+      } catch (...) {}
   }
 
-  try {
-    // Get can position in base_link frame
-    geometry_msgs::msg::PointStamped det_stamped;
-    std::string detection_frame;
-    rclcpp::Time detection_stamp;
-    {
-      std::lock_guard<std::mutex> lock(g_detection_mutex);
-      detection_frame = g_detection_state.pi_detection_frame;
-      detection_stamp = g_detection_state.pi_detection_stamp;
-      det_stamped.header.frame_id = detection_frame;
-      det_stamped.header.stamp = detection_stamp;
-      det_stamped.point = det_point;
-    }
+  // 2D MODE: Totally ignore Z, just check Y pixels
+  double diff = std::abs(det_point.y - target_y_pixels);
+  RCLCPP_INFO(node_->get_logger(),
+          "[ElevatorAtHeight] 2D Check: y=%.1f target=%.1f diff=%.1f tol=%.1f",
+          det_point.y, target_y_pixels, diff, tol_pixels);
 
-    RCLCPP_INFO(node_->get_logger(),
-          "[ElevatorAtHeight] Using detection frame '%s' stamp=%.3f for transform",
-          detection_frame.c_str(), detection_stamp.seconds());
-
-    if (detection_frame.empty() || detection_frame == "map") {
-      RCLCPP_INFO(node_->get_logger(),
-                  "[ElevatorAtHeight] Warning: detection frame is '%s' (expected camera optical frame)",
-                  detection_frame.c_str());
-    }
-    
-    geometry_msgs::msg::PointStamped can_in_base;
-    try {
-      can_in_base = g_tf_buffer->transform(det_stamped, "base_link", tf2::durationFromSec(0.1));
-    } catch (const tf2::TransformException& ex) {
-      RCLCPP_WARN(node_->get_logger(),
-                  "[ElevatorAtHeight] TF transform at stamp=%.3f failed: %s. Falling back to latest TF.",
-                  detection_stamp.seconds(), ex.what());
-      det_stamped.header.stamp = rclcpp::Time(0);
-      can_in_base = g_tf_buffer->transform(det_stamped, "base_link", tf2::durationFromSec(0.1));
-    }
-    RCLCPP_INFO(node_->get_logger(),
-          "[ElevatorAtHeight] Can in base_link x=%.3f y=%.3f z=%.3f",
-          can_in_base.point.x, can_in_base.point.y, can_in_base.point.z);
-    
-    // Get gripper plate position in base_link frame
-    auto gripper_tf = g_tf_buffer->lookupTransform("base_link", "parallel_gripper_base_plate", 
-                            rclcpp::Time(0), tf2::durationFromSec(0.1));
-    double gripper_z = gripper_tf.transform.translation.z;
-    double can_z = can_in_base.point.z;
-    
-    // Check if Z-heights match (tolerance of 0.015m since we step 0.02m at a time)
-    // Tighter tolerance forces the elevator to climb to the closest step.
-    const double z_error = std::abs(can_z - gripper_z);
-    // Use 0.015m tolerance (1.5cm). Since step is 2cm, this ensures we align within <1 step.
-    const bool at_height = z_error <= 0.018; 
-
-    RCLCPP_INFO(node_->get_logger(),
-          "[ElevatorAtHeight] Gripper Z=%.3f Can Z=%.3f | z_error=%.3f (tol=0.018)",
-          gripper_z, can_z, z_error);
-
-    if (at_height) {
-      RCLCPP_INFO(node_->get_logger(),
-            "[ElevatorAtHeight] Can Z-height matched! can_z=%.3fm gripper_z=%.3fm error=%.3fm (age=%.2fs)",
-            can_z, gripper_z, z_error, age_sec);
-      return BT::NodeStatus::SUCCESS;
-    }
-
-    RCLCPP_INFO(node_->get_logger(),
-                "[ElevatorAtHeight] Can Z-height mismatch: can_z=%.3fm gripper_z=%.3fm error=%.3fm",
-                can_z, gripper_z, z_error);
-    return BT::NodeStatus::FAILURE;
-    
-  } catch (const tf2::TransformException& ex) {
-    RCLCPP_WARN(node_->get_logger(), "[ElevatorAtHeight] TF transform failed: %s", ex.what());
+  if (diff <= tol_pixels) {
+    return BT::NodeStatus::SUCCESS;
+  } else {
     return BT::NodeStatus::FAILURE;
   }
 }
+// Removed lines 967-1082 (Legacy 3D logic that relied on non-zero Z)
 
 // ============================================================================
 // NAVIGATION ACTION NODES
