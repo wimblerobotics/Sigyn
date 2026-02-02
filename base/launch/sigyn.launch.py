@@ -453,7 +453,14 @@ def generate_launch_description():
             description="Launch OAK-D camera nodes if true",
         )
     )
-    
+    do_pi_cam = LaunchConfiguration("do_pi_cam")
+    ld.add_action(
+        DeclareLaunchArgument(
+            name="do_pi_cam",
+            default_value="false",
+            description="Launch Pi Camera detector node if true",
+        )
+    )    
     # Launch OAK-D camera driver (provides depth stream)
     oakd_camera = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -480,6 +487,29 @@ def generate_launch_description():
         condition=IfCondition(AndSubstitution(NotSubstitution(use_sim_time), do_oakd)),
     )
     ld.add_action(oakd_compressed)
+    
+    # Pi gripper camera detector (real robot only)
+    pi_detector = Node(
+        package="can_do_challenge",
+        executable="simple_can_detector.py",
+        name="gripper_can_detector",
+        output="screen",
+        condition=IfCondition(AndSubstitution(NotSubstitution(use_sim_time), do_pi_cam)),
+        parameters=[{
+            "use_sim_time": use_sim_time,
+            "camera_name": "gripper",
+            "use_depth": False,
+            "publish_debug_image": True,
+            "min_area_px2": 500,
+            "min_bbox_height_px": 60,
+            "max_distance_m": 0.8,
+            "min_center_y_ratio": 0.1,
+            "max_center_y_ratio": 0.85,
+            "max_abs_x_m": 0.12,
+            "log_throttle_sec": 5.0,
+        }],
+    )
+    ld.add_action(pi_detector)
     
     pc2ls = Node(
         condition=UnlessCondition(use_sim_time),
