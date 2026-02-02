@@ -1,0 +1,17 @@
+<root main_tree_to_execute="MainTree">
+    <BehaviorTree ID="MainTree">
+        <Repeat num_cycles="-1">
+            <Sequence>
+                <Fallback>
+                    <Sequence>
+                        <Condition ID="WaitForNewPiFrameProcessed" />
+                        <Condition ID="CanDetectedByPiCamera" objectOfInterest="coke_can" />
+                        <Action ID="SaySomething" message="Pi Camera Can Detected" />
+                    </Sequence>
+                    <AlwaysSuccess />
+                </Fallback>
+                <Action ID="SleepSeconds" seconds="0.5"/>
+            </Sequence>
+        </Repeat>
+    </BehaviorTree>
+</root>

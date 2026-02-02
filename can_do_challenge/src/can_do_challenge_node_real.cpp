@@ -205,10 +205,13 @@ private:
   }
   void tickTree()
   {
-    if (g_shutdown_requested) {
+    // Check both global shutdown flag and ROS context
+    if (g_shutdown_requested || !rclcpp::ok()) {
       RCLCPP_INFO(this->get_logger(), "Stopping behavior tree execution");
-      timer_->cancel();
-      rclcpp::shutdown();
+      if (timer_) {
+        timer_->cancel();
+      }
+      // Exit immediately without calling rclcpp::shutdown() again
       return;
     }
 
@@ -216,15 +219,21 @@ private:
     
     if (status == BT::NodeStatus::SUCCESS) {
       RCLCPP_INFO(this->get_logger(), "Behavior tree completed successfully!");
-      timer_->cancel();
+      if (timer_) {
+        timer_->cancel();
+      }
       rclcpp::shutdown();
     } else if (status == BT::NodeStatus::FAILURE) {
       RCLCPP_ERROR(this->get_logger(), "Behavior tree failed!");
-      timer_->cancel();
+      if (timer_) {
+        timer_->cancel();
+      }
       rclcpp::shutdown();
     } else if (status == BT::NodeStatus::IDLE) {
       RCLCPP_WARN(this->get_logger(), "Behavior tree returned IDLE. Shutting down.");
-      timer_->cancel();
+      if (timer_) {
+        timer_->cancel();
+      }
       rclcpp::shutdown();
     }
     // If RUNNING, continue ticking
@@ -257,7 +266,13 @@ int main(int argc, char** argv)
 
   rclcpp::executors::MultiThreadedExecutor executor;
   executor.add_node(node);
-  executor.spin();
+  
+  // Use spin_some in a loop to allow faster shutdown response
+  while (rclcpp::ok() && !g_shutdown_requested) {
+    executor.spin_some(std::chrono::milliseconds(100));
+  }
+  
+  RCLCPP_INFO(node->get_logger(), "Shutting down");
   rclcpp::shutdown();
   
   return 0;
