@@ -89,14 +89,14 @@
                 <!-- <SubTree ID="ReactiveRobotSafety" /> -->
                 <SubTree ID="NavigateToCanLocation" __shared_blackboard="true"
                     objectOfInterest="{objectOfInterest}" />
-                <!-- <SubTree ID="VisuallyAcquireCan" __shared_blackboard="true"
+                <SubTree ID="VisuallyAcquireCan" __shared_blackboard="true"
                     objectOfInterest="{objectOfInterest}" />
                 <SubTree ID="GraspCan" __shared_blackboard="true"
-                    objectOfInterest="{objectOfInterest}" /> -->
+                    objectOfInterest="{objectOfInterest}" />
             </ReactiveSequence>
-            <!-- <Action ID="BackAwayFromTable" distance="0.3" speed="0.1" />
+            <Action ID="BackAwayFromTable" distance="0.3" speed="0.1" />
             <SubTree ID="ReturnToStart" __shared_blackboard="true"
-                objectOfInterest="{objectOfInterest}" /> -->
+                objectOfInterest="{objectOfInterest}" />
         </Sequence>
     </BehaviorTree>
     <!-- ////////// -->
