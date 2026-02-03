@@ -936,14 +936,14 @@ BT::NodeStatus ComputePathToCanLocation::tick()
   goal.header.frame_id = "map";
   goal.header.stamp = node_->now();
   
-  const double standoff = ObjectDetectionState::WITHIN_REACH_DISTANCE;
+  const double standoff = 0.0;
   // Stand in front of table by standoff distance
   goal.pose.position.x = location.value().x;
   goal.pose.position.y = location.value().y - standoff;
   goal.pose.position.z = 0.0;
   
   tf2::Quaternion q;
-  q.setRPY(0, 0, M_PI/2); // Face table
+  q.setRPY(0, 0, location.value().z); // Face table
   goal.pose.orientation = tf2::toMsg(q);
   
   setOutput("goal", goal);

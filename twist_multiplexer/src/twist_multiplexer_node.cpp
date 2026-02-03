@@ -50,7 +50,7 @@ typedef struct CmdVelMessage
     }
 } CmdVelMessage;
 
-bool deadmanSwitch = false;
+// bool deadmanSwitch = false;
 rclcpp::Subscription<bluetooth_joystick::msg::BluetoothJoystick>::SharedPtr joystickSubscriber;
 double loopRateHz;
 priority_queue<CmdVelMessage> messageQueue;
@@ -108,23 +108,16 @@ public:
 
     void topicCallback(const geometry_msgs::msg::Twist::SharedPtr msg)
     {
-        if (!deadmanSwitch)
+        RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Received Twist message on topic: %s, priority: %d", topic_.c_str(), priority_);
+        CmdVelMessage m(*msg, priority_, timeout_, topic_);
+        if (canAcceptNewMessage(topic_, priority_))
         {
-            RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Received Twist message on topic: %s, priority: %d", topic_.c_str(), priority_);
-            CmdVelMessage m(*msg, priority_, timeout_, topic_);
-            if (canAcceptNewMessage(topic_, priority_))
-            {
-                RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Pushing message to queue from topic: %s", topic_.c_str());
-                messageQueue.push(m);
-            }
-            else
-            {
-                RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Message from topic %s not accepted (priority: %d)", topic_.c_str(), priority_);
-            }
+            RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Pushing message to queue from topic: %s", topic_.c_str());
+            messageQueue.push(m);
         }
         else
         {
-            RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Deadman switch active, ignoring Twist message on topic: %s", topic_.c_str());
+            RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Message from topic %s not accepted (priority: %d)", topic_.c_str(), priority_);
         }
     }
 };
@@ -243,6 +236,7 @@ void processConfiguration(int argc, char *argv[])
     }
 }
 
+/*
 void bluetoothJoystickCallback(const bluetooth_joystick::msg::BluetoothJoystick::SharedPtr msg)
 {
     bool prevDeadman = deadmanSwitch;
@@ -269,6 +263,7 @@ void bluetoothJoystickCallback(const bluetooth_joystick::msg::BluetoothJoystick:
         }
     }
 }
+*/
 
 int main(int argc, char *argv[])
 {
@@ -282,27 +277,14 @@ int main(int argc, char *argv[])
     qos.avoid_ros_namespace_conventions(false);
 
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr twistPublisher = rosNode->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
-    joystickSubscriber = rosNode->create_subscription<bluetooth_joystick::msg::BluetoothJoystick>("/bluetoothJoystick", qos, bluetoothJoystickCallback);
+    // joystickSubscriber = rosNode->create_subscription<bluetooth_joystick::msg::BluetoothJoystick>("/bluetoothJoystick", qos, bluetoothJoystickCallback);
 
     rclcpp::Rate loopRate(loopRateHz);
     while (rclcpp::ok())
     {
         if (!messageQueue.empty())
         {
-            // If deadman is active, skip joystick messages
-            if (deadmanSwitch && messageQueue.top().topic == "cmd_vel_joystick") {
-                RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Deadman switch active: skipping joystick message");
-                messageQueue.pop();
-                continue;
-            }
             currentMessage = messageQueue.top();
-            // Prevent publishing if deadman is active and current message is from joystick
-            if (deadmanSwitch && currentMessage.topic == "cmd_vel_joystick") {
-                RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Deadman switch active: not publishing joystick message");
-                messageQueue.pop();
-                currentMessage = CmdVelMessage();
-                continue;
-            }
             RCUTILS_LOG_DEBUG("[twist_multiplexer_node] Publishing Twist message from topic: %s, priority: %d", currentMessage.topic.c_str(), currentMessage.priority);
             twistPublisher->publish(currentMessage.message);
             messageQueue.pop();
