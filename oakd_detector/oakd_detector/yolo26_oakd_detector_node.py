@@ -119,6 +119,7 @@ class YOLO26OakdDetectorNode(Node):
         self.latest_depth_frame = None
         self.latest_image = None
         self.latest_image_stamp = None
+        self.frame_counter = 0
 
         self.camera_info_sub = self.create_subscription(
             CameraInfo,
@@ -165,6 +166,10 @@ class YOLO26OakdDetectorNode(Node):
             self.latest_depth = depth_img
             self.latest_depth_stamp = msg.header.stamp
             self.latest_depth_frame = msg.header.frame_id
+            self.get_logger().info(
+                f"Depth image received: frame_id='{msg.header.frame_id}', shape={depth_img.shape}, dtype={depth_img.dtype}",
+                throttle_duration_sec=2.0
+            )
         except Exception as e:
             self.get_logger().error(f"Failed to decode depth image: {e}", throttle_duration_sec=1.0)
     
@@ -173,22 +178,32 @@ class YOLO26OakdDetectorNode(Node):
             image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
             self.latest_image = image
             self.latest_image_stamp = msg.header.stamp
+            self.get_logger().info(
+                f"RGB image received: frame_id='{msg.header.frame_id}', shape={image.shape}",
+                throttle_duration_sec=2.0
+            )
         except Exception as e:
             self.get_logger().error(f"Failed to decode RGB image: {e}", throttle_duration_sec=1.0)
     
     def process_frame(self):
         """Process frames from subscribed image topic and run YOLO26 detection."""
         if self.latest_image is None:
+            self.get_logger().info("No RGB image yet; waiting for /oakd_top/oak/rgb/image_raw", throttle_duration_sec=2.0)
             return
             
         try:
             frame = self.latest_image
+            self.frame_counter += 1
             
             # Publish raw image
             raw_msg = self.bridge.cv2_to_imgmsg(frame, 'bgr8')
             raw_msg.header.stamp = self.latest_image_stamp if self.latest_image_stamp else self.get_clock().now().to_msg()
             raw_msg.header.frame_id = "oak_rgb_camera_optical_frame"
             self.raw_image_pub.publish(raw_msg)
+            self.get_logger().info(
+                f"Published raw image (frame={self.frame_counter})",
+                throttle_duration_sec=2.0
+            )
             
             # Run YOLO26 detection (end-to-end, no NMS needed!)
             results = self.model.predict(
@@ -293,7 +308,10 @@ class YOLO26OakdDetectorNode(Node):
                                     self.can_detection_pub.publish(point_msg)
                     
                 self.detections_pub.publish(detections_msg)
-                # self.get_logger().info(f"Published {len(result.boxes)} detection(s)")
+                self.get_logger().info(
+                    f"Published /oakd/detections: {len(detections_msg.detections)} detection(s)",
+                    throttle_duration_sec=2.0
+                )
             
         except Exception as e:
             self.get_logger().error(f"Error processing frame: {e}", throttle_duration_sec=1.0)

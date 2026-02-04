@@ -3,7 +3,8 @@
     <!-- ////////// -->
     <BehaviorTree ID="ApproachCanWithOAKD">
         <ReactiveFallback name="GetWithinReach">
-            <Condition ID="CanWithinReach" objectOfInterest="{objectOfInterest}" within_distance="{within_distance}" />
+            <Condition ID="CanWithinReach" objectOfInterest="{objectOfInterest}"
+                within_distance="{within_distance}" />
             <ReactiveFallback>
                 <Action ID="MoveTowardsCan" objectOfInterest="{objectOfInterest}" />
                 <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="1000">
@@ -89,9 +90,9 @@
                 <!-- <SubTree ID="ReactiveRobotSafety" /> -->
                 <SubTree ID="NavigateToCanLocation" __shared_blackboard="true"
                     objectOfInterest="{objectOfInterest}" />
-                <!-- <SubTree ID="VisuallyAcquireCan" __shared_blackboard="true"
+                <SubTree ID="VisuallyAcquireCan" __shared_blackboard="true"
                     objectOfInterest="{objectOfInterest}" />
-                <SubTree ID="GraspCan" __shared_blackboard="true"
+                <!-- <SubTree ID="GraspCan" __shared_blackboard="true"
                     objectOfInterest="{objectOfInterest}" /> -->
             </ReactiveSequence>
             <!-- <Action ID="BackAwayFromTable" distance="0.3" speed="0.1" />
@@ -116,7 +117,8 @@
         <Sequence>
             <RetryUntilSuccessful num_attempts="45">
                 <ReactiveFallback>
-                    <Condition ID="ElevatorAtHeight" targetHeightPixels="342.0" z_tolerance_pixels="10.0" />
+                    <Condition ID="ElevatorAtHeight" targetHeightPixels="342.0"
+                        z_tolerance_pixels="10.0" />
                     <Sequence>
                         <Action ID="StepElevatorUp" stepMeters="0.02" />
                         <ForceFailure>
@@ -247,7 +249,8 @@
         </Condition>
         <Condition ID="CanWithinReach">
             <input_port default="{objectOfInterest}" name="objectOfInterest" />
-            <input_port default="0.55" name="within_distance">Distance threshold (m) to consider the can within reach</input_port>
+            <input_port default="0.55" name="within_distance">Distance threshold (m) to consider the
+                can within reach</input_port>
         </Condition>
         <SubTree ID="CenterCanInPiCamera">
             <input_port default="true" name="__shared_blackboard" />
