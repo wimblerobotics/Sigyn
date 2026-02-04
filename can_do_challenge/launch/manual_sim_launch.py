@@ -73,7 +73,7 @@ def generate_launch_description():
         name="oakd_can_detector",
         output="screen",
         parameters=[{
-            "use_sim_time": True,
+            "use_sim_time": LaunchConfiguration("use_sim_time"),
             "camera_name": "oakd_top",
             "use_depth": False,
             "publish_debug_image": True,

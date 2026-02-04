@@ -7,6 +7,7 @@
 #include <chrono>
 #include <signal.h>
 #include <atomic>
+#include <thread>
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/bool.hpp"
@@ -266,13 +267,20 @@ int main(int argc, char** argv)
 
   rclcpp::executors::MultiThreadedExecutor executor;
   executor.add_node(node);
-  
-  // Use spin_some in a loop to allow faster shutdown response
+
+  std::thread spin_thread([&executor]() {
+    executor.spin();
+  });
+
   while (rclcpp::ok() && !g_shutdown_requested) {
-    executor.spin_some(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(100ms);
   }
-  
+
   RCLCPP_INFO(node->get_logger(), "Shutting down");
+  executor.cancel();
+  if (spin_thread.joinable()) {
+    spin_thread.join();
+  }
   rclcpp::shutdown();
   
   return 0;

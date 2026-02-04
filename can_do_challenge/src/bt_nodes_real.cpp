@@ -254,7 +254,11 @@ static void publishDebugPose(const std::shared_ptr<rclcpp::Node>& node,
 // Initialize object detection subscribers
 static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
   static bool initialized = false;
-  if (initialized) return;
+  if (initialized) {
+    RCLCPP_INFO_THROTTLE(node->get_logger(), *node->get_clock(), 5000,
+      "initializeObjectDetection called again (already initialized)");
+    return;
+  }
   
   RCLCPP_INFO(node->get_logger(), "Initializing object detection subscribers (Real & Sim)");
   
@@ -266,10 +270,14 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
   g_tf_buffer = std::make_shared<tf2_ros::Buffer>(node->get_clock());
   g_tf_listener = std::make_shared<tf2_ros::TransformListener>(*g_tf_buffer);
 
+  RCLCPP_INFO(node->get_logger(), "Subscribing to /oakd/detections with BEST_EFFORT reliability");
+
   // Subscribe to OAK-D detection (Real Robot)
   g_oakd_real_sub = node->create_subscription<vision_msgs::msg::Detection2DArray>(
     "/oakd/detections", oakd_qos,
     [node](const vision_msgs::msg::Detection2DArray::SharedPtr msg) {
+        RCLCPP_INFO_THROTTLE(node->get_logger(), *node->get_clock(), 2000, 
+            "Trace: OAK-D detection callback received. Detections count: %zu", msg->detections.size());
         {
             std::lock_guard<std::mutex> lock(g_detection_mutex);
             g_detection_state.oakd_last_heartbeat_time = node->now();
@@ -417,6 +425,7 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
   RCLCPP_INFO(node->get_logger(), "Subscribed to /gripper/camera/detections (best_effort, gripper_camera_detector::msg::DetectionArray)");
   
   initialized = true;
+  RCLCPP_INFO(node->get_logger(), "Object detection subscribers initialized");
 }
 
 // Initialize subscribers for simulated sensors
@@ -2410,8 +2419,9 @@ BT::NodeStatus WaitForDetection::onRunning()
     return BT::NodeStatus::FAILURE;
   }
 
-  RCLCPP_INFO_THROTTLE(node_->get_logger(), *node_->get_clock(), 1000, 
-      "[WaitForDetection] Still waiting for OAK-D... (elapsed=%.1fs)", elapsed);
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *node_->get_clock(), 1000,
+      "[WaitForDetection] Still waiting for OAK-D... (elapsed=%.1fs, alive=%s, heartbeat_age=%.3fs)",
+      elapsed, alive ? "true" : "false", age);
 
   return BT::NodeStatus::RUNNING;
 }
