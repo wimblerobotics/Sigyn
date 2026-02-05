@@ -83,6 +83,7 @@ public:
     factory.registerNodeType<CanIsGrasped>("CanIsGrasped");
     factory.registerNodeType<WaitForNewPiFrameProcessed>("WaitForNewPiFrameProcessed");
     factory.registerNodeType<ElevatorAtHeight>("ElevatorAtHeight");
+    factory.registerNodeType<OAKDDetectCan>("OAKDDetectCan");
 
     {
       const auto& manifests = factory.manifests();
