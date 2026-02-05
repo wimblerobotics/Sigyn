@@ -12,20 +12,30 @@
     </BehaviorTree>
 
     <BehaviorTree ID="ApproachCanWithOAKD">
-        <ReactiveFallback name="GetWithinReach">
-            <Condition ID="CanWithinReach" objectOfInterest="{objectOfInterest}" within_distance="{within_distance}" />
-            <ReactiveFallback>
-                <Action ID="MoveTowardsCan" objectOfInterest="{objectOfInterest}" />
-                <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="1000">
-                    <Sequence>
-                        <Action ID="ComputeApproachGoalToCan" goal="{canApproachGoal}"
-                            objectOfInterest="{objectOfInterest}" />
-                        <Action ID="NavigateToPoseAction" error_code_id="{nav_error_code}"
-                            goal="{canApproachGoal}" />
-                    </Sequence>
-                </Decorator>
-            </ReactiveFallback>
-        </ReactiveFallback>
+        <ReactiveSequence name="ApproachLoop">
+            <Action ID="WaitForNewOAKDFrame" />
+            <Action ID="OAKDDetectCan"
+                objectOfInterest="{objectOfInterest}"
+                can_detected="{can_detected}"
+                can_location="{can_location}" />
+            <RetryUntilSuccessful num_attempts="45">
+                <ReactiveFallback name="GetWithinReachOrMove">
+                    <Condition ID="CanWithinReach"
+                        can_detected="{can_detected}"
+                        can_location="{can_location}"
+                        within_distance="{within_distance}" />
+                    <ForceFailure>
+                        <ReactiveSequence>
+                            <Action ID="MoveTowardsCan"
+                                can_detected="{can_detected}"
+                                can_location="{can_location}"
+                                max_distance="0.01" />
+                            <Action ID="WaitForNewOAKDFrame" />
+                        </ReactiveSequence>
+                    </ForceFailure>
+                </ReactiveFallback>
+            </RetryUntilSuccessful>
+        </ReactiveSequence>
     </BehaviorTree>
 
     <BehaviorTree ID="SearchForCanWithOAKD">

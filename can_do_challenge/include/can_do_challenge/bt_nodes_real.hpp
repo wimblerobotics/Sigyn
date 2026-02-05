@@ -164,7 +164,8 @@ public:
   
   static BT::PortsList providedPorts() {
     return {
-      BT::InputPort<std::string>("objectOfInterest"),
+      BT::InputPort<bool>("can_detected", "Whether the can was detected"),
+      BT::InputPort<geometry_msgs::msg::PointStamped>("can_location", "Can location in base_link frame"),
       BT::InputPort<double>("within_distance", kDefaultWithinReachDistance,
                             "Distance threshold (m) to consider the can within reach")
     };
@@ -210,6 +211,22 @@ public:
       BT::InputPort<double>("targetHeight"),
       BT::InputPort<double>("targetHeightPixels"),
       BT::InputPort<double>("z_tolerance_pixels")
+    };
+  }
+  BT::NodeStatus tick() override;
+};
+
+class OAKDDetectCan : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  OAKDDetectCan(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+  
+  static BT::PortsList providedPorts() {
+    return {
+      BT::InputPort<std::string>("objectOfInterest", "Object to detect"),
+      BT::OutputPort<bool>("can_detected", "Whether the can was detected"),
+      BT::OutputPort<geometry_msgs::msg::PointStamped>("can_location", "Can location in base_link frame")
     };
   }
   BT::NodeStatus tick() override;
@@ -268,19 +285,21 @@ public:
   BT::NodeStatus tick() override;
 };
 
-class MoveTowardsCan : public BT::StatefulActionNode, public RosNodeBT
+class MoveTowardsCan : public BT::SyncActionNode, public RosNodeBT
 {
 public:
   MoveTowardsCan(const std::string & name, const BT::NodeConfiguration & config)
-  : BT::StatefulActionNode(name, config) {}
+  : BT::SyncActionNode(name, config) {}
   
   static BT::PortsList providedPorts() {
-    return {BT::InputPort<std::string>("objectOfInterest", "Object to move towards")};
+    return {
+      BT::InputPort<bool>("can_detected", "Whether the can was detected"),
+      BT::InputPort<geometry_msgs::msg::PointStamped>("can_location", "Can location in base_link frame"),
+      BT::InputPort<double>("max_distance", 0.01, "Maximum distance to move per tick (meters)")
+    };
   }
   
-  BT::NodeStatus onStart() override;
-  BT::NodeStatus onRunning() override;
-  void onHalted() override {};
+  BT::NodeStatus tick() override;
 };
 
 class WaitForNewOAKDFrame : public BT::StatefulActionNode, public RosNodeBT

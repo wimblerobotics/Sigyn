@@ -3,10 +3,22 @@
     <!-- ////////// -->
     <BehaviorTree ID="ApproachCanWithOAKD">
         <ReactiveFallback name="GetWithinReach">
-            <Condition ID="CanWithinReach" objectOfInterest="{objectOfInterest}"
-                within_distance="{within_distance}" />
+            <Sequence>
+                <Action ID="WaitForNewOAKDFrame" />
+                <Action ID="OAKDDetectCan" 
+                    objectOfInterest="{objectOfInterest}"
+                    can_detected="{can_detected}" 
+                    can_location="{can_location}" />
+                <Condition ID="CanWithinReach" 
+                    can_detected="{can_detected}" 
+                    can_location="{can_location}" 
+                    within_distance="{within_distance}" />
+            </Sequence>
             <ReactiveFallback>
-                <Action ID="MoveTowardsCan" objectOfInterest="{objectOfInterest}" />
+                <Action ID="MoveTowardsCan" 
+                    can_detected="{can_detected}" 
+                    can_location="{can_location}" 
+                    max_distance="0.01" />
                 <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="1000">
                     <Sequence>
                         <Action ID="ComputeApproachGoalToCan" goal="{canApproachGoal}"
@@ -248,7 +260,8 @@
             <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </Condition>
         <Condition ID="CanWithinReach">
-            <input_port default="{objectOfInterest}" name="objectOfInterest" />
+            <input_port name="can_detected">Whether can was detected</input_port>
+            <input_port name="can_location">Can location PointStamped in base_link</input_port>
             <input_port default="0.55" name="within_distance">Distance threshold (m) to consider the
                 can within reach</input_port>
         </Condition>
@@ -317,7 +330,14 @@
             <input_port name="targetHeight">Target height in meters</input_port>
         </Action>
         <Action ID="MoveTowardsCan">
+            <input_port name="can_detected">Whether can was detected</input_port>
+            <input_port name="can_location">Can location PointStamped in base_link</input_port>
+            <input_port default="0.01" name="max_distance">Max distance to move per tick (meters)</input_port>
+        </Action>
+        <Action ID="OAKDDetectCan">
             <input_port default="{objectOfInterest}" name="objectOfInterest" />
+            <output_port name="can_detected">Whether can was detected</output_port>
+            <output_port name="can_location">Can location PointStamped in base_link</output_port>
         </Action>
         <SubTree ID="NavigateToCanLocation">
             <input_port default="true" name="__shared_blackboard" />

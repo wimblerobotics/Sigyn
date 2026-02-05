@@ -54,6 +54,7 @@ class YOLO26OakdDetectorNode(Node):
         self.declare_parameter('trained_images_dir', '')
         self.declare_parameter('depth_topic', '/oakd_top/oak/stereo/image_raw')
         self.declare_parameter('image_topic', '/oakd_top/oak/rgb/image_raw')
+        self.declare_parameter('depth_camera_info_topic', '/oakd_top/oak/stereo/camera_info')
         self.declare_parameter('depth_window_px', 5)
         
         # Get parameters
@@ -64,6 +65,7 @@ class YOLO26OakdDetectorNode(Node):
         trained_images_dir = self.get_parameter('trained_images_dir').get_parameter_value().string_value
         self.depth_topic = self.get_parameter('depth_topic').get_parameter_value().string_value
         self.image_topic = self.get_parameter('image_topic').get_parameter_value().string_value
+        self.depth_camera_info_topic = self.get_parameter('depth_camera_info_topic').get_parameter_value().string_value
         self.depth_window_px = int(self.get_parameter('depth_window_px').get_parameter_value().integer_value)
         
         # Set up trained images directory
@@ -107,24 +109,28 @@ class YOLO26OakdDetectorNode(Node):
             '/oakd/raw_image',
             10
         )
+        # Use BEST_EFFORT QoS to match subscriber
+        from rclpy.qos import QoSProfile, ReliabilityPolicy
+        can_detection_qos = QoSProfile(depth=10)
+        can_detection_qos.reliability = ReliabilityPolicy.BEST_EFFORT
+        
         self.can_detection_pub = self.create_publisher(
             PointStamped,
             '/oakd/can_detection',
-            10
+            can_detection_qos
         )
 
-        self.camera_info = None
+        self.depth_camera_info = None
         self.latest_depth = None
         self.latest_depth_stamp = None
         self.latest_depth_frame = None
         self.latest_image = None
         self.latest_image_stamp = None
-        self.frame_counter = 0
 
-        self.camera_info_sub = self.create_subscription(
+        self.depth_camera_info_sub = self.create_subscription(
             CameraInfo,
-            '/oakd_top/oak/rgb/camera_info',
-            self.camera_info_callback,
+            self.depth_camera_info_topic,
+            self.depth_camera_info_callback,
             10
         )
 
@@ -155,10 +161,10 @@ class YOLO26OakdDetectorNode(Node):
         
         self.get_logger().info("Node initialization complete.")
 
-    def camera_info_callback(self, msg: CameraInfo):
-        if self.camera_info is None:
-            self.camera_info = msg
-            self.get_logger().info("Camera info received for OAK-D")
+    def depth_camera_info_callback(self, msg: CameraInfo):
+        if self.depth_camera_info is None:
+            self.depth_camera_info = msg
+            self.get_logger().info("Depth camera info received for OAK-D")
 
     def depth_callback(self, msg: Image):
         try:
@@ -166,10 +172,6 @@ class YOLO26OakdDetectorNode(Node):
             self.latest_depth = depth_img
             self.latest_depth_stamp = msg.header.stamp
             self.latest_depth_frame = msg.header.frame_id
-            self.get_logger().info(
-                f"Depth image received: frame_id='{msg.header.frame_id}', shape={depth_img.shape}, dtype={depth_img.dtype}",
-                throttle_duration_sec=2.0
-            )
         except Exception as e:
             self.get_logger().error(f"Failed to decode depth image: {e}", throttle_duration_sec=1.0)
     
@@ -178,32 +180,22 @@ class YOLO26OakdDetectorNode(Node):
             image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
             self.latest_image = image
             self.latest_image_stamp = msg.header.stamp
-            self.get_logger().info(
-                f"RGB image received: frame_id='{msg.header.frame_id}', shape={image.shape}",
-                throttle_duration_sec=2.0
-            )
         except Exception as e:
             self.get_logger().error(f"Failed to decode RGB image: {e}", throttle_duration_sec=1.0)
     
     def process_frame(self):
         """Process frames from subscribed image topic and run YOLO26 detection."""
         if self.latest_image is None:
-            self.get_logger().info("No RGB image yet; waiting for /oakd_top/oak/rgb/image_raw", throttle_duration_sec=2.0)
             return
             
         try:
             frame = self.latest_image
-            self.frame_counter += 1
             
             # Publish raw image
             raw_msg = self.bridge.cv2_to_imgmsg(frame, 'bgr8')
             raw_msg.header.stamp = self.latest_image_stamp if self.latest_image_stamp else self.get_clock().now().to_msg()
             raw_msg.header.frame_id = "oak_rgb_camera_optical_frame"
             self.raw_image_pub.publish(raw_msg)
-            self.get_logger().info(
-                f"Published raw image (frame={self.frame_counter})",
-                throttle_duration_sec=2.0
-            )
             
             # Run YOLO26 detection (end-to-end, no NMS needed!)
             results = self.model.predict(
@@ -258,7 +250,7 @@ class YOLO26OakdDetectorNode(Node):
                             best_box = (x1, y1, x2, y2)
 
                     # If depth is available, compute a 3D point for the best detection
-                    if best_box is not None and self.latest_depth is not None and self.camera_info is not None:
+                    if best_box is not None and self.latest_depth is not None and self.depth_camera_info is not None:
                         depth_img = self.latest_depth
                         depth_h, depth_w = depth_img.shape[:2]
                         frame_h, frame_w = frame.shape[:2]
@@ -267,9 +259,21 @@ class YOLO26OakdDetectorNode(Node):
                         cx = (x1 + x2) / 2.0
                         cy = (y1 + y2) / 2.0
 
+                        self.get_logger().info("==== OAKD 3D DETECTION TRACE ====")
+                        self.get_logger().info(f"YOLO bbox (x1,y1,x2,y2): ({x1:.1f}, {y1:.1f}, {x2:.1f}, {y2:.1f})")
+                        self.get_logger().info(f"RGB frame size: {frame_w} x {frame_h}")
+                        self.get_logger().info(f"Depth image size: {depth_w} x {depth_h}")
+                        self.get_logger().info(f"Depth camera_info size: {self.depth_camera_info.width} x {self.depth_camera_info.height}")
+                        self.get_logger().info(f"Depth frame_id: '{self.latest_depth_frame}'")
+                        self.get_logger().info(f"Depth camera_info frame_id: '{self.depth_camera_info.header.frame_id}'")
+                        self.get_logger().info(f"RGB bbox center (px): ({cx:.1f}, {cy:.1f})")
+                        self.get_logger().info(f"SCALING: Using frame_w={frame_w} for mapping (should be camera_info.width={self.depth_camera_info.width})")
+
                         if frame_w > 0 and frame_h > 0:
                             u = int(round(cx * depth_w / float(frame_w)))
                             v = int(round(cy * depth_h / float(frame_h)))
+
+                            self.get_logger().info(f"Mapped depth pixel (u,v): ({u}, {v})")
 
                             half = max(0, int(self.depth_window_px // 2))
                             u0 = max(0, u - half)
@@ -278,40 +282,54 @@ class YOLO26OakdDetectorNode(Node):
                             v1 = min(depth_h - 1, v + half)
                             window = depth_img[v0:v1 + 1, u0:u1 + 1]
 
+                            self.get_logger().info(f"Depth window: ({u0}:{u1}, {v0}:{v1}) size={window.shape}")
+
                             if window.size > 0:
                                 if window.dtype == np.uint16:
                                     depth_m = np.median(window) / 1000.0
                                 else:
                                     depth_m = float(np.median(window))
 
+                                self.get_logger().info(f"Depth (m): {depth_m:.3f}")
+
                                 if depth_m > 0.01:
-                                    info_w = float(self.camera_info.width) if self.camera_info.width > 0 else float(frame_w)
-                                    info_h = float(self.camera_info.height) if self.camera_info.height > 0 else float(frame_h)
-                                    scale_x = float(frame_w) / info_w if info_w > 0 else 1.0
-                                    scale_y = float(frame_h) / info_h if info_h > 0 else 1.0
+                                    # Get depth camera intrinsics directly (no scaling)
+                                    fx = self.depth_camera_info.k[0]
+                                    fy = self.depth_camera_info.k[4]
+                                    cx_cam = self.depth_camera_info.k[2]
+                                    cy_cam = self.depth_camera_info.k[5]
 
-                                    fx = self.camera_info.k[0] * scale_x
-                                    fy = self.camera_info.k[4] * scale_y
-                                    cx_cam = self.camera_info.k[2] * scale_x
-                                    cy_cam = self.camera_info.k[5] * scale_y
+                                    self.get_logger().info(
+                                        f"Depth cam intrinsics: fx={fx:.2f} fy={fy:.2f} cx={cx_cam:.2f} cy={cy_cam:.2f}"
+                                    )
 
-                                    x_3d = (cx - cx_cam) * depth_m / fx
-                                    y_3d = (cy - cy_cam) * depth_m / fy
+                                    # Project using depth pixel coordinates (u, v) not RGB coordinates (cx, cy)
+                                    x_3d = (u - cx_cam) * depth_m / fx
+                                    y_3d = (v - cy_cam) * depth_m / fy
                                     z_3d = depth_m
+
+                                    self.get_logger().info(
+                                        f"3D point in depth cam frame: ({x_3d:.3f}, {y_3d:.3f}, {z_3d:.3f})"
+                                    )
 
                                     point_msg = PointStamped()
                                     point_msg.header.stamp = self.get_clock().now().to_msg()
-                                    point_msg.header.frame_id = "oak_rgb_camera_optical_frame"
+                                    point_msg.header.frame_id = self.depth_camera_info.header.frame_id
                                     point_msg.point.x = float(x_3d)
                                     point_msg.point.y = float(y_3d)
                                     point_msg.point.z = float(z_3d)
+                                    
+                                    self.get_logger().info(
+                                        f"Publishing to /oakd/can_detection with frame_id='{point_msg.header.frame_id}'"
+                                    )
+                                    self.get_logger().info("==================================")
+                                    
                                     self.can_detection_pub.publish(point_msg)
+                                else:
+                                    self.get_logger().info("Depth too small (<0.01m), skipping 3D publication")
+                                    self.get_logger().info("==================================")
                     
                 self.detections_pub.publish(detections_msg)
-                self.get_logger().info(
-                    f"Published /oakd/detections: {len(detections_msg.detections)} detection(s)",
-                    throttle_duration_sec=2.0
-                )
             
         except Exception as e:
             self.get_logger().error(f"Error processing frame: {e}", throttle_duration_sec=1.0)
