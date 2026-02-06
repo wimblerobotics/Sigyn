@@ -19,9 +19,9 @@ def generate_launch_description():
         [FindPackageShare('base'), 'launch', 'sub_launch', 'sigyn_camera_launch.py']
     )
     
-    # Get default camera config
-    depthai_prefix = get_package_share_directory("depthai_ros_driver")
-    default_config = os.path.join(depthai_prefix, "config", "camera.yaml")
+    # Use custom camera config with BEST_EFFORT QoS for real-time sensor data
+    base_prefix = get_package_share_directory("base")
+    custom_config = os.path.join(base_prefix, "config", "oakd_camera.yaml")
 
     ld = LaunchDescription()
 
@@ -37,7 +37,7 @@ def generate_launch_description():
                     'cam_pos_x': '0.0',
                     'cam_pos_y': '0.0',
                     'cam_pos_z': '0.0',
-                    'params_file': default_config,
+                    'params_file': custom_config,
                     'camera_model': 'OAK-D',
                     'use_rviz': 'false',
                     'use_composition': 'true',
