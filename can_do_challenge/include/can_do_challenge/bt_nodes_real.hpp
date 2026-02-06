@@ -33,7 +33,7 @@
 namespace can_do_challenge
 {
 
-static constexpr double kDefaultWithinReachDistance = 0.55;
+static constexpr double kDefaultWithinReachDistance = -1.0;
 
 /**
  * @brief Structure to hold detected object information
@@ -306,7 +306,7 @@ class WaitForNewOAKDFrame : public BT::StatefulActionNode, public RosNodeBT
 {
 public:
   WaitForNewOAKDFrame(const std::string & name, const BT::NodeConfiguration & config)
-  : BT::StatefulActionNode(name, config) {}
+  : BT::StatefulActionNode(name, config), last_frame_timestamp_(0, 0, RCL_ROS_TIME) {}
   
   static BT::PortsList providedPorts() { return {}; }
   
@@ -315,7 +315,7 @@ public:
   void onHalted() override {};
   
 private:
-  rclcpp::Time start_wait_time_;
+  rclcpp::Time last_frame_timestamp_;  // Timestamp of last processed frame
 };
 
 class SleepSeconds : public BT::StatefulActionNode, public RosNodeBT
@@ -348,6 +348,8 @@ public:
   static BT::PortsList providedPorts() {
     return {
       BT::InputPort<std::string>("objectOfInterest"),
+      BT::InputPort<double>("within_distance", kDefaultWithinReachDistance,
+                            "Distance threshold (m) to consider the can within reach"),
       BT::OutputPort<geometry_msgs::msg::PoseStamped>("goal")
     };
   }

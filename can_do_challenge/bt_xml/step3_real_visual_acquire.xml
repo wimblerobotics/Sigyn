@@ -4,21 +4,21 @@
             <Action ID="SaySomething" message="Starting Step3: VisuallyAcquireCan" />
             <Action ID="SetBlackboard" output_key="objectOfInterest" value="CokeZeroCan" />
             <Action ID="SetBlackboard" output_key="needToVisuallyAcquire" value="true" />
-            <Action ID="SetBlackboard" output_key="within_distance" value="0.55" />
+            <Action ID="SetBlackboard" output_key="within_distance" value="0.45" />
             <SubTree ID="VisuallyAcquireCan" __shared_blackboard="true"
-                objectOfInterest="{objectOfInterest}" />
+                objectOfInterest="{objectOfInterest}"
+                within_distance="{within_distance}" />
             <Action ID="SaySomething" message="Step3 complete" />
         </Sequence>
     </BehaviorTree>
 
     <BehaviorTree ID="ApproachCanWithOAKD">
         <ReactiveSequence name="ApproachLoop">
-            <Action ID="WaitForNewOAKDFrame" />
             <Action ID="OAKDDetectCan"
                 objectOfInterest="{objectOfInterest}"
                 can_detected="{can_detected}"
                 can_location="{can_location}" />
-            <RetryUntilSuccessful num_attempts="45">
+            <RetryUntilSuccessful num_attempts="-1">
                 <ReactiveFallback name="GetWithinReachOrMove">
                     <Condition ID="CanWithinReach"
                         can_detected="{can_detected}"
@@ -31,6 +31,10 @@
                                 can_location="{can_location}"
                                 max_distance="0.01" />
                             <Action ID="WaitForNewOAKDFrame" />
+                            <Action ID="OAKDDetectCan"
+                                objectOfInterest="{objectOfInterest}"
+                                can_detected="{can_detected}"
+                                can_location="{can_location}" />
                         </ReactiveSequence>
                     </ForceFailure>
                 </ReactiveFallback>
@@ -46,7 +50,7 @@
                 <ForceFailure>
                     <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="12">
                         <Sequence>
-                            <Action ID="RotateRobot" degrees="30" />
+                            <Action ID="RotateRobot" degrees="30.0" />
                             <Action ID="WaitForNewOAKDFrame" />
                             <AlwaysFailure />
                         </Sequence>
@@ -63,7 +67,8 @@
                 <SubTree ID="SearchForCanWithOAKD" __shared_blackboard="true"
                     objectOfInterest="{objectOfInterest}" />
                 <SubTree ID="ApproachCanWithOAKD" __shared_blackboard="true"
-                    objectOfInterest="{objectOfInterest}" />
+                    objectOfInterest="{objectOfInterest}"
+                    within_distance="{within_distance}" />
                 <SetBlackboard output_key="needToVisuallyAcquire" value="false" />
             </Sequence>
         </ReactiveFallback>

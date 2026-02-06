@@ -94,7 +94,7 @@ struct ObjectDetectionState {
   static constexpr double DETECTION_TIMEOUT_SEC = 2.0;
   static constexpr double PI_DETECTION_TIMEOUT_SEC = 6.0;
   static constexpr int PI_WAIT_TIMEOUT_MS = 1000;
-  static constexpr double WITHIN_REACH_DISTANCE = 0.55;  // 55cm
+  static constexpr double WITHIN_REACH_DISTANCE = -1.0;  // MUST be provided by BT
   static constexpr double CENTERING_TOLERANCE = 0.02;   // Tightened to 2cm for precision
   static constexpr double PI_VERTICAL_TOLERANCE = 0.05; // 5cm for elevator height check
   static constexpr double PI_VERTICAL_TARGET_OFFSET = 0.0; // target offset in optical Y (positive down)
@@ -705,17 +705,60 @@ BT::NodeStatus CanWithinReach::tick()
 
   getInput("within_distance", within_distance);
 
-  // can_location is already in base_link frame (from OAKDDetectCan)
-  const double dx = can_location.point.x;
-  const double dy = can_location.point.y;
+  if (within_distance <= 0.0) {
+    RCLCPP_ERROR(node_->get_logger(),
+      "[CanWithinReach] Invalid within_distance=%.2f. Must be set via BT XML/blackboard.",
+      within_distance);
+    return BT::NodeStatus::FAILURE;
+  }
+
+  // Verify can_location is in base_link frame, transform if needed
+  geometry_msgs::msg::PointStamped can_in_base;
+  
+  if (can_location.header.frame_id == "base_link") {
+    can_in_base = can_location;
+    RCLCPP_DEBUG(node_->get_logger(), "[CanWithinReach] can_location already in base_link");
+  } else {
+    // Need to transform
+    if (!g_tf_buffer) {
+      RCLCPP_ERROR(node_->get_logger(), "[CanWithinReach] TF buffer not available");
+      return BT::NodeStatus::FAILURE;
+    }
+    
+    try {
+      can_in_base = g_tf_buffer->transform(can_location, "base_link", tf2::durationFromSec(0.1));
+      RCLCPP_INFO(node_->get_logger(), 
+        "[CanWithinReach] Transformed from '%s' to base_link: (%.3f,%.3f,%.3f) -> (%.3f,%.3f,%.3f)",
+        can_location.header.frame_id.c_str(),
+        can_location.point.x, can_location.point.y, can_location.point.z,
+        can_in_base.point.x, can_in_base.point.y, can_in_base.point.z);
+    } catch (const tf2::TransformException& ex) {
+      RCLCPP_ERROR(node_->get_logger(), 
+        "[CanWithinReach] TF transform failed from '%s' to base_link: %s", 
+        can_location.header.frame_id.c_str(), ex.what());
+      return BT::NodeStatus::FAILURE;
+    }
+  }
+
+  const double dx = can_in_base.point.x;
+  const double dy = can_in_base.point.y;
   const double distance = std::hypot(dx, dy);
 
   RCLCPP_INFO(node_->get_logger(), 
-    "[CanWithinReach] base dx=%.2f dy=%.2f dist=%.2f (need %.2f)",
-    dx, dy, distance, within_distance);
+    "[CanWithinReach] frame='%s' base dx=%.2f dy=%.2f dist=%.2f (need %.2f)",
+    can_in_base.header.frame_id.c_str(), dx, dy, distance, within_distance);
 
   if (dx > 0.0 && distance < within_distance) {
     RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] Can within reach at %.2fm", distance);
+    
+    // CRITICAL: Publish stop command immediately to prevent overshoot
+    static auto stop_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_nav", 10);
+    geometry_msgs::msg::Twist stop_cmd;
+    stop_cmd.linear.x = 0.0;
+    stop_cmd.angular.z = 0.0;
+    stop_pub->publish(stop_cmd);
+    RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] Published STOP command to /cmd_vel_nav");
+    
     return BT::NodeStatus::SUCCESS;
   }
 
@@ -892,8 +935,11 @@ BT::NodeStatus OAKDDetectCan::tick()
     auto det_in_base = g_tf_buffer->transform(det_msg, "base_link");
 
     RCLCPP_INFO(node_->get_logger(), 
-      "[OAKDDetectCan] Detected '%s' at base_link (%.3f, %.3f, %.3f) age=%.2fs",
-      object_name.c_str(), det_in_base.point.x, det_in_base.point.y, det_in_base.point.z, age_sec);
+      "[OAKDDetectCan] Input frame='%s' point=(%.3f, %.3f, %.3f)",
+      det_frame.c_str(), det_raw.x, det_raw.y, det_raw.z);
+    RCLCPP_INFO(node_->get_logger(), 
+      "[OAKDDetectCan] Output frame='%s' point=(%.3f, %.3f, %.3f) age=%.2fs",
+      det_in_base.header.frame_id.c_str(), det_in_base.point.x, det_in_base.point.y, det_in_base.point.z, age_sec);
 
     setOutput("can_detected", true);
     setOutput("can_location", det_in_base);  // Output full PointStamped, not just Point
@@ -967,8 +1013,15 @@ BT::NodeStatus FollowPath::tick()
 
 static BT::NodeStatus computeApproachGoalToCanOnce(
   const std::shared_ptr<rclcpp::Node>& node,
+  const double within_distance,
   geometry_msgs::msg::PoseStamped& out_goal_in_map)
 {
+  if (within_distance <= 0.0) {
+    RCLCPP_ERROR(node->get_logger(),
+      "[ComputeApproachGoalToCan] Invalid within_distance=%.2f. Must be set via BT XML/blackboard.",
+      within_distance);
+    return BT::NodeStatus::FAILURE;
+  }
   // Use the node instance passed by the BT wrapper.
   initializeObjectDetection(node);
   initializeDebugTelemetry(node);
@@ -1059,7 +1112,7 @@ static BT::NodeStatus computeApproachGoalToCanOnce(
     " bearing=" + std::to_string(bearing) + ")");
 
   // 2) Build a goal in base_link: rotate first; translate only when roughly facing the can.
-  const double standoff = ObjectDetectionState::WITHIN_REACH_DISTANCE;
+  const double standoff = within_distance;
   constexpr double kMaxStep = 0.50;             // meters
   constexpr double kTranslateWhenAbsBearing = 0.35;  // rad (~20 deg)
 
@@ -1122,8 +1175,10 @@ static BT::NodeStatus computeApproachGoalToCanOnce(
 
 BT::NodeStatus ComputeApproachGoalToCan::onStart()
 {
+  double within_distance = kDefaultWithinReachDistance;
+  getInput("within_distance", within_distance);
   geometry_msgs::msg::PoseStamped goal;
-  const auto status = computeApproachGoalToCanOnce(node_, goal);
+  const auto status = computeApproachGoalToCanOnce(node_, within_distance, goal);
   if (status == BT::NodeStatus::SUCCESS) {
     setOutput("goal", goal);
   }
@@ -1132,8 +1187,10 @@ BT::NodeStatus ComputeApproachGoalToCan::onStart()
 
 BT::NodeStatus ComputeApproachGoalToCan::onRunning()
 {
+  double within_distance = kDefaultWithinReachDistance;
+  getInput("within_distance", within_distance);
   geometry_msgs::msg::PoseStamped goal;
-  const auto status = computeApproachGoalToCanOnce(node_, goal);
+  const auto status = computeApproachGoalToCanOnce(node_, within_distance, goal);
   if (status == BT::NodeStatus::SUCCESS) {
     setOutput("goal", goal);
   }
@@ -2317,45 +2374,46 @@ void WaitForDetection::onHalted()
 
 BT::NodeStatus WaitForNewOAKDFrame::onStart()
 {
-  start_wait_time_ = node_->now();
-  // We don't block here, just record the time we started waiting.
-  // Ideally, we want a frame that was captured AFTER this moment.
-  return BT::NodeStatus::RUNNING;
+  // Capture the current 3D detection timestamp (not just heartbeat)
+  initializeObjectDetection(node_);
+  
+  {
+    std::lock_guard<std::mutex> lock(g_detection_mutex);
+    if (g_detection_state.oakd_can_detected) {
+      last_frame_timestamp_ = g_detection_state.oakd_last_detection_time;
+    }
+  }
+  
+  // Immediately check if a new frame is available (might already be newer)
+  return onRunning();
 }
 
 BT::NodeStatus WaitForNewOAKDFrame::onRunning()
 {
   initializeObjectDetection(node_);
   
-  bool fresh_frame_available = false;
-  rclcpp::Time heartbeat_time;
+  rclcpp::Time current_detection_timestamp;
+  bool has_detection = false;
   
   {
-      std::lock_guard<std::mutex> lock(g_detection_mutex);
-      if (g_detection_state.oakd_alive) {
-          heartbeat_time = g_detection_state.oakd_last_heartbeat_time;
-          // Check if heartbeat is newer than start_wait_time_
-          if (heartbeat_time.nanoseconds() > start_wait_time_.nanoseconds()) {
-              fresh_frame_available = true;
-          }
+    std::lock_guard<std::mutex> lock(g_detection_mutex);
+    if (g_detection_state.oakd_can_detected) {
+      current_detection_timestamp = g_detection_state.oakd_last_detection_time;
+      has_detection = true;
+      
+      // Check if 3D detection timestamp has changed (new detection arrived)
+      if (current_detection_timestamp.nanoseconds() > last_frame_timestamp_.nanoseconds()) {
+        double latency = (node_->now() - current_detection_timestamp).seconds();
+        RCLCPP_INFO(node_->get_logger(), "[WaitForNewOAKDFrame] New frame acquired (latency=%.3fs)", latency);
+        
+        // Update last timestamp for next call
+        last_frame_timestamp_ = current_detection_timestamp;
+        return BT::NodeStatus::SUCCESS;
       }
-  }
-
-  if (fresh_frame_available) {
-      double latency = (node_->now() - heartbeat_time).seconds();
-      RCLCPP_INFO(node_->get_logger(), "[WaitForNewOAKDFrame] New frame acquired (latency=%.3fs)", latency);
-      return BT::NodeStatus::SUCCESS;
+    }
   }
   
-  // Timeout check (e.g. 5 seconds)
-  const double elapsed = (node_->now() - start_wait_time_).seconds();
-  if (elapsed > 5.0) {
-      RCLCPP_WARN(node_->get_logger(), "[WaitForNewOAKDFrame] Timed out waiting for new frame (%.1fs)", elapsed);
-      return BT::NodeStatus::FAILURE;
-  }
-
-  // Sleep slightly
-  std::this_thread::sleep_for(50ms);
+  // No new detection yet, return RUNNING (BT will tick us again soon)
   return BT::NodeStatus::RUNNING;
 }
 

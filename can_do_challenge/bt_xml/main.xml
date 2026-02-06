@@ -2,33 +2,33 @@
 <root main_tree_to_execute="MainTree">
     <!-- ////////// -->
     <BehaviorTree ID="ApproachCanWithOAKD">
-        <ReactiveFallback name="GetWithinReach">
-            <Sequence>
-                <Action ID="WaitForNewOAKDFrame" />
-                <Action ID="OAKDDetectCan" 
-                    objectOfInterest="{objectOfInterest}"
-                    can_detected="{can_detected}" 
-                    can_location="{can_location}" />
-                <Condition ID="CanWithinReach" 
-                    can_detected="{can_detected}" 
-                    can_location="{can_location}" 
-                    within_distance="{within_distance}" />
-            </Sequence>
-            <ReactiveFallback>
-                <Action ID="MoveTowardsCan" 
-                    can_detected="{can_detected}" 
-                    can_location="{can_location}" 
-                    max_distance="0.01" />
-                <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="1000">
-                    <Sequence>
-                        <Action ID="ComputeApproachGoalToCan" goal="{canApproachGoal}"
-                            objectOfInterest="{objectOfInterest}" />
-                        <Action ID="NavigateToPoseAction" error_code_id="{nav_error_code}"
-                            goal="{canApproachGoal}" />
-                    </Sequence>
-                </Decorator>
-            </ReactiveFallback>
-        </ReactiveFallback>
+        <ReactiveSequence name="ApproachLoop">
+            <Action ID="OAKDDetectCan"
+                objectOfInterest="{objectOfInterest}"
+                can_detected="{can_detected}"
+                can_location="{can_location}" />
+            <RetryUntilSuccessful num_attempts="-1">
+                <ReactiveFallback name="GetWithinReachOrMove">
+                    <Condition ID="CanWithinReach"
+                        can_detected="{can_detected}"
+                        can_location="{can_location}"
+                        within_distance="{within_distance}" />
+                    <ForceFailure>
+                        <ReactiveSequence>
+                            <Action ID="MoveTowardsCan"
+                                can_detected="{can_detected}"
+                                can_location="{can_location}"
+                                max_distance="0.01" />
+                            <Action ID="WaitForNewOAKDFrame" />
+                            <Action ID="OAKDDetectCan"
+                                objectOfInterest="{objectOfInterest}"
+                                can_detected="{can_detected}"
+                                can_location="{can_location}" />
+                        </ReactiveSequence>
+                    </ForceFailure>
+                </ReactiveFallback>
+            </RetryUntilSuccessful>
+        </ReactiveSequence>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="BatteryIsCharged">
@@ -195,7 +195,7 @@
                 <ForceFailure>
                     <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="12">
                         <Sequence>
-                            <Action ID="RotateRobot" degrees="30" />
+                            <Action ID="RotateRobot" degrees="30.0" />
                             <Action ID="WaitForNewOAKDFrame" />
                             <AlwaysFailure />
                         </Sequence>
@@ -211,7 +211,7 @@
             <SetBlackboard output_key="needToNavigate" value="true" />
             <SetBlackboard output_key="needToVisuallyAcquire" value="true" />
             <SetBlackboard output_key="needToGrasp" value="true" />
-            <SetBlackboard output_key="within_distance" value="0.55" />
+            <SetBlackboard output_key="within_distance" value="0.45" />
             <Action ID="LoadCanLocation" canName="{objectOfInterest}"
                 location="{expectedCanLocation}" />
             <Action ID="RetractGripper" />
@@ -226,7 +226,8 @@
                 <SubTree ID="SearchForCanWithOAKD" __shared_blackboard="true"
                     objectOfInterest="{objectOfInterest}" />
                 <SubTree ID="ApproachCanWithOAKD" __shared_blackboard="true"
-                    objectOfInterest="{objectOfInterest}" />
+                    objectOfInterest="{objectOfInterest}"
+                    within_distance="{within_distance}" />
                 <SetBlackboard output_key="needToVisuallyAcquire" value="false" />
             </Sequence>
         </ReactiveFallback>
@@ -239,6 +240,7 @@
         <SubTree ID="ApproachCanWithOAKD">
             <input_port default="true" name="__shared_blackboard" />
             <input_port default="{objectOfInterest}" name="objectOfInterest" />
+            <input_port default="{within_distance}" name="within_distance" />
         </SubTree>
         <Action ID="BackAwayFromTable">
             <input_port default="0.3" name="distance">Distance to back away in meters</input_port>
@@ -262,7 +264,7 @@
         <Condition ID="CanWithinReach">
             <input_port name="can_detected">Whether can was detected</input_port>
             <input_port name="can_location">Can location PointStamped in base_link</input_port>
-            <input_port default="0.55" name="within_distance">Distance threshold (m) to consider the
+            <input_port default="0.45" name="within_distance">Distance threshold (m) to consider the
                 can within reach</input_port>
         </Condition>
         <SubTree ID="CenterCanInPiCamera">

@@ -175,10 +175,10 @@ public:
           std::bind(&CanDoChallengeNode::checkForTickRequest, this),
           bt_timer_cb_group_);
       } else {
-        // Automatic mode - tick continuously
-        RCLCPP_INFO(this->get_logger(), "Automatic execution mode");
+        // Automatic mode - tick continuously at high rate for reactive control
+        RCLCPP_INFO(this->get_logger(), "Automatic execution mode at 100 Hz");
         timer_ = this->create_wall_timer(
-          100ms,
+          10ms,  // 100 Hz for fast reactive loop
           std::bind(&CanDoChallengeNode::tickTree, this),
           bt_timer_cb_group_);
       }

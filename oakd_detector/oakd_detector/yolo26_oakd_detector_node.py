@@ -124,8 +124,11 @@ class YOLO26OakdDetectorNode(Node):
         self.latest_depth = None
         self.latest_depth_stamp = None
         self.latest_depth_frame = None
+        self.latest_depth_msg = None
+        
         self.latest_image = None
         self.latest_image_stamp = None
+        self.latest_image_msg = None
 
         self.depth_camera_info_sub = self.create_subscription(
             CameraInfo,
@@ -134,18 +137,26 @@ class YOLO26OakdDetectorNode(Node):
             10
         )
 
+        # Use sensor data QoS for camera streams
+        from rclpy.qos import qos_profile_sensor_data
+        sensor_qos = qos_profile_sensor_data
+
+        self.get_logger().info(
+            f"Subscribing to RGB: {self.image_topic} and Depth: {self.depth_topic} with SensorDataQoS"
+        )
+        
         self.depth_sub = self.create_subscription(
             Image,
             self.depth_topic,
             self.depth_callback,
-            10
+            sensor_qos
         )
         
         self.image_sub = self.create_subscription(
             Image,
             self.image_topic,
             self.image_callback,
-            10
+            sensor_qos
         )
         
         # Subscriber for image capture requests
@@ -156,8 +167,21 @@ class YOLO26OakdDetectorNode(Node):
             10
         )
         
-        # Timer for processing frames (only when new image arrives)
-        self.timer = self.create_timer(0.03, self.process_frame)  # ~30 FPS
+        # Processing state for thread safety
+        self.is_processing = False
+        import threading
+        self.processing_lock = threading.Lock()
+
+        # Telemetry counters
+        self.rgb_rx_count = 0
+        self.depth_rx_count = 0
+        self.last_rgb_stamp = None
+        self.last_depth_stamp = None
+        self.last_process_start = None
+        self.last_process_end = None
+
+        # Periodic status log
+        self.create_timer(1.0, self._log_status)
         
         self.get_logger().info("Node initialization complete.")
 
@@ -167,59 +191,114 @@ class YOLO26OakdDetectorNode(Node):
             self.get_logger().info("Depth camera info received for OAK-D")
 
     def depth_callback(self, msg: Image):
-        try:
-            depth_img = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
-            self.latest_depth = depth_img
-            self.latest_depth_stamp = msg.header.stamp
-            self.latest_depth_frame = msg.header.frame_id
-        except Exception as e:
-            self.get_logger().error(f"Failed to decode depth image: {e}", throttle_duration_sec=1.0)
+        # FAST callback: Just store the message
+        # Decoding happens in process_frame only when needed
+        self.latest_depth_msg = msg
+        self.depth_rx_count += 1
+        self.last_depth_stamp = msg.header.stamp
+        # Log depth reception for debugging (to check latency)
+        # self.get_logger().info(f"Depth callback: stamp={msg.header.stamp.sec}.{msg.header.stamp.nanosec}", throttle_duration_sec=1.0)
     
     def image_callback(self, msg: Image):
-        try:
-            image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-            self.latest_image = image
-            self.latest_image_stamp = msg.header.stamp
-        except Exception as e:
-            self.get_logger().error(f"Failed to decode RGB image: {e}", throttle_duration_sec=1.0)
+        # FAST callback: Just store the message and trigger processing
+        self.latest_image_msg = msg
+        self.rgb_rx_count += 1
+        self.last_rgb_stamp = msg.header.stamp
+        self.get_logger().info(
+            f"RGB rx: stamp={msg.header.stamp.sec}.{msg.header.stamp.nanosec}",
+            throttle_duration_sec=1.0
+        )
+        
+        # Debug log (variable throttle to not flood)
+        # self.get_logger().info(f"RGB rx: {msg.header.stamp.sec}.{msg.header.stamp.nanosec}", throttle_duration_sec=2.0)
+        
+        # Use lock to check if we should spawn a thread
+        should_spawn = False
+        with self.processing_lock:
+            if not self.is_processing:
+                self.is_processing = True
+                should_spawn = True
+        
+        if should_spawn:
+            import threading
+            self.get_logger().info("Spawning YOLO thread", throttle_duration_sec=1.0)
+            threading.Thread(target=self.process_frame, daemon=True).start()
+        else:
+             self.get_logger().info("Skipping frame, processor busy", throttle_duration_sec=2.0)
     
     def process_frame(self):
         """Process frames from subscribed image topic and run YOLO26 detection."""
-        if self.latest_image is None:
-            return
-            
         try:
-            frame = self.latest_image
+            # Decode images safely in the thread
+            if self.latest_image_msg is None:
+                return
+
+            self.last_process_start = self.get_clock().now()
+            self.get_logger().info("Processing frame START", throttle_duration_sec=2.0)
             
-            # Publish raw image
-            raw_msg = self.bridge.cv2_to_imgmsg(frame, 'bgr8')
-            raw_msg.header.stamp = self.latest_image_stamp if self.latest_image_stamp else self.get_clock().now().to_msg()
-            raw_msg.header.frame_id = "oak_rgb_camera_optical_frame"
-            self.raw_image_pub.publish(raw_msg)
+            try:
+                frame = self.bridge.imgmsg_to_cv2(self.latest_image_msg, desired_encoding='bgr8')
+            except Exception as e:
+                self.get_logger().error(f"Failed to decode RGB image in thread: {e}")
+                return
+
+            # Decode latest depth if available
+            depth_img = None
+            depth_stamp = None
+            depth_frame = None
+            
+            if self.latest_depth_msg is not None:
+                try:
+                    depth_img = self.bridge.imgmsg_to_cv2(self.latest_depth_msg, desired_encoding='passthrough')
+                    depth_stamp = self.latest_depth_msg.header.stamp
+                    depth_frame = self.latest_depth_msg.header.frame_id
+                except Exception as e:
+                    self.get_logger().error(f"Failed to decode Depth image in thread: {e}")
+
+            
+            # Publish raw image (re-use the original message to save encoding time)
+            try:
+                # Reuse the message we already have!
+                # Ensure frame_id is correct though
+                raw_msg = self.latest_image_msg
+                if raw_msg.header.frame_id != "oak_rgb_camera_optical_frame":
+                     # Shallow copy to modify header only? No, just modify it.
+                     raw_msg.header.frame_id = "oak_rgb_camera_optical_frame"
+                
+                self.raw_image_pub.publish(raw_msg)
+            except Exception as e:
+                self.get_logger().error(f"Failed to publish raw image: {e}")
             
             # Run YOLO26 detection (end-to-end, no NMS needed!)
+            self.get_logger().info("YOLO predict START", throttle_duration_sec=1.0)
             results = self.model.predict(
                 frame,
                 conf=self.confidence_threshold,
                 imgsz=self.image_size,
                 verbose=False
             )
+            self.get_logger().info(f"YOLO predict DONE: results={len(results)}", throttle_duration_sec=1.0)
+            self.last_process_end = self.get_clock().now()
             
+            # Create Detection2DArray message (Publish empty if no detections)
+            detections_msg = Detection2DArray()
+            detections_msg.header.stamp = self.get_clock().now().to_msg()
+            detections_msg.header.frame_id = "oak_rgb_camera_optical_frame"
+
             # Process results
             if len(results) > 0:
                 result = results[0]
                 
                 # Create annotated image (always, even if no detections)
-                annotated_frame = result.plot()
-                annotated_msg = self.bridge.cv2_to_imgmsg(annotated_frame, 'bgr8')
-                annotated_msg.header.stamp = self.get_clock().now().to_msg()
-                annotated_msg.header.frame_id = "oak_rgb_camera_optical_frame"
-                self.annotated_image_pub.publish(annotated_msg)
-                
-                # Create Detection2DArray message (Publish empty if no detections)
-                detections_msg = Detection2DArray()
-                detections_msg.header.stamp = self.get_clock().now().to_msg()
-                detections_msg.header.frame_id = "oak_rgb_camera_optical_frame"
+                try:
+                    annotated_frame = result.plot()
+                    annotated_msg = self.bridge.cv2_to_imgmsg(annotated_frame, 'bgr8')
+                    annotated_msg.header.stamp = self.get_clock().now().to_msg()
+                    annotated_msg.header.frame_id = "oak_rgb_camera_optical_frame"
+                    self.annotated_image_pub.publish(annotated_msg)
+                    self.get_logger().info("Published /oakd/annotated_image", throttle_duration_sec=1.0)
+                except Exception as e:
+                    self.get_logger().error(f"Failed to publish annotated image: {e}")
                 
                 # Process detections if any found
                 if len(result.boxes) > 0:
@@ -250,8 +329,13 @@ class YOLO26OakdDetectorNode(Node):
                             best_box = (x1, y1, x2, y2)
 
                     # If depth is available, compute a 3D point for the best detection
-                    if best_box is not None and self.latest_depth is not None and self.depth_camera_info is not None:
-                        depth_img = self.latest_depth
+                    if best_box is not None and depth_img is not None and self.depth_camera_info is not None and depth_stamp is not None:
+                        # Compute depth age for logging
+                        current_time = self.get_clock().now()
+                        depth_age_ns = (current_time.nanoseconds - (depth_stamp.sec * 10**9 + depth_stamp.nanosec))
+                        depth_age_s = depth_age_ns / 1e9
+                        
+                        # depth_img is already decoded above
                         depth_h, depth_w = depth_img.shape[:2]
                         frame_h, frame_w = frame.shape[:2]
 
@@ -260,11 +344,12 @@ class YOLO26OakdDetectorNode(Node):
                         cy = (y1 + y2) / 2.0
 
                         self.get_logger().info("==== OAKD 3D DETECTION TRACE ====")
+                        self.get_logger().info(f"Depth age: {depth_age_s:.3f}s")
                         self.get_logger().info(f"YOLO bbox (x1,y1,x2,y2): ({x1:.1f}, {y1:.1f}, {x2:.1f}, {y2:.1f})")
                         self.get_logger().info(f"RGB frame size: {frame_w} x {frame_h}")
                         self.get_logger().info(f"Depth image size: {depth_w} x {depth_h}")
                         self.get_logger().info(f"Depth camera_info size: {self.depth_camera_info.width} x {self.depth_camera_info.height}")
-                        self.get_logger().info(f"Depth frame_id: '{self.latest_depth_frame}'")
+                        self.get_logger().info(f"Depth frame_id: '{depth_frame}'")
                         self.get_logger().info(f"Depth camera_info frame_id: '{self.depth_camera_info.header.frame_id}'")
                         self.get_logger().info(f"RGB bbox center (px): ({cx:.1f}, {cy:.1f})")
                         self.get_logger().info(f"SCALING: Using frame_w={frame_w} for mapping (should be camera_info.width={self.depth_camera_info.width})")
@@ -313,7 +398,8 @@ class YOLO26OakdDetectorNode(Node):
                                     )
 
                                     point_msg = PointStamped()
-                                    point_msg.header.stamp = self.get_clock().now().to_msg()
+                                    # Use the depth image timestamp, not current time!
+                                    point_msg.header.stamp = depth_stamp
                                     point_msg.header.frame_id = self.depth_camera_info.header.frame_id
                                     point_msg.point.x = float(x_3d)
                                     point_msg.point.y = float(y_3d)
@@ -330,17 +416,40 @@ class YOLO26OakdDetectorNode(Node):
                                     self.get_logger().info("==================================")
                     
                 self.detections_pub.publish(detections_msg)
+                self.get_logger().info(
+                    f"Published /oakd/detections (count={len(detections_msg.detections)})",
+                    throttle_duration_sec=1.0
+                )
+            else:
+                # Publish empty detections for heartbeat
+                self.detections_pub.publish(detections_msg)
+                self.get_logger().info("Published /oakd/detections (empty)", throttle_duration_sec=1.0)
             
         except Exception as e:
             self.get_logger().error(f"Error processing frame: {e}", throttle_duration_sec=1.0)
+        finally:
+            with self.processing_lock:
+                self.is_processing = False
+
+    def _log_status(self):
+        rgb_stamp = f"{self.last_rgb_stamp.sec}.{self.last_rgb_stamp.nanosec}" if self.last_rgb_stamp else "None"
+        depth_stamp = f"{self.last_depth_stamp.sec}.{self.last_depth_stamp.nanosec}" if self.last_depth_stamp else "None"
+        proc_start = self.last_process_start.to_msg() if self.last_process_start else None
+        proc_end = self.last_process_end.to_msg() if self.last_process_end else None
+        self.get_logger().info(
+            f"OAKD status: rgb_rx={self.rgb_rx_count} depth_rx={self.depth_rx_count} "
+            f"last_rgb={rgb_stamp} last_depth={depth_stamp} "
+            f"processing={self.is_processing} proc_start={proc_start} proc_end={proc_end}",
+            throttle_duration_sec=1.0
+        )
     
     def capture_callback(self, msg):
         """Handle image capture requests."""
         if msg.data:
             try:
-                # Use the latest image from subscription
-                if self.latest_image is not None:
-                    img = self.latest_image
+                # Use the latest image message from subscription
+                if self.latest_image_msg is not None:
+                    img = self.bridge.imgmsg_to_cv2(self.latest_image_msg, desired_encoding='bgr8')
                     
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     filename = f"oakd_capture_{timestamp}.jpg"
