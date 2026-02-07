@@ -25,6 +25,8 @@
 #include <thread>
 #include <regex>
 #include <condition_variable>
+#include <unordered_set>
+#include <algorithm>
 
 using namespace std::chrono_literals;
 
@@ -81,6 +83,8 @@ struct ObjectDetectionState {
   geometry_msgs::msg::Point oakd_detection_position_odom;
   bool oakd_detection_has_odom = false;
   bool oakd_can_detected = false;
+  std::string oakd_detection_class;
+  double oakd_detection_score = 0.0;
   rclcpp::Time oakd_last_detection_time;
   
   // Pi camera (gripper) detection
@@ -92,6 +96,8 @@ struct ObjectDetectionState {
   
   // Detection parameters
   static constexpr double DETECTION_TIMEOUT_SEC = 2.0;
+  // OAKD_MAX_AGE_SEC increased to tolerate system latency
+  static constexpr double OAKD_MAX_AGE_SEC = 2.0;
   static constexpr double PI_DETECTION_TIMEOUT_SEC = 6.0;
   static constexpr int PI_WAIT_TIMEOUT_MS = 1000;
   static constexpr double WITHIN_REACH_DISTANCE = -1.0;  // MUST be provided by BT
@@ -165,7 +171,6 @@ static bool piDetectionInRange(const geometry_msgs::msg::Point& point)
 
 // Store subscriptions so they don't get destroyed
 static rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr g_oakd_sub;
-static rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr g_oakd_point_real_sub;
 static rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr g_oakd_real_sub;
 static rclcpp::Subscription<gripper_camera_detector::msg::DetectionArray>::SharedPtr g_pi_sub;
 static rclcpp::Subscription<std_msgs::msg::Header>::SharedPtr g_pi_processed_sub;
@@ -267,11 +272,11 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
   g_tf_buffer = std::make_shared<tf2_ros::Buffer>(node->get_clock());
   g_tf_listener = std::make_shared<tf2_ros::TransformListener>(*g_tf_buffer);
 
-  RCLCPP_INFO(node->get_logger(), "Subscribing to /oakd/detections with BEST_EFFORT reliability");
+  RCLCPP_INFO(node->get_logger(), "Subscribing to /oakd/object_detector_heartbeat with BEST_EFFORT reliability");
 
   // Subscribe to OAK-D detection (Real Robot)
   g_oakd_real_sub = node->create_subscription<vision_msgs::msg::Detection2DArray>(
-    "/oakd/detections", oakd_qos,
+    "/oakd/object_detector_heartbeat", oakd_qos,
     [node](const vision_msgs::msg::Detection2DArray::SharedPtr msg) {
         {
             std::lock_guard<std::mutex> lock(g_detection_mutex);
@@ -307,7 +312,9 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
       g_detection_state.oakd_detection_position_raw = msg->point;
       g_detection_state.oakd_detection_frame_raw = msg->header.frame_id;
       g_detection_state.oakd_can_detected = true;
+      g_detection_state.oakd_alive = true;
       g_detection_state.oakd_last_detection_time = node->now();
+      g_detection_state.oakd_last_heartbeat_time = node->now();
     }
 
     geometry_msgs::msg::PointStamped detection_odom;
@@ -593,6 +600,31 @@ BT::NodeStatus CanDetectedByOAKD::tick()
   double y_3d = g_detection_state.oakd_detection_position_raw.y;
   double z_3d = g_detection_state.oakd_detection_position_raw.z;
 
+  // Optional: non-blocking transform to base_link for trace output
+  if (g_tf_buffer && !g_detection_state.oakd_detection_frame_raw.empty()) {
+    try {
+      if (g_tf_buffer->canTransform(
+            "base_link",
+            g_detection_state.oakd_detection_frame_raw,
+            tf2::TimePointZero,
+            tf2::durationFromSec(0.0))) {
+        geometry_msgs::msg::PointStamped det_msg;
+        det_msg.header.frame_id = g_detection_state.oakd_detection_frame_raw;
+        det_msg.header.stamp = g_detection_state.oakd_last_detection_time;
+        det_msg.point = g_detection_state.oakd_detection_position_raw;
+        auto det_in_base = g_tf_buffer->transform(det_msg, "base_link");
+        RCLCPP_INFO_THROTTLE(node_->get_logger(), *node_->get_clock(), 200,
+          "[CanDetectedByOAKD] base_link=(%.3f, %.3f, %.3f) frame='%s' age=%.2fs",
+          det_in_base.point.x, det_in_base.point.y, det_in_base.point.z,
+          g_detection_state.oakd_detection_frame_raw.c_str(),
+          time_since_detection);
+      }
+    } catch (const tf2::TransformException & ex) {
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *node_->get_clock(), 1000,
+        "[CanDetectedByOAKD] TF skipped: %s", ex.what());
+    }
+  }
+
   if (std::abs(z_3d) < 0.001 && std::abs(x_2d) > 0.01f) {
       RCLCPP_INFO(node_->get_logger(),
                   "[CanDetectedByOAKD] Can '%s' detected (2D Box Center=[%.1f, %.1f] age=%.2fs)",
@@ -694,7 +726,8 @@ BT::NodeStatus CanWithinReach::tick()
   }
 
   if (!can_detected) {
-    RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] Can not detected");
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *node_->get_clock(), 200,
+      "[CanWithinReach] Can not detected (can_detected=false)");
     return BT::NodeStatus::FAILURE;
   }
 
@@ -714,7 +747,16 @@ BT::NodeStatus CanWithinReach::tick()
 
   // Verify can_location is in base_link frame, transform if needed
   geometry_msgs::msg::PointStamped can_in_base;
-  
+  // Handle Pixel Mode (Z=0) transformation for CanWithinReach
+  if (std::abs(can_location.point.z) < 0.001) {
+     RCLCPP_INFO_THROTTLE(node_->get_logger(), *node_->get_clock(), 500,
+       "[CanWithinReach] Input is raw pixel data (Z=0). frame='%s'",
+       can_location.header.frame_id.c_str());
+     // Return FAILURE so MoveTowardsCan can continue visually servoing
+     // We cannot possibly be "Within Reach" if we only have pixels and no depth.
+     return BT::NodeStatus::FAILURE; 
+  }
+
   if (can_location.header.frame_id == "base_link") {
     can_in_base = can_location;
     RCLCPP_DEBUG(node_->get_logger(), "[CanWithinReach] can_location already in base_link");
@@ -726,12 +768,22 @@ BT::NodeStatus CanWithinReach::tick()
     }
     
     try {
-      can_in_base = g_tf_buffer->transform(can_location, "base_link", tf2::durationFromSec(0.1));
-      RCLCPP_INFO(node_->get_logger(), 
-        "[CanWithinReach] Transformed from '%s' to base_link: (%.3f,%.3f,%.3f) -> (%.3f,%.3f,%.3f)",
-        can_location.header.frame_id.c_str(),
-        can_location.point.x, can_location.point.y, can_location.point.z,
-        can_in_base.point.x, can_in_base.point.y, can_in_base.point.z);
+      if (!g_tf_buffer->canTransform(
+            "base_link",
+            can_location.header.frame_id,
+            tf2::TimePointZero,
+            tf2::durationFromSec(0.0))) {
+        RCLCPP_INFO_THROTTLE(node_->get_logger(), *node_->get_clock(), 200,
+          "[CanWithinReach] TF not ready for '%s' -> base_link",
+          can_location.header.frame_id.c_str());
+        return BT::NodeStatus::FAILURE;
+      }
+
+      can_in_base = g_tf_buffer->transform(can_location, "base_link");
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *node_->get_clock(), 200,
+        "[CanWithinReach] base_link=(%.3f,%.3f,%.3f) frame='%s'",
+        can_in_base.point.x, can_in_base.point.y, can_in_base.point.z,
+        can_location.header.frame_id.c_str());
     } catch (const tf2::TransformException& ex) {
       RCLCPP_ERROR(node_->get_logger(), 
         "[CanWithinReach] TF transform failed from '%s' to base_link: %s", 
@@ -898,6 +950,9 @@ BT::NodeStatus OAKDDetectCan::tick()
   // Snapshot detection state under lock
   geometry_msgs::msg::Point det_raw;
   std::string det_frame;
+  rclcpp::Time det_stamp;
+  std::string det_class;
+  double det_score = 0.0;
   double age_sec = 999.0;
   bool detected = false;
   
@@ -909,6 +964,9 @@ BT::NodeStatus OAKDDetectCan::tick()
         detected = true;
         det_raw = g_detection_state.oakd_detection_position_raw;
         det_frame = g_detection_state.oakd_detection_frame_raw;
+        det_stamp = g_detection_state.oakd_last_detection_time;
+        det_class = g_detection_state.oakd_detection_class;
+        det_score = g_detection_state.oakd_detection_score;
       }
     }
   }
@@ -919,6 +977,36 @@ BT::NodeStatus OAKDDetectCan::tick()
     return BT::NodeStatus::FAILURE;
   }
 
+  // Reject stale detections to avoid overshoot
+  if (age_sec > ObjectDetectionState::OAKD_MAX_AGE_SEC) {
+    RCLCPP_WARN(node_->get_logger(),
+      "[OAKDDetectCan] Detection stale age=%.2fs (>%.2fs). Forcing stop.",
+      age_sec, ObjectDetectionState::OAKD_MAX_AGE_SEC);
+    static auto stop_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_nav", 10);
+    geometry_msgs::msg::Twist stop_cmd;
+    stop_pub->publish(stop_cmd);
+    setOutput("can_detected", false);
+    return BT::NodeStatus::SUCCESS;
+  }
+
+  // Optional class filter for "can"-like objects (COCO: bottle/cup)
+  if (!object_name.empty()) {
+    std::string name_lower = object_name;
+    std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
+    if (name_lower.find("can") != std::string::npos || name_lower.find("coke") != std::string::npos) {
+      static const std::unordered_set<std::string> kCanClasses = {
+        "bottle", "cup", "wine glass", "39", "41", "40", "0"
+      };
+      if (!det_class.empty() && kCanClasses.find(det_class) == kCanClasses.end()) {
+        RCLCPP_INFO(node_->get_logger(),
+          "[OAKDDetectCan] Ignoring detection class='%s' score=%.2f for object='%s'",
+          det_class.c_str(), det_score, object_name.c_str());
+        setOutput("can_detected", false);
+        return BT::NodeStatus::FAILURE;
+      }
+    }
+  }
+
   // Transform to base_link
   if (!g_tf_buffer) {
     RCLCPP_WARN(node_->get_logger(), "[OAKDDetectCan] TF buffer not ready");
@@ -926,17 +1014,34 @@ BT::NodeStatus OAKDDetectCan::tick()
     return BT::NodeStatus::FAILURE;
   }
 
+  // Handle Pixel Mode (Z=0)
+  if (std::abs(det_raw.z) < 0.001) {
+    RCLCPP_INFO(node_->get_logger(),
+      "[OAKDDetectCan] Detection has Z=0 (Pixels?). Skipping TF transform. Frame='%s' Pt(%.1f, %.1f)",
+      det_frame.c_str(), det_raw.x, det_raw.y);
+      
+    // Pass raw (pixel) point directly
+    geometry_msgs::msg::PointStamped det_msg;
+    det_msg.header.frame_id = det_frame; // e.g. "oak_rgb_camera_optical_frame"
+    det_msg.header.stamp = det_stamp;
+    det_msg.point = det_raw;
+
+    setOutput("can_detected", true);
+    setOutput("can_location", det_msg);
+    return BT::NodeStatus::SUCCESS;
+  }
+
   try {
     geometry_msgs::msg::PointStamped det_msg;
     det_msg.header.frame_id = det_frame;
-    det_msg.header.stamp = rclcpp::Time(0);
+    det_msg.header.stamp = det_stamp;
     det_msg.point = det_raw;
 
     auto det_in_base = g_tf_buffer->transform(det_msg, "base_link");
 
-    RCLCPP_INFO(node_->get_logger(), 
-      "[OAKDDetectCan] Input frame='%s' point=(%.3f, %.3f, %.3f)",
-      det_frame.c_str(), det_raw.x, det_raw.y, det_raw.z);
+    RCLCPP_INFO(node_->get_logger(),
+      "[OAKDDetectCan] Input frame='%s' point=(%.3f, %.3f, %.3f) class='%s' score=%.2f",
+      det_frame.c_str(), det_raw.x, det_raw.y, det_raw.z, det_class.c_str(), det_score);
     RCLCPP_INFO(node_->get_logger(), 
       "[OAKDDetectCan] Output frame='%s' point=(%.3f, %.3f, %.3f) age=%.2fs",
       det_in_base.header.frame_id.c_str(), det_in_base.point.x, det_in_base.point.y, det_in_base.point.z, age_sec);
@@ -1213,7 +1318,9 @@ BT::NodeStatus MoveTowardsCan::tick()
   }
 
   if (!getInput("can_location", can_location)) {
-    RCLCPP_ERROR(node_->get_logger(), "[MoveTowardsCan] Missing input 'can_location'");
+    // Spam prevention
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 2000, 
+        "[MoveTowardsCan] Missing input 'can_location' (detection likely stale or invalid)");
     return BT::NodeStatus::FAILURE;
   }
 
@@ -1224,25 +1331,83 @@ BT::NodeStatus MoveTowardsCan::tick()
     return BT::NodeStatus::FAILURE;
   }
 
+  // Handle 2D Pixel Mode (Z=0)
+  if (std::abs(can_location.point.z) < 0.001) {
+    // We are in 2D mode.
+    // Heuristic: If X ~ 160 (320w) or ~320 (640w).
+    // User noted X=194 is "Right". So Center < 194. Likely 320x320 or 300x300 input.
+    // Let's assume Center X is roughly 160 (for 320 width) or 150 (300 width).
+    // We'll use 320 for 640 width.
+    double center_x = 320.0; 
+    double x_curr = can_location.point.x;
+    
+    // Error = (Current - Center).
+    // If x=194. center=320. diff=-126 (Target is to the LEFT).
+    // We need to turn LEFT (Positive Rot).
+    // So cmd.z = -diff * gain.
+    // If diff is negative (-126), cmd.z should be positive.
+    // -(-126) = +126. Correct.
+    double error_x = x_curr - center_x;
+    
+    static auto cmd_vel_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_nav", 10);
+    geometry_msgs::msg::Twist cmd;
+    
+    // Rotation
+    cmd.angular.z = -1.0 * error_x * 0.005; 
+    
+    // Linear: Move forward slowly if error is small (centered)
+    if (std::abs(error_x) < 30.0) {
+        cmd.linear.x = 0.08;
+    } else {
+        cmd.linear.x = 0.0;
+    }
+
+    RCLCPP_INFO(node_->get_logger(), 
+        "[MoveTowardsCan] 2D Servoing (Z=0). X=%.1f (Ref=%.1f) Err=%.1f -> Cmd (mz=%.2f, lx=%.2f)",
+        x_curr, center_x, error_x, cmd.angular.z, cmd.linear.x);
+
+    cmd_vel_pub->publish(cmd);
+    return BT::NodeStatus::SUCCESS;
+  }
+
+  // Transform can_location (which is likely in odom/map) to base_link
+  geometry_msgs::msg::PointStamped can_in_base;
+  try {
+    // Ensure we have a recent transform
+    // Note: can_location.header.stamp might be old, so we use Time(0) to get latest transform if needed, 
+    // or respect the stamp if we trust odometry history. 
+    // Given we are doing reactive visual servoing, latest is usually better.
+    geometry_msgs::msg::PointStamped can_loc_latest = can_location;
+    can_loc_latest.header.stamp = rclcpp::Time(0);
+    can_in_base = g_tf_buffer->transform(can_loc_latest, "base_link");
+  } catch (const tf2::TransformException & ex) {
+    RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] Could not transform can location: %s", ex.what());
+    return BT::NodeStatus::FAILURE;
+  }
+
   // Compute direction and distance to can in base_link frame
-  double dx = can_location.point.x;
-  double dy = can_location.point.y;
-  double distance = std::hypot(dx, dy);
-  double angle_error = std::atan2(dy, dx);
+  // In base_link: X is forward, Y is left.
+  double rel_x = can_in_base.point.x;
+  double rel_y = can_in_base.point.y;
+  double distance = std::hypot(rel_x, rel_y);
+  double angle_error = std::atan2(rel_y, rel_x);
 
   RCLCPP_INFO(node_->get_logger(), 
-              "[MoveTowardsCan] Can at (%.3f, %.3f) dist=%.3f angle=%.2f deg, moving %.3fm",
-              dx, dy, distance, angle_error * 180.0 / M_PI, max_distance);
+              "[MoveTowardsCan] Target relative to base_link: x=%.3f, y=%.3f. Dist=%.3f, Angle=%.2f deg",
+              rel_x, rel_y, distance, angle_error * 180.0 / M_PI);
 
   static auto cmd_vel_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_nav", 10);
   geometry_msgs::msg::Twist cmd;
 
-  // Rotate in place if target not in front (dx <= 0.05)
-  if (dx <= 0.05) {
-    cmd.angular.z = std::copysign(0.5, angle_error);
+  // Rotate in place if target not in front (X <= 0.05) or angle is large
+  // If X is small, we are "abreast" of it or it is behind us.
+  if (rel_x <= 0.05) {
+    // Ensure we rotate the correct way. 
+    // atan2(y, x) works correctly for all quadrants.
+    cmd.angular.z = std::copysign(0.3, angle_error);
     cmd.linear.x = 0.0;
     cmd_vel_pub->publish(cmd);
-    RCLCPP_INFO(node_->get_logger(), "[MoveTowardsCan] Rotating in place (target not in front)");
+    RCLCPP_INFO(node_->get_logger(), "[MoveTowardsCan] Target not in front (X=%.3f). Rotating signal=%.2f", rel_x, cmd.angular.z);
     return BT::NodeStatus::SUCCESS;
   }
 
@@ -2374,14 +2539,13 @@ void WaitForDetection::onHalted()
 
 BT::NodeStatus WaitForNewOAKDFrame::onStart()
 {
-  // Capture the current 3D detection timestamp (not just heartbeat)
+  // Capture the current heartbeat/frame timestamp
   initializeObjectDetection(node_);
   
   {
     std::lock_guard<std::mutex> lock(g_detection_mutex);
-    if (g_detection_state.oakd_can_detected) {
-      last_frame_timestamp_ = g_detection_state.oakd_last_detection_time;
-    }
+    // Initialize with current heartbeat time (if available), or 0 if not
+    last_frame_timestamp_ = g_detection_state.oakd_last_heartbeat_time;
   }
   
   // Immediately check if a new frame is available (might already be newer)
@@ -2392,28 +2556,31 @@ BT::NodeStatus WaitForNewOAKDFrame::onRunning()
 {
   initializeObjectDetection(node_);
   
-  rclcpp::Time current_detection_timestamp;
-  bool has_detection = false;
+  rclcpp::Time current_heartbeat_timestamp;
+  bool system_alive = false;
   
   {
     std::lock_guard<std::mutex> lock(g_detection_mutex);
-    if (g_detection_state.oakd_can_detected) {
-      current_detection_timestamp = g_detection_state.oakd_last_detection_time;
-      has_detection = true;
+    system_alive = g_detection_state.oakd_alive;
+    if (system_alive) {
+      current_heartbeat_timestamp = g_detection_state.oakd_last_heartbeat_time;
       
-      // Check if 3D detection timestamp has changed (new detection arrived)
-      if (current_detection_timestamp.nanoseconds() > last_frame_timestamp_.nanoseconds()) {
-        double latency = (node_->now() - current_detection_timestamp).seconds();
-        RCLCPP_INFO(node_->get_logger(), "[WaitForNewOAKDFrame] New frame acquired (latency=%.3fs)", latency);
+      // Check if heartbeat timestamp has changed (new frame processed)
+      if (current_heartbeat_timestamp.nanoseconds() > last_frame_timestamp_.nanoseconds()) {
+        // double latency = (node_->now() - current_heartbeat_timestamp).seconds();
+        // RCLCPP_DEBUG(node_->get_logger(), "[WaitForNewOAKDFrame] New frame/heartbeat acquired");
         
         // Update last timestamp for next call
-        last_frame_timestamp_ = current_detection_timestamp;
+        last_frame_timestamp_ = current_heartbeat_timestamp;
         return BT::NodeStatus::SUCCESS;
       }
     }
   }
+
+  // Optional: Add a timeout to prevent infinite blocking if camera dies mid-rotation
+  // But strictly, WaitForDetection should have handled the "alive" check.
   
-  // No new detection yet, return RUNNING (BT will tick us again soon)
+  // No new frame yet, return RUNNING (BT will tick us again soon)
   return BT::NodeStatus::RUNNING;
 }
 

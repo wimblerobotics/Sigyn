@@ -25,9 +25,30 @@ def generate_launch_description():
 			"use_sim_time": "false",
 			"do_rviz": "true",
 			"make_map": "false",
-			"do_oakd": "true",
+			"do_oakd": "false",
+			"do_oakd_yolo26": "false",
+				"oakd_params_file": os.path.join(base_pkg, "config", "oakd_camera_can_yolov8.yaml"),
 			"do_top_lidar": "true",
 		}.items(),
+	)
+
+	yolo_pkg = get_package_share_directory("yolo_oakd_test")
+	oakd_node = Node(
+		package="yolo_oakd_test",
+		executable="oakd_can_detector.py",
+		name="oakd_can_detector_custom",
+		output="screen",
+		parameters=[{
+			"blob_path": os.path.join(yolo_pkg, "models", "can_detector.blob"),
+			"camera_frame": "oak_rgb_camera_optical_frame",
+			"spatial_axis_map": "-z,-x,y",
+			"log_tf_debug": False,
+		}],
+		remappings=[
+			("/oakd_top/can_point_camera", "/oakd/can_detection"),
+			# Optional: expose the preview on a standard topic if needed
+			("/oakd_top/annotated_image", "/oakd/rgb/preview/image_raw")
+		]
 	)
 
 	can_do_node = Node(
@@ -45,5 +66,6 @@ def generate_launch_description():
 
 	return LaunchDescription([
 		sigyn_launch,
+		oakd_node,
 		can_do_node,
 	])
