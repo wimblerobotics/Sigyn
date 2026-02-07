@@ -14,6 +14,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
+find_package(depthai_ros_msgs REQUIRED)
 find_package(gripper_camera_detector REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(sigyn_interfaces REQUIRED)
@@ -41,6 +42,7 @@ ament_target_dependencies(can_do_challenge_node
   sensor_msgs
   std_msgs
   vision_msgs
+  depthai_ros_msgs
   trajectory_msgs
   sigyn_interfaces
   behaviortree_cpp_v3
@@ -58,6 +60,7 @@ ament_target_dependencies(can_do_challenge_node_real
   sensor_msgs
   std_msgs
   vision_msgs
+  depthai_ros_msgs
   gripper_camera_detector
   trajectory_msgs
   sigyn_interfaces
@@ -91,6 +94,8 @@ install(TARGETS
 install(PROGRAMS
   src/manual_controller_gui.py
   can_do_challenge/simple_can_detector.py
+  can_do_challenge/spatial_detection_annotator.py
+  can_do_challenge/spatial_to_detection2d_converter.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
