@@ -1,0 +1,7 @@
+# Can detection dataset configuration
+train: /home/ros/sigyn_ws/src/Sigyn/FCC4.v1i.yolov5pytorch/train/images
+val: /home/ros/sigyn_ws/src/Sigyn/FCC4.v1i.yolov5pytorch/valid/images
+test: /home/ros/sigyn_ws/src/Sigyn/FCC4.v1i.yolov5pytorch/test/images
+
+nc: 1
+names: ['CokeZero-can']
