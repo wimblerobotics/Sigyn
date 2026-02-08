@@ -1,0 +1,49 @@
+{
+  "model": {
+    "model_name": "/home/ros/sigyn_ws/install/base/share/base/config/nn/can_yolov5n_640_openvino_2022_1_6shave.blob",
+    "zoo": "path"
+  },
+  "nn_config": {
+    "output_format": "detection",
+    "NN_family": "YOLO",
+    "input_size": "640x640",
+    "reverse_input_channels": true,
+    "NN_specific_metadata": {
+      "classes": 1,
+      "coordinates": 4,
+      "anchors": [
+        10,
+        13,
+        16,
+        30,
+        33,
+        23,
+        30,
+        61,
+        62,
+        45,
+        59,
+        119,
+        116,
+        90,
+        156,
+        198,
+        373,
+        326
+      ],
+      "anchor_masks": {
+        "side80": [0, 1, 2],
+        "side40": [3, 4, 5],
+        "side20": [6, 7, 8]
+      },
+      "iou_threshold": 0.5,
+      "confidence_threshold": 0.5
+    }
+  },
+  "mappings": {
+    "labels": [
+      "Can"
+    ]
+  },
+  "version": 1
+}

@@ -44,7 +44,7 @@ def generate_launch_description():
         parameters=[{
             "blob_path": os.path.join(yolo_pkg, "models", "can_detector.blob"),
             "camera_frame": "oak_rgb_camera_optical_frame",
-            "spatial_axis_map": "-z,-x,y",
+            "spatial_axis_map": "-z,x,y",
             "log_tf_debug": False,
         }],
         remappings=[

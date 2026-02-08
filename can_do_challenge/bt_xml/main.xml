@@ -18,7 +18,7 @@
                             <Action ID="MoveTowardsCan"
                                 can_detected="{can_detected}"
                                 can_location="{can_location}"
-                                max_distance="0.01" />
+                                target_distance_from_object="{within_distance}" />
                             <Action ID="WaitForNewOAKDFrame" />
                             <Action ID="OAKDDetectCan"
                                 objectOfInterest="{objectOfInterest}"
@@ -334,7 +334,12 @@
         <Action ID="MoveTowardsCan">
             <input_port name="can_detected">Whether can was detected</input_port>
             <input_port name="can_location">Can location PointStamped in base_link</input_port>
-            <input_port default="0.01" name="max_distance">Max distance to move per tick (meters)</input_port>
+            <input_port default="0.01" name="target_distance_from_object">Desired distance to stop from object (meters)</input_port>
+            <input_port default="0.01" name="distance_tolerance">Distance tolerance around target distance (meters)</input_port>
+            <input_port default="0.0523598776" name="angular_tolerance">Angular tolerance (radians)</input_port>
+            <input_port default="0.35" name="angular_velocity">Angular velocity (rad/sec)</input_port>
+            <input_port default="0.15" name="linear_velocity">Linear velocity (m/sec)</input_port>
+            <input_port default="30" name="commands_per_sec">Max cmd_vel commands per second</input_port>
         </Action>
         <Action ID="OAKDDetectCan">
             <input_port default="{objectOfInterest}" name="objectOfInterest" />

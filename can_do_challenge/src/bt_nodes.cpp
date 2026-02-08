@@ -424,7 +424,7 @@ static void initializeSimulatedSensors(std::shared_ptr<rclcpp::Node> node) {
   
   // Subscribe to gripper commands to track simulated positions
   gripper_sub = node->create_subscription<geometry_msgs::msg::Twist>(
-    "/cmd_vel_gripper", 10,
+    "/cmd_vel_smoothed_gripper", 10,
     [](const geometry_msgs::msg::Twist::SharedPtr msg) {
       std::lock_guard<std::mutex> lock(g_sensor_mutex);
       // Integrate velocities (very simple simulation)
@@ -1154,139 +1154,131 @@ BT::NodeStatus ComputeApproachGoalToCan::onRunning()
 
 BT::NodeStatus MoveTowardsCan::onStart()
 {
-  initializeObjectDetection(node_);
   return BT::NodeStatus::RUNNING;
 }
 
 BT::NodeStatus MoveTowardsCan::onRunning()
 {
-  std::string object_name;
-  getInput("objectOfInterest", object_name);
+  bool can_detected = false;
+  geometry_msgs::msg::PointStamped can_location;
+  double target_distance_from_object = 0.01;
+  double distance_tolerance = 0.01;
+  double angular_tolerance = 3.0 * M_PI / 180.0;
+  double angular_velocity = 0.35;
+  double linear_velocity = 0.15;
+  double commands_per_sec = 30.0;
 
-  // Pull the most recent raw detection snapshot
-  bool detection_valid = false;
-  geometry_msgs::msg::Point det_pos_raw;
-  std::string det_frame_raw;
-  double detection_age_sec = 999.0;
-  {
-    std::lock_guard<std::mutex> lock(g_detection_mutex);
-    if (g_detection_state.oakd_can_detected) {
-      detection_age_sec = (node_->now() - g_detection_state.oakd_last_detection_time).seconds();
-      if (detection_age_sec < ObjectDetectionState::DETECTION_TIMEOUT_SEC) {
-        detection_valid = true;
-        det_pos_raw = g_detection_state.oakd_detection_position_raw;
-        det_frame_raw = g_detection_state.oakd_detection_frame_raw;
-      }
-    }
-  }
-
-  if (!detection_valid) {
-    RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] Lost detection of '%s'", object_name.c_str());
+  if (!getInput("can_detected", can_detected)) {
+    RCLCPP_ERROR(node_->get_logger(), "[MoveTowardsCan] Missing input 'can_detected'");
     return BT::NodeStatus::FAILURE;
   }
 
-  // Safety: never drive forward on stale detections.
-  constexpr double kFreshDetectionForForwardSec = 0.25;
-  const bool detection_fresh_for_forward = detection_age_sec <= kFreshDetectionForForwardSec;
+  if (!getInput("can_location", can_location)) {
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 2000,
+        "[MoveTowardsCan] Missing input 'can_location' (detection likely stale or invalid)");
+    return BT::NodeStatus::FAILURE;
+  }
 
-  try {
-    geometry_msgs::msg::PointStamped det_point_raw;
-    det_point_raw.point = det_pos_raw;
-    det_point_raw.header.frame_id = det_frame_raw;
-    det_point_raw.header.stamp = rclcpp::Time(0);
+  getInput("target_distance_from_object", target_distance_from_object);
+  getInput("distance_tolerance", distance_tolerance);
+  getInput("angular_tolerance", angular_tolerance);
+  getInput("angular_velocity", angular_velocity);
+  getInput("linear_velocity", linear_velocity);
+  getInput("commands_per_sec", commands_per_sec);
 
-    if (!g_tf_buffer || !g_tf_buffer->canTransform("base_link", det_frame_raw, rclcpp::Time(0))) {
-      RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] Waiting for TF from '%s' to base_link", det_frame_raw.c_str());
-      return BT::NodeStatus::RUNNING;
+  if (!can_detected) {
+    RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] can_detected is false, not moving");
+    return BT::NodeStatus::FAILURE;
+  }
+
+  static auto cmd_vel_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_smoothed", 10);
+  static rclcpp::Time last_cmd_time(0, 0, RCL_ROS_TIME);
+  const auto can_publish_now = [&](const rclcpp::Time& now) {
+    if (commands_per_sec <= 0.0) {
+      return true;
     }
-
-    auto det_in_base = g_tf_buffer->transform(det_point_raw, "base_link");
-
-    // base_link: x forward, y left
-    double dx = det_in_base.point.x;
-    double dy = det_in_base.point.y;
-
-    // Heuristic sanity: if detector says "right of center" (raw x > 0 in optical), but TF says dy>0 (left), flip dy.
-    // This guards against a swapped axis in the sim camera frame definition.
-    if (det_pos_raw.x > 0.0 && dy > 0.0) {
-      dy = -dy;
-    } else if (det_pos_raw.x < 0.0 && dy < 0.0) {
-      dy = -dy;
+    const double min_interval = 1.0 / commands_per_sec;
+    if (last_cmd_time.nanoseconds() > 0 && (now - last_cmd_time).seconds() < min_interval) {
+      return false;
     }
-
-    const double distance = std::hypot(dx, dy);
-    const double angle_error = std::atan2(dy, dx);
-
-    // Safety: don't rotate in-place too close to the table/can. Back up first to create clearance.
-    constexpr double kRotateClearanceDistance = 0.45;  // meters
-    constexpr double kBackUpSpeed = -0.08;             // m/s
-
-    if (distance < ObjectDetectionState::WITHIN_REACH_DISTANCE) {
-      RCLCPP_INFO(node_->get_logger(), "[MoveTowardsCan] Reached target distance");
-      return BT::NodeStatus::SUCCESS;
+    return true;
+  };
+  const auto publish_cmd = [&](const geometry_msgs::msg::Twist& cmd) {
+    const auto now = node_->now();
+    if (!can_publish_now(now)) {
+      return false;
     }
-
-    static auto cmd_vel_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_nav", 10);
-    geometry_msgs::msg::Twist cmd;
-
-    // If target isn't in front, rotate only.
-    if (dx <= 0.05) {
-      if (distance < kRotateClearanceDistance) {
-        if (!detection_fresh_for_forward) {
-          geometry_msgs::msg::Twist stop;
-          cmd_vel_pub->publish(stop);
-          RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] Detection stale (%.2fs); refusing to move", detection_age_sec);
-          return BT::NodeStatus::FAILURE;
-        }
-        cmd.linear.x = kBackUpSpeed;
-        cmd.angular.z = 0.0;
-        cmd_vel_pub->publish(cmd);
-        return BT::NodeStatus::RUNNING;
-      }
-
-      cmd.angular.z = std::copysign(0.5, angle_error);
-      cmd.linear.x = 0.0;
-      cmd_vel_pub->publish(cmd);
-      return BT::NodeStatus::RUNNING;
-    }
-
-    // Rotate towards target until roughly centered.
-    if (std::abs(angle_error) > 0.1) {
-      if (distance < kRotateClearanceDistance) {
-        if (!detection_fresh_for_forward) {
-          geometry_msgs::msg::Twist stop;
-          cmd_vel_pub->publish(stop);
-          RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] Detection stale (%.2fs); refusing to move", detection_age_sec);
-          return BT::NodeStatus::FAILURE;
-        }
-        cmd.linear.x = kBackUpSpeed;
-        cmd.angular.z = 0.0;
-        cmd_vel_pub->publish(cmd);
-        return BT::NodeStatus::RUNNING;
-      }
-
-      cmd.angular.z = std::copysign(std::min(0.5, std::abs(angle_error)), angle_error);
-      cmd.linear.x = 0.0;
-      cmd_vel_pub->publish(cmd);
-      return BT::NodeStatus::RUNNING;
-    }
-
-    // Only move forward if the can is still being detected (fresh).
-    if (!detection_fresh_for_forward) {
-      geometry_msgs::msg::Twist stop;
-      cmd_vel_pub->publish(stop);
-      RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] Detection stale (%.2fs); refusing to drive forward", detection_age_sec);
-      return BT::NodeStatus::FAILURE;
-    }
-
-    cmd.linear.x = std::min(0.15, distance * 0.5);
-    cmd.angular.z = angle_error;
     cmd_vel_pub->publish(cmd);
-    return BT::NodeStatus::RUNNING;
-  } catch (const tf2::TransformException& ex) {
-    RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] TF transform failed: %s", ex.what());
+    last_cmd_time = now;
+    return true;
+  };
+
+  // Handle 2D Pixel Mode (Z=0)
+  if (std::abs(can_location.point.z) < 0.001) {
+    double center_x = 320.0;
+    double x_curr = can_location.point.x;
+    double error_x = x_curr - center_x;
+
+    geometry_msgs::msg::Twist cmd;
+    cmd.angular.z = -1.0 * error_x * 0.005;
+    if (std::abs(error_x) < 30.0) {
+      cmd.linear.x = linear_velocity;
+    } else {
+      cmd.linear.x = 0.0;
+    }
+
+    if (publish_cmd(cmd)) {
+      RCLCPP_INFO(node_->get_logger(),
+          "[MoveTowardsCan] 2D Servoing (Z=0). X=%.1f (Ref=%.1f) Err=%.1f | cmd (lx=%.2f, az=%.2f)",
+          x_curr, center_x, error_x, cmd.linear.x, cmd.angular.z);
+    }
+    return BT::NodeStatus::SUCCESS;
+  }
+
+  geometry_msgs::msg::PointStamped can_in_base;
+  try {
+    geometry_msgs::msg::PointStamped can_loc_latest = can_location;
+    can_loc_latest.header.stamp = rclcpp::Time(0);
+    can_in_base = g_tf_buffer->transform(can_loc_latest, "base_link");
+  } catch (const tf2::TransformException & ex) {
+    RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] Could not transform can location: %s", ex.what());
     return BT::NodeStatus::FAILURE;
   }
+
+  double rel_x = can_in_base.point.x;
+  double rel_y = can_in_base.point.y;
+  double distance = std::hypot(rel_x, rel_y);
+  double angle_error = std::atan2(rel_y, rel_x);
+  const double linear_error = distance - target_distance_from_object;
+
+  geometry_msgs::msg::Twist cmd;
+
+  if (std::abs(angle_error) > angular_tolerance) {
+    cmd.angular.z = std::copysign(angular_velocity, angle_error);
+    cmd.linear.x = 0.0;
+    if (publish_cmd(cmd)) {
+      RCLCPP_INFO(node_->get_logger(),
+                  "[MoveTowardsCan] Rotate to align | base_link=(%.3f, %.3f) dist=%.3f ang_err=%.4f rad lin_err=%.3f | cmd (lx=%.2f, az=%.2f)",
+                  rel_x, rel_y, distance, angle_error, linear_error, cmd.linear.x, cmd.angular.z);
+    }
+    return BT::NodeStatus::SUCCESS;
+  }
+
+  if (std::abs(linear_error) > distance_tolerance) {
+    cmd.linear.x = linear_velocity;
+    cmd.angular.z = 0.0;
+    if (publish_cmd(cmd)) {
+      RCLCPP_INFO(node_->get_logger(),
+                  "[MoveTowardsCan] Drive forward | base_link=(%.3f, %.3f) dist=%.3f ang_err=%.4f rad lin_err=%.3f | cmd (lx=%.2f, az=%.2f)",
+                  rel_x, rel_y, distance, angle_error, linear_error, cmd.linear.x, cmd.angular.z);
+    }
+    return BT::NodeStatus::SUCCESS;
+  }
+
+  cmd.linear.x = 0.0;
+  cmd.angular.z = 0.0;
+  publish_cmd(cmd);
+  return BT::NodeStatus::SUCCESS;
 }
 
 // ----------------------------------------------------------------------------
@@ -1335,7 +1327,7 @@ BT::NodeStatus RotateRobot::onStart()
   getInput("degrees", degrees);
 
   if (!cmd_vel_pub_) {
-    cmd_vel_pub_ = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_nav", 10);
+    cmd_vel_pub_ = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_smoothed", 10);
   }
 
   // Calculate duration
@@ -1829,7 +1821,7 @@ BT::NodeStatus BackAwayFromTable::tick()
 
   const double duration_sec = std::abs(distance / speed);
 
-  auto cmd_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_nav", 10);
+  auto cmd_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_smoothed", 10);
   geometry_msgs::msg::Twist cmd;
   cmd.linear.x = -std::abs(speed);
   cmd_pub->publish(cmd);

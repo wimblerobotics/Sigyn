@@ -21,4 +21,4 @@
       i_qos_reliability: best_effort
       i_qos_durability: volatile
     nn:
-      i_nn_config_path: depthai_ros_driver/mobilenet
+      i_nn_config_path: depthai_ros_driver/yolo

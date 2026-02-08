@@ -453,6 +453,22 @@ def generate_launch_description():
             description="Launch OAK-D camera nodes if true",
         )
     )
+    oakd_params_file = LaunchConfiguration("oakd_params_file")
+    ld.add_action(
+        DeclareLaunchArgument(
+            name="oakd_params_file",
+            default_value=os.path.join(base_pgk, "config", "oakd_camera.yaml"),
+            description="OAK-D camera params file",
+        )
+    )
+    do_oakd_yolo26 = LaunchConfiguration("do_oakd_yolo26")
+    ld.add_action(
+        DeclareLaunchArgument(
+            name="do_oakd_yolo26",
+            default_value="true",
+            description="Launch YOLO26 CPU detector if true",
+        )
+    )
     do_pi_cam = LaunchConfiguration("do_pi_cam")
     ld.add_action(
         DeclareLaunchArgument(
@@ -466,6 +482,9 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
           [base_pgk, "/launch/sub_launch/oakd_stereo.launch.py"]
         ),
+        launch_arguments={
+            "params_file": oakd_params_file,
+        }.items(),
         condition=IfCondition(AndSubstitution(NotSubstitution(use_sim_time), do_oakd)),
     )
     ld.add_action(oakd_camera)
@@ -475,9 +494,46 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
           [base_pgk, "/launch/sub_launch/oakd_yolo26_detector.launch.py"]
         ),
-        condition=IfCondition(AndSubstitution(NotSubstitution(use_sim_time), do_oakd)),
+        condition=IfCondition(AndSubstitution(NotSubstitution(use_sim_time), AndSubstitution(do_oakd, do_oakd_yolo26))),
     )
     ld.add_action(oakd_elevator_top)
+
+    # On-device spatial detection annotator (publishes /oakd/annotated_image)
+    oakd_spatial_annotator = Node(
+        package="can_do_challenge",
+        executable="spatial_detection_annotator.py",
+        name="oakd_spatial_annotator",
+        output="screen",
+        parameters=[{
+            "image_topic": "/oakd_top/oak/rgb/image_raw",
+            "detections_topic": "/oakd_top/oak/nn/spatial_detections",
+            "annotated_topic": "/oakd/annotated_image",
+            "labels": ["Can"],
+            "min_score": 0.3,
+        }],
+        condition=IfCondition(
+            AndSubstitution(
+                NotSubstitution(use_sim_time),
+                AndSubstitution(do_oakd, NotSubstitution(do_oakd_yolo26)),
+            )
+        ),
+    )
+    ld.add_action(oakd_spatial_annotator)
+    
+    # Spatial to Detection2D converter (publishes /oakd/detections for BT heartbeat)
+    oakd_detection_converter = Node(
+        package="can_do_challenge",
+        executable="spatial_to_detection2d_converter.py",
+        name="oakd_detection_converter",
+        output="screen",
+        condition=IfCondition(
+            AndSubstitution(
+                NotSubstitution(use_sim_time),
+                AndSubstitution(do_oakd, NotSubstitution(do_oakd_yolo26)),
+            )
+        ),
+    )
+    ld.add_action(oakd_detection_converter)
     
     # Add compressed image republisher for OAK-D
     oakd_compressed = IncludeLaunchDescription(

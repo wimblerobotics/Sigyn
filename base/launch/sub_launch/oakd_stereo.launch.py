@@ -6,6 +6,8 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 from launch.actions import GroupAction, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import PathJoinSubstitution
@@ -21,9 +23,18 @@ def generate_launch_description():
     
     # Use custom camera config with BEST_EFFORT QoS for real-time sensor data
     base_prefix = get_package_share_directory("base")
-    custom_config = os.path.join(base_prefix, "config", "oakd_camera.yaml")
+    default_config = os.path.join(base_prefix, "config", "oakd_camera.yaml")
+    params_file = LaunchConfiguration("params_file")
 
     ld = LaunchDescription()
+
+    ld.add_action(
+        DeclareLaunchArgument(
+            name="params_file",
+            default_value=default_config,
+            description="OAK-D camera params file",
+        )
+    )
 
     # Launch OAK-D camera in oakd_top namespace
     oakd_top_camera = GroupAction(
@@ -37,7 +48,7 @@ def generate_launch_description():
                     'cam_pos_x': '0.0',
                     'cam_pos_y': '0.0',
                     'cam_pos_z': '0.0',
-                    'params_file': custom_config,
+                    'params_file': params_file,
                     'camera_model': 'OAK-D',
                     'use_rviz': 'false',
                     'use_composition': 'true',

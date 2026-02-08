@@ -98,3 +98,9 @@ browse*.db
 .vscode/settings_linux_amd.json
 .vscode/settings_macbook.json
 .vscode/switch_settings.sh
+
+runs/
+*.pt
+*.onnx
+*.blob
+foo.*

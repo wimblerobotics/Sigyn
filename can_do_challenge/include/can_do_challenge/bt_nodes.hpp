@@ -271,7 +271,17 @@ public:
   : BT::StatefulActionNode(name, config) {}
   
   static BT::PortsList providedPorts() {
-    return {BT::InputPort<std::string>("objectOfInterest", "Object to move towards")};
+    return {
+      BT::InputPort<std::string>("objectOfInterest", "Object to move towards"),
+      BT::InputPort<bool>("can_detected", "Whether the can was detected"),
+      BT::InputPort<geometry_msgs::msg::PointStamped>("can_location", "Can location in base_link frame"),
+      BT::InputPort<double>("target_distance_from_object", 0.01, "Desired distance to stop from object (meters)"),
+      BT::InputPort<double>("distance_tolerance", 0.01, "Distance tolerance around target distance (meters)"),
+      BT::InputPort<double>("angular_tolerance", 0.0523598776, "Angular tolerance (radians)"),
+      BT::InputPort<double>("angular_velocity", 0.35, "Angular velocity (rad/sec)"),
+      BT::InputPort<double>("linear_velocity", 0.15, "Linear velocity (m/sec)"),
+      BT::InputPort<double>("commands_per_sec", 30.0, "Max cmd_vel commands per second")
+    };
   }
   
   BT::NodeStatus onStart() override;

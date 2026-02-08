@@ -9,7 +9,7 @@ This package runs a DepthAI spatial YOLO pipeline, publishes annotated RGB image
 - /oakd_top/rgb_preview (sensor_msgs/Image)
 - /oakd_top/depth_image (sensor_msgs/Image)
 - /oakd_top/can_point_camera (geometry_msgs/PointStamped)
-- /oakd/detections (vision_msgs/Detection2DArray) heartbeat
+- /oakd/object_detector_heartbeat (vision_msgs/Detection2DArray) heartbeat
 
 ### Primary launch
 Use the package launch with the description TF tree:
