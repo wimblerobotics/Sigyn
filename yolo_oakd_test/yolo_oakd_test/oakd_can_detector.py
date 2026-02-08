@@ -7,6 +7,7 @@ Heavily instrumented for tracing.
 import rclpy
 from rclpy.node import Node
 from rclpy.executors import MultiThreadedExecutor
+from rclpy.parameter import Parameter
 import depthai as dai
 import cv2
 import numpy as np
@@ -47,12 +48,15 @@ class OakdCanDetector(Node):
         self.declare_parameter('camera_frame', 'oak_rgb_camera_optical_frame')
         self.declare_parameter('spatial_axis_map', 'x,y,z')
         self.declare_parameter('log_tf_debug', True)
-        self.declare_parameter('expected_target_base', rclpy.Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter('expected_target_base', Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter('suggest_axis_map', True)
         self.camera_frame = self.get_parameter('camera_frame').value
         self.spatial_axis_map = self.get_parameter('spatial_axis_map').value
         self.log_tf_debug = self.get_parameter('log_tf_debug').value
-        self.expected_target_base = self.get_parameter('expected_target_base').value
+        self.expected_target_base = self.get_parameter_or(
+            'expected_target_base',
+            Parameter('expected_target_base', Parameter.Type.DOUBLE_ARRAY, [])
+        ).value
         self.suggest_axis_map = self.get_parameter('suggest_axis_map').value
 
         # Publishers
@@ -69,7 +73,7 @@ class OakdCanDetector(Node):
         self.pub_marker = self.create_publisher(PointStamped, '/oakd_top/can_point_camera', 10)
         self.pub_marker_raw = self.create_publisher(PointStamped, '/oakd_top/can_point_camera_raw', 10)
         # Heartbeat publisher for WaitForDetection BT node
-        self.pub_heartbeat = self.create_publisher(Detection2DArray, '/oakd/detections', 10)
+        self.pub_heartbeat = self.create_publisher(Detection2DArray, '/oakd/object_detector_heartbeat', 10)
         
         self.bridge = CvBridge()
         self.tf_buffer = Buffer()
@@ -361,6 +365,7 @@ class OakdCanDetector(Node):
                              hb_msg.header.frame_id = "oak_rgb_camera_optical_frame"
                              self.pub_heartbeat.publish(hb_msg)
 
+                    # self.get_logger().info("[[LOOP]] Frame tick processed.")
                     time.sleep(0.001)
                     
         except Exception as e:

@@ -69,7 +69,7 @@
   <!-- <xacro:oakd_link mount_point="elevator_top" /> -->
   <xacro:unless value="$(arg sim_mode)">
     <xacro:oakd_joint mount_point="elevator_top">
-      <origin xyz="-0.0625 0.0 1.47" rpy="0 ${(pi / 4)+13*(2.0*pi/360.0)} ${-0*(2.0*pi/360.0)}" />
+      <origin xyz="-0.0625 0.0 1.47" rpy="${-(90*pi/180.0)} ${-27.5*pi/180.0} 0" />
     </xacro:oakd_joint>
   </xacro:unless>
 

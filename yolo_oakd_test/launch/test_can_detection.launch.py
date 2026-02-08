@@ -56,7 +56,7 @@ def generate_launch_description():
                 'camera_frame': 'oak_rgb_camera_optical_frame',
                 # DepthAI spatial coords (x,y,z) -> camera_frame axis map
                 # Suggested by live solver for current URDF mount orientation
-                'spatial_axis_map': '-z,-x,y',
+                'spatial_axis_map': '-z,x,y',
                 'log_tf_debug': True,
                 'expected_target_base': LaunchConfiguration('expected_target_base'),
                 'suggest_axis_map': LaunchConfiguration('suggest_axis_map'),

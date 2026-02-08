@@ -41,13 +41,13 @@ def generate_launch_description():
 		parameters=[{
 			"blob_path": os.path.join(yolo_pkg, "models", "can_detector.blob"),
 			"camera_frame": "oak_rgb_camera_optical_frame",
-			"spatial_axis_map": "-z,-x,y",
+			"spatial_axis_map": "-z,x,y",
 			"log_tf_debug": False,
 		}],
 		remappings=[
 			("/oakd_top/can_point_camera", "/oakd/can_detection"),
-			# Optional: expose the preview on a standard topic if needed
-			("/oakd_top/annotated_image", "/oakd/rgb/preview/image_raw")
+			# Annotated image output
+			("/oakd_top/annotated_image", "/oakd/annotated_image")
 		]
 	)
 
@@ -60,7 +60,8 @@ def generate_launch_description():
 			"use_sim_time": False,
 			"enable_groot_monitoring": True,
 			"groot_port": 1667,
-			"bt_xml_filename": os.path.join(can_do_pkg, "bt_xml", "step3_real_visual_acquire.xml"),
+			# "bt_xml_filename": os.path.join(can_do_pkg, "bt_xml", "step3_real_visual_acquire.xml"),
+			"bt_xml_filename": os.path.join(can_do_pkg, "bt_xml", "main.orig.xml"),
 		}],
 	)
 

@@ -124,7 +124,7 @@ alias gripper='ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/teensy
 alias groot='~/sigyn_ws/src/Sigyn/scripts/groot'
 alias map='clear;ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=true make_map:=true'
 alias mr='micro-ros-agent serial --dev /dev/ttyACM0 -b 115200'	
-alias nav='clear;ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=true'
+alias nav='clear;ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=true do_oakd:=true do_oakd_yolo26:=false oakd_params_file:=/home/ros/sigyn_ws/src/Sigyn/base/config/oakd_camera_can_yolov8.yaml'
 alias patrol='ros2 launch perimeter_roamer_v3 patrol_using_waypoints_launch.py'
 alias pm='ros2 topic pub --rate 10 /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.2}}"'
 alias rd='rosdep install --from-paths src --ignore-src -r -y'
@@ -132,6 +132,7 @@ alias record='/home/ros/sigyn_ws/src/Sigyn/scripts/bag_record_sim.sh'
 alias redoudev='sudo service udev restart;sudo udevadm control --reload-rules;sudo udevadm trigger'
 alias rms='ros2 launch nav2_map_server map_saver_server.launch.py'
 alias rvs='rviz2 -d ~/sigyn_ws/src/Sigyn/rviz/config/config.rviz'
+alias s2s='ros2 launch sigyn_to_sensor_v2 teensy_bridge.launch.py'
 alias savem='ros2 run nav2_map_server map_saver_cli -f my_map'
 alias sim='clear;ros2 launch base sigyn.launch.py use_sim_time:=true do_rviz:=true'
 alias sp='ssh -YC signpi'
@@ -197,6 +198,10 @@ export CYCLONEDDS_URI="
 	        <NetworkInterface name='eno1' /> <!-- sigyn7900a -->
         </Interfaces>
     </General>
+    <Discovery>
+        <ParticipantIndex>auto</ParticipantIndex>
+        <MaxAutoParticipantIndex>128</MaxAutoParticipantIndex>
+    </Discovery>
    </Domain>
 </CycloneDDS>"
 

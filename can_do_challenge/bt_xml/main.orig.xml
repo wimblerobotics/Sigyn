@@ -1,21 +1,88 @@
 <?xml version="1.0"?>
 <root main_tree_to_execute="MainTree">
     <!-- ////////// -->
-    <BehaviorTree ID="ApproachCanWithOAKD">
-        <ReactiveFallback name="GetWithinReach">
-            <Condition ID="CanWithinReach" objectOfInterest="{objectOfInterest}" within_distance="{within_distance}" />
-            <ReactiveFallback>
-                <Action ID="MoveTowardsCan" objectOfInterest="{objectOfInterest}" />
-                <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="1000">
-                    <Sequence>
-                        <Action ID="ComputeApproachGoalToCan" goal="{canApproachGoal}"
-                            objectOfInterest="{objectOfInterest}" />
-                        <Action ID="NavigateToPoseAction" error_code_id="{nav_error_code}"
-                            goal="{canApproachGoal}" />
-                    </Sequence>
-                </Decorator>
-            </ReactiveFallback>
+    <BehaviorTree ID="MainTree">
+        <Sequence>
+            <Action ID="SaveRobotPose" saveTo="{startingPose}" />
+            <SubTree ID="SetupCanChallenge" __shared_blackboard="true"
+                objectOfInterest="CokeZeroCan" />
+            <ReactiveSequence name="FetchCan">
+                <!-- <SubTree ID="ReactiveRobotSafety" /> -->
+                <!-- <SubTree ID="NavigateToCanLocation" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" /> -->
+                <SubTree ID="VisuallyAcquireCan" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" />
+                <!-- <SubTree ID="GraspCan" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" /> -->
+            </ReactiveSequence>
+            <!-- <Action ID="BackAwayFromTable" distance="0.3" speed="0.1" />
+            <SubTree ID="ReturnToStart" __shared_blackboard="true"
+                objectOfInterest="{objectOfInterest}" /> -->
+        </Sequence>
+    </BehaviorTree>
+
+    <!-- ////////// -->
+    <BehaviorTree ID="VisuallyAcquireCan">
+        <ReactiveFallback>
+            <Condition ID="CheckBoolFlag" expected="false" flag="{needToVisuallyAcquire}" />
+            <Sequence>
+                <SubTree ID="SearchForCanWithOAKD" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" />
+                <SubTree ID="ApproachCanWithOAKD" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" />
+                <SetBlackboard output_key="needToVisuallyAcquire" value="false" />
+            </Sequence>
         </ReactiveFallback>
+    </BehaviorTree>
+
+    <!-- ////////// -->
+    <BehaviorTree ID="SearchForCanWithOAKD">
+        <Sequence>
+            <Action ID="WaitForDetection" />
+            <ReactiveFallback name="FindCanVisually">
+                <Condition ID="CanDetectedByOAKD" objectOfInterest="{objectOfInterest}" />
+                <ForceFailure>
+                    <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="72">
+                        <Sequence>
+                            <Action ID="RotateRobot" degrees="5" />
+                            <Action ID="WaitForNewOAKDFrame" />
+                            <AlwaysFailure />
+                        </Sequence>
+                    </Decorator>
+                </ForceFailure>
+            </ReactiveFallback>
+        </Sequence>
+    </BehaviorTree>
+
+    <!-- ////////// -->
+    <BehaviorTree ID="ApproachCanWithOAKD">
+        <ReactiveSequence name="ApproachLoop">
+            <Action ID="OAKDDetectCan"
+                objectOfInterest="{objectOfInterest}"
+                can_detected="{can_detected}"
+                can_location="{can_location}" />
+            <RetryUntilSuccessful num_attempts="-1">
+                <ReactiveFallback name="GetWithinReachOrMove">
+                    <Condition ID="CanWithinReach"
+                        can_detected="{can_detected}"
+                        can_location="{can_location}"
+                        within_distance="{within_distance}" />
+                    <ForceFailure>
+                        <ReactiveSequence>
+                            <Action ID="MoveTowardsCan"
+                                can_detected="{can_detected}"
+                                can_location="{can_location}"
+                                    target_distance_from_object="{within_distance}" />
+                            <Action ID="WaitForNewOAKDFrame" />
+                            <Action ID="OAKDDetectCan"
+                                objectOfInterest="{objectOfInterest}"
+                                can_detected="{can_detected}"
+                                can_location="{can_location}" />
+                        </ReactiveSequence>
+                    </ForceFailure>
+                </ReactiveFallback>
+            </RetryUntilSuccessful>
+        </ReactiveSequence>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="BatteryIsCharged">
@@ -78,26 +145,6 @@
                 <SetBlackboard output_key="needToGrasp" value="false" />
             </Sequence>
         </ReactiveFallback>
-    </BehaviorTree>
-    <!-- ////////// -->
-    <BehaviorTree ID="MainTree">
-        <Sequence>
-            <Action ID="SaveRobotPose" saveTo="{startingPose}" />
-            <SubTree ID="SetupCanChallenge" __shared_blackboard="true"
-                objectOfInterest="CokeZeroCan" />
-            <ReactiveSequence name="FetchCan">
-                <!-- <SubTree ID="ReactiveRobotSafety" /> -->
-                <SubTree ID="NavigateToCanLocation" __shared_blackboard="true"
-                    objectOfInterest="{objectOfInterest}" />
-                <SubTree ID="VisuallyAcquireCan" __shared_blackboard="true"
-                    objectOfInterest="{objectOfInterest}" />
-                <SubTree ID="GraspCan" __shared_blackboard="true"
-                    objectOfInterest="{objectOfInterest}" />
-            </ReactiveSequence>
-            <Action ID="BackAwayFromTable" distance="0.3" speed="0.1" />
-            <SubTree ID="ReturnToStart" __shared_blackboard="true"
-                objectOfInterest="{objectOfInterest}" />
-        </Sequence>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="NavigateToCanLocation">
@@ -173,24 +220,6 @@
         </Inverter>
     </BehaviorTree>
     <!-- ////////// -->
-    <BehaviorTree ID="SearchForCanWithOAKD">
-        <Sequence>
-            <Action ID="WaitForDetection" />
-            <ReactiveFallback name="FindCanVisually">
-                <Condition ID="CanDetectedByOAKD" objectOfInterest="{objectOfInterest}" />
-                <ForceFailure>
-                    <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="12">
-                        <Sequence>
-                            <Action ID="RotateRobot" degrees="30" />
-                            <Action ID="WaitForNewOAKDFrame" />
-                            <AlwaysFailure />
-                        </Sequence>
-                    </Decorator>
-                </ForceFailure>
-            </ReactiveFallback>
-        </Sequence>
-    </BehaviorTree>
-    <!-- ////////// -->
     <BehaviorTree ID="SetupCanChallenge">
         <Sequence>
             <SetBlackboard output_key="objectOfInterest" value="CokeZeroCan" />
@@ -200,22 +229,9 @@
             <SetBlackboard output_key="within_distance" value="0.55" />
             <Action ID="LoadCanLocation" canName="{objectOfInterest}"
                 location="{expectedCanLocation}" />
-            <Action ID="RetractGripper" />
-            <Action ID="LowerElevator" />
+            <!-- <Action ID="RetractGripper" />
+            <Action ID="LowerElevator" /> -->
         </Sequence>
-    </BehaviorTree>
-    <!-- ////////// -->
-    <BehaviorTree ID="VisuallyAcquireCan">
-        <ReactiveFallback>
-            <Condition ID="CheckBoolFlag" expected="false" flag="{needToVisuallyAcquire}" />
-            <Sequence>
-                <SubTree ID="SearchForCanWithOAKD" __shared_blackboard="true"
-                    objectOfInterest="{objectOfInterest}" />
-                <SubTree ID="ApproachCanWithOAKD" __shared_blackboard="true"
-                    objectOfInterest="{objectOfInterest}" />
-                <SetBlackboard output_key="needToVisuallyAcquire" value="false" />
-            </Sequence>
-        </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
     <TreeNodesModel>
@@ -314,7 +330,14 @@
             <input_port name="targetHeight">Target height in meters</input_port>
         </Action>
         <Action ID="MoveTowardsCan">
-            <input_port default="{objectOfInterest}" name="objectOfInterest" />
+            <input_port name="can_detected">Whether can was detected</input_port>
+            <input_port name="can_location">Can location PointStamped in base_link</input_port>
+            <input_port default="0.01" name="target_distance_from_object">Desired distance to stop from object (meters)</input_port>
+            <input_port default="0.01" name="distance_tolerance">Distance tolerance around target distance (meters)</input_port>
+            <input_port default="0.0523598776" name="angular_tolerance">Angular tolerance (radians)</input_port>
+            <input_port default="0.35" name="angular_velocity">Angular velocity (rad/sec)</input_port>
+            <input_port default="0.15" name="linear_velocity">Linear velocity (m/sec)</input_port>
+            <input_port default="30" name="commands_per_sec">Max cmd_vel commands per second</input_port>
         </Action>
         <SubTree ID="NavigateToCanLocation">
             <input_port default="true" name="__shared_blackboard" />

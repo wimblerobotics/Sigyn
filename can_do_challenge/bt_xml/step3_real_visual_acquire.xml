@@ -5,13 +5,33 @@
             <Action ID="SetBlackboard" output_key="objectOfInterest" value="CokeZeroCan" />
             <Action ID="SetBlackboard" output_key="needToVisuallyAcquire" value="true" />
             <Action ID="SetBlackboard" output_key="within_distance" value="0.45" />
-            <SubTree ID="VisuallyAcquireCan" __shared_blackboard="true"
+            <!-- <SubTree ID="VisuallyAcquireCan" __shared_blackboard="true"
                 objectOfInterest="{objectOfInterest}"
                 within_distance="{within_distance}" />
-            <Action ID="SaySomething" message="Step3 complete" />
+            <Action ID="SaySomething" message="Step3 complete" /> -->
+            <SubTree ID="SearchForCanWithOAKD" __shared_blackboard="true"
+                objectOfInterest="{objectOfInterest}" />
+            <Action ID="SaySomething" message="SearchForCanWithOAKD" />
         </Sequence>
     </BehaviorTree>
 
+    <BehaviorTree ID="SearchForCanWithOAKD">
+        <Sequence>
+            <Action ID="WaitForDetection" />
+            <ReactiveFallback name="FindCanVisually">
+                <Condition ID="CanDetectedByOAKD" objectOfInterest="{objectOfInterest}" />
+                <ForceFailure>
+                    <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="72">
+                        <Sequence>
+                            <Action ID="RotateRobot" degrees="5" />
+                            <Action ID="WaitForNewOAKDFrame" />
+                            <AlwaysFailure />
+                        </Sequence>
+                    </Decorator>
+                </ForceFailure>
+            </ReactiveFallback>
+        </Sequence>
+    </BehaviorTree>
     <BehaviorTree ID="ApproachCanWithOAKD">
         <ReactiveSequence name="ApproachLoop">
             <Action ID="OAKDDetectCan"
@@ -29,7 +49,7 @@
                             <Action ID="MoveTowardsCan"
                                 can_detected="{can_detected}"
                                 can_location="{can_location}"
-                                max_distance="0.01" />
+                                target_distance_from_object="{within_distance}" />
                             <Action ID="WaitForNewOAKDFrame" />
                             <Action ID="OAKDDetectCan"
                                 objectOfInterest="{objectOfInterest}"
@@ -40,24 +60,6 @@
                 </ReactiveFallback>
             </RetryUntilSuccessful>
         </ReactiveSequence>
-    </BehaviorTree>
-
-    <BehaviorTree ID="SearchForCanWithOAKD">
-        <Sequence>
-            <Action ID="WaitForDetection" />
-            <ReactiveFallback name="FindCanVisually">
-                <Condition ID="CanDetectedByOAKD" objectOfInterest="{objectOfInterest}" />
-                <ForceFailure>
-                    <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="12">
-                        <Sequence>
-                            <Action ID="RotateRobot" degrees="30.0" />
-                            <Action ID="WaitForNewOAKDFrame" />
-                            <AlwaysFailure />
-                        </Sequence>
-                    </Decorator>
-                </ForceFailure>
-            </ReactiveFallback>
-        </Sequence>
     </BehaviorTree>
 
     <BehaviorTree ID="VisuallyAcquireCan">

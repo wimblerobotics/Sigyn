@@ -216,11 +216,11 @@ public:
   BT::NodeStatus tick() override;
 };
 
-class OAKDDetectCan : public BT::SyncActionNode, public RosNodeBT
+class OAKDDetectCan : public BT::StatefulActionNode, public RosNodeBT
 {
 public:
   OAKDDetectCan(const std::string & name, const BT::NodeConfiguration & config)
-  : BT::SyncActionNode(name, config) {}
+  : BT::StatefulActionNode(name, config), last_detection_stamp_(rclcpp::Time(0)) {}
   
   static BT::PortsList providedPorts() {
     return {
@@ -229,7 +229,13 @@ public:
       BT::OutputPort<geometry_msgs::msg::PointStamped>("can_location", "Can location in base_link frame")
     };
   }
-  BT::NodeStatus tick() override;
+  BT::NodeStatus onStart() override;
+  BT::NodeStatus onRunning() override;
+  void onHalted() override;
+
+private:
+  BT::NodeStatus detectOnce();
+  rclcpp::Time last_detection_stamp_;
 };
 
 // ============================================================================
@@ -295,7 +301,12 @@ public:
     return {
       BT::InputPort<bool>("can_detected", "Whether the can was detected"),
       BT::InputPort<geometry_msgs::msg::PointStamped>("can_location", "Can location in base_link frame"),
-      BT::InputPort<double>("max_distance", 0.01, "Maximum distance to move per tick (meters)")
+      BT::InputPort<double>("target_distance_from_object", 0.01, "Desired distance to stop from object (meters)"),
+      BT::InputPort<double>("distance_tolerance", 0.01, "Distance tolerance around target distance (meters)"),
+      BT::InputPort<double>("angular_tolerance", 0.0523598776, "Angular tolerance (radians)"),
+      BT::InputPort<double>("angular_velocity", 0.35, "Angular velocity (rad/sec)"),
+      BT::InputPort<double>("linear_velocity", 0.15, "Linear velocity (m/sec)"),
+      BT::InputPort<double>("commands_per_sec", 30.0, "Max cmd_vel commands per second")
     };
   }
   
