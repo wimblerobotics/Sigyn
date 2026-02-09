@@ -3,6 +3,7 @@
 **Table of Contents**
 - [Introduction](#introduction)
 - [RoboClawMonitor](#robobclawmonitor)
+- [StepperMotor](#steppermotor)
 - [VL53L0XMonitor](#vl53l0xmonitor)
 - [TemperatureMonitor](#temperaturemonitor)
 - [BatteryMonitor](#batterymonitor)
@@ -130,6 +131,162 @@ ROBOCLAW1:{"LogicVoltage":0.0,"MainVoltage":24.1,"Encoder_Left":102,"Encoder_Rig
 ROBOCLAW1:{"LeftMotorCurrent":6.200,"RightMotorCurrent":5.800,"Error":"0"}
 DIAG1:{"level":"ERROR","module":"RoboClawMonitor","message":"OVERCURRENT: left=6.2A, right=5.8A"}
 ```
+
+---
+
+## StepperMotor
+
+### Purpose
+Controls two stepper motors (elevator and extender) on Board 3 for gripper positioning. Provides position-based control alongside the existing velocity-based TWIST commands. Manages homing sequences and position feedback.
+
+### Location
+- Header: `modules/motors/stepper_motor.h`
+- Implementation: `modules/motors/stepper_motor.cpp`
+- Dependencies: `Motor` class (hardware abstraction)
+
+### Compilation
+```cpp
+#define BOARD_ID 3  // Board 3 (elevator/gripper)
+// StepperMotor module is always enabled on Board 3
+```
+
+### Loop Frequency
+- Position updates: Every loop iteration (~100+ Hz)
+- Status messages: On request (STEPSTATUS) or ~1 Hz during motion
+- Command processing: Non-blocking state machine
+
+### Key Parameters
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| Elevator Max Travel | 0.8999 m | Hardware-measured maximum (hardcoded) |
+| Extender Max Travel | 0.3418 m | Hardware-measured maximum (hardcoded) |
+| Home Position | 0.0 m (both) | Lower limit for elevator, retracted for extender |
+| Position Units | meters (m) | Absolute position from home |
+| Homing Sequence | Extender first, then elevator | Safety: retract before lowering |
+
+### Command Types
+
+**Position Control (`STEPPOS`)**:
+- Format: `STEPPOS:elevator:0.5,extender:0.2`
+- Moves motors to absolute positions in meters
+- Positions clamped to hardware limits (0.0 to max_travel)
+- Non-blocking execution with state machine
+- Returns `STEPPERSTAT3` on completion
+
+**Homing (`STEPHOME`)**:
+- Format: `STEPHOME:`
+- Initiates two-stage homing sequence:
+  1. Retract extender to lower limit (0.0m)
+  2. Lower elevator to lower limit (0.0m)
+- Uses hardware limit switches for home detection
+- Establishes zero reference for position tracking
+- **Safety**: Retracts gripper before lowering to avoid collisions
+
+**Status Query (`STEPSTATUS`)**:
+- Format: `STEPSTATUS:`
+- Immediately returns `STEPPERSTAT3` message
+- Reports current positions, limit switch states, max travel values
+- Use for position verification and motion planning
+
+### Velocity Control (Legacy)
+
+The TWIST command interface is also supported for time-based movements:
+- Format: `TWIST:linear_x:0.001,angular_z:0.001`
+- `linear_x`: Elevator velocity (0.001m increments per command)
+- `angular_z`: Extender velocity (0.001m increments per command)
+- Legacy interface maintained for compatibility
+- Position control (STEPPOS) recommended for new implementations
+
+### Status Message Format
+
+**STEPPERSTAT3**: Sent in response to STEPSTATUS or autonomously during motion
+
+```json
+STEPPERSTAT3:{
+  "elev_pos": 0.4500,
+  "ext_pos": 0.1200,
+  "elev_lim": "none",
+  "ext_lim": "none",
+  "elev_max": 0.8999,
+  "ext_max": 0.3418
+}
+```
+
+**Fields**:
+- `elev_pos` (float, m): Current elevator position
+- `ext_pos` (float, m): Current extender position
+- `elev_lim` (string): Limit switch state: `"none"`, `"upper"`, `"lower"`, `"both"`
+- `ext_lim` (string): Limit switch state: `"none"`, `"upper"`, `"lower"`, `"both"`
+- `elev_max` (float, m): Maximum elevator travel (0.8999m)
+- `ext_max` (float, m): Maximum extender travel (0.3418m)
+
+### Hardware Limits
+
+**Measured Travel Ranges** (determined via manual testing):
+- **Elevator**: 0.0m (lower limit) to 0.8999m (upper limit)
+- **Extender**: 0.0m (retracted) to 0.3418m (fully extended)
+
+**Limit Switch Protection**:
+- Hardware limit switches at both ends of travel
+- Firmware checks limit states before allowing movement
+- Position commands clamped to measured max values
+- Emergency stop on unexpected limit activation during motion
+
+### Safety Features
+
+1. **Hardware Limits**: Physical limit switches prevent overtravel
+2. **Software Clamping**: Target positions validated against measured maxima
+3. **Homing Sequence**: Retracts extender before lowering elevator to prevent collisions
+4. **Position Feedback**: Continuous position reporting via STEPPERSTAT3
+5. **Non-blocking Operation**: State machine allows concurrent safety monitoring
+
+### Fault Codes
+
+**Position Command Out of Range**:
+- **Condition**: `STEPPOS` target exceeds hardware limits
+- **Action**: Command rejected, diagnostic message sent
+- **Recovery**: Send valid position command within range
+- **Log**: `ERROR: Invalid position command: elevator=X, extender=Y`
+
+**Limit Switch Activated During Motion**:
+- **Condition**: Unexpected limit switch activation
+- **Action**: Motor stops immediately
+- **Recovery**: Home motors or move away from limit
+- **Log**: `WARNING: Limit switch activated: [motor] [upper/lower]`
+
+**Homing Failure**:
+- **Condition**: Limit switch not detected within expected travel
+- **Action**: Homing sequence aborts, position marked invalid
+- **Recovery**: Manual intervention, check hardware
+- **Log**: `CRITICAL: Homing failed for [elevator/extender]`
+
+### Example Sequences
+
+**Initialization**:
+```
+STEPHOME:                               # Initiate homing
+STEPPERSTAT3:{"elev_pos":0.000,"ext_pos":0.000,"elev_lim":"lower","ext_lim":"lower",...}
+```
+
+**Position Movement**:
+```
+STEPPOS:elevator:0.5,extender:0.2       # Move to mid-range
+STEPPERSTAT3:{"elev_pos":0.500,"ext_pos":0.200,"elev_lim":"none","ext_lim":"none",...}
+```
+
+**Status Query**:
+```
+STEPSTATUS:                             # Query current state
+STEPPERSTAT3:{"elev_pos":0.450,"ext_pos":0.120,...}
+```
+
+### Integration Notes
+
+- **ROS2 Bridge**: sigyn_to_sensor_v2/teensy_bridge handles serial communication
+- **Message Parsing**: message_parser.cpp needs updates for STEPPERSTAT3
+- **Behavior Trees**: Create nodes using STEPPOS for position-based gripper control
+- **Motion Planning**: Query max_travel values via STEPSTATUS before planning movements
 
 ---
 
