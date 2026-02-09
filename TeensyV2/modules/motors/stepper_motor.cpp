@@ -43,6 +43,7 @@ namespace sigyn_teensy {
   void StepperMotor::loop() {
     static bool initial_homing_done = false;
     static bool initial_homing_started = false;
+    static bool elevator_homing_started = false;  // Track if elevator homing was initiated
     
     // Start initial homing on first loop
     if (!initial_homing_started) {
@@ -56,11 +57,12 @@ namespace sigyn_teensy {
       bool elevator_done = elevator_.continueHoming();
       
       // For initial homing: start elevator after extender is done
-      if (!initial_homing_done && extender_done && !elevator_.isHoming() && !elevator_done) {
+      if (!initial_homing_done && extender_done && !elevator_homing_started) {
         elevator_.startHoming();
+        elevator_homing_started = true;
       }
       
-      if (!initial_homing_done && extender_done && elevator_done) {
+      if (!initial_homing_done && extender_done && elevator_done && elevator_homing_started) {
         initial_homing_done = true;
         serial_.sendDiagnosticMessage("INFO", name(), "Initial homing complete");
       }
