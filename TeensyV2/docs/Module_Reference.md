@@ -152,8 +152,9 @@ Controls two stepper motors (elevator and extender) on Board 3 for gripper posit
 
 ### Loop Frequency
 - Position updates: Every loop iteration (~100+ Hz)
-- Status messages: On request (STEPSTATUS) or ~1 Hz during motion
+- Status messages: **10 Hz auto-publishing** (100ms intervals)
 - Command processing: Non-blocking state machine
+- Homing: Non-blocking with continuous status updates
 
 ### Key Parameters
 
@@ -164,6 +165,8 @@ Controls two stepper motors (elevator and extender) on Board 3 for gripper posit
 | Home Position | 0.0 m (both) | Lower limit for elevator, retracted for extender |
 | Position Units | meters (m) | Absolute position from home |
 | Homing Sequence | Extender first, then elevator | Safety: retract before lowering |
+| Status Publishing Rate | 10 Hz (100ms) | Automatic, continuous updates |
+| Position Self-Correction | Enabled | Auto-corrects at limit switches |
 
 ### Command Types
 
@@ -176,18 +179,19 @@ Controls two stepper motors (elevator and extender) on Board 3 for gripper posit
 
 **Homing (`STEPHOME`)**:
 - Format: `STEPHOME:`
-- Initiates two-stage homing sequence:
+- Initiates **non-blocking** two-stage homing sequence:
   1. Retract extender to lower limit (0.0m)
   2. Lower elevator to lower limit (0.0m)
 - Uses hardware limit switches for home detection
 - Establishes zero reference for position tracking
+- **Non-blocking**: Status continues to publish at 10 Hz during homing
 - **Safety**: Retracts gripper before lowering to avoid collisions
 
 **Status Query (`STEPSTATUS`)**:
 - Format: `STEPSTATUS:`
 - Immediately returns `STEPPERSTAT3` message
-- Reports current positions, limit switch states, max travel values
-- Use for position verification and motion planning
+- **Note**: Status is auto-published at 10 Hz; explicit queries rarely needed
+- Use for synchronization or immediate position verification
 
 ### Velocity Control (Legacy)
 
@@ -199,8 +203,7 @@ The TWIST command interface is also supported for time-based movements:
 - Position control (STEPPOS) recommended for new implementations
 
 ### Status Message Format
-
-**STEPPERSTAT3**: Sent in response to STEPSTATUS or autonomously during motion
+Auto-published at 10 Hz (every 100ms)
 
 ```json
 STEPPERSTAT3:{
@@ -211,6 +214,12 @@ STEPPERSTAT3:{
   "elev_max": 0.8999,
   "ext_max": 0.3418
 }
+```
+
+**Publishing Behavior**:
+- Automatic transmission at 10 Hz during all operations
+- No manual query required for continuous monitoring
+- Continues during homing, movement, and idle states
 ```
 
 **Fields**:
@@ -225,6 +234,7 @@ STEPPERSTAT3:{
 
 **Measured Travel Ranges** (determined via manual testing):
 - **Elevator**: 0.0m (lower limit) to 0.8999m (upper limit)
+- **Position auto-correction**: When limit switch detected, position immediately corrected to limit value
 - **Extender**: 0.0m (retracted) to 0.3418m (fully extended)
 
 **Limit Switch Protection**:
@@ -237,8 +247,10 @@ STEPPERSTAT3:{
 
 1. **Hardware Limits**: Physical limit switches prevent overtravel
 2. **Software Clamping**: Target positions validated against measured maxima
-3. **Homing Sequence**: Retracts extender before lowering elevator to prevent collisions
-4. **Position Feedback**: Continuous position reporting via STEPPERSTAT3
+3. **Homing Sequence**: Retracts exte10 Hz status publishing via STEPPERSTAT3
+5. **Non-blocking Operation**: State machine allows concurrent safety monitoring
+6. **Position Self-Correction**: Auto-corrects position tracking when hitting limit switches
+7. **Homing During Operation**: Non-blocking homing allows status monitoring throughout
 5. **Non-blocking Operation**: State machine allows concurrent safety monitoring
 
 ### Fault Codes
