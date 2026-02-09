@@ -87,6 +87,7 @@ namespace sigyn_teensy {
       bool pending_action_ = false;
       bool pending_movement_command_ = false;
       bool homing_in_progress_ = false;
+      uint32_t last_step_time_us_ = 0;  // Track last step pulse time
       const uint8_t pin_down_limit_switch_;
       const uint8_t pin_step_direction_;
       const uint8_t pin_step_pulse_;

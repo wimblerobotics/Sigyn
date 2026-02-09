@@ -328,7 +328,7 @@ namespace sigyn_teensy {
     if (fabsf(current_position_m_ - target_position_m) < 1e-6f) return;
     remaining_pulses_ = (int32_t)((target_position_m - current_position_m_) / travel_m_per_pulse_);
     pending_movement_command_ = (remaining_pulses_ != 0);
-  }
+    }
 
   void StepperMotor::Motor::moveByDelta(float delta_m) {
     setTargetPosition(current_position_m_ + delta_m);
@@ -336,6 +336,15 @@ namespace sigyn_teensy {
 
   void StepperMotor::Motor::continueOutstandingMovementRequests() {
     if (!pending_movement_command_) return;
+    
+    // Rate limit: ensure at least 1000us (1ms) between step pulses
+    // stepPulse internally takes 1000us (500us high + 500us low), but
+    // we need to gate calls to this function to prevent rapid-fire execution
+    uint32_t now = micros();
+    if (now - last_step_time_us_ < 1000) {
+      return;  // Too soon, skip this iteration
+    }
+    
     Direction dir = remaining_pulses_ > 0 ? kUp : kDown;
     if ((dir == kUp && atUpLimit()) || (dir == kDown && atDownLimit())) {
       pending_movement_command_ = false;
