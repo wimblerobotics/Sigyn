@@ -13,6 +13,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(sensor_msgs REQUIRED)
@@ -41,6 +42,7 @@ add_executable(teensy_bridge_node
 
 ament_target_dependencies(teensy_bridge_node
   rclcpp
+  rclcpp_action
   std_msgs
   std_srvs
   sensor_msgs

@@ -49,6 +49,7 @@ namespace sigyn_to_sensor_v2 {
     VL53L0X,      ///< VL53L0X time-of-flight sensor data
     ROBOCLAW,     ///< RoboClaw motor controller data
     ODOM,         ///< Odometry data (position, orientation, velocity)
+    STEPPERSTAT,  ///< Stepper motor status (Board 3 gripper/elevator)
     ESTOP,        ///< E-stop notifications
     DIAGNOSTIC,   ///< Diagnostic and error messages
     FAULT,        ///< System fault messages
