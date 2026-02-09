@@ -782,6 +782,7 @@ MessageType MessageParser::StringToMessageType(const std::string & type_str) con
   if (type_str == "VL53L0X") {return MessageType::VL53L0X;}
   if (type_str == "ROBOCLAW") {return MessageType::ROBOCLAW;}
   if (type_str == "ODOM") {return MessageType::ODOM;}
+  if (type_str == "STEPPERSTAT") {return MessageType::STEPPERSTAT;}
   if (type_str == "ESTOP") {return MessageType::ESTOP;}
   if (type_str == "DIAG") {return MessageType::DIAGNOSTIC;}
   if (type_str == "FAULT") {return MessageType::FAULT;}
@@ -810,6 +811,7 @@ std::string MessageParser::MessageTypeToString(MessageType type) const
     case MessageType::VL53L0X: return "VL53L0X";
     case MessageType::ROBOCLAW: return "ROBOCLAW";
     case MessageType::ODOM: return "ODOM";
+    case MessageType::STEPPERSTAT: return "STEPPERSTAT";
     case MessageType::ESTOP: return "ESTOP";
     case MessageType::DIAGNOSTIC: return "DIAG";
     case MessageType::CONFIG: return "CONFIG";
@@ -936,7 +938,7 @@ bool MessageParser::IsDataMessage(const std::string & type_prefix) const
   return  type_prefix == "BATT" || type_prefix == "BATT2" || type_prefix == "PERF" ||
          type_prefix == "IMU" ||
          type_prefix == "TEMPERATURE" || type_prefix == "VL53L0X" ||
-         type_prefix == "ROBOCLAW" || type_prefix == "ODOM";
+         type_prefix == "ROBOCLAW" || type_prefix == "ODOM" || type_prefix == "STEPPERSTAT";
 }
 
 TemperatureData MessageParser::ParseTemperatureData(const MessageData & data) const

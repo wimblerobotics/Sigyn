@@ -266,8 +266,16 @@ namespace sigyn_teensy {
 
   void StepperMotor::Motor::stepPulse(Direction direction) {
     const int pd = 500;  // microseconds
-    if ((direction == kUp) && atUpLimit()) return;
-    if ((direction == kDown) && atDownLimit()) return;
+    
+    // Check limit switches and correct position if at limit
+    if ((direction == kUp) && atUpLimit()) {
+      current_position_m_ = position_max_up_m_;  // Correct position to max
+      return;
+    }
+    if ((direction == kDown) && atDownLimit()) {
+      current_position_m_ = position_min_down_m_;  // Correct position to min (0.0)
+      return;
+    }
 
     digitalWriteFast(pin_step_direction_, direction == reverse_travel_ ? kUp : kDown);
     digitalWriteFast(pin_step_pulse_, HIGH);
