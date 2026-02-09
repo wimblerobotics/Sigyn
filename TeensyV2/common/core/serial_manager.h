@@ -231,6 +231,62 @@ namespace sigyn_teensy {
      */
     bool hasNewSDPruneCommand();
 
+    // --- Stepper Motor Command Methods ---
+
+    /**
+     * @brief Set the latest STEPPOS command.
+     * @param[in] steppos_data The STEPPOS command data (e.g., "elevator:0.15,extender:0.08")
+     */
+    void setLatestStepPosCommand(const char* steppos_data);
+
+    /**
+     * @brief Get the latest STEPPOS command.
+     * @return Pointer to internal STEPPOS command buffer (never null)
+     */
+    const char* getLatestStepPosCommand() const;
+
+    /**
+     * @brief Check if there's a new STEPPOS command available.
+     * @return true if a new command is available, false otherwise
+     */
+    bool hasNewStepPosCommand();
+
+    /**
+     * @brief Set the latest STEPHOME command.
+     * @param[in] stephome_data The STEPHOME command data (typically empty)
+     */
+    void setLatestStepHomeCommand(const char* stephome_data);
+
+    /**
+     * @brief Get the latest STEPHOME command.
+     * @return Pointer to internal STEPHOME command buffer (never null)
+     */
+    const char* getLatestStepHomeCommand() const;
+
+    /**
+     * @brief Check if there's a new STEPHOME command available.
+     * @return true if a new command is available, false otherwise
+     */
+    bool hasNewStepHomeCommand();
+
+    /**
+     * @brief Set the latest STEPSTATUS command.
+     * @param[in] stepstatus_data The STEPSTATUS command data (typically empty)
+     */
+    void setLatestStepStatusCommand(const char* stepstatus_data);
+
+    /**
+     * @brief Get the latest STEPSTATUS command.
+     * @return Pointer to internal STEPSTATUS command buffer (never null)
+     */
+    const char* getLatestStepStatusCommand() const;
+
+    /**
+     * @brief Check if there's a new STEPSTATUS command available.
+     * @return true if a new command is available, false otherwise
+     */
+    bool hasNewStepStatusCommand();
+
   private:
     /**
      * @brief Private constructor for singleton pattern.
@@ -330,6 +386,9 @@ namespace sigyn_teensy {
     static constexpr size_t kMaxSDDirCommandLen = 256;
     static constexpr size_t kMaxSDFileCommandLen = 256;
     static constexpr size_t kMaxSDPruneCommandLen = 64;
+    static constexpr size_t kMaxStepPosCommandLen = 128;
+    static constexpr size_t kMaxStepHomeCommandLen = 64;
+    static constexpr size_t kMaxStepStatusCommandLen = 64;
 
     /**
      * @brief Storage for the latest TWIST command.
@@ -370,6 +429,36 @@ namespace sigyn_teensy {
      * @brief Flag indicating if there's a new SDPRUNE command.
      */
     bool has_new_sdprune_command_ = false;
+
+    /**
+     * @brief Storage for the latest STEPPOS command.
+     */
+    char latest_steppos_command_[kMaxStepPosCommandLen] = {0};
+
+    /**
+     * @brief Flag indicating if there's a new STEPPOS command.
+     */
+    bool has_new_steppos_command_ = false;
+
+    /**
+     * @brief Storage for the latest STEPHOME command.
+     */
+    char latest_stephome_command_[kMaxStepHomeCommandLen] = {0};
+
+    /**
+     * @brief Flag indicating if there's a new STEPHOME command.
+     */
+    bool has_new_stephome_command_ = false;
+
+    /**
+     * @brief Storage for the latest STEPSTATUS command.
+     */
+    char latest_stepstatus_command_[kMaxStepStatusCommandLen] = {0};
+
+    /**
+     * @brief Flag indicating if there's a new STEPSTATUS command.
+     */
+    bool has_new_stepstatus_command_ = false;
 
     // Helper to classify message type into counters
     inline void classifyAndCountDrop_(const char* type) {

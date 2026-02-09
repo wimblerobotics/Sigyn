@@ -221,10 +221,13 @@ The TeensyV2 architecture implements a distributed control system with three spe
   - Target frequency: 80Hz for sensor data collection
 
 - **Board 3 (Elevator & Gripper Board)**:
-  - Elevator motor control (Stepper)
-  - Gripper motor control (Stepper/Servo)
-  - Extender mechanism control
-  - Target frequency: 50Hz for smooth motion control
+  - Stepper motor control (elevator and extender positioning)
+  - Position-based control with absolute position commands
+  - Velocity-based control for legacy compatibility (TWIST)
+  - Homing sequence with hardware limit switch detection
+  - Real-time position feedback and limit switch status
+  - Hardware measured travel limits (elevator: 0.8999m, extender: 0.3418m)
+  - Target frequency: 100+Hz for smooth motion control
 
 ### Core Components
 
@@ -315,6 +318,18 @@ Based on actual system operation, the following message types are currently acti
 - **BATT2**: Multi-battery monitoring data (JSON format)
 - **DIAG2**: Diagnostic messages from sensor modules (JSON format)
 - **PERF2**: Performance monitoring for sensor board (JSON format)
+
+**Board 3 (Elevator & Gripper Board) Messages:**
+- **STEPPERSTAT3**: Stepper motor position and status (JSON format)
+- **DIAG3**: Diagnostic messages from stepper module (JSON format)
+- **PERF3**: Performance monitoring for elevator board (JSON format)
+
+**Command Messages (from ROS2 to Teensy):**
+- **TWIST**: Velocity commands for RoboClaw motors (Board 1) or stepper motors (Board 3)
+- **STEPPOS**: Position commands for stepper motors (Board 3) - *elevator:X,extender:Y*
+- **STEPHOME**: Homing command for stepper motors (Board 3)
+- **STEPSTATUS**: Status query for stepper motors (Board 3)
+- **ESTOP**: Emergency stop trigger/reset
 
 **Message Frequency Observations:**
 - **ODOM1**: Very high frequency (continuous stream)

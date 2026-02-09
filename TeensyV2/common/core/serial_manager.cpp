@@ -143,6 +143,27 @@ void SerialManager::handleCommand(const char* command, const char* args) {
     sendDiagnosticMessage("DEBUG", "SerialManager", diag);
     // TODO: Route to appropriate sensor module
 
+  } else if ((cmd_len == 7) && (strncmp(command, "STEPPOS", 7) == 0)) {
+    char diag[256] = {0};
+    snprintf(diag, sizeof(diag), "STEPPOS command received: %s", args ? args : "");
+    sendDiagnosticMessage("DEBUG", "SerialManager", diag);
+    // Store STEPPOS command for StepperMotor to process
+    setLatestStepPosCommand(args ? args : "");
+
+  } else if ((cmd_len == 8) && (strncmp(command, "STEPHOME", 8) == 0)) {
+    char diag[256] = {0};
+    snprintf(diag, sizeof(diag), "STEPHOME command received: %s", args ? args : "");
+    sendDiagnosticMessage("DEBUG", "SerialManager", diag);
+    // Store STEPHOME command for StepperMotor to process
+    setLatestStepHomeCommand(args ? args : "");
+
+  } else if ((cmd_len == 10) && (strncmp(command, "STEPSTATUS", 10) == 0)) {
+    char diag[256] = {0};
+    snprintf(diag, sizeof(diag), "STEPSTATUS command received: %s", args ? args : "");
+    sendDiagnosticMessage("DEBUG", "SerialManager", diag);
+    // Store STEPSTATUS command for StepperMotor to process
+    setLatestStepStatusCommand(args ? args : "");
+
   } else {
     char diag[64] = {0};
     snprintf(diag, sizeof(diag), "Unknown command type: %s", cmd_type);
@@ -460,6 +481,51 @@ const char* SerialManager::getLatestSDFileCommand() const { return latest_sdfile
 bool SerialManager::hasNewSDFileCommand() {
   if (has_new_sdfile_command_) {
     has_new_sdfile_command_ = false;  // Mark as processed
+    return true;
+  }
+  return false;
+}
+
+void SerialManager::setLatestStepPosCommand(const char* steppos_data) {
+  snprintf(latest_steppos_command_, sizeof(latest_steppos_command_), "%s", steppos_data ? steppos_data : "");
+  has_new_steppos_command_ = true;
+}
+
+const char* SerialManager::getLatestStepPosCommand() const { return latest_steppos_command_; }
+
+bool SerialManager::hasNewStepPosCommand() {
+  if (has_new_steppos_command_) {
+    has_new_steppos_command_ = false;  // Mark as processed
+    return true;
+  }
+  return false;
+}
+
+void SerialManager::setLatestStepHomeCommand(const char* stephome_data) {
+  snprintf(latest_stephome_command_, sizeof(latest_stephome_command_), "%s", stephome_data ? stephome_data : "");
+  has_new_stephome_command_ = true;
+}
+
+const char* SerialManager::getLatestStepHomeCommand() const { return latest_stephome_command_; }
+
+bool SerialManager::hasNewStepHomeCommand() {
+  if (has_new_stephome_command_) {
+    has_new_stephome_command_ = false;  // Mark as processed
+    return true;
+  }
+  return false;
+}
+
+void SerialManager::setLatestStepStatusCommand(const char* stepstatus_data) {
+  snprintf(latest_stepstatus_command_, sizeof(latest_stepstatus_command_), "%s", stepstatus_data ? stepstatus_data : "");
+  has_new_stepstatus_command_ = true;
+}
+
+const char* SerialManager::getLatestStepStatusCommand() const { return latest_stepstatus_command_; }
+
+bool SerialManager::hasNewStepStatusCommand() {
+  if (has_new_stepstatus_command_) {
+    has_new_stepstatus_command_ = false;  // Mark as processed
     return true;
   }
   return false;

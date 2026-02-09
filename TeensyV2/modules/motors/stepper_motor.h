@@ -31,6 +31,12 @@ namespace sigyn_teensy {
 
     // Command handling
     void handleTwistMessage(const char* data);
+    void handleStepPosMessage(const char* data);
+    void handleStepHomeMessage(const char* data);
+    void handleStepStatusMessage(const char* data);
+
+    // Status reporting
+    void sendStatusMessage();
 
   private:
     StepperMotor();

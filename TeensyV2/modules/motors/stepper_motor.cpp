@@ -21,7 +21,7 @@ namespace sigyn_teensy {
                   Motor::kElevatorStepDirectionPin,
                   Motor::kElevatorStepPulsePin,
                   Motor::kElevatorTopLimitSwitchPin,
-                  /*max_up*/ 0.90f,
+                  /*max_up*/ 0.8999f,
                   /*min_down*/ 0.0f,
                   /*travel_m_per_pulse*/ (1.0f / 5544.0f),
                   /*reverse*/ false),
@@ -29,7 +29,7 @@ namespace sigyn_teensy {
                   Motor::kExtenderStepDirectionPin,
                   Motor::kExtenderStepPulsePin,
                   Motor::kExtenderOutLimitSwitchPin,
-                  /*max_out*/ 0.342f,
+                  /*max_out*/ 0.3418f,
                   /*min_in*/ 0.0f,
                   /*travel_m_per_pulse*/ (1.0f / 6683.0f),
                   /*reverse*/ true) {
@@ -52,6 +52,24 @@ namespace sigyn_teensy {
     if (serial_.hasNewTwistCommand()) {
       const char* twist_data = SerialManager::getInstance().getLatestTwistCommand();
       handleTwistMessage(twist_data);
+    }
+
+    // Check for STEPPOS command "elevator:X,extender:Y"
+    if (serial_.hasNewStepPosCommand()) {
+      const char* steppos_data = SerialManager::getInstance().getLatestStepPosCommand();
+      handleStepPosMessage(steppos_data);
+    }
+
+    // Check for STEPHOME command
+    if (serial_.hasNewStepHomeCommand()) {
+      const char* stephome_data = SerialManager::getInstance().getLatestStepHomeCommand();
+      handleStepHomeMessage(stephome_data);
+    }
+
+    // Check for STEPSTATUS command
+    if (serial_.hasNewStepStatusCommand()) {
+      const char* stepstatus_data = SerialManager::getInstance().getLatestStepStatusCommand();
+      handleStepStatusMessage(stepstatus_data);
     }
 
     elevator_.continueOutstandingMovementRequests();
@@ -92,6 +110,87 @@ namespace sigyn_teensy {
     else if (angular_z < 0.0f) {
       extender_.setTargetPosition(extender_.getCurrentPosition() - kStep);
     }
+  }
+
+  void StepperMotor::handleStepPosMessage(const char* data) {
+    // Parse position message: "elevator:<value>,extender:<value>"
+    float elevator_pos = -1.0f;
+    float extender_pos = -1.0f;
+    bool has_elevator = false;
+    bool has_extender = false;
+
+    if (data) {
+      const char* elevator_start = strstr(data, "elevator:");
+      if (elevator_start) {
+        elevator_start += strlen("elevator:");
+        elevator_pos = strtof(elevator_start, nullptr);
+        has_elevator = true;
+      }
+
+      const char* extender_start = strstr(data, "extender:");
+      if (extender_start) {
+        extender_start += strlen("extender:");
+        extender_pos = strtof(extender_start, nullptr);
+        has_extender = true;
+      }
+    }
+
+    // Set target positions if valid
+    if (has_elevator) {
+      elevator_.setTargetPosition(elevator_pos);
+    }
+    if (has_extender) {
+      extender_.setTargetPosition(extender_pos);
+    }
+
+    // Send diagnostic confirmation
+    char msg[128];
+    snprintf(msg, sizeof(msg), "STEPPOS set: elev=%s%.3f ext=%s%.3f",
+      has_elevator ? "" : "unchanged,", has_elevator ? elevator_pos : 0.0f,
+      has_extender ? "" : "unchanged,", has_extender ? extender_pos : 0.0f);
+    serial_.sendDiagnosticMessage("INFO", name(), msg);
+  }
+
+  void StepperMotor::handleStepHomeMessage(const char* data) {
+    (void)data;  // Unused parameter
+    
+    // Re-home both motors: retract first (safer), then lower
+    extender_.home();  // Retract gripper to in position
+    elevator_.home();  // Lower elevator to bottom
+    
+    // Send diagnostic confirmation
+    serial_.sendDiagnosticMessage("INFO", name(), "Homing complete");
+    
+    // Send status after homing
+    sendStatusMessage();
+  }
+
+  void StepperMotor::handleStepStatusMessage(const char* data) {
+    (void)data;  // Unused parameter
+    sendStatusMessage();
+  }
+
+  void StepperMotor::sendStatusMessage() {
+    // Get current positions and limit states
+    float elev_pos = elevator_.getCurrentPosition();
+    float ext_pos = extender_.getCurrentPosition();
+    bool elev_at_bottom = elevator_.atDownLimit();
+    bool elev_at_top = elevator_.atUpLimit();
+    bool ext_at_in = extender_.atDownLimit();
+    bool ext_at_out = extender_.atUpLimit();
+
+    // Determine limit state strings
+    const char* elev_lim = elev_at_top ? "top" : (elev_at_bottom ? "bottom" : "none");
+    const char* ext_lim = ext_at_out ? "out" : (ext_at_in ? "in" : "none");
+
+    // Format status message as JSON
+    // Max positions measured from hardware: elev=0.8999m, ext=0.3418m
+    char payload[256];
+    snprintf(payload, sizeof(payload),
+      "{\"elev_pos\":%.4f,\"ext_pos\":%.4f,\"elev_lim\":\"%s\",\"ext_lim\":\"%s\",\"elev_max\":%.4f,\"ext_max\":%.4f}",
+      elev_pos, ext_pos, elev_lim, ext_lim, 0.8999f, 0.3418f);
+
+    serial_.sendMessage("STEPPERSTAT", payload);
   }
 
   // ---- Motor implementation ----
