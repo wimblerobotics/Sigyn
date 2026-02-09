@@ -41,23 +41,29 @@ namespace sigyn_teensy {
   }
 
   void StepperMotor::loop() {
-    static bool homed = false;
-    if (!homed) {
-      elevator_.home();
-      extender_.home();
-      homed = true;
+    static bool initial_homing_done = false;
+    static bool initial_homing_started = false;
+    
+    // Start initial homing on first loop
+    if (!initial_homing_started) {
+      extender_.startHoming();  // Retract first (safer)
+      initial_homing_started = true;
     }
-
-    // Check for TWIST command "linear_x,angular_z"
-    if (serial_.hasNewTwistCommand()) {
-      const char* twist_data = SerialManager::getInstance().getLatestTwistCommand();
-      handleTwistMessage(twist_data);
-    }
-
-    // Check for STEPPOS command "elevator:X,extender:Y"
-    if (serial_.hasNewStepPosCommand()) {
-      const char* steppos_data = SerialManager::getInstance().getLatestStepPosCommand();
-      handleStepPosMessage(steppos_data);
+    
+    // Always continue homing for any motor that's homing (initial or user-requested)
+    if (extender_.isHoming() || elevator_.isHoming()) {
+      bool extender_done = extender_.continueHoming();
+      bool elevator_done = elevator_.continueHoming();
+      
+      // For initial homing: start elevator after extender is done
+      if (!initial_homing_done && extender_done && !elevator_.isHoming() && !elevator_done) {
+        elevator_.startHoming();
+      }
+      
+      if (!initial_homing_done && extender_done && elevator_done) {
+        initial_homing_done = true;
+        serial_.sendDiagnosticMessage("INFO", name(), "Initial homing complete");
+      }
     }
 
     // Check for STEPHOME command
@@ -65,15 +71,47 @@ namespace sigyn_teensy {
       const char* stephome_data = SerialManager::getInstance().getLatestStepHomeCommand();
       handleStepHomeMessage(stephome_data);
     }
-
-    // Check for STEPSTATUS command
+    
+    // Check for STEPSTATUS command (always allow)
     if (serial_.hasNewStepStatusCommand()) {
       const char* stepstatus_data = SerialManager::getInstance().getLatestStepStatusCommand();
       handleStepStatusMessage(stepstatus_data);
     }
 
-    elevator_.continueOutstandingMovementRequests();
-    extender_.continueOutstandingMovementRequests();
+    // Only process movement commands if not homing
+    bool homing_active = elevator_.isHoming() || extender_.isHoming();
+    if (!homing_active) {
+      // Check for TWIST command "linear_x,angular_z"
+      if (serial_.hasNewTwistCommand()) {
+        const char* twist_data = SerialManager::getInstance().getLatestTwistCommand();
+        handleTwistMessage(twist_data);
+      }
+
+      // Check for STEPPOS command "elevator:X,extender:Y"
+      if (serial_.hasNewStepPosCommand()) {
+        const char* steppos_data = SerialManager::getInstance().getLatestStepPosCommand();
+        handleStepPosMessage(steppos_data);
+      }
+
+      elevator_.continueOutstandingMovementRequests();
+      extender_.continueOutstandingMovementRequests();
+    } else {
+      // Drain command queues while homing to prevent buildup
+      if (serial_.hasNewTwistCommand()) {
+        SerialManager::getInstance().getLatestTwistCommand();  // Discard
+      }
+      if (serial_.hasNewStepPosCommand()) {
+        SerialManager::getInstance().getLatestStepPosCommand();  // Discard
+      }
+    }
+    
+    // Auto-publish status at 10 Hz (always, even during homing)
+    static uint32_t last_status_publish_ms = 0;
+    const uint32_t now_ms = millis();
+    if (now_ms - last_status_publish_ms >= 100) {
+      sendStatusMessage();
+      last_status_publish_ms = now_ms;
+    }
   }
 
   void StepperMotor::handleTwistMessage(const char* data) {
@@ -154,15 +192,12 @@ namespace sigyn_teensy {
   void StepperMotor::handleStepHomeMessage(const char* data) {
     (void)data;  // Unused parameter
     
-    // Re-home both motors: retract first (safer), then lower
-    extender_.home();  // Retract gripper to in position
-    elevator_.home();  // Lower elevator to bottom
+    // Start non-blocking homing: retract first (safer), then lower
+    extender_.startHoming();  // Retract gripper to in position
+    elevator_.startHoming();  // Lower elevator to bottom (will wait for extender)
     
-    // Send diagnostic confirmation
-    serial_.sendDiagnosticMessage("INFO", name(), "Homing complete");
-    
-    // Send status after homing
-    sendStatusMessage();
+    // Send diagnostic confirmation that homing started
+    serial_.sendDiagnosticMessage("INFO", name(), "Homing initiated");
   }
 
   void StepperMotor::handleStepStatusMessage(const char* data) {
@@ -255,6 +290,26 @@ namespace sigyn_teensy {
       guard++;
     }
     current_position_m_ = position_min_down_m_;
+  }
+
+  void StepperMotor::Motor::startHoming() {
+    homing_in_progress_ = true;
+    pending_movement_command_ = false;  // Cancel any pending moves
+  }
+
+  bool StepperMotor::Motor::continueHoming() {
+    if (!homing_in_progress_) return true;  // Already homed
+    
+    if (atDownLimit()) {
+      // Homing complete
+      current_position_m_ = position_min_down_m_;
+      homing_in_progress_ = false;
+      return true;
+    }
+    
+    // Take one step toward home
+    stepPulse(kDown);
+    return false;  // Still homing
   }
 
   void StepperMotor::Motor::setTargetPosition(float target_position_m) {

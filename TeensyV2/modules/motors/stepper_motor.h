@@ -67,6 +67,9 @@ namespace sigyn_teensy {
 
       // operations
       void home();
+      void startHoming();  // Non-blocking: initiate homing
+      bool continueHoming();  // Non-blocking: returns true when complete
+      bool isHoming() const { return homing_in_progress_; }
       void setTargetPosition(float target_position_m);
       void moveByDelta(float delta_m);
       void continueOutstandingMovementRequests();
@@ -83,6 +86,7 @@ namespace sigyn_teensy {
       float current_position_m_ = 0.0f;
       bool pending_action_ = false;
       bool pending_movement_command_ = false;
+      bool homing_in_progress_ = false;
       const uint8_t pin_down_limit_switch_;
       const uint8_t pin_step_direction_;
       const uint8_t pin_step_pulse_;
