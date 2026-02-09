@@ -245,6 +245,7 @@ private:
     // Gripper movement tracking (position deltas only)
     std::atomic<float> last_elevator_pos_{0.0f};
     std::atomic<float> last_extender_pos_{0.0f};
+    std::atomic<uint64_t> last_gripper_status_ns_{0};
 
     // Service request management
     std::queue < PendingServiceRequest > pending_service_requests_;

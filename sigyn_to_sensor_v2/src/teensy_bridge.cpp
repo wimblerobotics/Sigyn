@@ -2007,6 +2007,9 @@ void TeensyBridge::HandleStepperStatusMessage(const MessageData& data, rclcpp::T
     // Store current positions for next comparison
     last_elevator_pos_.store(status_msg.elevator_position);
     last_extender_pos_.store(status_msg.extender_position);
+    last_gripper_status_ns_.store(
+        static_cast<int64_t>(status_msg.header.stamp.sec) * 1000000000LL + 
+        status_msg.header.stamp.nanosec);
 
     gripper_status_pub_->publish(status_msg);
 
@@ -2130,17 +2133,39 @@ void TeensyBridge::ExecuteElevatorMove(
   const auto goal = goal_handle->get_goal();
   auto feedback = std::make_shared<MoveElevator::Feedback>();
   auto result = std::make_shared<MoveElevator::Result>();
+
+  // Request a fresh status update before issuing STEPPOS
+  const auto status_before = last_gripper_status_ns_.load();
+  {
+    std::lock_guard<std::mutex> lock(gripper_queue_mutex_);
+    gripper_message_queue_.push("STEPSTATUS:\n");
+  }
+  auto wait_start = std::chrono::steady_clock::now();
+  while (rclcpp::ok() && last_gripper_status_ns_.load() <= status_before) {
+    if (std::chrono::steady_clock::now() - wait_start > std::chrono::milliseconds(500)) {
+      RCLCPP_WARN(this->get_logger(),
+                  "No fresh /gripper/status after STEPSTATUS; using last known positions");
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
   
-  // Send position command to Teensy (only elevator axis)
+  // Send position command to Teensy (mirror topic behavior; include both axes)
   std::ostringstream oss;
-  oss << "STEPPOS:elevator:" << goal->goal_position << "\n";
+  const float current_extender = last_extender_pos_.load();
+  // oss << "STEPPOS:elevator:" << goal->goal_position
+  //     << ",extender:" << current_extender << "\n";
+  oss << "STEPPOS:elevator:" << goal->goal_position
+      << ",extender:0.005\n";
   
   {
     std::lock_guard<std::mutex> lock(gripper_queue_mutex_);
     gripper_message_queue_.push(oss.str());
   }
   
-  RCLCPP_INFO(this->get_logger(), "Sent elevator command: %.3f", goal->goal_position);
+  RCLCPP_INFO(this->get_logger(),
+              "Sent elevator command: elev=%.3f ext=%.3f",
+              goal->goal_position, current_extender);
   
   // Monitor progress via gripper status updates
   rclcpp::Rate rate(10);  // 10 Hz polling
@@ -2256,17 +2281,37 @@ void TeensyBridge::ExecuteExtenderMove(
   const auto goal = goal_handle->get_goal();
   auto feedback = std::make_shared<MoveExtender::Feedback>();
   auto result = std::make_shared<MoveExtender::Result>();
+
+  // Request a fresh status update before issuing STEPPOS
+  const auto status_before = last_gripper_status_ns_.load();
+  {
+    std::lock_guard<std::mutex> lock(gripper_queue_mutex_);
+    gripper_message_queue_.push("STEPSTATUS:\n");
+  }
+  auto wait_start = std::chrono::steady_clock::now();
+  while (rclcpp::ok() && last_gripper_status_ns_.load() <= status_before) {
+    if (std::chrono::steady_clock::now() - wait_start > std::chrono::milliseconds(500)) {
+      RCLCPP_WARN(this->get_logger(),
+                  "No fresh /gripper/status after STEPSTATUS; using last known positions");
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
   
-  // Send position command to Teensy (only extender axis)
+  // Send position command to Teensy (mirror topic behavior; include both axes)
   std::ostringstream oss;
-  oss << "STEPPOS:extender:" << goal->goal_position << "\n";
+  const float current_elevator = last_elevator_pos_.load();
+  oss << "STEPPOS:elevator:" << current_elevator
+      << ",extender:" << goal->goal_position << "\n";
   
   {
     std::lock_guard<std::mutex> lock(gripper_queue_mutex_);
     gripper_message_queue_.push(oss.str());
   }
   
-  RCLCPP_INFO(this->get_logger(), "Sent extender command: %.3f", goal->goal_position);
+  RCLCPP_INFO(this->get_logger(),
+              "Sent extender command: elev=%.3f ext=%.3f",
+              current_elevator, goal->goal_position);
   
   // Monitor progress via gripper status updates
   rclcpp::Rate rate(10);  // 10 Hz polling

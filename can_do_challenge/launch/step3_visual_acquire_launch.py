@@ -61,7 +61,7 @@ def generate_launch_description():
 			"enable_groot_monitoring": True,
 			"groot_port": 1667,
 			# "bt_xml_filename": os.path.join(can_do_pkg, "bt_xml", "step3_real_visual_acquire.xml"),
-			"bt_xml_filename": os.path.join(can_do_pkg, "bt_xml", "raise_elevator.xml"),
+			"bt_xml_filename": os.path.join(can_do_pkg, "bt_xml", "main.orig.xml"),
 		}],
 	)
 
