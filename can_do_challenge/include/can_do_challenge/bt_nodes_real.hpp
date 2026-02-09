@@ -12,6 +12,8 @@
 #include "nav2_msgs/action/navigate_to_pose.hpp"
 #include "nav2_msgs/action/compute_path_to_pose.hpp"
 #include "nav2_msgs/action/follow_path.hpp"
+#include "sigyn_interfaces/action/move_elevator.hpp"
+#include "sigyn_interfaces/action/move_extender.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/battery_state.hpp"
 #include "sensor_msgs/msg/imu.hpp"
@@ -509,6 +511,97 @@ private:
   double home_position_ = 0.0;
   double last_commanded_ = 0.0;
   int step_count_ = 0;
+};
+
+class MoveElevatorAction : public BT::StatefulActionNode, public RosNodeBT
+{
+public:
+  MoveElevatorAction(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::StatefulActionNode(name, config) {}
+
+  static BT::PortsList providedPorts() {
+    return {
+      BT::InputPort<double>("goal_position", "Target elevator position in meters (0.0-0.8999)")
+    };
+  }
+
+  BT::NodeStatus onStart() override;
+  BT::NodeStatus onRunning() override;
+  void onHalted() override;
+
+private:
+  using MoveElevatorActionType = sigyn_interfaces::action::MoveElevator;
+  
+  enum class ActionState {
+    IDLE,
+    SENDING_GOAL,
+    GOAL_ACTIVE,
+    GOAL_COMPLETED,
+    GOAL_FAILED,
+    GOAL_CANCELED
+  };
+  
+  rclcpp_action::Client<MoveElevatorActionType>::SharedPtr action_client_;
+  rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr goal_handle_;
+  std::shared_future<rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr> goal_handle_future_;
+  
+  ActionState action_state_ = ActionState::IDLE;
+  std::atomic<bool> result_received_{false};
+  std::atomic<BT::NodeStatus> action_result_{BT::NodeStatus::FAILURE};
+  double goal_position_ = 0.0;
+
+  bool sendGoal();
+  void goalResponseCallback(const rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr& goal_handle);
+  void resultCallback(const rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::WrappedResult& result);
+  void feedbackCallback(
+    rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr,
+    const std::shared_ptr<const MoveElevatorActionType::Feedback> feedback);
+};
+
+class StepElevatorUpAction : public BT::StatefulActionNode, public RosNodeBT
+{
+public:
+  StepElevatorUpAction(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::StatefulActionNode(name, config) {}
+
+  static BT::PortsList providedPorts() {
+    return {
+      BT::InputPort<double>("stepMeters", 0.02, "Step size in meters")
+    };
+  }
+
+  BT::NodeStatus onStart() override;
+  BT::NodeStatus onRunning() override;
+  void onHalted() override;
+
+private:
+  using MoveElevatorActionType = sigyn_interfaces::action::MoveElevator;
+  
+  enum class ActionState {
+    IDLE,
+    READING_POSITION,
+    SENDING_GOAL,
+    GOAL_ACTIVE,
+    GOAL_COMPLETED,
+    GOAL_FAILED
+  };
+  
+  rclcpp_action::Client<MoveElevatorActionType>::SharedPtr action_client_;
+  rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr goal_handle_;
+  std::shared_future<rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr> goal_handle_future_;
+  
+  ActionState action_state_ = ActionState::IDLE;
+  std::atomic<bool> result_received_{false};
+  std::atomic<BT::NodeStatus> action_result_{BT::NodeStatus::FAILURE};
+  double target_position_ = 0.0;
+  double step_size_ = 0.02;
+
+  bool sendGoal();
+  void goalResponseCallback(const rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr& goal_handle);
+  void resultCallback(const rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::WrappedResult& result);
+  void feedbackCallback(
+    rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr,
+    const std::shared_ptr<const MoveElevatorActionType::Feedback> feedback);
 };
 
 class BackAwayFromTable : public BT::SyncActionNode, public RosNodeBT
