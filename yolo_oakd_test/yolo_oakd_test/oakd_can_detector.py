@@ -159,7 +159,7 @@ class OakdCanDetector(Node):
         return OakdCanDetector._axis_map_to_string(best_perm, best_signs), best_err
 
     def run_pipeline(self):
-        self.get_logger().info("[[PIPELINE]] Building pipeline...")
+        # self.get_logger().info("[[PIPELINE]] Building pipeline...")
         pipeline = dai.Pipeline()
         
         try:
@@ -257,8 +257,8 @@ class OakdCanDetector(Node):
                     loop_count += 1
                     
                     # Log heartbeat every 100 loops (~3-5 seconds depending on fps)
-                    if loop_count % 100 == 0:
-                         self.get_logger().info(f"[[LOOP]] Heartbeat {loop_count}. Running...")
+                    # if loop_count % 100 == 0:
+                        #  self.get_logger().info(f"[[LOOP]] Heartbeat {loop_count}. Running...")
 
                     in_rgb = q_rgb.tryGet()
                     in_det = q_det.tryGet()
@@ -266,8 +266,8 @@ class OakdCanDetector(Node):
                     
                     if in_rgb:
                         latest_frame_rgb = in_rgb.getCvFrame()
-                        if loop_count % 30 == 0:
-                            self.get_logger().info("[[DATA]] RGB Frame received.")
+                        # if loop_count % 30 == 0:
+                            # self.get_logger().info("[[DATA]] RGB Frame received.")
                             
                         msg_img = self.bridge.cv2_to_imgmsg(latest_frame_rgb, "bgr8")
                         msg_img.header.stamp = self.get_clock().now().to_msg()
@@ -288,8 +288,8 @@ class OakdCanDetector(Node):
 
                     if in_det:
                         detections = in_det.detections
-                        if len(detections) > 0:
-                             self.get_logger().info(f"[[DETECTION]] Packet received with {len(detections)} detection(s).")
+                        # if len(detections) > 0:
+                            #  self.get_logger().info(f"[[DETECTION]] Packet received with {len(detections)} detection(s).")
                         
                         annotated = None
                         if latest_frame_rgb is not None:
@@ -297,12 +297,12 @@ class OakdCanDetector(Node):
                         
                         for i, detection in enumerate(detections):
                             # LOG EVERY SINGLE FIELD
-                            self.get_logger().info(
-                                f"[[DETECTION #{i}]] Status: RAW >> "
-                                f"Conf: {detection.confidence:.3f} | "
-                                f"Box: [x:{detection.xmin:.2f}, y:{detection.ymin:.2f}, w:{detection.xmax-detection.xmin:.2f}, h:{detection.ymax-detection.ymin:.2f}] | "
-                                f"Spatial: [x:{detection.spatialCoordinates.x:.1f}, y:{detection.spatialCoordinates.y:.1f}, z:{detection.spatialCoordinates.z:.1f}]"
-                            )
+                            # self.get_logger().info(
+                            #     f"[[DETECTION #{i}]] Status: RAW >> "
+                            #     f"Conf: {detection.confidence:.3f} | "
+                            #     f"Box: [x:{detection.xmin:.2f}, y:{detection.ymin:.2f}, w:{detection.xmax-detection.xmin:.2f}, h:{detection.ymax-detection.ymin:.2f}] | "
+                            #     f"Spatial: [x:{detection.spatialCoordinates.x:.1f}, y:{detection.spatialCoordinates.y:.1f}, z:{detection.spatialCoordinates.z:.1f}]"
+                            # )
                             
                             # Filter Logic
                             repro_status = "ACCEPTED"
@@ -326,7 +326,7 @@ class OakdCanDetector(Node):
                                 continue
 
                             # If Accepted
-                            self.get_logger().info(f"[[DETECTION #{i}]] ACCEPTED. Processing...")
+                            # self.get_logger().info(f"[[DETECTION #{i}]] ACCEPTED. Processing...")
 
                             x_mm = detection.spatialCoordinates.x
                             y_mm = detection.spatialCoordinates.y
@@ -381,12 +381,12 @@ class OakdCanDetector(Node):
             raw_vec = [raw_x_m, raw_y_m, raw_z_m]
             mapped_vec = [sign * raw_vec[idx] for idx, sign in axis_map]
 
-            self.get_logger().info(
-                f"[[PROCESS]] Raw camera coords (DepthAI): x={raw_x_m:.3f}, y={raw_y_m:.3f}, z={raw_z_m:.3f}"
-            )
-            self.get_logger().info(
-                f"[[PROCESS]] Mapped camera coords -> frame '{self.camera_frame}': x={mapped_vec[0]:.3f}, y={mapped_vec[1]:.3f}, z={mapped_vec[2]:.3f} using map='{self.spatial_axis_map}'"
-            )
+            # self.get_logger().info(
+            #     f"[[PROCESS]] Raw camera coords (DepthAI): x={raw_x_m:.3f}, y={raw_y_m:.3f}, z={raw_z_m:.3f}"
+            # )
+            # self.get_logger().info(
+            #     f"[[PROCESS]] Mapped camera coords -> frame '{self.camera_frame}': x={mapped_vec[0]:.3f}, y={mapped_vec[1]:.3f}, z={mapped_vec[2]:.3f} using map='{self.spatial_axis_map}'"
+            # )
 
             stamp = self.get_clock().now().to_msg()
 
@@ -412,20 +412,20 @@ class OakdCanDetector(Node):
 
                     if self.log_tf_debug:
                         roll, pitch, yaw = self._quat_to_rpy(t.transform.rotation)
-                        self.get_logger().info(
-                            f"[[TF]] base_link <- {self.camera_frame} translation=({t.transform.translation.x:.3f}, {t.transform.translation.y:.3f}, {t.transform.translation.z:.3f}) "
-                            f"rpy=({math.degrees(roll):.1f}, {math.degrees(pitch):.1f}, {math.degrees(yaw):.1f}) deg"
-                        )
+                        # self.get_logger().info(
+                        #     f"[[TF]] base_link <- {self.camera_frame} translation=({t.transform.translation.x:.3f}, {t.transform.translation.y:.3f}, {t.transform.translation.z:.3f}) "
+                        #     f"rpy=({math.degrees(roll):.1f}, {math.degrees(pitch):.1f}, {math.degrees(yaw):.1f}) deg"
+                        # )
 
                     pt_base_raw = tf2_geometry_msgs.do_transform_point(pt_raw, t)
                     pt_base = tf2_geometry_msgs.do_transform_point(pt_msg, t)
 
-                    self.get_logger().info(
-                        f"[[TRANSFORM]] BASE_LINK (raw): x={pt_base_raw.point.x:.3f}, y={pt_base_raw.point.y:.3f}, z={pt_base_raw.point.z:.3f}"
-                    )
-                    self.get_logger().info(
-                        f"[[TRANSFORM]] BASE_LINK (mapped): x={pt_base.point.x:.3f}, y={pt_base.point.y:.3f}, z={pt_base.point.z:.3f}"
-                    )
+                    # self.get_logger().info(
+                    #     f"[[TRANSFORM]] BASE_LINK (raw): x={pt_base_raw.point.x:.3f}, y={pt_base_raw.point.y:.3f}, z={pt_base_raw.point.z:.3f}"
+                    # )
+                    # self.get_logger().info(
+                    #     f"[[TRANSFORM]] BASE_LINK (mapped): x={pt_base.point.x:.3f}, y={pt_base.point.y:.3f}, z={pt_base.point.z:.3f}"
+                    # )
 
                     # Optional: suggest axis mapping based on expected base_link target
                     if self.suggest_axis_map and isinstance(self.expected_target_base, list) and len(self.expected_target_base) == 3:
@@ -443,15 +443,15 @@ class OakdCanDetector(Node):
                             raw_vec = [raw_x_m, raw_y_m, raw_z_m]
                             tgt_vec = [target_in_cam.point.x, target_in_cam.point.y, target_in_cam.point.z]
 
-                            self.get_logger().info(
-                                f"[[TARGET]] base_link target=({target_msg.point.x:.3f}, {target_msg.point.y:.3f}, {target_msg.point.z:.3f}) -> {self.camera_frame} ({tgt_vec[0]:.3f}, {tgt_vec[1]:.3f}, {tgt_vec[2]:.3f})"
-                            )
+                            # self.get_logger().info(
+                            #     f"[[TARGET]] base_link target=({target_msg.point.x:.3f}, {target_msg.point.y:.3f}, {target_msg.point.z:.3f}) -> {self.camera_frame} ({tgt_vec[0]:.3f}, {tgt_vec[1]:.3f}, {tgt_vec[2]:.3f})"
+                            # )
 
                             best_map, best_err = self._best_axis_map(raw_vec, tgt_vec)
-                            if best_map is not None:
-                                self.get_logger().info(
-                                    f"[[SUGGEST]] Best spatial_axis_map='{best_map}' (sse={best_err:.6f})"
-                                )
+                            # if best_map is not None:
+                                # self.get_logger().info(
+                                #     f"[[SUGGEST]] Best spatial_axis_map='{best_map}' (sse={best_err:.6f})"
+                                # )
                         except Exception as exc:
                             self.get_logger().warn(f"[[SUGGEST]] Failed to compute axis map suggestion: {exc}")
 
@@ -465,7 +465,7 @@ class OakdCanDetector(Node):
                         det_msg.spatial_camera.z = mapped_vec[2]
                         det_msg.spatial_base_link = pt_base.point
                         self.pub_det.publish(det_msg)
-                        self.get_logger().info("[[PUBLISH]] CanDetection message released.")
+                        # self.get_logger().info("[[PUBLISH]] CanDetection message released.")
                 else:
                     self.get_logger().warn(f"[[TRANSFORM]] Cannot transform from '{self.camera_frame}' to base_link yet.")
             except Exception as e:
