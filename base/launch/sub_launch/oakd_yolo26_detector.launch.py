@@ -12,32 +12,31 @@ from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
-    """Launch YOLO26 OAK-D detector for Coke can detection."""
+    """Launch YOLO OAK-D detector for Coke can detection using yolo_oakd_test package."""
     
-    # Path to yolo26_oakd_detector launch file
-    yolo26_launch_path = PathJoinSubstitution(
-        [FindPackageShare('oakd_detector'), 'launch', 'yolo26_oakd_detector.launch.py']
-    )
+    from launch_ros.actions import Node
     
-    # Include the YOLO26 detector launch file
-    yolo26_detector = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(yolo26_launch_path),
-        launch_arguments={
-            'mxId': '14442C1051B665D700',
-            'model_path': os.path.join(
-                get_package_share_directory('oakd_detector'),
-                'resources',
-                'best.pt'  # RoboFlow v3 model
-            ),
-            'confidence_threshold': '0.5',
-            'image_size': '640',
-            'trained_images_dir': '/home/ros/sigyn_ws/src/Sigyn/trained_images',
-            'depth_topic': '/oakd_top/oak/stereo/image_raw',
-            'image_topic': '/oakd_top/oak/rgb/image_raw',
-        }.items()
+    yolo_pkg = get_package_share_directory("yolo_oakd_test")
+    
+    # Use the yolo_oakd_test node directly
+    oakd_node = Node(
+        package="yolo_oakd_test",
+        executable="oakd_can_detector.py",
+        name="oakd_can_detector",
+        output="screen",
+        parameters=[{
+            "blob_path": os.path.join(yolo_pkg, "models", "can_detector.blob"),
+            "camera_frame": "oak_rgb_camera_optical_frame",
+            "spatial_axis_map": "-z,x,y",
+            "log_tf_debug": False,
+        }],
+        remappings=[
+            ("/oakd_top/can_point_camera", "/oakd/can_detection"),
+            ("/oakd_top/annotated_image", "/oakd/annotated_image")
+        ]
     )
     
     ld = LaunchDescription()
-    ld.add_action(yolo26_detector)
+    ld.add_action(oakd_node)
     
     return ld
