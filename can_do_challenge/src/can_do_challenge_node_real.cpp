@@ -117,7 +117,7 @@ public:
     factory.registerNodeType<LowerElevatorToTable>("LowerElevatorToTable");
     factory.registerNodeType<MoveElevatorToHeight>("MoveElevatorToHeight");
     factory.registerNodeType<StepElevatorUp>("StepElevatorUp");
-    factory.registerNodeType<BackAwayFromTable>("BackAwayFromTable");
+    factory.registerNodeType<MoveElevatorAction>("MoveElevatorAction");  factory.registerNodeType<StepElevatorUpAction>("StepElevatorUpAction");    factory.registerNodeType<BackAwayFromTable>("BackAwayFromTable");
     factory.registerNodeType<ComputeElevatorHeight>("ComputeElevatorHeight");
     factory.registerNodeType<RetractExtender>("RetractExtender");
     factory.registerNodeType<RetractGripper>("RetractGripper");
@@ -141,6 +141,12 @@ public:
     // Custom Decorator
     factory.registerNodeType<ReactiveRepeatUntilSuccessOrCount>("ReactiveRepeatUntilSuccessOrCount");
     factory.registerNodeType<CheckBoolFlag>("CheckBoolFlag");
+
+    // Debug: Print all registered nodes
+    RCLCPP_INFO(this->get_logger(), "Registered nodes in factory:");
+    for (const auto& entry : factory.manifests()) {
+      RCLCPP_INFO(this->get_logger(), "  - %s", entry.first.c_str());
+    }
 
     // Create the behavior tree
     try {

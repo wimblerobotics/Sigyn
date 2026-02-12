@@ -104,7 +104,7 @@ ros2 launch sigyn_to_sensor_v2 teensy_bridge.launch.py
 ros2 run sigyn_to_sensor_v2 teensy_bridge_node
 
 # Monitor all TeensyV2-related topics
-ros2 topic list | grep -E "(battery|imu|estop|performance)"
+ros2 topic list | grep -E "(battery|imu|estop|performance|gripper)"
 ```
 
 ### Verification and Testing
@@ -121,6 +121,19 @@ ros2 topic hz /odom
 
 # View comprehensive diagnostics
 ros2 topic echo /diagnostics --once
+
+# Monitor gripper status (10 Hz auto-publishing)
+ros2 topic echo /gripper/status
+ros2 topic hz /gripper/status  # Should show ~10 Hz
+
+# Test gripper positioning
+ros2 topic pub --once /gripper/home std_msgs/msg/Empty  # Home first
+ros2 topic pub --once /gripper/position/command sigyn_interfaces/msg/GripperPositionCommand "{elevator_position: 0.1, extender_position: 0.05}"
+
+# Test gripper actions with feedback
+ros2 action send_goal /gripper/move_elevator sigyn_interfaces/action/MoveElevator "{goal_position: 0.5}" --feedback
+ros2 action send_goal /gripper/move_extender sigyn_interfaces/action/MoveExtender "{goal_position: 0.2}" --feedback
+```
 
 ### Configuration
 ```bash
@@ -171,11 +184,46 @@ ros2 param set /teensy_bridge_node serial_port_board2 "/dev/ttyACM1"
   - **Level Display**: Enhanced level representation for diagnostic viewers
 - `/performance_stats` (diagnostic_msgs/DiagnosticArray) - Real-time performance monitoring and timing analysis
 
+#### Gripper Control (Board 3)
+- `/gripper/status` (sigyn_interfaces/GripperStatus) - **10 Hz auto-published** gripper position and status
+  - **Position Feedback**: Current elevator and extender positions in meters
+  - **Limit States**: Hardware limit switch states (none/upper/lower/both)
+  - **Motion Status**: is_moving flag based on position changes between updates
+  - **Homed Status**: is_homed flag indicating if motors have been homed
+  - **Hardware Limits**: Maximum travel distances for both axes
+
 ### Subscribed Topics
 
 #### Commands
 - `/commands/config` - Configuration update commands
 - `/commands/estop` - Software E-stop trigger commands
+- `/cmd_vel_gripper` (geometry_msgs/Twist) - Velocity-based gripper control (legacy)
+  - `linear.x`: Elevator velocity (0.001m increments)
+  - `angular.z`: Extender velocity (0.001m increments)
+
+#### Gripper Position Control
+- `/gripper/position/command` (sigyn_interfaces/GripperPositionCommand) - Position-based gripper control
+  - **elevator_position** (float): Target elevator position in meters (0.0-0.8999m, -1.0 = no change)
+  - **extender_position** (float): Target extender position in meters (0.0-0.3418m, -1.0 = no change)
+- `/gripper/home` (std_msgs/Empty) - Initiate non-blocking homing sequence
+  - Retracts extender first, then lowers elevator
+  - Status continues publishing at 10 Hz during homing
+
+### Action Servers
+
+#### Gripper Position Actions
+- `/gripper/move_elevator` (sigyn_interfaces/action/MoveElevator) - Goal-based elevator positioning
+  - **Goal**: Target position in meters (0.0-0.8999m)
+  - **Feedback**: Current position at 10 Hz
+  - **Result**: Final position when complete
+  - **Success Tolerance**: ±5mm
+  - **Timeout**: 30 seconds
+- `/gripper/move_extender` (sigyn_interfaces/action/MoveExtender) - Goal-based extender positioning
+  - **Goal**: Target position in meters (0.0-0.3418m)
+  - **Feedback**: Current position at 10 Hz  
+  - **Result**: Final position when complete
+  - **Success Tolerance**: ±5mm
+  - **Timeout**: 30 seconds
 
 ### Message Format Notes
 

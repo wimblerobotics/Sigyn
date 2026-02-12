@@ -12,6 +12,45 @@ Behavior Trees -- Create a single, parameterized Condition Node (e.g., `IsFaultA
 * [MED] Sensor Timeout Safety. Ensure sensors trigger `isUnsafe` if they stop updating.
 * [FUTURE] Battery Charging Logic: Warning on low charge, E-Stop on Critical Low.
 
+# Board 3 (Gripper/Elevator) Command Enhancements (2026-02-08)
+✓ [DONE 2026-02-08] Add position command support alongside existing velocity control
+  - Added STEPPOS command: STEPPOS:elevator:X,extender:Y for absolute positioning
+  - Added STEPHOME command for homing sequence (retract then lower)
+  - Added STEPSTATUS command to query current status
+  - Teensy validates positions against hardware limits (0.8999m elevator, 0.3418m extender)
+✓ [DONE 2026-02-08] Add position feedback messages from Board 3 to ROS2
+  - Implemented STEPPERSTAT3 message with JSON payload
+  - Reports elevator_position, extender_position, limit switch states, max travel values
+  - Published on /gripper/status topic via sigyn_to_sensor_v2
+✓ [DONE 2026-02-08] ROS2 Integration - Phase 1 Complete
+  - Created GripperStatus.msg and GripperPositionCommand.msg in sigyn_interfaces
+  - Added /gripper/status publisher (STEPPERSTAT3 → GripperStatus)
+  - Added /gripper/position/command subscriber (GripperPositionCommand → STEPPOS)
+  - Added /gripper/home subscriber (Empty → STEPHOME)
+  - Updated message_parser.cpp to handle STEPPERSTAT3
+  - Updated teensy_bridge for new gripper topics
+✓ [DONE 2026-02-08] Add limit query capability
+  - Max travel values hardcoded in firmware from hardware measurements
+  - Reported in STEPPERSTAT3 message (elev_max: 0.8999m, ext_max: 0.3418m)
+  - Position commands validated against limits before execution
+✓ [DONE 2026-02-08] Add homing command/status
+  - STEPHOME command implemented with safety sequence (retract before lower)
+  - Homing completion indicated via limit switch states in STEPPERSTAT3
+✓ [DONE 2026-02-08] Phase 2: Implement Action Servers (Modernized with Actions)
+  - Implemented MoveElevator.action server in teensy_bridge
+  - Implemented MoveExtender.action server in teensy_bridge
+  - Provides goal-based control with feedback and cancellation
+  - Integrated with behavior trees via action clients
+✓ [DONE 2026-02-08] Phase 3: Update Behavior Tree Nodes (Visual Acquisition)
+  - Created MoveElevatorAction BT node with full action client integration
+  - Created StepElevatorUpAction for incremental visual servoing (action-based, no velocity)
+  - Removed velocity commands from StepElevatorUp (replaced with action server calls)
+  - Implemented ElevatorAtHeight condition for pixel-based visual feedback
+  - Created raise_elevator.xml with incremental stepping from home position
+  - Position feedback from /gripper/status for accurate tracking
+  - Tested successfully on real hardware with can positioning at 342±10 pixels
+  - Visual servoing loop: step 2cm → check camera → repeat until target reached
+
 # Multi-Board Safety Coordination (2025-01-06)
 * [HIGH] Enable SafetyCoordinator on Board2 and Board3 - Each board needs to send FAULT messages to sigyn_to_sensor_v2
   - Update config.h to ensure BOARD_HAS_SAFETY=1 for boards 2 and 3

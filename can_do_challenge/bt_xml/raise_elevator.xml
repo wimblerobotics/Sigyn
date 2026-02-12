@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<root main_tree_to_execute="RaiseElevatorToCanHeight">
+    <BehaviorTree ID="RaiseElevatorToCanHeight">
+        <Sequence>
+            <!-- Wait for vision system to be ready -->
+            <Condition ID="WaitForNewPiFrameProcessed" />
+            
+            <!-- Incrementally raise elevator with visual feedback -->
+            <!-- Start from home, step up 2cm at a time using action server -->
+            <!-- Continue until can appears at target pixel height -->
+            <RetryUntilSuccessful num_attempts="50">
+                <ReactiveFallback>
+                    <!-- Check if can is at target height (342 pixels) -->
+                    <Condition ID="ElevatorAtHeight" targetHeightPixels="342.0" z_tolerance_pixels="10.0" />
+                    
+                    <!-- If not, step up using action server and check again -->
+                    <Sequence>
+                        <Action ID="StepElevatorUpAction" stepMeters="0.02" />
+                        <ForceFailure>
+                            <Condition ID="WaitForNewPiFrameProcessed" />
+                        </ForceFailure>
+                    </Sequence>
+                </ReactiveFallback>
+            </RetryUntilSuccessful>
+        </Sequence>
+    </BehaviorTree>
+</root>

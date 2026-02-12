@@ -31,6 +31,12 @@ namespace sigyn_teensy {
 
     // Command handling
     void handleTwistMessage(const char* data);
+    void handleStepPosMessage(const char* data);
+    void handleStepHomeMessage(const char* data);
+    void handleStepStatusMessage(const char* data);
+
+    // Status reporting
+    void sendStatusMessage();
 
   private:
     StepperMotor();
@@ -61,6 +67,9 @@ namespace sigyn_teensy {
 
       // operations
       void home();
+      void startHoming();  // Non-blocking: initiate homing
+      bool continueHoming();  // Non-blocking: returns true when complete
+      bool isHoming() const { return homing_in_progress_; }
       void setTargetPosition(float target_position_m);
       void moveByDelta(float delta_m);
       void continueOutstandingMovementRequests();
@@ -77,6 +86,8 @@ namespace sigyn_teensy {
       float current_position_m_ = 0.0f;
       bool pending_action_ = false;
       bool pending_movement_command_ = false;
+      bool homing_in_progress_ = false;
+      uint32_t last_step_time_us_ = 0;  // Track last step pulse time
       const uint8_t pin_down_limit_switch_;
       const uint8_t pin_step_direction_;
       const uint8_t pin_step_pulse_;

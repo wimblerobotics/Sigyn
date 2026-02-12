@@ -24,6 +24,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/empty.hpp"
 #include "std_msgs/msg/u_int16.hpp"
 #include "sensor_msgs/msg/battery_state.hpp"
 #include "sensor_msgs/msg/imu.hpp"
@@ -37,10 +38,21 @@
 #include "sigyn_interfaces/srv/reset_fault.hpp"
 #include "sigyn_interfaces/msg/e_stop_status.hpp"
 #include "sigyn_interfaces/msg/system_fault.hpp"
+#include "sigyn_interfaces/msg/gripper_status.hpp"
+#include "sigyn_interfaces/msg/gripper_position_command.hpp"
+#include "sigyn_interfaces/action/move_elevator.hpp"
+#include "sigyn_interfaces/action/move_extender.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 
 #include "sigyn_to_sensor_v2/message_parser.h"
 
 namespace sigyn_to_sensor_v2 {
+
+  // Action type aliases
+  using MoveElevator = sigyn_interfaces::action::MoveElevator;
+  using MoveExtender = sigyn_interfaces::action::MoveExtender;
+  using GoalHandleMoveElevator = rclcpp_action::ServerGoalHandle<MoveElevator>;
+  using GoalHandleMoveExtender = rclcpp_action::ServerGoalHandle<MoveExtender>;
 
   // Structure to hold pending service requests
   struct PendingServiceRequest
@@ -86,6 +98,7 @@ private:
     void HandleVL53L0XMessage(const MessageData & data, rclcpp::Time timestamp);
     void HandleRoboClawMessage(const MessageData & data, rclcpp::Time timestamp);
     void HandleOdomMessage(const MessageData & data, rclcpp::Time timestamp);
+    void HandleStepperStatusMessage(const MessageData & data, rclcpp::Time timestamp);
 
     // ROS2 callbacks
     void EstopCommandCallback(const std_msgs::msg::Bool::SharedPtr msg);
@@ -93,6 +106,29 @@ private:
     void CmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg);
     void CmdVelGripperCallback(const geometry_msgs::msg::Twist::SharedPtr msg);
     void SdPruneKeepLastCallback(const std_msgs::msg::UInt16::SharedPtr msg);
+    void GripperPositionCommandCallback(const sigyn_interfaces::msg::GripperPositionCommand::SharedPtr msg);
+    void GripperHomeCallback(const std_msgs::msg::Empty::SharedPtr msg);
+
+    // Action server callbacks
+    rclcpp_action::GoalResponse HandleElevatorGoal(
+      const rclcpp_action::GoalUUID & uuid,
+      std::shared_ptr<const MoveElevator::Goal> goal);
+    rclcpp_action::CancelResponse HandleElevatorCancel(
+      const std::shared_ptr<GoalHandleMoveElevator> goal_handle);
+    void HandleElevatorAccepted(
+      const std::shared_ptr<GoalHandleMoveElevator> goal_handle);
+    void ExecuteElevatorMove(
+      const std::shared_ptr<GoalHandleMoveElevator> goal_handle);
+
+    rclcpp_action::GoalResponse HandleExtenderGoal(
+      const rclcpp_action::GoalUUID & uuid,
+      std::shared_ptr<const MoveExtender::Goal> goal);
+    rclcpp_action::CancelResponse HandleExtenderCancel(
+      const std::shared_ptr<GoalHandleMoveExtender> goal_handle);
+    void HandleExtenderAccepted(
+      const std::shared_ptr<GoalHandleMoveExtender> goal_handle);
+    void ExecuteExtenderMove(
+      const std::shared_ptr<GoalHandleMoveExtender> goal_handle);
 
     // Service handlers
     void HandleSdGetDirRequest(
@@ -153,6 +189,7 @@ private:
     rclcpp::Publisher < sensor_msgs::msg::Range > ::SharedPtr vl53l0x_sensor5_pub_;
     rclcpp::Publisher < sensor_msgs::msg::Range > ::SharedPtr vl53l0x_sensor6_pub_;
     rclcpp::Publisher < sensor_msgs::msg::Range > ::SharedPtr vl53l0x_sensor7_pub_;
+    rclcpp::Publisher < sigyn_interfaces::msg::GripperStatus > ::SharedPtr gripper_status_pub_;
 
     // Subscribers
     rclcpp::Subscription < std_msgs::msg::Bool > ::SharedPtr estop_cmd_sub_;
@@ -160,11 +197,21 @@ private:
     rclcpp::Subscription < std_msgs::msg::UInt16 > ::SharedPtr sd_prune_keep_last_sub_;
     rclcpp::Subscription < geometry_msgs::msg::Twist > ::SharedPtr cmd_vel_sub_;
     rclcpp::Subscription < geometry_msgs::msg::Twist > ::SharedPtr cmd_vel_gripper_sub_;
+    rclcpp::Subscription < sigyn_interfaces::msg::GripperPositionCommand > ::SharedPtr gripper_position_cmd_sub_;
+    rclcpp::Subscription < std_msgs::msg::Empty > ::SharedPtr gripper_home_sub_;
 
     // Services
     rclcpp::Service < sigyn_interfaces::srv::TeensySdGetDir > ::SharedPtr sd_getdir_service_;
     rclcpp::Service < sigyn_interfaces::srv::TeensySdGetFile > ::SharedPtr sd_getfile_service_;
     rclcpp::Service < sigyn_interfaces::srv::ResetFault > ::SharedPtr reset_fault_service_;
+
+    // Action servers
+    rclcpp_action::Server<MoveElevator>::SharedPtr elevator_action_server_;
+    rclcpp_action::Server<MoveExtender>::SharedPtr extender_action_server_;
+    std::shared_ptr<GoalHandleMoveElevator> active_elevator_goal_;
+    std::shared_ptr<GoalHandleMoveExtender> active_extender_goal_;
+    std::mutex elevator_goal_mutex_;
+    std::mutex extender_goal_mutex_;
     
     // Fault tracking
     std::mutex fault_mutex_;
@@ -194,6 +241,11 @@ private:
     // Gripper message queue (for board3)
     std::queue < std::string > gripper_message_queue_;
     std::mutex gripper_queue_mutex_;
+
+    // Gripper movement tracking (position deltas only)
+    std::atomic<float> last_elevator_pos_{0.0f};
+    std::atomic<float> last_extender_pos_{0.0f};
+    std::atomic<uint64_t> last_gripper_status_ns_{0};
 
     // Service request management
     std::queue < PendingServiceRequest > pending_service_requests_;

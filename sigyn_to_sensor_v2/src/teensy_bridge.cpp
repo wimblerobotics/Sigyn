@@ -126,6 +126,11 @@ TeensyBridge::TeensyBridge()
       HandleOdomMessage(data, timestamp);
       });
 
+  message_parser_->RegisterCallback(MessageType::STEPPERSTAT,
+    [this](const MessageData & data, rclcpp::Time timestamp) {
+      HandleStepperStatusMessage(data, timestamp);
+      });
+
   message_parser_->RegisterCallback(MessageType::SDIR,
     [this](const MessageData & data, rclcpp::Time timestamp) {
       (void)timestamp;   // Suppress unused parameter warning
@@ -275,6 +280,9 @@ void TeensyBridge::InitializePublishersAndSubscribers()
   vl53l0x_sensor7_pub_ = this->create_publisher<sensor_msgs::msg::Range>(
       "~/range/vl53l0x_7", 10);
 
+  gripper_status_pub_ = this->create_publisher<sigyn_interfaces::msg::GripperStatus>(
+      "/gripper/status", 10);
+
     // Subscribers
   estop_cmd_sub_ = this->create_subscription<std_msgs::msg::Bool>(
       "~/commands/estop", 10,
@@ -298,6 +306,18 @@ void TeensyBridge::InitializePublishersAndSubscribers()
       "/cmd_vel_gripper", 10,
     [this](const geometry_msgs::msg::Twist::SharedPtr msg) {
       CmdVelGripperCallback(msg);
+      });
+
+  gripper_position_cmd_sub_ = this->create_subscription<sigyn_interfaces::msg::GripperPositionCommand>(
+      "/gripper/position/command", 10,
+    [this](const sigyn_interfaces::msg::GripperPositionCommand::SharedPtr msg) {
+      GripperPositionCommandCallback(msg);
+      });
+
+  gripper_home_sub_ = this->create_subscription<std_msgs::msg::Empty>(
+      "/gripper/home", 10,
+    [this](const std_msgs::msg::Empty::SharedPtr msg) {
+      GripperHomeCallback(msg);
       });
 
   sd_prune_keep_last_sub_ = this->create_subscription<std_msgs::msg::UInt16>(
@@ -336,6 +356,23 @@ void TeensyBridge::InitializePublishersAndSubscribers()
       HandleResetFault(request, response);
       },
       rclcpp::ServicesQoS(), service_callback_group_);
+
+  // Action servers
+  elevator_action_server_ = rclcpp_action::create_server<MoveElevator>(
+    this,
+    "/gripper/move_elevator",
+    std::bind(&TeensyBridge::HandleElevatorGoal, this, std::placeholders::_1, std::placeholders::_2),
+    std::bind(&TeensyBridge::HandleElevatorCancel, this, std::placeholders::_1),
+    std::bind(&TeensyBridge::HandleElevatorAccepted, this, std::placeholders::_1));
+
+  extender_action_server_ = rclcpp_action::create_server<MoveExtender>(
+    this,
+    "/gripper/move_extender",
+    std::bind(&TeensyBridge::HandleExtenderGoal, this, std::placeholders::_1, std::placeholders::_2),
+    std::bind(&TeensyBridge::HandleExtenderCancel, this, std::placeholders::_1),
+    std::bind(&TeensyBridge::HandleExtenderAccepted, this, std::placeholders::_1));
+
+  RCLCPP_INFO(this->get_logger(), "Action servers initialized: /gripper/move_elevator, /gripper/move_extender");
 
     // Timers
   status_timer_ = this->create_wall_timer(
@@ -1920,4 +1957,419 @@ void TeensyBridge::UpdateAndPublishFaults()
   estop_status_pub_->publish(current_estop_status_);
 }
 
+void TeensyBridge::HandleStepperStatusMessage(const MessageData& data, rclcpp::Time timestamp)
+{
+  // Parse STEPPERSTAT3 JSON message and publish GripperStatus
+  // Expected format: STEPPERSTAT3:{"elev_pos":0.45,"ext_pos":0.12,"elev_lim":"none","ext_lim":"none","elev_max":0.8999,"ext_max":0.3418}
+  
+  sigyn_interfaces::msg::GripperStatus status_msg;
+  status_msg.header.stamp = timestamp;
+  status_msg.header.frame_id = "gripper_base_link";
+
+  try {
+    // Parse positions - data IS the map (MessageData = std::unordered_map<string, string>)
+    auto elev_pos_it = data.find("elev_pos");
+    auto ext_pos_it = data.find("ext_pos");
+    auto elev_lim_it = data.find("elev_lim");
+    auto ext_lim_it = data.find("ext_lim");
+    auto elev_max_it = data.find("elev_max");
+    auto ext_max_it = data.find("ext_max");
+
+    if (elev_pos_it != data.end()) {
+      status_msg.elevator_position = std::stof(elev_pos_it->second);
+    }
+    if (ext_pos_it != data.end()) {
+      status_msg.extender_position = std::stof(ext_pos_it->second);
+    }
+    if (elev_lim_it != data.end()) {
+      status_msg.elevator_limit_state = elev_lim_it->second;
+    }
+    if (ext_lim_it != data.end()) {
+      status_msg.extender_limit_state = ext_lim_it->second;
+    }
+    if (elev_max_it != data.end()) {
+      status_msg.elevator_max_travel = std::stof(elev_max_it->second);
+    }
+    if (ext_max_it != data.end()) {
+      status_msg.extender_max_travel = std::stof(ext_max_it->second);
+    }
+
+    // Determine if homed (both positions at or near zero with limit switches at lower)
+    status_msg.is_homed = (status_msg.elevator_limit_state == "lower" || 
+                           (status_msg.elevator_position < 0.01f && status_msg.extender_position < 0.01f));
+    
+    // Detect movement by comparing position changes between consecutive status updates
+    // Teensy publishes at 10 Hz, so any position change indicates active movement
+    const float elev_delta = std::abs(status_msg.elevator_position - last_elevator_pos_.load());
+    const float ext_delta = std::abs(status_msg.extender_position - last_extender_pos_.load());
+    status_msg.is_moving = (elev_delta > 0.001f || ext_delta > 0.001f);
+    
+    // Store current positions for next comparison
+    last_elevator_pos_.store(status_msg.elevator_position);
+    last_extender_pos_.store(status_msg.extender_position);
+    last_gripper_status_ns_.store(
+        static_cast<int64_t>(status_msg.header.stamp.sec) * 1000000000LL + 
+        status_msg.header.stamp.nanosec);
+
+    gripper_status_pub_->publish(status_msg);
+
+    RCLCPP_DEBUG(this->get_logger(), 
+                 "Gripper status: elev=%.3fm ext=%.3fm elev_lim=%s ext_lim=%s",
+                 status_msg.elevator_position, status_msg.extender_position,
+                 status_msg.elevator_limit_state.c_str(), status_msg.extender_limit_state.c_str());
+
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(this->get_logger(), "Failed to parse STEPPERSTAT3 message: %s", e.what());
+  }
+}
+
+void TeensyBridge::GripperPositionCommandCallback(const sigyn_interfaces::msg::GripperPositionCommand::SharedPtr msg)
+{
+  // Convert GripperPositionCommand to STEPPOS serial command
+  // Format: STEPPOS:elevator:X,extender:Y (only include axes with valid positions)
+  // -1.0 means "no change" for that axis
+  
+  bool has_elevator = (msg->elevator_position >= 0.0f);
+  bool has_extender = (msg->extender_position >= 0.0f);
+  
+  if (!has_elevator && !has_extender) {
+    RCLCPP_WARN(this->get_logger(), "Gripper position command ignored: both axes set to -1 (no change)");
+    return;
+  }
+  
+  RCLCPP_INFO(this->get_logger(), "Received gripper position command: elev=%s ext=%s",
+              has_elevator ? std::to_string(msg->elevator_position).c_str() : "unchanged",
+              has_extender ? std::to_string(msg->extender_position).c_str() : "unchanged");
+
+  std::ostringstream oss;
+  oss << "STEPPOS:";
+  
+  if (has_elevator) {
+    oss << "elevator:" << msg->elevator_position;
+    if (has_extender) {
+      oss << ",";
+    }
+  }
+  
+  if (has_extender) {
+    oss << "extender:" << msg->extender_position;
+  }
+  
+  oss << "\n";
+
+  std::lock_guard<std::mutex> lock(gripper_queue_mutex_);
+  gripper_message_queue_.push(oss.str());
+
+  RCLCPP_DEBUG(this->get_logger(), "Queued STEPPOS command: %s", oss.str().c_str());
+}
+
+void TeensyBridge::GripperHomeCallback(const std_msgs::msg::Empty::SharedPtr msg)
+{
+  (void)msg;  // Unused parameter
+  
+  RCLCPP_INFO(this->get_logger(), "Received gripper home command");
+
+  std::lock_guard<std::mutex> lock(gripper_queue_mutex_);
+  gripper_message_queue_.push("STEPHOME:\n");
+  gripper_message_queue_.push("STEPSTATUS:\n");
+
+  RCLCPP_DEBUG(this->get_logger(), "Queued STEPHOME command");
+}
+
+// ============================================================================
+// Action Server Implementations
+// ============================================================================
+
+rclcpp_action::GoalResponse TeensyBridge::HandleElevatorGoal(
+    const rclcpp_action::GoalUUID & uuid,
+    std::shared_ptr<const MoveElevator::Goal> goal)
+{
+  (void)uuid;
+  RCLCPP_INFO(this->get_logger(), "Received elevator goal: position=%.3f", goal->goal_position);
+  
+  // Validate goal
+  if (goal->goal_position < 0.0f || goal->goal_position > 0.8999f) {
+    RCLCPP_WARN(this->get_logger(), "Elevator goal out of range [0.0, 0.8999]: %.3f", goal->goal_position);
+    return rclcpp_action::GoalResponse::REJECT;
+  }
+  
+  // Check if another goal is active
+  {
+    std::lock_guard<std::mutex> lock(elevator_goal_mutex_);
+    if (active_elevator_goal_ && active_elevator_goal_->is_active()) {
+      RCLCPP_WARN(this->get_logger(), "Elevator goal rejected: another goal is active");
+      return rclcpp_action::GoalResponse::REJECT;
+    }
+  }
+  
+  return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+}
+
+rclcpp_action::CancelResponse TeensyBridge::HandleElevatorCancel(
+    const std::shared_ptr<GoalHandleMoveElevator> goal_handle)
+{
+  RCLCPP_INFO(this->get_logger(), "Received request to cancel elevator goal");
+  (void)goal_handle;
+  return rclcpp_action::CancelResponse::ACCEPT;
+}
+
+void TeensyBridge::HandleElevatorAccepted(
+    const std::shared_ptr<GoalHandleMoveElevator> goal_handle)
+{
+  {
+    std::lock_guard<std::mutex> lock(elevator_goal_mutex_);
+    active_elevator_goal_ = goal_handle;
+  }
+  
+  // Execute in a separate thread to avoid blocking
+  std::thread{std::bind(&TeensyBridge::ExecuteElevatorMove, this, goal_handle)}.detach();
+}
+
+void TeensyBridge::ExecuteElevatorMove(
+    const std::shared_ptr<GoalHandleMoveElevator> goal_handle)
+{
+  RCLCPP_INFO(this->get_logger(), "Executing elevator move");
+  
+  const auto goal = goal_handle->get_goal();
+  auto feedback = std::make_shared<MoveElevator::Feedback>();
+  auto result = std::make_shared<MoveElevator::Result>();
+
+  // Request a fresh status update before issuing STEPPOS
+  const auto status_before = last_gripper_status_ns_.load();
+  {
+    std::lock_guard<std::mutex> lock(gripper_queue_mutex_);
+    gripper_message_queue_.push("STEPSTATUS:\n");
+  }
+  auto wait_start = std::chrono::steady_clock::now();
+  while (rclcpp::ok() && last_gripper_status_ns_.load() <= status_before) {
+    if (std::chrono::steady_clock::now() - wait_start > std::chrono::milliseconds(500)) {
+      RCLCPP_WARN(this->get_logger(),
+                  "No fresh /gripper/status after STEPSTATUS; using last known positions");
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  
+  // Send position command to Teensy (mirror topic behavior; include both axes)
+  std::ostringstream oss;
+  const float current_extender = last_extender_pos_.load();
+  // oss << "STEPPOS:elevator:" << goal->goal_position
+  //     << ",extender:" << current_extender << "\n";
+  oss << "STEPPOS:elevator:" << goal->goal_position
+      << ",extender:0.005\n";
+  
+  {
+    std::lock_guard<std::mutex> lock(gripper_queue_mutex_);
+    gripper_message_queue_.push(oss.str());
+  }
+  
+  RCLCPP_INFO(this->get_logger(),
+              "Sent elevator command: elev=%.3f ext=%.3f",
+              goal->goal_position, current_extender);
+  
+  // Monitor progress via gripper status updates
+  rclcpp::Rate rate(10);  // 10 Hz polling
+  auto start_time = this->now();
+  const double timeout = 30.0;  // 30 second timeout
+  
+  while (rclcpp::ok()) {
+    // Check if goal is being cancelled
+    if (goal_handle->is_canceling()) {
+      result->final_position = feedback->current_position;
+      goal_handle->canceled(result);
+      RCLCPP_INFO(this->get_logger(), "Elevator goal canceled");
+      
+      std::lock_guard<std::mutex> lock(elevator_goal_mutex_);
+      active_elevator_goal_.reset();
+      return;
+    }
+    
+    // Get current elevator position from latest status
+    // (The HandleStepperStatusMessage publishes to gripper_status_pub_ at 10 Hz)
+    // We'll track it via the last_elevator_pos_ atomic variable
+    feedback->current_position = last_elevator_pos_.load();
+    goal_handle->publish_feedback(feedback);
+    
+    // Check if we've reached the goal (within 5mm tolerance)
+    const float position_error = std::abs(feedback->current_position - goal->goal_position);
+    if (position_error < 0.005f) {
+      // Check if still moving
+      // Wait for movement to stop before declaring success
+      rate.sleep();
+      
+      // Re-check position after brief delay
+      feedback->current_position = last_elevator_pos_.load();
+      const float final_error = std::abs(feedback->current_position - goal->goal_position);
+      
+      if (final_error < 0.005f) {
+        result->final_position = feedback->current_position;
+        goal_handle->succeed(result);
+        RCLCPP_INFO(this->get_logger(), "Elevator goal succeeded: final=%.3f (error=%.4f)",
+                    result->final_position, final_error);
+        
+        std::lock_guard<std::mutex> lock(elevator_goal_mutex_);
+        active_elevator_goal_.reset();
+        return;
+      }
+    }
+    
+    // Check timeout
+    if ((this->now() - start_time).seconds() > timeout) {
+      RCLCPP_ERROR(this->get_logger(), "Elevator goal timed out after %.1f seconds", timeout);
+      result->final_position = feedback->current_position;
+      goal_handle->abort(result);
+      
+      std::lock_guard<std::mutex> lock(elevator_goal_mutex_);
+      active_elevator_goal_.reset();
+      return;
+    }
+    
+    rate.sleep();
+  }
+}
+
+rclcpp_action::GoalResponse TeensyBridge::HandleExtenderGoal(
+    const rclcpp_action::GoalUUID & uuid,
+    std::shared_ptr<const MoveExtender::Goal> goal)
+{
+  (void)uuid;
+  RCLCPP_INFO(this->get_logger(), "Received extender goal: position=%.3f", goal->goal_position);
+  
+  // Validate goal
+  if (goal->goal_position < 0.0f || goal->goal_position > 0.3418f) {
+    RCLCPP_WARN(this->get_logger(), "Extender goal out of range [0.0, 0.3418]: %.3f", goal->goal_position);
+    return rclcpp_action::GoalResponse::REJECT;
+  }
+  
+  // Check if another goal is active
+  {
+    std::lock_guard<std::mutex> lock(extender_goal_mutex_);
+    if (active_extender_goal_ && active_extender_goal_->is_active()) {
+      RCLCPP_WARN(this->get_logger(), "Extender goal rejected: another goal is active");
+      return rclcpp_action::GoalResponse::REJECT;
+    }
+  }
+  
+  return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+}
+
+rclcpp_action::CancelResponse TeensyBridge::HandleExtenderCancel(
+    const std::shared_ptr<GoalHandleMoveExtender> goal_handle)
+{
+  RCLCPP_INFO(this->get_logger(), "Received request to cancel extender goal");
+  (void)goal_handle;
+  return rclcpp_action::CancelResponse::ACCEPT;
+}
+
+void TeensyBridge::HandleExtenderAccepted(
+    const std::shared_ptr<GoalHandleMoveExtender> goal_handle)
+{
+  {
+    std::lock_guard<std::mutex> lock(extender_goal_mutex_);
+    active_extender_goal_ = goal_handle;
+  }
+  
+  // Execute in a separate thread to avoid blocking
+  std::thread{std::bind(&TeensyBridge::ExecuteExtenderMove, this, goal_handle)}.detach();
+}
+
+void TeensyBridge::ExecuteExtenderMove(
+    const std::shared_ptr<GoalHandleMoveExtender> goal_handle)
+{
+  RCLCPP_INFO(this->get_logger(), "Executing extender move");
+  
+  const auto goal = goal_handle->get_goal();
+  auto feedback = std::make_shared<MoveExtender::Feedback>();
+  auto result = std::make_shared<MoveExtender::Result>();
+
+  // Request a fresh status update before issuing STEPPOS
+  const auto status_before = last_gripper_status_ns_.load();
+  {
+    std::lock_guard<std::mutex> lock(gripper_queue_mutex_);
+    gripper_message_queue_.push("STEPSTATUS:\n");
+  }
+  auto wait_start = std::chrono::steady_clock::now();
+  while (rclcpp::ok() && last_gripper_status_ns_.load() <= status_before) {
+    if (std::chrono::steady_clock::now() - wait_start > std::chrono::milliseconds(500)) {
+      RCLCPP_WARN(this->get_logger(),
+                  "No fresh /gripper/status after STEPSTATUS; using last known positions");
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  
+  // Send position command to Teensy (mirror topic behavior; include both axes)
+  std::ostringstream oss;
+  const float current_elevator = last_elevator_pos_.load();
+  oss << "STEPPOS:elevator:" << current_elevator
+      << ",extender:" << goal->goal_position << "\n";
+  
+  {
+    std::lock_guard<std::mutex> lock(gripper_queue_mutex_);
+    gripper_message_queue_.push(oss.str());
+  }
+  
+  RCLCPP_INFO(this->get_logger(),
+              "Sent extender command: elev=%.3f ext=%.3f",
+              current_elevator, goal->goal_position);
+  
+  // Monitor progress via gripper status updates
+  rclcpp::Rate rate(10);  // 10 Hz polling
+  auto start_time = this->now();
+  const double timeout = 30.0;  // 30 second timeout
+  
+  while (rclcpp::ok()) {
+    // Check if goal is being cancelled
+    if (goal_handle->is_canceling()) {
+      result->final_position = feedback->current_position;
+      goal_handle->canceled(result);
+      RCLCPP_INFO(this->get_logger(), "Extender goal canceled");
+      
+      std::lock_guard<std::mutex> lock(extender_goal_mutex_);
+      active_extender_goal_.reset();
+      return;
+    }
+    
+    // Get current extender position from latest status
+    feedback->current_position = last_extender_pos_.load();
+    goal_handle->publish_feedback(feedback);
+    
+    // Check if we've reached the goal (within 5mm tolerance)
+    const float position_error = std::abs(feedback->current_position - goal->goal_position);
+    if (position_error < 0.005f) {
+      // Wait for movement to stop before declaring success
+      rate.sleep();
+      
+      // Re-check position after brief delay
+      feedback->current_position = last_extender_pos_.load();
+      const float final_error = std::abs(feedback->current_position - goal->goal_position);
+      
+      if (final_error < 0.005f) {
+        result->final_position = feedback->current_position;
+        goal_handle->succeed(result);
+        RCLCPP_INFO(this->get_logger(), "Extender goal succeeded: final=%.3f (error=%.4f)",
+                    result->final_position, final_error);
+        
+        std::lock_guard<std::mutex> lock(extender_goal_mutex_);
+        active_extender_goal_.reset();
+        return;
+      }
+    }
+    
+    // Check timeout
+    if ((this->now() - start_time).seconds() > timeout) {
+      RCLCPP_ERROR(this->get_logger(), "Extender goal timed out after %.1f seconds", timeout);
+      result->final_position = feedback->current_position;
+      goal_handle->abort(result);
+      
+      std::lock_guard<std::mutex> lock(extender_goal_mutex_);
+      active_extender_goal_.reset();
+      return;
+    }
+    
+    rate.sleep();
+  }
+}
+
 }  // namespace sigyn_to_sensor_v2
+
