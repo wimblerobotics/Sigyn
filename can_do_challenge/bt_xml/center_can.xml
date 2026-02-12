@@ -1,0 +1,104 @@
+<?xml version="1.0"?>
+<root main_tree_to_execute="CenterCanInPiCamera">
+    <BehaviorTree ID="GraspCan">
+        <Sequence>
+            <!-- Initialize blackboard -->
+            <Action ID="SaveRobotPose" saveTo="{startingPose}" />
+            <SubTree ID="SetupCanChallenge" __shared_blackboard="true"
+                objectOfInterest="CokeZeroCan" />
+
+            <!-- Main grasp logic -->
+            <ReactiveFallback>
+                <Condition ID="CheckBoolFlag" expected="false" flag="{needToGrasp}" />
+                <Sequence>
+                    <SubTree ID="RaiseElevatorToCanHeight" __shared_blackboard="true"
+                        objectOfInterest="{objectOfInterest}" />
+                    <SubTree ID="CenterCanInPiCamera" __shared_blackboard="true"
+                        objectOfInterest="{objectOfInterest}" />
+                    <!--<SubTree
+                    ID="ExecuteGrasp" __shared_blackboard="true"
+                        objectOfInterest="{objectOfInterest}" /> -->
+                    <SubTree ID="RetractAfterGrasp" />
+                    <SetBlackboard output_key="needToGrasp" value="false" />
+                </Sequence>
+            </ReactiveFallback>
+        </Sequence>
+    </BehaviorTree>
+
+    <BehaviorTree ID="CenterCanInPiCamera">
+        <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="5">
+            <Sequence>
+                <Condition ID="WaitForNewPiFrameProcessed" />
+                <ReactiveFallback name="CheckOrAdjust">
+                    <Condition ID="CanCenteredInPiCamera" objectOfInterest="{objectOfInterest}" />
+                    <Action ID="AdjustExtenderToCenterCan" objectOfInterest="{objectOfInterest}" />
+                </ReactiveFallback>
+            </Sequence>
+        </Decorator>
+    </BehaviorTree>
+
+    <BehaviorTree ID="ExecuteGrasp">
+        <Sequence>
+            <Action ID="OpenGripper" />
+            <Sequence>
+                <Condition ID="WaitForNewPiFrameProcessed" />
+                <Action ID="ExtendTowardsCan" objectOfInterest="{objectOfInterest}" />
+            </Sequence>
+            <Action ID="CloseGripperAroundCan" canDiameter="0.06" />
+            <Action ID="StepElevatorUp" stepMeters="0.1" />
+            <!-- <Action ID="RotateRobot" degrees="20" /> -->
+            <ReactiveFallback name="VerifyGrasp">
+                <Sequence>
+                    <Condition ID="WaitForNewPiFrameProcessed" />
+                    <Condition ID="CanIsGrasped" objectOfInterest="{objectOfInterest}" />
+                </Sequence>
+                <Action ID="ReportGraspFailure" />
+            </ReactiveFallback>
+        </Sequence>
+    </BehaviorTree>
+
+    <BehaviorTree ID="RaiseElevatorToCanHeight">
+        <Sequence>
+            <!-- Wait for vision system to be ready -->
+            <Condition ID="WaitForNewPiFrameProcessed" />
+
+            <!-- Incrementally raise elevator with visual feedback -->
+            <!-- Start from home, step up 2cm at a time using action server -->
+            <!-- Continue until can appears at target pixel height -->
+            <RetryUntilSuccessful num_attempts="50">
+                <ReactiveFallback>
+                    <!-- Check if can is at target height (342 pixels) -->
+                    <Condition ID="ElevatorAtHeight" targetHeightPixels="342.0"
+                        z_tolerance_pixels="10.0" />
+
+                    <!-- If not, step up using action server and check again -->
+                    <Sequence>
+                        <Action ID="StepElevatorUpAction" stepMeters="0.02" />
+                        <ForceFailure>
+                            <Condition ID="WaitForNewPiFrameProcessed" />
+                        </ForceFailure>
+                    </Sequence>
+                </ReactiveFallback>
+            </RetryUntilSuccessful>
+        </Sequence>
+    </BehaviorTree>
+
+    <BehaviorTree ID="SetupCanChallenge">
+        <Sequence>
+            <SetBlackboard output_key="objectOfInterest" value="CokeZeroCan" />
+            <SetBlackboard output_key="needToNavigate" value="true" />
+            <SetBlackboard output_key="needToVisuallyAcquire" value="true" />
+            <SetBlackboard output_key="needToGrasp" value="true" />
+            <SetBlackboard output_key="within_distance" value="0.45" />
+            <Action ID="RetractGripper" />
+            <Action ID="LowerElevator" />
+        </Sequence>
+    </BehaviorTree>
+
+    <BehaviorTree ID="RetractAfterGrasp">
+        <Sequence>
+            <Action ID="RetractExtender" />
+            <Action ID="LowerElevatorSafely" />
+        </Sequence>
+    </BehaviorTree>
+</root>
