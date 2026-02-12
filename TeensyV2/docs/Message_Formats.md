@@ -14,6 +14,9 @@
   - [FAULT: Active Faults](#fault-active-faults)
 - [Command Messages](#command-messages)
   - [TWIST: Velocity Command](#twist-velocity-command)
+  - [STEPPOS: Stepper Position Command](#steppos-stepper-position-command)
+  - [STEPHOME: Stepper Homing Command](#stephome-stepper-homing-command)
+  - [STEPSTATUS: Stepper Status Query](#stepstatus-stepper-status-query)
   - [ESTOP: Emergency Stop](#estop-emergency-stop)
 - [Diagnostic Messages](#diagnostic-messages)
 - [Examples from Live System](#examples-from-live-system)
@@ -50,10 +53,14 @@ Where `<ID>` corresponds to the board ID (e.g., `1` for Main/Nav, `2` for Power/
 - `PERF1`, `PERF2` — Performance stats
 - `VL53L0X1` — Distance sensors (Board 1)
 - `ROBOCLAW1` — Motor status (Board 1)
+- `STEPPERSTAT3` — Stepper motor status (Board 3)
 - `ODOM1` — Odometry (Board 1)
 - `DIAG1`, `DIAG2` — Diagnostics
 - `FAULT1`, `FAULT2` — Fault alerts
 - `TWIST` — Velocity command (input to Teensy)
+- `STEPPOS` — Stepper position command (input to Teensy, Board 3)
+- `STEPHOME` — Stepper homing command (input to Teensy, Board 3)
+- `STEPSTATUS` — Stepper status query (input to Teensy, Board 3)
 - `ESTOP` — Emergency stop command (input to Teensy)
 
 ### JSON Key Conventions
@@ -253,6 +260,43 @@ ROBOCLAW1:{"LogicVoltage":0.0,"MainVoltage":24.1,"Encoder_Left":0,"Encoder_Right
 
 ---
 
+### STEPPERSTAT3: Stepper Motor Status
+
+**Frequency**: On request (via STEPSTATUS command) or ~1 Hz during motion
+
+**Message format**:
+```json
+STEPPERSTAT3:{
+  "elev_pos": 0.1234,
+  "ext_pos": 0.0567,
+  "elev_lim": "none",
+  "ext_lim": "upper",
+  "elev_max": 0.8999,
+  "ext_max": 0.3418
+}
+```
+
+**Fields**:
+- `elev_pos` (float, m): Current elevator position (0.0 = bottom, positive = up)
+- `ext_pos` (float, m): Current extender position (0.0 = retracted, positive = extended)
+- `elev_lim` (string): Elevator limit switch state (`"none"`, `"upper"`, `"lower"`, `"both"`)
+- `ext_lim` (string): Extender limit switch state (`"none"`, `"upper"`, `"lower"`, `"both"`)
+- `elev_max` (float, m): Maximum elevator travel (hardware-measured limit: 0.8999m)
+- `ext_max` (float, m): Maximum extender travel (hardware-measured limit: 0.3418m)
+
+**Example from logs**:
+```json
+STEPPERSTAT3:{"elev_pos":0.4500,"ext_pos":0.1200,"elev_lim":"none","ext_lim":"none","elev_max":0.8999,"ext_max":0.3418}
+```
+
+**Notes**:
+- Position values are absolute: 0.0 = home position (lower limit for elevator, retracted for extender)
+- Limit switch states indicate hardware limit detection for safety
+- Max values are hardcoded from physical measurements and used for bounds checking
+- Board 3 sends this message in response to STEPSTATUS or autonomously during movements
+
+---
+
 ### TEMPERATURE: Temperature Monitor
 
 **Frequency**: ~1 Hz (when enabled)
@@ -384,6 +428,100 @@ TWIST:linear_x:0.0,angular_z:0.0    # Stop
 2. RoboClawMonitor parses `linear_x` and `angular_z`
 3. Teensy calculates differential drive kinematics (converting m/s & rad/s → Left/Right RPM)
 4. Issues velocity commands to RoboClaw motor controller
+
+---
+
+### STEPPOS: Stepper Position Command
+
+**Sent by**: ROS2 behavior tree or manual control (via sigyn_to_sensor_v2)
+**Processed by**: StepperMotor module (Board 3)
+
+**Format**:
+```
+STEPPOS:elevator:0.5,extender:0.2
+```
+
+**Parsing**:
+- `elevator` (float, m): Target elevator position (0.0 to 0.8999m)
+- `extender` (float, m): Target extender position (0.0 to 0.3418m)
+
+**Example commands**:
+```
+STEPPOS:elevator:0.5,extender:0.0      # Raise elevator to 50cm, retract extender
+STEPPOS:elevator:0.8999,extender:0.3418  # Move to maximum travel positions
+STEPPOS:elevator:0.0,extender:0.0      # Return to home position
+```
+
+**How it's handled**:
+1. SerialManager receives `STEPPOS` prefix
+2. StepperMotor module parses elevator and extender target positions
+3. Validates positions against hardware limits (0.0-0.8999m elevator, 0.0-0.3418m extender)
+4. Commands stepper motors to move to target positions
+5. Returns `STEPPERSTAT3` message when motion completes
+
+**Safety Notes**:
+- Positions are clamped to measured hardware limits
+- Limit switches provide hardware overtravel protection
+- Invalid positions are rejected with diagnostic error message
+
+---
+
+### STEPHOME: Stepper Homing Command
+
+**Sent by**: ROS2 initialization or manual control
+**Processed by**: StepperMotor module (Board 3)
+
+**Format**:
+```
+STEPHOME:
+```
+
+**Example**:
+```
+STEPHOME:    # Initiate homing sequence for both steppers
+```
+
+**How it's handled**:
+1. SerialManager receives `STEPHOME` prefix
+2. StepperMotor module initiates homing sequence:
+   - **Step 1**: Retract extender to lower limit (safety: avoid collisions)
+   - **Step 2**: Lower elevator to lower limit
+3. Sets current position to 0.0 for both motors
+4. Returns `STEPPERSTAT3` message when homing completes
+
+**Safety Notes**:
+- Homing sequence retracts extender **before** lowering elevator to prevent collisions
+- Uses hardware limit switches to detect home position
+- Should be performed after power-on and before position commands
+- Establishes zero reference for all subsequent position commands
+
+---
+
+### STEPSTATUS: Stepper Status Query
+
+**Sent by**: ROS2 monitoring or diagnostics
+**Processed by**: StepperMotor module (Board 3)
+
+**Format**:
+```
+STEPSTATUS:
+```
+
+**Example**:
+```
+STEPSTATUS:    # Request current stepper status
+```
+
+**Response**:
+Board 3 immediately sends a `STEPPERSTAT3` message with current positions, limit states, and maximum travel values.
+
+**Use cases**:
+- Query current positions before planning movements
+- Verify homing completed successfully
+- Monitor limit switch states for diagnostics
+- Retrieve hardware travel limits for motion planning
+
+---
 
 ### ESTOP: Emergency Stop
 

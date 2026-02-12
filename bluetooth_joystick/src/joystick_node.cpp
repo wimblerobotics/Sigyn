@@ -274,18 +274,19 @@ void CaptureJoystickEvent() {
             case 4:  // Physical L button -> button_l2
               message.button_l2 = l2 = event.value ? 1 : 0;
               break;
-            case 5:  // Physical R button -> button_r2
-              message.button_r2 = r2 = event.value ? 1 : 0;
+            case 5:  // Physical button 5
               break;
             case 6:  // L button - deadman switch
               deadman_button = event.value ? 1 : 0;
               RCUTILS_LOG_DEBUG("Deadman button (button 6): %d", deadman_button);
               break;
-            case 7:  // Start button
+            case 7:  // Physical R1 button -> button_r1
+              message.button_r1 = r1 = event.value ? 1 : 0;
               break;
             case 8:  // Left stick button
               break;
-            case 9:  // Right stick button
+            case 9:  // Physical R2 button -> button_r2
+              message.button_r2 = r2 = event.value ? 1 : 0;
               break;
             case 10:  // Guide/Home button
               break;
@@ -328,30 +329,32 @@ void CaptureJoystickEvent() {
 
 void TwisterButtonThread() {
   rclcpp::Rate rate(10);
-  int last_x = 0;
-  int last_b = 0;
+  int last_r1 = 0;
+  int last_r2 = 0;
   while (rclcpp::ok()) {
-    int x, b, l1;
+    int r1, r2, deadman;
     {
       // Lock mutex to safely read button states
       const std::lock_guard<std::mutex> lock(some_button_changed_state_guard);
-      x = message.button_x;
-      b = message.button_b;
-      l1 = message.button_l1;
+      r1 = message.button_r1;
+      r2 = message.button_r2;
+      deadman = deadman_button;
     }
-    // Only send if deadman (L1) is pressed AND button_x or button_b is pressed
-    if (l1 && x && !last_x) {
+    // Only send if deadman (L1, button 6) is pressed AND R1 or R2 is pressed
+    if (deadman && r1 && !last_r1) {
       geometry_msgs::msg::Twist twist;
       twist.linear.x = gripper_open_value;
       twister_publisher->publish(twist);
+      RCUTILS_LOG_INFO("[TwisterButtonThread] R1 pressed: gripper open (%d)", gripper_open_value);
     }
-    if (l1 && b && !last_b) {
+    if (deadman && r2 && !last_r2) {
       geometry_msgs::msg::Twist twist;
       twist.linear.x = gripper_close_value;
       twister_publisher->publish(twist);
+      RCUTILS_LOG_INFO("[TwisterButtonThread] R2 pressed: gripper close (%d)", gripper_close_value);
     }
-    last_x = x;
-    last_b = b;
+    last_r1 = r1;
+    last_r2 = r2;
     rate.sleep();
   }
 }

@@ -4,6 +4,7 @@ ros2 bag record \
   /clicked_point \
   /clock \
   /cmd_vel \
+  /cmd_vel_gripper \
   /cmd_vel_joystick \
   /cmd_vel_keyboard \
   /cmd_vel_nav \

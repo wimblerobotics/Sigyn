@@ -4,6 +4,7 @@
 
 #include "can_do_challenge/bt_nodes_real.hpp"
 #include "sigyn_interfaces/msg/e_stop_status.hpp"
+#include "sigyn_interfaces/msg/gripper_status.hpp"
 #include "geometry_msgs/msg/point_stamped.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist.hpp"
@@ -99,7 +100,7 @@ struct ObjectDetectionState {
   // OAKD_MAX_AGE_SEC increased to tolerate system latency
   static constexpr double OAKD_MAX_AGE_SEC = 2.0;
   static constexpr double PI_DETECTION_TIMEOUT_SEC = 6.0;
-  static constexpr int PI_WAIT_TIMEOUT_MS = 1000;
+  static constexpr int PI_WAIT_TIMEOUT_MS = 10000;  // 10s to allow camera initialization
   static constexpr double WITHIN_REACH_DISTANCE = -1.0;  // MUST be provided by BT
   static constexpr double CENTERING_TOLERANCE = 0.02;   // Tightened to 2cm for precision
   static constexpr double PI_VERTICAL_TOLERANCE = 0.05; // 5cm for elevator height check
@@ -344,7 +345,8 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
   
   // Subscribe to Pi camera detection (gripper_camera_detector package)
   rclcpp::QoS pi_qos(10);
-  pi_qos.best_effort();
+  // Use RELIABLE to match publisher QoS
+  pi_qos.reliable();
 
   g_pi_sub = node->create_subscription<gripper_camera_detector::msg::DetectionArray>(
     "/gripper/camera/detections", pi_qos,
@@ -937,7 +939,7 @@ BT::NodeStatus ElevatorAtHeight::tick()
 }
 // Removed lines 967-1082 (Legacy 3D logic that relied on non-zero Z)
 
-BT::NodeStatus OAKDDetectCan::tick()
+BT::NodeStatus OAKDDetectCan::detectOnce()
 {
   std::string object_name;
   if (!getInput("objectOfInterest", object_name)) {
@@ -1055,6 +1057,22 @@ BT::NodeStatus OAKDDetectCan::tick()
     setOutput("can_detected", false);
     return BT::NodeStatus::FAILURE;
   }
+}
+
+BT::NodeStatus OAKDDetectCan::onStart()
+{
+  RCLCPP_INFO(node_->get_logger(), "[OAKDDetectCan] Starting detection");
+  return BT::NodeStatus::RUNNING;
+}
+
+BT::NodeStatus OAKDDetectCan::onRunning()
+{
+  return detectOnce();
+}
+
+void OAKDDetectCan::onHalted()
+{
+  RCLCPP_INFO(node_->get_logger(), "[OAKDDetectCan] Halted");
 }
 
 // ============================================================================
@@ -1838,30 +1856,25 @@ BT::NodeStatus StepElevatorUp::onStart()
   const double max_travel_m = 0.91;
   const int max_steps = 400;
 
-  static rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub;
+  static rclcpp::Subscription<sigyn_interfaces::msg::GripperStatus>::SharedPtr gripper_status_sub;
   static double current_elevator_position = 0.0;
   static std::mutex position_mutex;
-  static bool joint_state_seen = false;
+  static bool position_seen = false;
 
-  if (!joint_state_sub) {
-    joint_state_sub = node_->create_subscription<sensor_msgs::msg::JointState>(
-      "/joint_states", 10,
-      [](const sensor_msgs::msg::JointState::SharedPtr msg) {
+  if (!gripper_status_sub) {
+    gripper_status_sub = node_->create_subscription<sigyn_interfaces::msg::GripperStatus>(
+      "/gripper/status", 10,
+      [](const sigyn_interfaces::msg::GripperStatus::SharedPtr msg) {
         std::lock_guard<std::mutex> lock(position_mutex);
-        for (size_t i = 0; i < msg->name.size(); ++i) {
-          if (msg->name[i] == "elevator_pole_to_elevator_connector_plate") {
-            current_elevator_position = msg->position[i];
-            joint_state_seen = true;
-            break;
-          }
-        }
+        current_elevator_position = msg->elevator_position;
+        position_seen = true;
       });
   }
 
   double current_pos = 0.0;
   {
     std::lock_guard<std::mutex> lock(position_mutex);
-    if (joint_state_seen) {
+    if (position_seen) {
       current_pos = current_elevator_position;
     } else {
       current_pos = 0.15;
@@ -1889,21 +1902,28 @@ BT::NodeStatus StepElevatorUp::onStart()
     return BT::NodeStatus::FAILURE;
   }
 
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
-  if (!elevator_pub) {
-    elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/elevator_connector_plate/position", 10);
+  // Publish to /cmd_vel_gripper which teensy_bridge subscribes to
+  static rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr gripper_vel_pub;
+  if (!gripper_vel_pub) {
+    gripper_vel_pub = node_->create_publisher<geometry_msgs::msg::Twist>(
+      "/cmd_vel_gripper", 10);
   }
 
-  std_msgs::msg::Float64 msg;
-  msg.data = next_pos;
-  elevator_pub->publish(msg);
+  // Send upward velocity command using linear.x (positive = up, negative = down)
+  geometry_msgs::msg::Twist cmd;
+  cmd.linear.x = 0.05;  // Upward velocity in m/s
+  cmd.linear.y = 0.0;
+  cmd.linear.z = 0.0;
+  cmd.angular.x = 0.0;
+  cmd.angular.y = 0.0;
+  cmd.angular.z = 0.0;
+  gripper_vel_pub->publish(cmd);
 
   last_commanded_ = next_pos;
   step_count_++;
   RCLCPP_INFO(node_->get_logger(),
-              "[StepElevatorUp] Step %d: joint %.3f -> %.3f (max %.3f)",
-              step_count_, base_pos, next_pos, max_pos);
+              "[StepElevatorUp] Step %d: commanding velocity linear.x=%.3f (target %.3f -> %.3f, max %.3f)",
+              step_count_, cmd.linear.x, base_pos, next_pos, max_pos);
 
   return BT::NodeStatus::SUCCESS;
 }
@@ -1918,6 +1938,353 @@ void StepElevatorUp::onHalted()
   home_position_set_ = false;
   step_count_ = 0;
   last_commanded_ = 0.0;
+}
+
+// ============================================================================
+// MoveElevatorAction Implementation
+// ============================================================================
+
+BT::NodeStatus MoveElevatorAction::onStart()
+{
+  initializeSimulatedSensors(node_);
+
+  // Get goal position from input port
+  if (!getInput("goal_position", goal_position_)) {
+    RCLCPP_ERROR(node_->get_logger(), "[MoveElevatorAction] Missing required input 'goal_position'");
+    return BT::NodeStatus::FAILURE;
+  }
+
+  // Validate goal position
+  if (goal_position_ < 0.0 || goal_position_ > 0.8999) {
+    RCLCPP_ERROR(node_->get_logger(), 
+                 "[MoveElevatorAction] Invalid goal position: %.4f (must be 0.0-0.8999)", 
+                 goal_position_);
+    return BT::NodeStatus::FAILURE;
+  }
+
+  // Create action client if not exists
+  if (!action_client_) {
+    action_client_ = rclcpp_action::create_client<MoveElevatorActionType>(
+      node_, "/gripper/move_elevator");
+  }
+
+  // Wait for action server
+  if (!action_client_->wait_for_action_server(std::chrono::seconds(2))) {
+    RCLCPP_WARN(node_->get_logger(), 
+                "[MoveElevatorAction] Action server /gripper/move_elevator not available after waiting");
+    return BT::NodeStatus::FAILURE;
+  }
+
+  // Send goal
+  action_state_ = ActionState::SENDING_GOAL;
+  result_received_ = false;
+  
+  if (!sendGoal()) {
+    RCLCPP_ERROR(node_->get_logger(), "[MoveElevatorAction] Failed to send goal");
+    return BT::NodeStatus::FAILURE;
+  }
+
+  RCLCPP_INFO(node_->get_logger(), 
+              "[MoveElevatorAction] Sent goal to move elevator to %.4f meters", 
+              goal_position_);
+  
+  return BT::NodeStatus::RUNNING;
+}
+
+bool MoveElevatorAction::sendGoal()
+{
+  auto goal_msg = MoveElevatorActionType::Goal();
+  goal_msg.goal_position = goal_position_;
+
+  auto send_goal_options = rclcpp_action::Client<MoveElevatorActionType>::SendGoalOptions();
+  
+  send_goal_options.goal_response_callback =
+    std::bind(&MoveElevatorAction::goalResponseCallback, this, std::placeholders::_1);
+  
+  send_goal_options.result_callback =
+    std::bind(&MoveElevatorAction::resultCallback, this, std::placeholders::_1);
+  
+  send_goal_options.feedback_callback =
+    std::bind(&MoveElevatorAction::feedbackCallback, this, 
+              std::placeholders::_1, std::placeholders::_2);
+
+  goal_handle_future_ = action_client_->async_send_goal(goal_msg, send_goal_options);
+  
+  return true;
+}
+
+void MoveElevatorAction::goalResponseCallback(
+  const rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr& goal_handle)
+{
+  if (!goal_handle) {
+    RCLCPP_ERROR(node_->get_logger(), "[MoveElevatorAction] Goal was rejected by server");
+    action_state_ = ActionState::GOAL_FAILED;
+    action_result_ = BT::NodeStatus::FAILURE;
+    result_received_ = true;
+  } else {
+    RCLCPP_INFO(node_->get_logger(), "[MoveElevatorAction] Goal accepted by server");
+    action_state_ = ActionState::GOAL_ACTIVE;
+    goal_handle_ = goal_handle;
+  }
+}
+
+void MoveElevatorAction::resultCallback(
+  const rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::WrappedResult& result)
+{
+  switch (result.code) {
+    case rclcpp_action::ResultCode::SUCCEEDED:
+      RCLCPP_INFO(node_->get_logger(), 
+                  "[MoveElevatorAction] Goal succeeded! Final position: %.4f meters",
+                  result.result->final_position);
+      action_state_ = ActionState::GOAL_COMPLETED;
+      action_result_ = BT::NodeStatus::SUCCESS;
+      break;
+    case rclcpp_action::ResultCode::ABORTED:
+      RCLCPP_ERROR(node_->get_logger(), "[MoveElevatorAction] Goal was aborted");
+      action_state_ = ActionState::GOAL_FAILED;
+      action_result_ = BT::NodeStatus::FAILURE;
+      break;
+    case rclcpp_action::ResultCode::CANCELED:
+      RCLCPP_WARN(node_->get_logger(), "[MoveElevatorAction] Goal was canceled");
+      action_state_ = ActionState::GOAL_CANCELED;
+      action_result_ = BT::NodeStatus::FAILURE;
+      break;
+    default:
+      RCLCPP_ERROR(node_->get_logger(), "[MoveElevatorAction] Unknown result code");
+      action_state_ = ActionState::GOAL_FAILED;
+      action_result_ = BT::NodeStatus::FAILURE;
+      break;
+  }
+  result_received_ = true;
+}
+
+void MoveElevatorAction::feedbackCallback(
+  rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr,
+  const std::shared_ptr<const MoveElevatorActionType::Feedback> feedback)
+{
+  RCLCPP_DEBUG(node_->get_logger(), 
+               "[MoveElevatorAction] Current position: %.4f meters", 
+               feedback->current_position);
+}
+
+BT::NodeStatus MoveElevatorAction::onRunning()
+{
+  // Check if result received
+  if (result_received_) {
+    return action_result_.load();
+  }
+
+  // Still waiting for result
+  return BT::NodeStatus::RUNNING;
+}
+
+void MoveElevatorAction::onHalted()
+{
+  // Cancel the goal if it's active
+  if (goal_handle_ && action_state_ == ActionState::GOAL_ACTIVE) {
+    RCLCPP_INFO(node_->get_logger(), "[MoveElevatorAction] Canceling active goal");
+    action_client_->async_cancel_goal(goal_handle_);
+  }
+  
+  action_state_ = ActionState::IDLE;
+  result_received_ = false;
+  goal_handle_.reset();
+}
+
+// ============================================================================
+// StepElevatorUpAction - Incremental elevator movement using action server
+// ============================================================================
+
+BT::NodeStatus StepElevatorUpAction::onStart()
+{
+  initializeSimulatedSensors(node_);
+
+  // Get step size from input port
+  if (!getInput("stepMeters", step_size_)) {
+    step_size_ = 0.02;  // Default to 2cm
+  }
+
+  // Subscribe to gripper status to get current position
+  static rclcpp::Subscription<sigyn_interfaces::msg::GripperStatus>::SharedPtr gripper_status_sub;
+  static double current_elevator_position = 0.0;
+  static std::mutex position_mutex;
+  static bool position_seen = false;
+
+  if (!gripper_status_sub) {
+    gripper_status_sub = node_->create_subscription<sigyn_interfaces::msg::GripperStatus>(
+      "/gripper/status", 10,
+      [](const sigyn_interfaces::msg::GripperStatus::SharedPtr msg) {
+        std::lock_guard<std::mutex> lock(position_mutex);
+        current_elevator_position = msg->elevator_position;
+        position_seen = true;
+      });
+  }
+
+  // Wait briefly for position update (subscription will update in background)
+  auto start_time = std::chrono::steady_clock::now();
+  while (!position_seen && 
+         std::chrono::steady_clock::now() - start_time < std::chrono::milliseconds(500)) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+
+  if (!position_seen) {
+    RCLCPP_ERROR(node_->get_logger(), 
+                 "[StepElevatorUpAction] Failed to get current elevator position from /gripper/status");
+    return BT::NodeStatus::FAILURE;
+  }
+
+  // Get current position
+  double current_pos;
+  {
+    std::lock_guard<std::mutex> lock(position_mutex);
+    current_pos = current_elevator_position;
+  }
+
+  // Calculate target position
+  target_position_ = current_pos + step_size_;
+
+  // Validate target position
+  if (target_position_ > 0.8999) {
+    RCLCPP_WARN(node_->get_logger(), 
+                "[StepElevatorUpAction] Target position %.4f exceeds max travel (0.8999m). Clamping.",
+                target_position_);
+    target_position_ = 0.8999;
+  }
+
+  if (target_position_ <= current_pos) {
+    RCLCPP_ERROR(node_->get_logger(), 
+                 "[StepElevatorUpAction] Target position %.4f not greater than current %.4f",
+                 target_position_, current_pos);
+    return BT::NodeStatus::FAILURE;
+  }
+
+  // Create action client if not exists
+  if (!action_client_) {
+    action_client_ = rclcpp_action::create_client<MoveElevatorActionType>(
+      node_, "/gripper/move_elevator");
+  }
+
+  // Wait for action server
+  if (!action_client_->wait_for_action_server(std::chrono::seconds(2))) {
+    RCLCPP_WARN(node_->get_logger(), 
+                "[StepElevatorUpAction] Action server /gripper/move_elevator not available");
+    return BT::NodeStatus::FAILURE;
+  }
+
+  // Send goal
+  action_state_ = ActionState::SENDING_GOAL;
+  result_received_ = false;
+  
+  if (!sendGoal()) {
+    RCLCPP_ERROR(node_->get_logger(), "[StepElevatorUpAction] Failed to send goal");
+    return BT::NodeStatus::FAILURE;
+  }
+
+  RCLCPP_INFO(node_->get_logger(), 
+              "[StepElevatorUpAction] Stepping up %.4fm: %.4f -> %.4f meters", 
+              step_size_, current_pos, target_position_);
+  
+  return BT::NodeStatus::RUNNING;
+}
+
+bool StepElevatorUpAction::sendGoal()
+{
+  auto goal_msg = MoveElevatorActionType::Goal();
+  goal_msg.goal_position = target_position_;
+
+  auto send_goal_options = rclcpp_action::Client<MoveElevatorActionType>::SendGoalOptions();
+  
+  send_goal_options.goal_response_callback =
+    std::bind(&StepElevatorUpAction::goalResponseCallback, this, std::placeholders::_1);
+  
+  send_goal_options.result_callback =
+    std::bind(&StepElevatorUpAction::resultCallback, this, std::placeholders::_1);
+  
+  send_goal_options.feedback_callback =
+    std::bind(&StepElevatorUpAction::feedbackCallback, this, 
+              std::placeholders::_1, std::placeholders::_2);
+
+  goal_handle_future_ = action_client_->async_send_goal(goal_msg, send_goal_options);
+  
+  return true;
+}
+
+void StepElevatorUpAction::goalResponseCallback(
+  const rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr& goal_handle)
+{
+  if (!goal_handle) {
+    RCLCPP_ERROR(node_->get_logger(), "[StepElevatorUpAction] Goal was rejected by server");
+    action_state_ = ActionState::GOAL_FAILED;
+    action_result_ = BT::NodeStatus::FAILURE;
+    result_received_ = true;
+  } else {
+    RCLCPP_DEBUG(node_->get_logger(), "[StepElevatorUpAction] Goal accepted by server");
+    action_state_ = ActionState::GOAL_ACTIVE;
+    goal_handle_ = goal_handle;
+  }
+}
+
+void StepElevatorUpAction::resultCallback(
+  const rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::WrappedResult& result)
+{
+  switch (result.code) {
+    case rclcpp_action::ResultCode::SUCCEEDED:
+      RCLCPP_INFO(node_->get_logger(), 
+                  "[StepElevatorUpAction] Step completed! Final position: %.4f meters",
+                  result.result->final_position);
+      action_state_ = ActionState::GOAL_COMPLETED;
+      action_result_ = BT::NodeStatus::SUCCESS;
+      break;
+    case rclcpp_action::ResultCode::ABORTED:
+      RCLCPP_ERROR(node_->get_logger(), "[StepElevatorUpAction] Goal was aborted");
+      action_state_ = ActionState::GOAL_FAILED;
+      action_result_ = BT::NodeStatus::FAILURE;
+      break;
+    case rclcpp_action::ResultCode::CANCELED:
+      RCLCPP_WARN(node_->get_logger(), "[StepElevatorUpAction] Goal was canceled");
+      action_state_ = ActionState::GOAL_FAILED;
+      action_result_ = BT::NodeStatus::FAILURE;
+      break;
+    default:
+      RCLCPP_ERROR(node_->get_logger(), "[StepElevatorUpAction] Unknown result code");
+      action_state_ = ActionState::GOAL_FAILED;
+      action_result_ = BT::NodeStatus::FAILURE;
+      break;
+  }
+  result_received_ = true;
+}
+
+void StepElevatorUpAction::feedbackCallback(
+  rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr,
+  const std::shared_ptr<const MoveElevatorActionType::Feedback> feedback)
+{
+  RCLCPP_DEBUG(node_->get_logger(), 
+               "[StepElevatorUpAction] Current position: %.4f meters", 
+               feedback->current_position);
+}
+
+BT::NodeStatus StepElevatorUpAction::onRunning()
+{
+  // Check if result received
+  if (result_received_) {
+    return action_result_.load();
+  }
+
+  // Still waiting for result
+  return BT::NodeStatus::RUNNING;
+}
+
+void StepElevatorUpAction::onHalted()
+{
+  // Cancel the goal if it's active
+  if (goal_handle_ && action_state_ == ActionState::GOAL_ACTIVE) {
+    RCLCPP_INFO(node_->get_logger(), "[StepElevatorUpAction] Canceling active goal");
+    action_client_->async_cancel_goal(goal_handle_);
+  }
+  
+  action_state_ = ActionState::IDLE;
+  result_received_ = false;
+  goal_handle_.reset();
 }
 
 BT::NodeStatus BackAwayFromTable::tick()
@@ -2010,32 +2377,33 @@ BT::NodeStatus RetractExtender::tick()
 
   initializeSimulatedSensors(node_);
 
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr extender_pub;
-  if (!extender_pub) {
-    extender_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/gripper_elevator_plate_to_gripper_extender/position", 10);
+  static rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr gripper_vel_pub;
+  if (!gripper_vel_pub) {
+    gripper_vel_pub = node_->create_publisher<geometry_msgs::msg::Twist>(
+      "/cmd_vel_gripper", 10);
   }
 
-  std_msgs::msg::Float64 msg;
-  double current_position = g_sensor_state.extender_position;
-  if (current_position < 0.001 && g_sensor_state.last_extender_command > 0.01) {
-    RCLCPP_INFO(node_->get_logger(),
-                "[RetractExtender] Using last command %.3f as current position", 
-                g_sensor_state.last_extender_command);
-    current_position = g_sensor_state.last_extender_command;
-  }
-  const double tug_target = std::max(0.0, current_position - 0.02);
+  // Send retract velocity command using negative angular.z
+  geometry_msgs::msg::Twist cmd;
+  cmd.linear.x = 0.0;
+  cmd.linear.y = 0.0;
+  cmd.linear.z = 0.0;
+  cmd.angular.x = 0.0;
+  cmd.angular.y = 0.0;
+  cmd.angular.z = -0.05;  // Negative to retract
+  
+  RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Sending retract velocity angular.z=%.3f", cmd.angular.z);
+  gripper_vel_pub->publish(cmd);
 
-  RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Tug step: current=%.3f -> target=%.3f", current_position, tug_target);
-  msg.data = tug_target;
-  extender_pub->publish(msg);
-  std::this_thread::sleep_for(500ms);
+  // Keep sending retract command for duration needed to fully retract
+  // Assuming ~1.5 seconds is sufficient for full retraction
+  std::this_thread::sleep_for(1500ms);
+  
+  // Stop the motion
+  cmd.angular.z = 0.0;
+  gripper_vel_pub->publish(cmd);
+  RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Retraction complete, stopped motion");
 
-  RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Full retract to 0.0");
-  msg.data = 0.0;
-  extender_pub->publish(msg);
-
-  std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -2043,17 +2411,32 @@ BT::NodeStatus RetractGripper::tick()
 {
   RCLCPP_INFO(node_->get_logger(), "[RetractGripper] Retracting gripper assembly");
 
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr extender_pub;
-  if (!extender_pub) {
-    extender_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/gripper_elevator_plate_to_gripper_extender/position", 10);
+  static rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr gripper_vel_pub;
+  if (!gripper_vel_pub) {
+    gripper_vel_pub = node_->create_publisher<geometry_msgs::msg::Twist>(
+      "/cmd_vel_gripper", 10);
   }
 
-  std_msgs::msg::Float64 msg;
-  msg.data = 0.0;
-  extender_pub->publish(msg);
+  // Send retract velocity command using negative angular.z
+  geometry_msgs::msg::Twist cmd;
+  cmd.linear.x = 0.0;
+  cmd.linear.y = 0.0;
+  cmd.linear.z = 0.0;
+  cmd.angular.x = 0.0;
+  cmd.angular.y = 0.0;
+  cmd.angular.z = -0.05;  // Negative to retract
+  
+  RCLCPP_INFO(node_->get_logger(), "[RetractGripper] Sending retract velocity angular.z=%.3f", cmd.angular.z);
+  gripper_vel_pub->publish(cmd);
 
-  std::this_thread::sleep_for(1s);
+  // Keep sending retract command for duration needed to fully retract
+  std::this_thread::sleep_for(1500ms);
+  
+  // Stop the motion
+  cmd.angular.z = 0.0;
+  gripper_vel_pub->publish(cmd);
+  RCLCPP_INFO(node_->get_logger(), "[RetractGripper] Retraction complete, stopped motion");
+
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -2207,18 +2590,24 @@ BT::NodeStatus ExtendTowardsCan::tick()
               "[ExtendTowardsCan] Extending gripper %.3fm toward '%s' (detected at %.3fm) [Offset 0.045]",
               extension_distance, object_name.c_str(), distance_to_can);
               
-  // Log every step
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr extender_pub;
-  if (!extender_pub) {
+  // Publish to /cmd_vel_gripper using angular.z (positive = extend, negative = retract)
+  static rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr gripper_vel_pub;
+  if (!gripper_vel_pub) {
       RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Creating publisher...");
-    extender_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/gripper_elevator_plate_to_gripper_extender/position", 10);
+    gripper_vel_pub = node_->create_publisher<geometry_msgs::msg::Twist>(
+      "/cmd_vel_gripper", 10);
   }
 
-  std_msgs::msg::Float64 msg;
-  msg.data = extension_distance;
-  extender_pub->publish(msg);
-  RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Published extension command: %.3f", extension_distance);
+  // Use angular.z for extension velocity
+  geometry_msgs::msg::Twist cmd;
+  cmd.linear.x = 0.0;
+  cmd.linear.y = 0.0;
+  cmd.linear.z = 0.0;
+  cmd.angular.x = 0.0;
+  cmd.angular.y = 0.0;
+  cmd.angular.z = 0.05;  // Positive to extend
+  gripper_vel_pub->publish(cmd);
+  RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Published extension command angular.z=%.3f (target dist: %.3f)", cmd.angular.z, extension_distance);
 
   {
     std::lock_guard<std::mutex> lock(g_sensor_mutex);

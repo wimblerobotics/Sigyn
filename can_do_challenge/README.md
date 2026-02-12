@@ -25,6 +25,27 @@ This package implements an autonomous can-fetching behavior for Sigyn the robot.
 - ✅ Reactive safety monitoring (battery, E-stop, tilt)
 - ✅ Modular subtree design
 
+## Phase 3 - Visual Acquisition (Action Server Integration) ✓
+
+**Status**: Elevator control integrated with action server for reliable visual servoing.
+
+### What's Implemented:
+- ✅ `MoveElevatorAction`: StatefulActionNode using `/gripper/move_elevator` action
+- ✅ `StepElevatorUpAction`: Incremental elevator movement with action server
+- ✅ Position feedback from `/gripper/status` (GripperStatus messages)
+- ✅ Visual servoing without velocity commands (action-based only)
+- ✅ `ElevatorAtHeight`: Checks if can is at target pixel height
+- ✅ `WaitForNewPiFrameProcessed`: Ensures fresh camera data between steps
+- ✅ Behavior tree `raise_elevator.xml` with incremental stepping
+- ✅ Tested on real hardware with successful can positioning
+
+### Key Design Decisions:
+- **No velocity commands**: All elevator movement uses MoveElevator action server
+- **Incremental stepping**: Starts from home, steps up 2cm at a time until can reaches target
+- **Visual feedback loop**: Each step followed by camera check (342±10 pixels target)
+- **Robust position tracking**: Uses `/gripper/status` from teensy_bridge for real-time feedback
+- **Graceful limits**: Max 50 attempts (1m travel) prevents runaway behavior
+
 ### Behavior Tree Structure:
 
 ```
@@ -151,7 +172,15 @@ The resulting `fcc2_best.hef` file will be saved in `resources/models/` and is r
 - Ensure the ONNX model uses opset 11-13 and fixed input dimensions (no dynamic axes)
 - For model optimization options, consult the Hailo Dataflow Compiler documentation
 
-## Next Steps (Phase 2 & 3)
+## Next Steps (Phase 2 & Beyond)
+
+### ✅ COMPLETE - Visual Acquisition (Phase 3):
+1. **Elevator Control with Action Server**:
+   - ✅ MoveElevatorAction integrated with `/gripper/move_elevator`
+   - ✅ StepElevatorUpAction for incremental visual servoing
+   - ✅ Position feedback from `/gripper/status`
+   - ✅ `raise_elevator.xml` behavior tree tested on hardware
+   - ✅ Visual feedback from Pi camera at 342±10 pixels
 
 ### TODO - Vision Integration:
 1. **OAK-D Object Detection**:
@@ -162,17 +191,18 @@ The resulting `fcc2_best.hef` file will be saved in `resources/models/` and is r
    - Node: `CanDetectedByOAKD`, `CanWithinReach`
 
 2. **Pi Camera Integration**:
-   - Similar HSV + Canny detection
-   - Return bounding box for centering
-   - Verify can still grasped
+   - ✅ Detection working (`/gripper/camera/detections`)
+   - ✅ ElevatorAtHeight condition implemented
+   - TODO: Return bounding box for centering
+   - TODO: Verify can still grasped
    - Nodes: `CanDetectedByPiCamera`, `CanCenteredInPiCamera`, `CanIsGrasped`
 
 ### TODO - Gripper Control Integration:
 Look at `sigyn_to_sensor_v2` package for:
-- Elevator position control
-- Extender position control  
-- Gripper open/close commands
-- Current position feedback
+- ✅ Elevator position control (MoveElevatorAction complete)
+- ✅ Elevator position feedback (`/gripper/status` integrated)
+- TODO: Extender position control  
+- TODO: Gripper open/close commands
 
 ### TODO - Nav2 Integration:
 - Replace placeholder `ComputePathToPose` and `FollowPath` with actual Nav2 action clients
@@ -197,7 +227,8 @@ Look at `sigyn_to_sensor_v2` package for:
 ### Gripper Actions:
 - `LowerElevator`: Lower to minimum height
 - `LowerElevatorSafely`: Lower to safe travel height with can
-- `MoveElevatorToHeight`: Move to specific height
+- `MoveElevatorAction`: Move to specific height using action server ✅ **Phase 3**
+- `StepElevatorUpAction`: Incremental 2cm steps with visual feedback ✅ **Phase 3**
 - `RetractExtender`: Fully retract extender
 - `OpenGripper` / `CloseGripperAroundCan`: Control gripper jaws
 - `AdjustExtenderToCenterCan`: Fine position using Pi Camera
