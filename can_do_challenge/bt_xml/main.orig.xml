@@ -15,8 +15,8 @@
                 <SubTree ID="GraspCan" __shared_blackboard="true"
                     objectOfInterest="{objectOfInterest}" />
             </ReactiveSequence>
-            <!-- <Action ID="BackAwayFromTable" distance="0.3" speed="0.1" />
-            <SubTree ID="ReturnToStart" __shared_blackboard="true"
+            <Action ID="BackAwayFromTable" distance="0.3" speed="0.1" />
+            <!-- <SubTree ID="ReturnToStart" __shared_blackboard="true"
                 objectOfInterest="{objectOfInterest}" /> -->
         </Sequence>
     </BehaviorTree>
@@ -84,11 +84,41 @@
             </RetryUntilSuccessful>
         </ReactiveSequence>
     </BehaviorTree>
+
+    <BehaviorTree ID="ExecuteGrasp">
+        <Sequence>
+            <Action ID="OpenGripper" />
+            <Sequence>
+                <Condition ID="WaitForNewPiFrameProcessed" />
+                <Action ID="ExtendTowardsCan" objectOfInterest="{objectOfInterest}" />
+            </Sequence>
+            <Action ID="CloseGripperAroundCan" canDiameter="0.06" />
+            <Action ID="StepElevatorUpAction" stepMeters="0.1" />
+            <!-- <Action ID="RotateRobot" degrees="20" /> -->
+            <ReactiveFallback name="VerifyGrasp">
+                <Sequence>
+                    <Condition ID="WaitForNewPiFrameProcessed" />
+                    <Condition ID="CanIsGrasped" objectOfInterest="{objectOfInterest}" />
+                </Sequence>
+                <Action ID="ReportGraspFailure" />
+            </ReactiveFallback>
+        </Sequence>
+    </BehaviorTree>
+    
     <!-- ////////// -->
-    <BehaviorTree ID="BatteryIsCharged">
-        <ReactiveFallback name="ChargingNotNeeded">
-            <Condition ID="BatteryAboveChargingVoltage" />
-            <Action ID="ChargeBattery" />
+    <BehaviorTree ID="GraspCan">
+        <ReactiveFallback>
+            <Condition ID="CheckBoolFlag" expected="false" flag="{needToGrasp}" />
+            <Sequence>
+                <SubTree ID="RaiseElevatorToCanHeight" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" />
+                <SubTree ID="CenterCanInPiCamera" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" />
+                <SubTree ID="ExecuteGrasp" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" />
+                <SubTree ID="RetractAfterGrasp" />
+                <SetBlackboard output_key="needToGrasp" value="false" />
+            </Sequence>
         </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
@@ -102,49 +132,6 @@
                 </ReactiveFallback>
             </Sequence>
         </Decorator>
-    </BehaviorTree>
-    <!-- ////////// -->
-    <BehaviorTree ID="EnsureBatteryIsNotCritical">
-        <ReactiveFallback name="SystemShutdownNotNeeded">
-            <Condition ID="BatteryAboveCriticalVoltage" />
-            <Action ID="ShutdownSystem" />
-        </ReactiveFallback>
-    </BehaviorTree>
-    <!-- ////////// -->
-    <BehaviorTree ID="ExecuteGrasp">
-        <Sequence>
-            <Action ID="OpenGripper" />
-            <Sequence>
-                <Condition ID="WaitForNewPiFrameProcessed" />
-                <Action ID="ExtendTowardsCan" objectOfInterest="{objectOfInterest}" />
-            </Sequence>
-            <Action ID="CloseGripperAroundCan" canDiameter="0.06" />
-            <Action ID="StepElevatorUp" stepMeters="0.1" />
-            <!-- <Action ID="RotateRobot" degrees="20" /> -->
-            <ReactiveFallback name="VerifyGrasp">
-                <Sequence>
-                    <Condition ID="WaitForNewPiFrameProcessed" />
-                    <Condition ID="CanIsGrasped" objectOfInterest="{objectOfInterest}" />
-                </Sequence>
-                <Action ID="ReportGraspFailure" />
-            </ReactiveFallback>
-        </Sequence>
-    </BehaviorTree>
-    <!-- ////////// -->
-    <BehaviorTree ID="GraspCan">
-        <ReactiveFallback>
-            <Condition ID="CheckBoolFlag" expected="false" flag="{needToGrasp}" />
-            <Sequence>
-                <SubTree ID="RaiseElevatorToCanHeight" __shared_blackboard="true"
-                    objectOfInterest="{objectOfInterest}" />
-                <!-- <SubTree ID="CenterCanInPiCamera" __shared_blackboard="true"
-                    objectOfInterest="{objectOfInterest}" />
-                <SubTree ID="ExecuteGrasp" __shared_blackboard="true"
-                    objectOfInterest="{objectOfInterest}" />
-                <SubTree ID="RetractAfterGrasp" /> -->
-                <SetBlackboard output_key="needToGrasp" value="false" />
-            </Sequence>
-        </ReactiveFallback>
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="NavigateToCanLocation">
@@ -163,15 +150,16 @@
         <Sequence>
             <!-- Wait for vision system to be ready -->
             <Condition ID="WaitForNewPiFrameProcessed" />
-            
+
             <!-- Incrementally raise elevator with visual feedback -->
             <!-- Start from home, step up 2cm at a time using action server -->
             <!-- Continue until can appears at target pixel height -->
             <RetryUntilSuccessful num_attempts="50">
                 <ReactiveFallback>
                     <!-- Check if can is at target height (342 pixels) -->
-                    <Condition ID="ElevatorAtHeight" targetHeightPixels="342.0" z_tolerance_pixels="10.0" />
-                    
+                    <Condition ID="ElevatorAtHeight" targetHeightPixels="342.0"
+                        z_tolerance_pixels="10.0" />
+
                     <!-- If not, step up using action server and check again -->
                     <Sequence>
                         <Action ID="StepElevatorUpAction" stepMeters="0.02" />
@@ -183,6 +171,7 @@
             </RetryUntilSuccessful>
         </Sequence>
     </BehaviorTree>
+    
     <!-- ////////// -->
     <BehaviorTree ID="ReactiveRobotSafety">
         <ReactiveSequence>
@@ -193,6 +182,24 @@
             <SubTree ID="BatteryIsCharged" />
         </ReactiveSequence>
     </BehaviorTree>
+    
+    <!-- ////////// -->
+    <BehaviorTree ID="BatteryIsCharged">
+        <ReactiveFallback name="ChargingNotNeeded">
+            <Condition ID="BatteryAboveChargingVoltage" />
+            <Action ID="ChargeBattery" />
+        </ReactiveFallback>
+    </BehaviorTree>
+    
+    <!-- ////////// -->
+    <BehaviorTree ID="EnsureBatteryIsNotCritical">
+        <ReactiveFallback name="SystemShutdownNotNeeded">
+            <Condition ID="BatteryAboveCriticalVoltage" />
+            <Action ID="ShutdownSystem" />
+        </ReactiveFallback>
+    </BehaviorTree>
+    <!-- ////////// -->
+    
     <!-- ////////// -->
     <BehaviorTree ID="RetractAfterGrasp">
         <Sequence>
@@ -200,10 +207,12 @@
             <Action ID="LowerElevatorSafely" />
         </Sequence>
     </BehaviorTree>
+    
     <!-- ////////// -->
     <BehaviorTree ID="ReturnToStart">
         <Action ID="NavigateToPoseAction" error_code_id="{nav_error_code}" goal="{startingPose}" />
     </BehaviorTree>
+    
     <!-- ////////// -->
     <BehaviorTree ID="RobotHasNotFallenOver">
         <ReactiveFallback>
@@ -213,6 +222,7 @@
             <Action ID="ShutdownSystem" />
         </ReactiveFallback>
     </BehaviorTree>
+    
     <!-- ////////// -->
     <BehaviorTree ID="RobotIsNotAboutToFallOver">
         <ReactiveFallback>
@@ -222,12 +232,14 @@
             <Action ID="SoftwareEStop" reason="Robot is about to fall over" />
         </ReactiveFallback>
     </BehaviorTree>
+    
     <!-- ////////// -->
     <BehaviorTree ID="RobotIsNotEStopped">
         <Inverter>
             <Condition ID="RobotIsEstopped" />
         </Inverter>
     </BehaviorTree>
+
     <!-- ////////// -->
     <BehaviorTree ID="SetupCanChallenge">
         <Sequence>
@@ -397,7 +409,7 @@
         <Action ID="SoftwareEStop">
             <input_port default="Emergency stop" name="reason" />
         </Action>
-        <Action ID="StepElevatorUp">
+        <Action ID="StepElevatorUpAction">
             <input_port default="0.01" name="stepMeters">Step size in meters</input_port>
         </Action>
         <SubTree ID="VisuallyAcquireCan">

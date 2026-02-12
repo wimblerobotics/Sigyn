@@ -5,6 +5,8 @@
 #include "can_do_challenge/bt_nodes_real.hpp"
 #include "sigyn_interfaces/msg/e_stop_status.hpp"
 #include "sigyn_interfaces/msg/gripper_status.hpp"
+#include "sigyn_interfaces/msg/gripper_position_command.hpp"
+#include "std_msgs/msg/empty.hpp"
 #include "geometry_msgs/msg/point_stamped.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist.hpp"
@@ -90,6 +92,7 @@ struct ObjectDetectionState {
   
   // Pi camera (gripper) detection
   geometry_msgs::msg::Point pi_detection_position;
+  double pi_detection_pixel_y = 0.0;  // Original pixel Y coordinate from camera
   std::string pi_detection_frame = "map";
   rclcpp::Time pi_detection_stamp;
   bool pi_can_detected = false;
@@ -345,7 +348,7 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
   
   // Subscribe to Pi camera detection (gripper_camera_detector package)
   rclcpp::QoS pi_qos(10);
-  // Use RELIABLE to match publisher QoS
+  // Use RELIABLE to match publisher QoS (detection data is low-rate and critical)
   pi_qos.reliable();
 
   g_pi_sub = node->create_subscription<gripper_camera_detector::msg::DetectionArray>(
@@ -355,6 +358,9 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
       {
         std::lock_guard<std::mutex> lock(g_pi_frame_mutex);
         g_pi_last_frame_time = rclcpp::Time(msg->header.stamp);
+        RCLCPP_INFO_THROTTLE(node->get_logger(), *node->get_clock(), 1000,
+          "[Pi-Subscription] Callback invoked! Frame time=%.3f detections=%zu",
+          g_pi_last_frame_time.seconds(), msg->detections.size());
       }
       g_pi_frame_cv.notify_all();
       
@@ -362,15 +368,37 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
       if (!msg->detections.empty()) {
         const auto& det = msg->detections[0];
         
-        // Store detection position
+        // Convert pixel coordinates to normalized camera frame
+        // Gripper camera resolution is typically 640x480
+        // Assuming camera center at (320, 240) and focal length ~500px
+        const double image_width = 640.0;
+        const double image_height = 480.0;
+        const double fx = 500.0;  // Approximate focal length in pixels
+        const double fy = 500.0;
+        const double cx = image_width / 2.0;  // 320
+        const double cy = image_height / 2.0; // 240
+        
+        // Assume a nominal distance for projection (will be refined with actual distance if available)
+        double nominal_distance = 0.3;  // 30cm typical gripper reach
+        
+        // Store original pixel Y coordinate BEFORE conversion
+        double original_pixel_y = det.center.y;
+        
+        // Convert pixel coordinates to 3D camera frame (optical conventions: X=right, Y=down, Z=forward)
+        double x_3d = (det.center.x - cx) * nominal_distance / fx;
+        double y_3d = (det.center.y - cy) * nominal_distance / fy;
+        double z_3d = nominal_distance;
+        
+        // Store detection position in meters
         geometry_msgs::msg::Point pos;
-        pos.x = det.center.x;
-        pos.y = det.center.y;
-        pos.z = det.center.z;
+        pos.x = x_3d;
+        pos.y = y_3d;
+        pos.z = z_3d;
         
         {
           std::lock_guard<std::mutex> lock(g_detection_mutex);
           g_detection_state.pi_detection_position = pos;
+          g_detection_state.pi_detection_pixel_y = original_pixel_y;
           g_detection_state.pi_detection_frame = msg->header.frame_id;
           g_detection_state.pi_detection_stamp = rclcpp::Time(msg->header.stamp);
           g_detection_state.pi_can_detected = true;
@@ -840,22 +868,23 @@ BT::NodeStatus WaitForNewPiFrameProcessed::tick()
   // On first tick or after reset, initialize state
   if (!waiting_) {
     wait_start_time_ = current_time;
-    std::lock_guard<std::mutex> lock(g_pi_frame_mutex);
-    last_frame_time_ = g_pi_last_frame_time;
+    rclcpp::Time initial_frame_time;
+    {
+      std::lock_guard<std::mutex> lock(g_pi_frame_mutex);
+      last_frame_time_ = g_pi_last_frame_time;
+      initial_frame_time = g_pi_last_frame_time;
+    }
     waiting_ = true;
     RCLCPP_INFO(node_->get_logger(),
-                "[WaitForNewPiFrameProcessed] Waiting for next processed frame (last=%.3f)",
-                last_frame_time_.seconds());
+                "[WaitForNewPiFrameProcessed] INIT: Starting wait. last_frame_time=%.3f (nanos=%ld) current_time=%.3f",
+                last_frame_time_.seconds(), last_frame_time_.nanoseconds(), current_time.seconds());
+    RCLCPP_INFO(node_->get_logger(),
+                "[WaitForNewPiFrameProcessed] INIT: g_pi_last_frame_time=%.3f (nanos=%ld)",
+                initial_frame_time.seconds(), initial_frame_time.nanoseconds());
   }
   
   // Check if we've exceeded timeout
   auto elapsed = (current_time - wait_start_time_).seconds();
-  if (elapsed > (ObjectDetectionState::PI_WAIT_TIMEOUT_MS / 1000.0)) {
-    RCLCPP_INFO(node_->get_logger(), "[WaitForNewPiFrameProcessed] Timeout after %.1fs waiting for processed frame",
-                elapsed);
-    waiting_ = false;  // Reset for next attempt
-    return BT::NodeStatus::FAILURE;
-  }
   
   // Check if new frame has been processed (non-blocking)
   // The heartbeat is published after object detection runs, regardless of whether can was found
@@ -865,12 +894,35 @@ BT::NodeStatus WaitForNewPiFrameProcessed::tick()
     current_frame_time = g_pi_last_frame_time;
   }
   
+  // Log every second while waiting
+  if (elapsed >= 1.0 && static_cast<int>(elapsed) != static_cast<int>(elapsed - 0.1)) {
+    RCLCPP_INFO(node_->get_logger(),
+                "[WaitForNewPiFrameProcessed] TICK: elapsed=%.1fs current_frame_time=%.3f (nanos=%ld) last_frame_time=%.3f (nanos=%ld) match=%s zero=%s",
+                elapsed,
+                current_frame_time.seconds(), current_frame_time.nanoseconds(),
+                last_frame_time_.seconds(), last_frame_time_.nanoseconds(),
+                (current_frame_time.nanoseconds() == last_frame_time_.nanoseconds()) ? "YES" : "NO",
+                (current_frame_time.nanoseconds() == 0) ? "YES" : "NO");
+  }
+  
+  if (elapsed > (ObjectDetectionState::PI_WAIT_TIMEOUT_MS / 1000.0)) {
+    RCLCPP_INFO(node_->get_logger(), 
+                "[WaitForNewPiFrameProcessed] TIMEOUT after %.1fs. Final state: current_frame=%.3f (nanos=%ld) last_frame=%.3f (nanos=%ld)",
+                elapsed,
+                current_frame_time.seconds(), current_frame_time.nanoseconds(),
+                last_frame_time_.seconds(), last_frame_time_.nanoseconds());
+    waiting_ = false;  // Reset for next attempt
+    return BT::NodeStatus::FAILURE;
+  }
+  
   if (current_frame_time.nanoseconds() != last_frame_time_.nanoseconds() && current_frame_time.nanoseconds() > 0) {
     // New frame processed! Bounding box data (if any) is now available. Reset state and return success.
     waiting_ = false;
     RCLCPP_INFO(node_->get_logger(),
-                "[WaitForNewPiFrameProcessed] New processed frame at %.3f (prev %.3f)",
-                current_frame_time.seconds(), last_frame_time_.seconds());
+                "[WaitForNewPiFrameProcessed] SUCCESS: New processed frame detected! current=%.3f (nanos=%ld) prev=%.3f (nanos=%ld) elapsed=%.1fs",
+                current_frame_time.seconds(), current_frame_time.nanoseconds(),
+                last_frame_time_.seconds(), last_frame_time_.nanoseconds(),
+                elapsed);
     return BT::NodeStatus::SUCCESS;
   }
   
@@ -895,18 +947,23 @@ BT::NodeStatus ElevatorAtHeight::tick()
     return BT::NodeStatus::FAILURE;
   }
 
-  // Debug log 2D values now (before filtering)
+  // Get the actual pixel Y coordinate from global state
+  double pixel_y = 0.0;
+  {
+    std::lock_guard<std::mutex> lock(g_detection_mutex);
+    pixel_y = g_detection_state.pi_detection_pixel_y;
+  }
+  
+  // Debug log both 3D and pixel values
   RCLCPP_INFO(node_->get_logger(),
-           "[ElevatorAtHeight] RAW detection: x=%.3f y=%.3f age=%.2fs",
-           det_point.x, det_point.y, age_sec);
+           "[ElevatorAtHeight] Detection: 3D_y=%.3f pixel_y=%.1f age=%.2fs",
+           det_point.y, pixel_y, age_sec);
 
-  // Check if we assume 2D pixel-based check (if targetHeightPixels is provided)
-  bool use_2d_pixels = false;
+  // Get target height in pixels
   double target_y_pixels = 342.0; // Default
-  double tol_pixels = 20.0;
+  double tol_pixels = 10.0;
   
   if (getInput("targetHeightPixels", target_y_pixels)) {
-      use_2d_pixels = true;
       getInput("z_tolerance_pixels", tol_pixels);
   } else {
      // Fallback to param if not provided by port
@@ -919,17 +976,17 @@ BT::NodeStatus ElevatorAtHeight::tick()
      
      try {
           if (!node_->has_parameter("pi_target_tolerance")) {
-               node_->declare_parameter<double>("pi_target_tolerance", 20.0);
+               node_->declare_parameter<double>("pi_target_tolerance", 10.0);
           }
            node_->get_parameter("pi_target_tolerance", tol_pixels);
       } catch (...) {}
   }
 
-  // 2D MODE: Totally ignore Z, just check Y pixels
-  double diff = std::abs(det_point.y - target_y_pixels);
+  // Compare pixel Y to target pixel Y
+  double diff = std::abs(pixel_y - target_y_pixels);
   RCLCPP_INFO(node_->get_logger(),
-          "[ElevatorAtHeight] 2D Check: y=%.1f target=%.1f diff=%.1f tol=%.1f",
-          det_point.y, target_y_pixels, diff, tol_pixels);
+          "[ElevatorAtHeight] Pixel Check: pixel_y=%.1f target=%.1f diff=%.1f tol=%.1f",
+          pixel_y, target_y_pixels, diff, tol_pixels);
 
   if (diff <= tol_pixels) {
     return BT::NodeStatus::SUCCESS;
@@ -1695,40 +1752,42 @@ void NavigateToPoseAction::resultCallback(
 
 BT::NodeStatus LowerElevator::tick()
 {
-  // Create publisher if needed
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
-  if (!elevator_pub) {
-    elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/elevator_connector_plate/position", 10);
+  RCLCPP_INFO(node_->get_logger(), "[LowerElevator] Sending home command to gripper assembly");
+  
+  // Use /gripper/home topic to home both elevator and extender
+  static rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr home_pub;
+  if (!home_pub) {
+    home_pub = node_->create_publisher<std_msgs::msg::Empty>(
+      "/gripper/home", 10);
   }
   
-  // Lower to 0.0m (minimum)
-  auto msg = std_msgs::msg::Float64();
-  // Respect the URDF lower limit (0.15m).
-  msg.data = 0.15;
-  elevator_pub->publish(msg);
+  auto msg = std_msgs::msg::Empty();
+  home_pub->publish(msg);
   
-  RCLCPP_INFO(node_->get_logger(), "[LowerElevator] Lowering elevator to 0.15m minimum");
-  std::this_thread::sleep_for(1s);
+  RCLCPP_INFO(node_->get_logger(), "[LowerElevator] Homing command sent");
+  // Give time for homing to complete
+  std::this_thread::sleep_for(3s);
   return BT::NodeStatus::SUCCESS;
 }
 
 BT::NodeStatus LowerElevatorSafely::tick()
 {
-  // Create publisher if needed
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
-  if (!elevator_pub) {
-    elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/elevator_connector_plate/position", 10);
+  RCLCPP_INFO(node_->get_logger(), "[LowerElevatorSafely] Lowering elevator to 0.1m safe height");
+  
+  // Use /gripper/position/command with new API
+  static rclcpp::Publisher<sigyn_interfaces::msg::GripperPositionCommand>::SharedPtr pos_pub;
+  if (!pos_pub) {
+    pos_pub = node_->create_publisher<sigyn_interfaces::msg::GripperPositionCommand>(
+      "/gripper/position/command", 10);
   }
   
-  // Lower to 0.1m safe height
-  auto msg = std_msgs::msg::Float64();
-  msg.data = 0.1;
-  elevator_pub->publish(msg);
+  auto msg = sigyn_interfaces::msg::GripperPositionCommand();
+  msg.elevator_position = 0.1;  // 0.1m safe height
+  msg.extender_position = -1.0; // No change to extender
+  pos_pub->publish(msg);
   
-  RCLCPP_INFO(node_->get_logger(), "[LowerElevatorSafely] Lowering elevator to 0.1m safe height");
-  std::this_thread::sleep_for(1s);
+  RCLCPP_INFO(node_->get_logger(), "[LowerElevatorSafely] Command sent: elevator=0.1m");
+  std::this_thread::sleep_for(2s);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -1766,24 +1825,27 @@ BT::NodeStatus LowerElevatorToTable::tick()
       }
   }
 
-  const double commanded_joint = target_height + base_link_z - homing_offset;
+  // With new API, we directly command the elevator position in meters from home
+  // The sigyn_to_sensor_v2 handles the joint space conversion
+  const double elevator_position = target_height;
   
   // Create publisher if needed
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
-  if (!elevator_pub) {
-    elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/elevator_connector_plate/position", 10);
+  static rclcpp::Publisher<sigyn_interfaces::msg::GripperPositionCommand>::SharedPtr pos_pub;
+  if (!pos_pub) {
+    pos_pub = node_->create_publisher<sigyn_interfaces::msg::GripperPositionCommand>(
+      "/gripper/position/command", 10);
   }
   
   // Publish position command
-  auto msg = std_msgs::msg::Float64();
-  msg.data = commanded_joint;
-  elevator_pub->publish(msg);
+  auto msg = sigyn_interfaces::msg::GripperPositionCommand();
+  msg.elevator_position = std::max(0.0f, std::min(0.8999f, static_cast<float>(elevator_position)));
+  msg.extender_position = -1.0; // No change to extender
+  pos_pub->publish(msg);
   
   RCLCPP_INFO(node_->get_logger(),
-              "[LowerElevatorToTable] Lowering to world_z=%.5fm (base_link_z=%.3fm -> joint=%.5fm)",
-              target_height, base_link_z, commanded_joint);
-  std::this_thread::sleep_for(1s);
+              "[LowerElevatorToTable] Commanding elevator to %.5fm (clamped to 0.0-0.8999)",
+              msg.elevator_position);
+  std::this_thread::sleep_for(2s);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -1826,24 +1888,26 @@ BT::NodeStatus MoveElevatorToHeight::tick()
       }
   }
   
-  const double commanded_joint = target_height + base_link_z + kExtraTableClearance - homing_offset;
+  // With new API, we directly command the elevator position in meters from home
+  const double elevator_position = target_height + kExtraTableClearance;
   
   // Create publisher if needed
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
-  if (!elevator_pub) {
-    elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/elevator_connector_plate/position", 10);
+  static rclcpp::Publisher<sigyn_interfaces::msg::GripperPositionCommand>::SharedPtr pos_pub;
+  if (!pos_pub) {
+    pos_pub = node_->create_publisher<sigyn_interfaces::msg::GripperPositionCommand>(
+      "/gripper/position/command", 10);
   }
   
   // Publish position command
-  auto msg = std_msgs::msg::Float64();
-  msg.data = commanded_joint;
-  elevator_pub->publish(msg);
+  auto msg = sigyn_interfaces::msg::GripperPositionCommand();
+  msg.elevator_position = std::max(0.0f, std::min(0.8999f, static_cast<float>(elevator_position)));
+  msg.extender_position = -1.0; // No change to extender
+  pos_pub->publish(msg);
   
   RCLCPP_INFO(node_->get_logger(),
-              "[MoveElevatorToHeight] Moving elevator to world_z=%.5fm (base_link_z=%.3fm + clearance=%.2fm -> joint=%.5fm)",
-              target_height, base_link_z, kExtraTableClearance, commanded_joint);
-  std::this_thread::sleep_for(2s);
+              "[MoveElevatorToHeight] Commanding elevator to %.5fm (target=%.3f + clearance=%.2f, clamped to 0.0-0.8999)",
+              msg.elevator_position, target_height, kExtraTableClearance);
+  std::this_thread::sleep_for(3s);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -1902,28 +1966,24 @@ BT::NodeStatus StepElevatorUp::onStart()
     return BT::NodeStatus::FAILURE;
   }
 
-  // Publish to /cmd_vel_gripper which teensy_bridge subscribes to
-  static rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr gripper_vel_pub;
-  if (!gripper_vel_pub) {
-    gripper_vel_pub = node_->create_publisher<geometry_msgs::msg::Twist>(
-      "/cmd_vel_gripper", 10);
+  // Use /gripper/position/command with new API
+  static rclcpp::Publisher<sigyn_interfaces::msg::GripperPositionCommand>::SharedPtr pos_pub;
+  if (!pos_pub) {
+    pos_pub = node_->create_publisher<sigyn_interfaces::msg::GripperPositionCommand>(
+      "/gripper/position/command", 10);
   }
 
-  // Send upward velocity command using linear.x (positive = up, negative = down)
-  geometry_msgs::msg::Twist cmd;
-  cmd.linear.x = 0.05;  // Upward velocity in m/s
-  cmd.linear.y = 0.0;
-  cmd.linear.z = 0.0;
-  cmd.angular.x = 0.0;
-  cmd.angular.y = 0.0;
-  cmd.angular.z = 0.0;
-  gripper_vel_pub->publish(cmd);
+  // Command the new position directly
+  auto msg = sigyn_interfaces::msg::GripperPositionCommand();
+  msg.elevator_position = std::max(0.0f, std::min(0.8999f, static_cast<float>(next_pos)));
+  msg.extender_position = -1.0; // No change to extender
+  pos_pub->publish(msg);
 
   last_commanded_ = next_pos;
   step_count_++;
   RCLCPP_INFO(node_->get_logger(),
-              "[StepElevatorUp] Step %d: commanding velocity linear.x=%.3f (target %.3f -> %.3f, max %.3f)",
-              step_count_, cmd.linear.x, base_pos, next_pos, max_pos);
+              "[StepElevatorUp] Step %d: commanding elevator to %.5fm (was %.3f, max %.3f)",
+              step_count_, msg.elevator_position, base_pos, max_pos);
 
   return BT::NodeStatus::SUCCESS;
 }
@@ -2373,96 +2433,78 @@ BT::NodeStatus ComputeElevatorHeight::tick()
 }
 BT::NodeStatus RetractExtender::tick()
 {
-  RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Retracting extender");
+  RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Retracting extender to home (0.0m)");
 
   initializeSimulatedSensors(node_);
 
-  static rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr gripper_vel_pub;
-  if (!gripper_vel_pub) {
-    gripper_vel_pub = node_->create_publisher<geometry_msgs::msg::Twist>(
-      "/cmd_vel_gripper", 10);
+  // Use /gripper/position/command with new API
+  static rclcpp::Publisher<sigyn_interfaces::msg::GripperPositionCommand>::SharedPtr pos_pub;
+  if (!pos_pub) {
+    pos_pub = node_->create_publisher<sigyn_interfaces::msg::GripperPositionCommand>(
+      "/gripper/position/command", 10);
   }
 
-  // Send retract velocity command using negative angular.z
-  geometry_msgs::msg::Twist cmd;
-  cmd.linear.x = 0.0;
-  cmd.linear.y = 0.0;
-  cmd.linear.z = 0.0;
-  cmd.angular.x = 0.0;
-  cmd.angular.y = 0.0;
-  cmd.angular.z = -0.05;  // Negative to retract
+  // Command extender to retract to home position (0.0m)
+  auto msg = sigyn_interfaces::msg::GripperPositionCommand();
+  msg.elevator_position = -1.0; // No change to elevator
+  msg.extender_position = 0.0;  // Fully retracted
   
-  RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Sending retract velocity angular.z=%.3f", cmd.angular.z);
-  gripper_vel_pub->publish(cmd);
+  RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Commanding extender to 0.0m (fully retracted)");
+  pos_pub->publish(msg);
 
-  // Keep sending retract command for duration needed to fully retract
-  // Assuming ~1.5 seconds is sufficient for full retraction
-  std::this_thread::sleep_for(1500ms);
+  // Give time for movement to complete
+  std::this_thread::sleep_for(2s);
   
-  // Stop the motion
-  cmd.angular.z = 0.0;
-  gripper_vel_pub->publish(cmd);
-  RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Retraction complete, stopped motion");
+  RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Retraction command sent");
 
   return BT::NodeStatus::SUCCESS;
 }
 
 BT::NodeStatus RetractGripper::tick()
 {
-  RCLCPP_INFO(node_->get_logger(), "[RetractGripper] Retracting gripper assembly");
+  RCLCPP_INFO(node_->get_logger(), "[RetractGripper] Homing gripper assembly (elevator and extender)");
 
-  static rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr gripper_vel_pub;
-  if (!gripper_vel_pub) {
-    gripper_vel_pub = node_->create_publisher<geometry_msgs::msg::Twist>(
-      "/cmd_vel_gripper", 10);
+  // Use /gripper/home to home both elevator and extender
+  static rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr home_pub;
+  if (!home_pub) {
+    home_pub = node_->create_publisher<std_msgs::msg::Empty>(
+      "/gripper/home", 10);
   }
 
-  // Send retract velocity command using negative angular.z
-  geometry_msgs::msg::Twist cmd;
-  cmd.linear.x = 0.0;
-  cmd.linear.y = 0.0;
-  cmd.linear.z = 0.0;
-  cmd.angular.x = 0.0;
-  cmd.angular.y = 0.0;
-  cmd.angular.z = -0.05;  // Negative to retract
+  auto msg = std_msgs::msg::Empty();
+  home_pub->publish(msg);
   
-  RCLCPP_INFO(node_->get_logger(), "[RetractGripper] Sending retract velocity angular.z=%.3f", cmd.angular.z);
-  gripper_vel_pub->publish(cmd);
+  RCLCPP_INFO(node_->get_logger(), "[RetractGripper] Homing command sent");
 
-  // Keep sending retract command for duration needed to fully retract
-  std::this_thread::sleep_for(1500ms);
+  // Give time for homing sequence to complete
+  std::this_thread::sleep_for(3s);
   
-  // Stop the motion
-  cmd.angular.z = 0.0;
-  gripper_vel_pub->publish(cmd);
-  RCLCPP_INFO(node_->get_logger(), "[RetractGripper] Retraction complete, stopped motion");
+  RCLCPP_INFO(node_->get_logger(), "[RetractGripper] Homing complete");
 
   return BT::NodeStatus::SUCCESS;
 }
 
 BT::NodeStatus OpenGripper::tick()
 {
-  static rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr traj_pub;
+  static rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr twister_pub;
   
-  if (!traj_pub) {
-    RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Creating JTC publisher...");
-    traj_pub = node_->create_publisher<trajectory_msgs::msg::JointTrajectory>(
-      "/forward_position_controller/joint_trajectory", 10);
+  if (!twister_pub) {
+    RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Creating /cmd_vel_testicle_twister publisher...");
+    twister_pub = node_->create_publisher<geometry_msgs::msg::Twist>(
+      "/cmd_vel_testicle_twister", 10);
     std::this_thread::sleep_for(100ms);
   }
 
-  trajectory_msgs::msg::JointTrajectory msg;
-  msg.header.stamp = node_->now();
-  msg.joint_names = {"parallel_gripper_base_plate_to_left_finger", "parallel_gripper_base_plate_to_right_finger"};
+  geometry_msgs::msg::Twist msg;
+  msg.linear.x = 1000.0;  // Open gripper
+  msg.linear.y = 0.0;
+  msg.linear.z = 0.0;
+  msg.angular.x = 0.0;
+  msg.angular.y = 0.0;
+  msg.angular.z = 0.0;
   
-  trajectory_msgs::msg::JointTrajectoryPoint point;
-  // Open gripper = 0.0 for both (based on URDF limits where 0 is the starting wide position)
-  point.positions = {0.0, 0.0};
-  point.time_from_start = rclcpp::Duration::from_seconds(0.5);
-  msg.points.push_back(point);
-  
-  RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Sending trajectory to open fingers (0.0)");
-  traj_pub->publish(msg);
+  RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Sending cmd_vel_testicle_twister: linear.x=1000.0 (open)");
+  twister_pub->publish(msg);
   
   std::this_thread::sleep_for(500ms);
   return BT::NodeStatus::SUCCESS;
@@ -2475,47 +2517,26 @@ BT::NodeStatus CloseGripperAroundCan::tick()
   
   RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] START: can_diameter=%.4f", can_diameter);
   
-  static rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr traj_pub;
+  static rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr twister_pub;
   
-  if (!traj_pub) {
-    RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Creating JTC publisher...");
-    traj_pub = node_->create_publisher<trajectory_msgs::msg::JointTrajectory>(
-      "/forward_position_controller/joint_trajectory", 10);
+  if (!twister_pub) {
+    RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Creating /cmd_vel_testicle_twister publisher...");
+    twister_pub = node_->create_publisher<geometry_msgs::msg::Twist>(
+      "/cmd_vel_testicle_twister", 10);
     std::this_thread::sleep_for(100ms);
   }
   
-  // Calculate squeeze position
-  // Finger Origin is at approx 0.047m from center.
-  // We want finger surface at (diameter/2).
-  // Target Joint = (diameter/2) - 0.047.
-  double gripper_half_width_approx = 0.047;
-  double target_pos_left = 0.010 - gripper_half_width_approx;
-  
-  // Clamp to limits just in case
-  if (target_pos_left < -0.044) {
-    RCLCPP_WARN(node_->get_logger(), "[CloseGripperAroundCan] Clamping left from %.4f to -0.044", target_pos_left);
-    target_pos_left = -0.044;
-  }
-  if (target_pos_left > 0.0) {
-    RCLCPP_WARN(node_->get_logger(), "[CloseGripperAroundCan] Clamping left from %.4f to 0.0", target_pos_left);
-    target_pos_left = 0.0;
-  }
-  
-  double target_pos_right = -target_pos_left; // Right is symmetric positive
+  geometry_msgs::msg::Twist msg;
+  msg.linear.x = -1000.0;  // Close gripper
+  msg.linear.y = 0.0;
+  msg.linear.z = 0.0;
+  msg.angular.x = 0.0;
+  msg.angular.y = 0.0;
+  msg.angular.z = 0.0;
 
-  trajectory_msgs::msg::JointTrajectory msg;
-  msg.header.stamp = node_->now();
-  msg.joint_names = {"parallel_gripper_base_plate_to_left_finger", "parallel_gripper_base_plate_to_right_finger"};
+  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Sending cmd_vel_testicle_twister: linear.x=-1000.0 (close)");
   
-  trajectory_msgs::msg::JointTrajectoryPoint point;
-  point.positions = {target_pos_left, target_pos_right};
-  point.time_from_start = rclcpp::Duration::from_seconds(1.0); // Slower for grasp
-  msg.points.push_back(point);
-
-  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Sending JTC Trajectory: Left=%.4f, Right=%.4f", 
-              target_pos_left, target_pos_right);
-  
-  traj_pub->publish(msg);
+  twister_pub->publish(msg);
 
   std::this_thread::sleep_for(1500ms);
   return BT::NodeStatus::SUCCESS;
@@ -2590,31 +2611,29 @@ BT::NodeStatus ExtendTowardsCan::tick()
               "[ExtendTowardsCan] Extending gripper %.3fm toward '%s' (detected at %.3fm) [Offset 0.045]",
               extension_distance, object_name.c_str(), distance_to_can);
               
-  // Publish to /cmd_vel_gripper using angular.z (positive = extend, negative = retract)
-  static rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr gripper_vel_pub;
-  if (!gripper_vel_pub) {
-      RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Creating publisher...");
-    gripper_vel_pub = node_->create_publisher<geometry_msgs::msg::Twist>(
-      "/cmd_vel_gripper", 10);
+  // Use /gripper/position/command with new API
+  static rclcpp::Publisher<sigyn_interfaces::msg::GripperPositionCommand>::SharedPtr pos_pub;
+  if (!pos_pub) {
+    RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Creating publisher...");
+    pos_pub = node_->create_publisher<sigyn_interfaces::msg::GripperPositionCommand>(
+      "/gripper/position/command", 10);
   }
 
-  // Use angular.z for extension velocity
-  geometry_msgs::msg::Twist cmd;
-  cmd.linear.x = 0.0;
-  cmd.linear.y = 0.0;
-  cmd.linear.z = 0.0;
-  cmd.angular.x = 0.0;
-  cmd.angular.y = 0.0;
-  cmd.angular.z = 0.05;  // Positive to extend
-  gripper_vel_pub->publish(cmd);
-  RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Published extension command angular.z=%.3f (target dist: %.3f)", cmd.angular.z, extension_distance);
+  // Command extender to the calculated position
+  auto msg = sigyn_interfaces::msg::GripperPositionCommand();
+  msg.elevator_position = -1.0; // No change to elevator
+  msg.extender_position = std::max(0.0f, std::min(0.3418f, static_cast<float>(extension_distance)));
+  
+  pos_pub->publish(msg);
+  RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Commanded extender to %.4fm (clamped to 0.0-0.3418)", 
+              msg.extender_position);
 
   {
     std::lock_guard<std::mutex> lock(g_sensor_mutex);
-    g_sensor_state.last_extender_command = extension_distance;
+    g_sensor_state.last_extender_command = msg.extender_position;
   }
 
-  std::this_thread::sleep_for(1s);
+  std::this_thread::sleep_for(2s);
   return BT::NodeStatus::SUCCESS;
 }
 
