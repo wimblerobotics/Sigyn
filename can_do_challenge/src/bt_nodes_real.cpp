@@ -106,7 +106,7 @@ struct ObjectDetectionState {
   static constexpr int PI_WAIT_TIMEOUT_MS = 10000;  // 10s to allow camera initialization
   static constexpr double WITHIN_REACH_DISTANCE = -1.0;  // MUST be provided by BT
   static constexpr double CENTERING_TOLERANCE = 0.02;   // Tightened to 2cm for precision
-  static constexpr double PI_HORIZONTAL_TARGET_OFFSET = -0.030; // Offset to compensate for camera/gripper alignment (negative = target left of optical center)
+  static constexpr double PI_HORIZONTAL_TARGET_OFFSET = -0.020; // Offset to compensate for camera/gripper alignment (negative = target left of optical center)
   static constexpr double PI_VERTICAL_TOLERANCE = 0.05; // 5cm for elevator height check
   static constexpr double PI_VERTICAL_TARGET_OFFSET = 0.0; // target offset in optical Y (positive down)
   static constexpr double PI_MIN_DISTANCE_M = 0.15;

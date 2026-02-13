@@ -351,6 +351,9 @@ namespace sigyn_teensy {
       return;
     }
     stepPulse(dir);
+    // Update step timestamp so rate limiting is enforced on the next iteration.
+    // Use the pre-step 'now' value to keep start-to-start step spacing near the threshold.
+    last_step_time_us_ = now;
     if (dir == kUp && remaining_pulses_ > 0) {
       remaining_pulses_--;
     }
