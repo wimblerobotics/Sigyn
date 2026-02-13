@@ -34,8 +34,8 @@ std::string device_name;
 int cmdvel_message_rate = 30;
 int gripper_message_rate = 600;
 int joystick_message_rate = 100;
-int gripper_open_value = 1000;
-int gripper_close_value = -1000;
+int gripper_open_value = -1000;
+int gripper_close_value = 1000;
 std::string cmdvel_twister_topic;
 std::shared_ptr<rclcpp::Node> node;
 double scale_x;
@@ -424,9 +424,9 @@ int main(int argc, char* argv[]) {
   node->get_parameter("scale_z", scale_z);
   RCUTILS_LOG_INFO("[bluetooth_joystick_node] scale_z: %f", scale_z);
 
-  node->declare_parameter<int>("gripper_open_value", 1000);
+  node->declare_parameter<int>("gripper_open_value", -1000);
   node->get_parameter("gripper_open_value", gripper_open_value);
-  node->declare_parameter<int>("gripper_close_value", -1000);
+  node->declare_parameter<int>("gripper_close_value", 1000);
   node->get_parameter("gripper_close_value", gripper_close_value);
   node->declare_parameter<std::string>("cmdvel_twister_topic",
                                        "cmd_vel_testicle_twister");

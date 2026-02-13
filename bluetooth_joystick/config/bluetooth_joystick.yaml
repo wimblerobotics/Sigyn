@@ -9,8 +9,8 @@ bluetooth_joystick:
     cmdvel_message_rate: 10
     gripper_message_rate: 600
     joystick_message_rate: 100
-    gripper_open_value: 1000
-    gripper_close_value: -1000
+    gripper_open_value: -1000
+    gripper_close_value: 1000
     cmdvel_twister_topic: "cmd_vel_testicle_twister"
     oakd_picture_topic: "/sigyn/take_oakd_picture"
     gripper_picture_topic: "/sigyn/take_gripper_picture"

@@ -33,8 +33,8 @@ bluetooth_joystick:
     gripper_message_rate: 600       # Hz, for gripper control
     joystick_message_rate: 100      # Hz, for status messages
     cmdvel_twister_topic: "cmd_vel_testicle_twister"  # Topic for R1/R2 events (with L1 deadman)
-    gripper_open_value: 1000        # Value sent when R1 is pressed (with L1 deadman)
-    gripper_close_value: -1000      # Value sent when R2 is pressed (with L1 deadman)
+    gripper_open_value: -1000       # Value sent when R1 is pressed (with L1 deadman)
+    gripper_close_value: 1000       # Value sent when R2 is pressed (with L1 deadman)
     oakd_picture_topic: "/sigyn/take_oakd_picture"      # Topic for X button camera trigger
     gripper_picture_topic: "/sigyn/take_gripper_picture" # Topic for B button camera trigger
 ```
