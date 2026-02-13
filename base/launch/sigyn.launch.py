@@ -453,6 +453,7 @@ def generate_launch_description():
             description="Launch OAK-D camera nodes if true",
         )
     )
+    
     oakd_params_file = LaunchConfiguration("oakd_params_file")
     ld.add_action(
         DeclareLaunchArgument(
@@ -461,6 +462,7 @@ def generate_launch_description():
             description="OAK-D camera params file",
         )
     )
+    
     do_oakd_yolo26 = LaunchConfiguration("do_oakd_yolo26")
     ld.add_action(
         DeclareLaunchArgument(
@@ -469,6 +471,27 @@ def generate_launch_description():
             description="Launch YOLO26 CPU detector if true",
         )
     )
+    
+    yolo_pkg = get_package_share_directory("yolo_oakd_test")
+    oakd_node = Node(
+		package="yolo_oakd_test",
+		executable="oakd_can_detector.py",
+		name="oakd_can_detector_custom",
+		output="screen",
+		parameters=[{
+			"blob_path": os.path.join(yolo_pkg, "models", "can_detector.blob"),
+			"camera_frame": "oak_rgb_camera_optical_frame",
+			"spatial_axis_map": "-z,x,y",
+			"log_tf_debug": False,
+		}],
+		remappings=[
+			("/oakd_top/can_point_camera", "/oakd/can_detection"),
+			# Annotated image output
+			("/oakd_top/annotated_image", "/oakd/annotated_image")
+		]
+	)
+    ld.add_action(oakd_node)
+
     do_pi_cam = LaunchConfiguration("do_pi_cam")
     ld.add_action(
         DeclareLaunchArgument(

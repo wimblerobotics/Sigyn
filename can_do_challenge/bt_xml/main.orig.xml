@@ -8,16 +8,16 @@
                 objectOfInterest="CokeZeroCan" />
             <ReactiveSequence name="FetchCan">
                 <!-- <SubTree ID="ReactiveRobotSafety" /> -->
-                <!-- <SubTree ID="NavigateToCanLocation" __shared_blackboard="true"
-                    objectOfInterest="{objectOfInterest}" /> -->
+                <SubTree ID="NavigateToCanLocation" __shared_blackboard="true"
+                    objectOfInterest="{objectOfInterest}" />
                 <SubTree ID="VisuallyAcquireCan" __shared_blackboard="true"
                     objectOfInterest="{objectOfInterest}" />
                 <SubTree ID="GraspCan" __shared_blackboard="true"
                     objectOfInterest="{objectOfInterest}" />
             </ReactiveSequence>
             <Action ID="BackAwayFromTable" distance="0.3" speed="0.1" />
-            <!-- <SubTree ID="ReturnToStart" __shared_blackboard="true"
-                objectOfInterest="{objectOfInterest}" /> -->
+            <SubTree ID="ReturnToStart" __shared_blackboard="true"
+                objectOfInterest="{objectOfInterest}" />
         </Sequence>
     </BehaviorTree>
 
@@ -151,24 +151,8 @@
             <!-- Wait for vision system to be ready -->
             <Condition ID="WaitForNewPiFrameProcessed" />
 
-            <!-- Incrementally raise elevator with visual feedback -->
-            <!-- Start from home, step up 2cm at a time using action server -->
-            <!-- Continue until can appears at target pixel height -->
-            <RetryUntilSuccessful num_attempts="50">
-                <ReactiveFallback>
-                    <!-- Check if can is at target height (342 pixels) -->
-                    <Condition ID="ElevatorAtHeight" targetHeightPixels="342.0"
-                        z_tolerance_pixels="10.0" />
-
-                    <!-- If not, step up using action server and check again -->
-                    <Sequence>
-                        <Action ID="StepElevatorUpAction" stepMeters="0.02" />
-                        <ForceFailure>
-                            <Condition ID="WaitForNewPiFrameProcessed" />
-                        </ForceFailure>
-                    </Sequence>
-                </ReactiveFallback>
-            </RetryUntilSuccessful>
+            <!-- One-shot elevator move from OAK-D object Z height -->
+            <Action ID="MoveElevatorToObjectHeight" objectOfInterest="{objectOfInterest}" />
         </Sequence>
     </BehaviorTree>
     
@@ -284,7 +268,8 @@
             <input_port default="{objectOfInterest}" name="objectOfInterest" />
         </Condition>
         <Condition ID="CanWithinReach">
-            <input_port default="{objectOfInterest}" name="objectOfInterest" />
+            <input_port name="can_detected">Whether can was detected</input_port>
+            <input_port name="can_location">Can location PointStamped in base_link</input_port>
             <input_port default="0.55" name="within_distance">Distance threshold (m) to consider the can within reach</input_port>
         </Condition>
         <SubTree ID="CenterCanInPiCamera">
@@ -351,6 +336,10 @@
         <Action ID="MoveElevatorToHeight">
             <input_port name="targetHeight">Target height in meters</input_port>
         </Action>
+        <Action ID="MoveElevatorToObjectHeight">
+            <input_port default="{objectOfInterest}" name="objectOfInterest">Object class/name to target</input_port>
+            <input_port default="0.0" name="heightOffset">Optional height offset in meters</input_port>
+        </Action>
         <Action ID="MoveTowardsCan">
             <input_port name="can_detected">Whether can was detected</input_port>
             <input_port name="can_location">Can location PointStamped in base_link</input_port>
@@ -360,6 +349,11 @@
             <input_port default="0.35" name="angular_velocity">Angular velocity (rad/sec)</input_port>
             <input_port default="0.15" name="linear_velocity">Linear velocity (m/sec)</input_port>
             <input_port default="30" name="commands_per_sec">Max cmd_vel commands per second</input_port>
+        </Action>
+        <Action ID="OAKDDetectCan">
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
+            <output_port name="can_detected">Whether can was detected</output_port>
+            <output_port name="can_location">Can location PointStamped in base_link</output_port>
         </Action>
         <SubTree ID="NavigateToCanLocation">
             <input_port default="true" name="__shared_blackboard" />
