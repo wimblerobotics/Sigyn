@@ -63,7 +63,9 @@ namespace sigyn_teensy {
       Motor(int8_t pin_down_limit_switch, uint8_t pin_step_direction,
         uint8_t pin_step_pulse, uint8_t pin_up_limit_switch,
         float position_max_up, float position_min_down,
-        float travel_m_per_pulse, bool reverse_travel);
+        float travel_m_per_pulse, bool reverse_travel,
+        uint8_t down_limit_pin_mode, bool down_limit_active_high,
+        uint8_t up_limit_pin_mode, bool up_limit_active_high);
 
       // operations
       void home();
@@ -92,6 +94,10 @@ namespace sigyn_teensy {
       const uint8_t pin_step_direction_;
       const uint8_t pin_step_pulse_;
       const uint8_t pin_up_limit_switch_;
+      const uint8_t down_limit_pin_mode_;
+      const uint8_t up_limit_pin_mode_;
+      const bool down_limit_active_high_;
+      const bool up_limit_active_high_;
       const float position_max_up_m_;
       const float position_min_down_m_;
       int32_t remaining_pulses_ = 0;

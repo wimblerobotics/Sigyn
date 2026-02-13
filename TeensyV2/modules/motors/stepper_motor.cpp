@@ -24,7 +24,11 @@ namespace sigyn_teensy {
                   /*max_up*/ 0.8999f,
                   /*min_down*/ 0.0f,
                   /*travel_m_per_pulse*/ (1.0f / 5544.0f),
-                  /*reverse*/ false),
+                  /*reverse*/ false,
+                  /*down_mode*/ INPUT,
+                  /*down_active_high*/ true,
+                  /*up_mode*/ INPUT,
+                  /*up_active_high*/ true),
         extender_(Motor::kExtenderInLimitSwitchPin,
                   Motor::kExtenderStepDirectionPin,
                   Motor::kExtenderStepPulsePin,
@@ -32,7 +36,11 @@ namespace sigyn_teensy {
                   /*max_out*/ 0.3418f,
                   /*min_in*/ 0.0f,
                   /*travel_m_per_pulse*/ (1.0f / 6683.0f),
-                  /*reverse*/ true) {
+                  /*reverse*/ true,
+                  /*down_mode*/ INPUT,
+                  /*down_active_high*/ false,
+                  /*up_mode*/ INPUT,
+                  /*up_active_high*/ false) {
   }
 
   void StepperMotor::setup() {
@@ -239,30 +247,38 @@ namespace sigyn_teensy {
     float position_max_up,
     float position_min_down,
     float travel_m_per_pulse,
-    bool reverse_travel)
+    bool reverse_travel,
+    uint8_t down_limit_pin_mode,
+    bool down_limit_active_high,
+    uint8_t up_limit_pin_mode,
+    bool up_limit_active_high)
     : pin_down_limit_switch_(pin_down_limit_switch),
     pin_step_direction_(pin_step_direction),
     pin_step_pulse_(pin_step_pulse),
     pin_up_limit_switch_(pin_up_limit_switch),
+    down_limit_pin_mode_(down_limit_pin_mode),
+    up_limit_pin_mode_(up_limit_pin_mode),
+    down_limit_active_high_(down_limit_active_high),
+    up_limit_active_high_(up_limit_active_high),
     position_max_up_m_(position_max_up),
     position_min_down_m_(position_min_down),
     reverse_travel_(reverse_travel),
     travel_m_per_pulse_(travel_m_per_pulse) {
-    pinMode(pin_down_limit_switch, INPUT);
-    pinMode(pin_up_limit_switch, INPUT);
+    pinMode(pin_down_limit_switch, down_limit_pin_mode_);
+    pinMode(pin_up_limit_switch, up_limit_pin_mode_);
     pinMode(pin_step_direction, OUTPUT);
     pinMode(pin_step_pulse, OUTPUT);
   }
 
   bool StepperMotor::Motor::atDownLimit() {
     bool at_bottom = digitalRead(pin_down_limit_switch_);
-    if (reverse_travel_) at_bottom = !at_bottom;
+    if (!down_limit_active_high_) at_bottom = !at_bottom;
     return at_bottom;
   }
 
   bool StepperMotor::Motor::atUpLimit() {
     bool at_top = digitalRead(pin_up_limit_switch_);
-    if (reverse_travel_) at_top = !at_top;
+    if (!up_limit_active_high_) at_top = !at_top;
     return at_top;
   }
 
