@@ -2575,67 +2575,62 @@ BT::NodeStatus ExtendTowardsCan::tick()
   
   initializeObjectDetection(node_);
   
-  std::lock_guard<std::mutex> lock(g_detection_mutex);
-  
-  if (!g_detection_state.pi_can_detected) {
-    RCLCPP_WARN(node_->get_logger(), "[ExtendTowardsCan] No Pi camera detection available");
-    return BT::NodeStatus::FAILURE;
+  geometry_msgs::msg::Point det_raw;
+  std::string det_frame;
+  rclcpp::Time det_stamp;
+  {
+    std::lock_guard<std::mutex> lock(g_detection_mutex);
+    if (!g_detection_state.oakd_can_detected) {
+      RCLCPP_WARN(node_->get_logger(), "[ExtendTowardsCan] No OAK-D detection available");
+      return BT::NodeStatus::FAILURE;
+    }
+    det_raw = g_detection_state.oakd_detection_position_raw;
+    det_frame = g_detection_state.oakd_detection_frame_raw;
+    det_stamp = g_detection_state.oakd_last_detection_time;
   }
 
-  const double pi_age = (node_->now() - g_detection_state.pi_last_detection_time).seconds();
-  if (pi_age >= ObjectDetectionState::DETECTION_TIMEOUT_SEC) {
-    RCLCPP_WARN(node_->get_logger(), "[ExtendTowardsCan] Pi camera detection stale (%.2fs)", pi_age);
-    return BT::NodeStatus::FAILURE;
-  }
-
-  const double offset_x = std::abs(g_detection_state.pi_detection_position.x);
-  const double offset_y = std::abs(g_detection_state.pi_detection_position.y);
-  
-  // Use loose tolerances for this final sanity check. 
-  // X: Check horizontal alignment angle (Yaw). 
-  //    The user clarified: "The test should only be about the theta deviation"
-  //    atan2(x, z) gives us the horizontal angle. Z is forward, X is right.
-  double angle_x_rad = std::atan2(offset_x, g_detection_state.pi_detection_position.z);
-  
-  // Tolerance: 5 degrees (approx 0.087 rad)
-  if (std::abs(angle_x_rad) > 0.1) {
+  const double oakd_age = (node_->now() - det_stamp).seconds();
+  if (oakd_age >= ObjectDetectionState::DETECTION_TIMEOUT_SEC) {
     RCLCPP_WARN(node_->get_logger(),
-                "[ExtendTowardsCan] Alignment Check Failed: Horizontal Angle %.3f rad too high (limit 0.1)",
-                angle_x_rad);
-    // return BT::NodeStatus::FAILURE; // Allow proceed for now per user request? 
-    // Actually, user said "The test should only be about the theta deviation". So if theta is bad, fail.
+                "[ExtendTowardsCan] OAK-D detection stale (%.2fs)", oakd_age);
     return BT::NodeStatus::FAILURE;
   }
 
-  // Y: User explicitly said "I'm not sure what the y misalignment is about... RaiseElevatorToCanHeight fixed the z axis alighment"
-  // If the user believes vertical alignment is solved, we should ignore Y error or just warn about it.
-  // The log showed a 5.6cm error. If we fail on Y, we stop. If we ignore Y, we extend.
-  // We will log Y error but NOT fail on it.
-  if (offset_y > 0.08) {
-      RCLCPP_WARN(node_->get_logger(),
-                  "[ExtendTowardsCan] WARN: Vertical misalignment y=%.3f exceeds 8cm. Extending anyway per user instruction.",
-                  offset_y);
-  } else {
-      RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Vertical misalignment y=%.3f (acceptable)", offset_y);
+  if (det_frame.empty() || !g_tf_buffer) {
+    RCLCPP_WARN(node_->get_logger(),
+                "[ExtendTowardsCan] OAK-D frame/TF not ready (frame='%s')",
+                det_frame.c_str());
+    return BT::NodeStatus::FAILURE;
   }
-  
-  RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Alignment passed. Calculating extension...");
-  
-  // Distance forward to can is the Z coordinate in camera optical frame
-  double distance_to_can = g_detection_state.pi_detection_position.z;
-  
-  // Target: Place the 'parallel_gripper_base_plate' (palm) ~5mm from the front of the can.
-  // Previous test with 0.03m offset resulted in pushing the can (too long).
-  // Can Radius is 33mm.
-  // A safe offset estimate:
-  // If 0.03m caused contact, we need to retract.
-  // Let's increase offset to 0.045m (4.5cm). This reduces extension by 1.5cm vs the "pushing" case.
-  // This aims to achieve the requested ~5mm gap without touching.
-  double extension_distance = std::max(0.0, distance_to_can - 0.045); 
+
+  geometry_msgs::msg::PointStamped det_msg;
+  det_msg.header.frame_id = det_frame;
+  det_msg.header.stamp = rclcpp::Time(0);
+  det_msg.point = det_raw;
+
+  geometry_msgs::msg::PointStamped det_in_base;
+  try {
+    const auto tf_base_from_det = g_tf_buffer->lookupTransform(
+      "base_link", det_msg.header.frame_id, tf2::TimePointZero);
+    tf2::doTransform(det_msg, det_in_base, tf_base_from_det);
+  } catch (const tf2::TransformException& ex) {
+    RCLCPP_WARN(node_->get_logger(),
+                "[ExtendTowardsCan] TF base_link<-'%s' failed: %s",
+                det_frame.c_str(), ex.what());
+    return BT::NodeStatus::FAILURE;
+  }
+
+  // User-calibrated geometry:
+  // - Robot points straight at can.
+  // - Open/retracted gripper target surface is at x=0.23m in base_link.
+  // Therefore required extension is the forward gap from this surface to can front x.
+  constexpr double kGripperTargetSurfaceXBase = 0.23;
+  const double can_front_x_base = det_in_base.point.x;
+  double extension_distance = can_front_x_base - kGripperTargetSurfaceXBase;
   
   RCLCPP_INFO(node_->get_logger(),
-              "[ExtendTowardsCan] Extending gripper %.3fm toward '%s' (detected at %.3fm) [Offset 0.045]",
-              extension_distance, object_name.c_str(), distance_to_can);
+              "[ExtendTowardsCan] OAK-D base_link can_x=%.3fm, target_surface_x=%.3fm -> requested extension=%.3fm (obj='%s')",
+              can_front_x_base, kGripperTargetSurfaceXBase, extension_distance, object_name.c_str());
               
   // Use /gripper/position/command with new API
   static rclcpp::Publisher<sigyn_interfaces::msg::GripperPositionCommand>::SharedPtr pos_pub;
@@ -2646,13 +2641,31 @@ BT::NodeStatus ExtendTowardsCan::tick()
   }
 
   // Command extender to the calculated position
+  float current_extender = 0.0f;
+  {
+    std::lock_guard<std::mutex> sensor_lock(g_sensor_mutex);
+    current_extender = static_cast<float>(g_sensor_state.extender_position);
+  }
+
   auto msg = sigyn_interfaces::msg::GripperPositionCommand();
   msg.elevator_position = -1.0; // No change to elevator
   msg.extender_position = std::max(0.0f, std::min(0.3418f, static_cast<float>(extension_distance)));
+
+  // Safety: this action is named "ExtendTowardsCan", so never command a retract here.
+  if (msg.extender_position < current_extender) {
+    RCLCPP_WARN(node_->get_logger(),
+                "[ExtendTowardsCan] Computed target %.4fm is behind current %.4fm; holding current to avoid retract",
+                msg.extender_position, current_extender);
+    msg.extender_position = current_extender;
+  }
+
+  const char* direction = (msg.extender_position > current_extender + 1e-4f) ? "EXTEND" :
+                          (msg.extender_position < current_extender - 1e-4f) ? "RETRACT" : "HOLD";
   
   pos_pub->publish(msg);
-  RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Commanded extender to %.4fm (clamped to 0.0-0.3418)", 
-              msg.extender_position);
+  RCLCPP_INFO(node_->get_logger(),
+              "[ExtendTowardsCan] Commanded extender to %.4fm (current=%.4fm, %s; clamped to 0.0-0.3418)",
+              msg.extender_position, current_extender, direction);
 
   {
     std::lock_guard<std::mutex> lock(g_sensor_mutex);
