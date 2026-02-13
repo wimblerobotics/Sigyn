@@ -71,6 +71,30 @@ static constexpr double kElevatorHomingOffset = 0.13;
 static SimulatedSensorState g_sensor_state;
 static std::mutex g_sensor_mutex;
 
+// Centralized Publisher/Subscriber Manager
+struct SharedResources {
+  // Publishers
+  rclcpp::Publisher<sigyn_interfaces::msg::GripperPositionCommand>::SharedPtr gripper_position_pub;
+  rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr gripper_home_pub;
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_nav_pub;
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_smoothed_pub;
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr twister_pub;
+  
+  // Subscribers
+  rclcpp::Subscription<sigyn_interfaces::msg::GripperStatus>::SharedPtr gripper_status_sub;
+  
+  // Gripper status state
+  double elevator_position = 0.0;
+  bool is_moving = false;
+  std::mutex gripper_mutex;
+  bool gripper_status_received = false;
+  
+  bool initialized = false;
+};
+
+static SharedResources g_resources;
+static std::mutex g_resources_mutex;
+
 // Global object detection state
 struct ObjectDetectionState {
   // OAK-D camera detection
@@ -416,6 +440,37 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
   initialized = true;
 }
 
+// Initialize shared publishers and subscribers once
+static void initializeSharedResources(std::shared_ptr<rclcpp::Node> node) {
+  std::lock_guard<std::mutex> lock(g_resources_mutex);
+  if (g_resources.initialized) return;
+  
+  // Create all publishers once
+  g_resources.gripper_position_pub = node->create_publisher<sigyn_interfaces::msg::GripperPositionCommand>(
+    "/gripper/position/command", 10);
+  g_resources.gripper_home_pub = node->create_publisher<std_msgs::msg::Empty>(
+    "/gripper/home", 10);
+  g_resources.cmd_vel_nav_pub = node->create_publisher<geometry_msgs::msg::Twist>(
+    "/cmd_vel_nav", 10);
+  g_resources.cmd_vel_smoothed_pub = node->create_publisher<geometry_msgs::msg::Twist>(
+    "/cmd_vel_smoothed", 10);
+  g_resources.twister_pub = node->create_publisher<geometry_msgs::msg::Twist>(
+    "/cmd_vel_testicle_twister", 10);
+  
+  // Create gripper status subscriber once
+  g_resources.gripper_status_sub = node->create_subscription<sigyn_interfaces::msg::GripperStatus>(
+    "/gripper/status", 10,
+    [](const sigyn_interfaces::msg::GripperStatus::SharedPtr msg) {
+      std::lock_guard<std::mutex> lock(g_resources.gripper_mutex);
+      g_resources.elevator_position = msg->elevator_position;
+      g_resources.is_moving = msg->is_moving;
+      g_resources.gripper_status_received = true;
+    });
+  
+  g_resources.initialized = true;
+  RCLCPP_INFO(node->get_logger(), "Shared resources initialized");
+}
+
 // Initialize subscribers for simulated sensors
 static void initializeSimulatedSensors(std::shared_ptr<rclcpp::Node> node) {
   static bool initialized = false;
@@ -522,8 +577,6 @@ static void initializeSimulatedSensors(std::shared_ptr<rclcpp::Node> node) {
 
 BT::NodeStatus BatteryAboveChargingVoltage::tick()
 {
-  initializeSimulatedSensors(node_);
-  
   std::lock_guard<std::mutex> lock(g_sensor_mutex);
   bool above_threshold = g_sensor_state.battery_voltage > SimulatedSensorState::CHARGING_VOLTAGE;
   
@@ -536,8 +589,6 @@ BT::NodeStatus BatteryAboveChargingVoltage::tick()
 
 BT::NodeStatus BatteryAboveCriticalVoltage::tick()
 {
-  initializeSimulatedSensors(node_);
-  
   std::lock_guard<std::mutex> lock(g_sensor_mutex);
   bool above_threshold = g_sensor_state.battery_voltage > SimulatedSensorState::CRITICAL_VOLTAGE;
   
@@ -550,8 +601,6 @@ BT::NodeStatus BatteryAboveCriticalVoltage::tick()
 
 BT::NodeStatus RobotIsEstopped::tick()
 {
-  initializeSimulatedSensors(node_);
-  
   std::lock_guard<std::mutex> lock(g_sensor_mutex);
   
   if (g_sensor_state.estop_triggered) {
@@ -566,8 +615,6 @@ BT::NodeStatus RobotIsEstopped::tick()
 
 BT::NodeStatus RobotTiltedCritically::tick()
 {
-  initializeSimulatedSensors(node_);
-  
   std::lock_guard<std::mutex> lock(g_sensor_mutex);
   double max_tilt = std::max(std::abs(g_sensor_state.roll_angle), std::abs(g_sensor_state.pitch_angle));
   bool critical = max_tilt > SimulatedSensorState::CRITICAL_TILT;
@@ -583,8 +630,6 @@ BT::NodeStatus RobotTiltedCritically::tick()
 
 BT::NodeStatus RobotTiltedWarning::tick()
 {
-  initializeSimulatedSensors(node_);
-  
   std::lock_guard<std::mutex> lock(g_sensor_mutex);
   double max_tilt = std::max(std::abs(g_sensor_state.roll_angle), std::abs(g_sensor_state.pitch_angle));
   bool warning = max_tilt > SimulatedSensorState::WARNING_TILT;
@@ -748,6 +793,7 @@ BT::NodeStatus CanCenteredInPiCamera::tick()
 
 BT::NodeStatus CanWithinReach::tick()
 {
+  initializeSharedResources(node_);
   bool can_detected = false;
   geometry_msgs::msg::PointStamped can_location;
   double within_distance = kDefaultWithinReachDistance;
@@ -836,11 +882,10 @@ BT::NodeStatus CanWithinReach::tick()
     RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] Can within reach at %.2fm", distance);
     
     // CRITICAL: Publish stop command immediately to prevent overshoot
-    static auto stop_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_nav", 10);
     geometry_msgs::msg::Twist stop_cmd;
     stop_cmd.linear.x = 0.0;
     stop_cmd.angular.z = 0.0;
-    stop_pub->publish(stop_cmd);
+    g_resources.cmd_vel_nav_pub->publish(stop_cmd);
     RCLCPP_INFO(node_->get_logger(), "[CanWithinReach] Published STOP command to /cmd_vel_nav");
     
     return BT::NodeStatus::SUCCESS;
@@ -1051,9 +1096,9 @@ BT::NodeStatus OAKDDetectCan::detectOnce()
     RCLCPP_WARN(node_->get_logger(),
       "[OAKDDetectCan] Detection stale age=%.2fs (>%.2fs). Forcing stop.",
       age_sec, ObjectDetectionState::OAKD_MAX_AGE_SEC);
-    static auto stop_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_nav", 10);
+    initializeSharedResources(node_);
     geometry_msgs::msg::Twist stop_cmd;
-    stop_pub->publish(stop_cmd);
+    g_resources.cmd_vel_nav_pub->publish(stop_cmd);
     setOutput("can_detected", false);
     return BT::NodeStatus::SUCCESS;
   }
@@ -1438,7 +1483,7 @@ BT::NodeStatus MoveTowardsCan::tick()
     // -(-126) = +126. Correct.
     double error_x = x_curr - center_x;
     
-    static auto cmd_vel_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_nav", 10);
+    initializeSharedResources(node_);
     geometry_msgs::msg::Twist cmd;
     
     // Rotation
@@ -1455,7 +1500,7 @@ BT::NodeStatus MoveTowardsCan::tick()
         "[MoveTowardsCan] 2D Servoing (Z=0). X=%.1f (Ref=%.1f) Err=%.1f -> Cmd (mz=%.2f, lx=%.2f)",
         x_curr, center_x, error_x, cmd.angular.z, cmd.linear.x);
 
-    cmd_vel_pub->publish(cmd);
+    g_resources.cmd_vel_nav_pub->publish(cmd);
     return BT::NodeStatus::SUCCESS;
   }
 
@@ -1481,18 +1526,19 @@ BT::NodeStatus MoveTowardsCan::tick()
   double distance = std::hypot(rel_x, rel_y);
   double angle_error = std::atan2(rel_y, rel_x);
 
+  initializeSharedResources(node_);
+  
   RCLCPP_INFO(node_->get_logger(), 
               "[MoveTowardsCan] Target relative to base_link: x=%.3f, y=%.3f. Dist=%.3f Target=%.3f Angle=%.2f deg",
               rel_x, rel_y, distance, target_distance_from_object, angle_error * 180.0 / M_PI);
 
-  static auto cmd_vel_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_nav", 10);
   geometry_msgs::msg::Twist cmd;
 
   // Safety stop: if we're already at the requested standoff, stop immediately.
   if (rel_x > 0.0 && distance <= (target_distance_from_object + distance_tolerance)) {
     cmd.linear.x = 0.0;
     cmd.angular.z = 0.0;
-    cmd_vel_pub->publish(cmd);
+    g_resources.cmd_vel_nav_pub->publish(cmd);
     RCLCPP_INFO(node_->get_logger(),
                 "[MoveTowardsCan] At target standoff (dist=%.3f <= %.3f). STOP",
                 distance, target_distance_from_object + distance_tolerance);
@@ -1506,7 +1552,7 @@ BT::NodeStatus MoveTowardsCan::tick()
     // atan2(y, x) works correctly for all quadrants.
     cmd.angular.z = std::copysign(0.3, angle_error);
     cmd.linear.x = 0.0;
-    cmd_vel_pub->publish(cmd);
+    g_resources.cmd_vel_nav_pub->publish(cmd);
     RCLCPP_INFO(node_->get_logger(), "[MoveTowardsCan] Target not in front (X=%.3f). Rotating signal=%.2f", rel_x, cmd.angular.z);
     return BT::NodeStatus::SUCCESS;
   }
@@ -1515,7 +1561,7 @@ BT::NodeStatus MoveTowardsCan::tick()
   if (std::abs(angle_error) > 0.17) {  // ~10 degrees
     cmd.angular.z = std::copysign(std::min(0.5, std::abs(angle_error)), angle_error);
     cmd.linear.x = 0.0;
-    cmd_vel_pub->publish(cmd);
+    g_resources.cmd_vel_nav_pub->publish(cmd);
     RCLCPP_INFO(node_->get_logger(), "[MoveTowardsCan] Rotating toward target");
     return BT::NodeStatus::SUCCESS;
   }
@@ -1525,7 +1571,7 @@ BT::NodeStatus MoveTowardsCan::tick()
   double move_speed = std::clamp(distance_error * 0.6, 0.04, 0.12);
   cmd.linear.x = move_speed;
   cmd.angular.z = angle_error * 0.5;  // Gentle steering correction
-  cmd_vel_pub->publish(cmd);
+  g_resources.cmd_vel_nav_pub->publish(cmd);
 
   RCLCPP_INFO(node_->get_logger(), 
               "[MoveTowardsCan] Moving forward at %.3f m/s (angular %.2f)", 
@@ -1778,17 +1824,11 @@ void NavigateToPoseAction::resultCallback(
 
 BT::NodeStatus LowerElevator::tick()
 {
+  initializeSharedResources(node_);
   RCLCPP_INFO(node_->get_logger(), "[LowerElevator] Sending home command to gripper assembly");
   
-  // Use /gripper/home topic to home both elevator and extender
-  static rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr home_pub;
-  if (!home_pub) {
-    home_pub = node_->create_publisher<std_msgs::msg::Empty>(
-      "/gripper/home", 10);
-  }
-  
   auto msg = std_msgs::msg::Empty();
-  home_pub->publish(msg);
+  g_resources.gripper_home_pub->publish(msg);
   
   RCLCPP_INFO(node_->get_logger(), "[LowerElevator] Homing command sent");
   // Give time for homing to complete
@@ -1798,19 +1838,13 @@ BT::NodeStatus LowerElevator::tick()
 
 BT::NodeStatus LowerElevatorSafely::tick()
 {
+  initializeSharedResources(node_);
   RCLCPP_INFO(node_->get_logger(), "[LowerElevatorSafely] Lowering elevator to 0.1m safe height");
-  
-  // Use /gripper/position/command with new API
-  static rclcpp::Publisher<sigyn_interfaces::msg::GripperPositionCommand>::SharedPtr pos_pub;
-  if (!pos_pub) {
-    pos_pub = node_->create_publisher<sigyn_interfaces::msg::GripperPositionCommand>(
-      "/gripper/position/command", 10);
-  }
   
   auto msg = sigyn_interfaces::msg::GripperPositionCommand();
   msg.elevator_position = 0.1;  // 0.1m safe height
   msg.extender_position = -1.0; // No change to extender
-  pos_pub->publish(msg);
+  g_resources.gripper_position_pub->publish(msg);
   
   RCLCPP_INFO(node_->get_logger(), "[LowerElevatorSafely] Command sent: elevator=0.1m");
   std::this_thread::sleep_for(2s);
@@ -1819,7 +1853,8 @@ BT::NodeStatus LowerElevatorSafely::tick()
 
 BT::NodeStatus LowerElevatorToTable::tick()
 {
-  initializeSimulatedSensors(node_);
+  initializeSharedResources(node_);
+  initializeObjectDetection(node_);
 
   // Get target height from blackboard (set by ComputeElevatorHeight)
   double target_height = 0.67095;  // Default to can height
@@ -1855,18 +1890,11 @@ BT::NodeStatus LowerElevatorToTable::tick()
   // The sigyn_to_sensor_v2 handles the joint space conversion
   const double elevator_position = target_height;
   
-  // Create publisher if needed
-  static rclcpp::Publisher<sigyn_interfaces::msg::GripperPositionCommand>::SharedPtr pos_pub;
-  if (!pos_pub) {
-    pos_pub = node_->create_publisher<sigyn_interfaces::msg::GripperPositionCommand>(
-      "/gripper/position/command", 10);
-  }
-  
   // Publish position command
   auto msg = sigyn_interfaces::msg::GripperPositionCommand();
   msg.elevator_position = std::max(0.0f, std::min(0.8999f, static_cast<float>(elevator_position)));
   msg.extender_position = -1.0; // No change to extender
-  pos_pub->publish(msg);
+  g_resources.gripper_position_pub->publish(msg);
   
   RCLCPP_INFO(node_->get_logger(),
               "[LowerElevatorToTable] Commanding elevator to %.5fm (clamped to 0.0-0.8999)",
@@ -1877,7 +1905,8 @@ BT::NodeStatus LowerElevatorToTable::tick()
 
 BT::NodeStatus MoveElevatorToHeight::tick()
 {
-  initializeSimulatedSensors(node_);
+  initializeSharedResources(node_);
+  initializeObjectDetection(node_);
 
   double target_height;
   getInput("targetHeight", target_height);
@@ -1917,18 +1946,11 @@ BT::NodeStatus MoveElevatorToHeight::tick()
   // With new API, we directly command the elevator position in meters from home
   const double elevator_position = target_height + kExtraTableClearance;
   
-  // Create publisher if needed
-  static rclcpp::Publisher<sigyn_interfaces::msg::GripperPositionCommand>::SharedPtr pos_pub;
-  if (!pos_pub) {
-    pos_pub = node_->create_publisher<sigyn_interfaces::msg::GripperPositionCommand>(
-      "/gripper/position/command", 10);
-  }
-  
   // Publish position command
   auto msg = sigyn_interfaces::msg::GripperPositionCommand();
   msg.elevator_position = std::max(0.0f, std::min(0.8999f, static_cast<float>(elevator_position)));
   msg.extender_position = -1.0; // No change to extender
-  pos_pub->publish(msg);
+  g_resources.gripper_position_pub->publish(msg);
   
   RCLCPP_INFO(node_->get_logger(),
               "[MoveElevatorToHeight] Commanding elevator to %.5fm (target=%.3f + clearance=%.2f, clamped to 0.0-0.8999)",
@@ -1939,33 +1961,18 @@ BT::NodeStatus MoveElevatorToHeight::tick()
 
 BT::NodeStatus StepElevatorUp::onStart()
 {
-  initializeSimulatedSensors(node_);
+  initializeSharedResources(node_);
 
   double step_m = 0.01;
   getInput("stepMeters", step_m);
   const double max_travel_m = 0.91;
   const int max_steps = 400;
 
-  // static rclcpp::Subscription<sigyn_interfaces::msg::GripperStatus>::SharedPtr gripper_status_sub;
-  static double current_elevator_position = 0.0;
-  static std::mutex position_mutex;
-  static bool position_seen = false;
-
-  if (!gripper_status_sub) {
-    gripper_status_sub = node_->create_subscription<sigyn_interfaces::msg::GripperStatus>(
-      "/gripper/status", 10,
-      [](const sigyn_interfaces::msg::GripperStatus::SharedPtr msg) {
-        std::lock_guard<std::mutex> lock(position_mutex);
-        current_elevator_position = msg->elevator_position;
-        position_seen = true;
-      });
-  }
-
   double current_pos = 0.0;
   {
-    std::lock_guard<std::mutex> lock(position_mutex);
-    if (position_seen) {
-      current_pos = current_elevator_position;
+    std::lock_guard<std::mutex> lock(g_resources.gripper_mutex);
+    if (g_resources.gripper_status_received) {
+      current_pos = g_resources.elevator_position;
     } else {
       current_pos = 0.15;
     }
@@ -1992,18 +1999,11 @@ BT::NodeStatus StepElevatorUp::onStart()
     return BT::NodeStatus::FAILURE;
   }
 
-  // Use /gripper/position/command with new API
-  static rclcpp::Publisher<sigyn_interfaces::msg::GripperPositionCommand>::SharedPtr pos_pub;
-  if (!pos_pub) {
-    pos_pub = node_->create_publisher<sigyn_interfaces::msg::GripperPositionCommand>(
-      "/gripper/position/command", 10);
-  }
-
   // Command the new position directly
   auto msg = sigyn_interfaces::msg::GripperPositionCommand();
   msg.elevator_position = std::max(0.0f, std::min(0.8999f, static_cast<float>(next_pos)));
   msg.extender_position = -1.0; // No change to extender
-  pos_pub->publish(msg);
+  g_resources.gripper_position_pub->publish(msg);
 
   last_commanded_ = next_pos;
   step_count_++;
@@ -2032,8 +2032,6 @@ void StepElevatorUp::onHalted()
 
 BT::NodeStatus MoveElevatorAction::onStart()
 {
-  initializeSimulatedSensors(node_);
-
   // Get goal position from input port
   if (!getInput("goal_position", goal_position_)) {
     RCLCPP_ERROR(node_->get_logger(), "[MoveElevatorAction] Missing required input 'goal_position'");
@@ -2183,39 +2181,21 @@ void MoveElevatorAction::onHalted()
 
 BT::NodeStatus StepElevatorUpAction::onStart()
 {
-  initializeSimulatedSensors(node_);
+  initializeSharedResources(node_);
 
   // Get step size from input port
   if (!getInput("stepMeters", step_size_)) {
     step_size_ = 0.02;  // Default to 2cm
   }
 
-  // Subscribe to gripper status to get current position and is_moving status
-  static rclcpp::Subscription<sigyn_interfaces::msg::GripperStatus>::SharedPtr gripper_status_sub;
-  static double current_elevator_position = 0.0;
-  static bool is_elevator_moving = false;
-  static std::mutex position_mutex;
-  static bool position_seen = false;
-
-  if (!gripper_status_sub) {
-    gripper_status_sub = node_->create_subscription<sigyn_interfaces::msg::GripperStatus>(
-      "/gripper/status", 10,
-      [](const sigyn_interfaces::msg::GripperStatus::SharedPtr msg) {
-        std::lock_guard<std::mutex> lock(position_mutex);
-        current_elevator_position = msg->elevator_position;
-        is_elevator_moving = msg->is_moving;
-        position_seen = true;
-      });
-  }
-
   // Wait briefly for position update
   auto start_time = std::chrono::steady_clock::now();
-  while (!position_seen && 
+  while (!g_resources.gripper_status_received && 
          std::chrono::steady_clock::now() - start_time < std::chrono::milliseconds(500)) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 
-  if (!position_seen) {
+  if (!g_resources.gripper_status_received) {
     RCLCPP_WARN(node_->get_logger(), 
                 "[StepElevatorUpAction] Failed to get current elevator position from /gripper/status");
     return BT::NodeStatus::FAILURE;
@@ -2224,8 +2204,8 @@ BT::NodeStatus StepElevatorUpAction::onStart()
   // Get current position
   double current_pos;
   {
-    std::lock_guard<std::mutex> lock(position_mutex);
-    current_pos = current_elevator_position;
+    std::lock_guard<std::mutex> lock(g_resources.gripper_mutex);
+    current_pos = g_resources.elevator_position;
   }
 
   // Calculate target position
@@ -2246,20 +2226,18 @@ BT::NodeStatus StepElevatorUpAction::onStart()
     return BT::NodeStatus::SUCCESS;  // Already at or past target
   }
 
-  // Use position command (same as MoveElevatorToHeight)
-  static rclcpp::Publisher<sigyn_interfaces::msg::GripperPositionCommand>::SharedPtr pos_pub;
-  if (!pos_pub) {
-    pos_pub = node_->create_publisher<sigyn_interfaces::msg::GripperPositionCommand>(
-      "/gripper/position/command", 10);
-  }
-
   // Publish position command
   auto msg = sigyn_interfaces::msg::GripperPositionCommand();
   msg.elevator_position = std::max(0.0f, std::min(0.8999f, static_cast<float>(target_position_)));
   msg.extender_position = -1.0; // No change to extender
-  pos_pub->publish(msg);
+  g_resources.gripper_position_pub->publish(msg);
 
   command_sent_ = true;
+  movement_started_ = false;
+  command_retried_ = false;
+  command_time_ = node_->now();
+  stop_seen_ = false;
+  stop_time_ = rclcpp::Time(0, 0, RCL_ROS_TIME);
   
   RCLCPP_INFO(node_->get_logger(), 
               "[StepElevatorUpAction] Stepping up %.4fm: %.4f -> %.4f meters", 
@@ -2270,34 +2248,86 @@ BT::NodeStatus StepElevatorUpAction::onStart()
 
 BT::NodeStatus StepElevatorUpAction::onRunning()
 {
-  // Poll /gripper/status for is_moving flag
-  static rclcpp::Subscription<sigyn_interfaces::msg::GripperStatus>::SharedPtr gripper_status_sub;
-  static bool is_elevator_moving = false;
-  static std::mutex position_mutex;
-  static bool status_received = false;
-
-  if (!gripper_status_sub) {
-    gripper_status_sub = node_->create_subscription<sigyn_interfaces::msg::GripperStatus>(
-      "/gripper/status", 10,
-      [](const sigyn_interfaces::msg::GripperStatus::SharedPtr msg) {
-        std::lock_guard<std::mutex> lock(position_mutex);
-        is_elevator_moving = msg->is_moving;
-        status_received = true;
-      });
+  if (!command_sent_) {
+    return BT::NodeStatus::FAILURE;
   }
 
-  // Check if still moving
+  // Check status snapshot
   bool still_moving;
+  double current_pos;
   {
-    std::lock_guard<std::mutex> lock(position_mutex);
-    still_moving = is_elevator_moving;
+    std::lock_guard<std::mutex> lock(g_resources.gripper_mutex);
+    still_moving = g_resources.is_moving;
+    current_pos = g_resources.elevator_position;
+  }
+
+  const double elapsed_sec = (node_->now() - command_time_).seconds();
+  const double pos_err = std::abs(current_pos - target_position_);
+
+  // Avoid immediate SUCCESS before controller reports motion.
+  if (!movement_started_) {
+    if (still_moving) {
+      movement_started_ = true;
+      RCLCPP_DEBUG(node_->get_logger(), "[StepElevatorUpAction] Motion started");
+      return BT::NodeStatus::RUNNING;
+    }
+
+    // Let command latch and status propagate.
+    if (elapsed_sec < 0.20) {
+      return BT::NodeStatus::RUNNING;
+    }
+
+    // Small steps may complete without an is_moving transition.
+    if (pos_err <= 0.006) {
+      RCLCPP_INFO(node_->get_logger(),
+                  "[StepElevatorUpAction] Completed without motion-flag transition (err=%.4f)",
+                  pos_err);
+      return BT::NodeStatus::SUCCESS;
+    }
+
+    // Retry once in case the position command was missed.
+    if (!command_retried_ && elapsed_sec >= 0.35) {
+      auto retry = sigyn_interfaces::msg::GripperPositionCommand();
+      retry.elevator_position = std::max(0.0f, std::min(0.8999f, static_cast<float>(target_position_)));
+      retry.extender_position = -1.0;
+      g_resources.gripper_position_pub->publish(retry);
+      command_retried_ = true;
+      command_time_ = node_->now();
+      RCLCPP_WARN(node_->get_logger(),
+                  "[StepElevatorUpAction] Retrying step command once (err=%.4f)", pos_err);
+      return BT::NodeStatus::RUNNING;
+    }
+
+    if (elapsed_sec > 1.5) {
+      RCLCPP_WARN(node_->get_logger(),
+                  "[StepElevatorUpAction] Timeout waiting for motion start (err=%.4f)", pos_err);
+      return BT::NodeStatus::FAILURE;
+    }
+
+    return BT::NodeStatus::RUNNING;
   }
 
   if (still_moving) {
+    stop_seen_ = false;
     RCLCPP_DEBUG(node_->get_logger(), "[StepElevatorUpAction] Still moving...");
     return BT::NodeStatus::RUNNING;
   } else {
-    RCLCPP_INFO(node_->get_logger(), "[StepElevatorUpAction] Movement complete!");
+    // Debounce completion: require a brief stopped period before returning SUCCESS.
+    constexpr double kStopSettleSec = 0.15;
+    if (!stop_seen_) {
+      stop_seen_ = true;
+      stop_time_ = node_->now();
+      return BT::NodeStatus::RUNNING;
+    }
+
+    const double stopped_for_sec = (node_->now() - stop_time_).seconds();
+    if (stopped_for_sec < kStopSettleSec) {
+      return BT::NodeStatus::RUNNING;
+    }
+
+    RCLCPP_INFO(node_->get_logger(),
+                "[StepElevatorUpAction] Movement complete (target=%.4f, current=%.4f, err=%.4f)",
+                target_position_, current_pos, pos_err);
     return BT::NodeStatus::SUCCESS;
   }
 }
@@ -2306,11 +2336,15 @@ void StepElevatorUpAction::onHalted()
 {
   // Reset state
   command_sent_ = false;
+  movement_started_ = false;
+  command_retried_ = false;
+  stop_seen_ = false;
   RCLCPP_INFO(node_->get_logger(), "[StepElevatorUpAction] Halted");
 }
 
 BT::NodeStatus BackAwayFromTable::tick()
 {
+  initializeSharedResources(node_);
   double distance = 0.3;
   double speed = 0.1;
   getInput("distance", distance);
@@ -2323,17 +2357,16 @@ BT::NodeStatus BackAwayFromTable::tick()
 
   const double duration_sec = std::abs(distance / speed);
 
-  auto cmd_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_nav", 10);
   geometry_msgs::msg::Twist cmd;
   cmd.linear.x = -std::abs(speed);
-  cmd_pub->publish(cmd);
+  g_resources.cmd_vel_nav_pub->publish(cmd);
 
   RCLCPP_INFO(node_->get_logger(), "[BackAwayFromTable] Backing away %.2fm at %.2fm/s",
               distance, speed);
   std::this_thread::sleep_for(std::chrono::duration<double>(duration_sec));
 
   geometry_msgs::msg::Twist stop;
-  cmd_pub->publish(stop);
+  g_resources.cmd_vel_nav_pub->publish(stop);
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -2397,14 +2430,7 @@ BT::NodeStatus RetractExtender::tick()
 {
   RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Retracting extender to home (0.0m)");
 
-  initializeSimulatedSensors(node_);
-
-  // Use /gripper/position/command with new API
-  static rclcpp::Publisher<sigyn_interfaces::msg::GripperPositionCommand>::SharedPtr pos_pub;
-  if (!pos_pub) {
-    pos_pub = node_->create_publisher<sigyn_interfaces::msg::GripperPositionCommand>(
-      "/gripper/position/command", 10);
-  }
+  initializeSharedResources(node_);
 
   // Command extender to retract to home position (0.0m)
   auto msg = sigyn_interfaces::msg::GripperPositionCommand();
@@ -2412,7 +2438,7 @@ BT::NodeStatus RetractExtender::tick()
   msg.extender_position = 0.0;  // Fully retracted
   
   RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Commanding extender to 0.0m (fully retracted)");
-  pos_pub->publish(msg);
+  g_resources.gripper_position_pub->publish(msg);
 
   // Give time for movement to complete
   std::this_thread::sleep_for(2s);
@@ -2425,16 +2451,10 @@ BT::NodeStatus RetractExtender::tick()
 BT::NodeStatus RetractGripper::tick()
 {
   RCLCPP_INFO(node_->get_logger(), "[RetractGripper] Homing gripper assembly (elevator and extender)");
-
-  // Use /gripper/home to home both elevator and extender
-  static rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr home_pub;
-  if (!home_pub) {
-    home_pub = node_->create_publisher<std_msgs::msg::Empty>(
-      "/gripper/home", 10);
-  }
+  initializeSharedResources(node_);
 
   auto msg = std_msgs::msg::Empty();
-  home_pub->publish(msg);
+  g_resources.gripper_home_pub->publish(msg);
   
   RCLCPP_INFO(node_->get_logger(), "[RetractGripper] Homing command sent");
 
@@ -2448,14 +2468,7 @@ BT::NodeStatus RetractGripper::tick()
 
 BT::NodeStatus OpenGripper::tick()
 {
-  static rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr twister_pub;
-  
-  if (!twister_pub) {
-    RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Creating /cmd_vel_testicle_twister publisher...");
-    twister_pub = node_->create_publisher<geometry_msgs::msg::Twist>(
-      "/cmd_vel_testicle_twister", 10);
-    std::this_thread::sleep_for(100ms);
-  }
+  initializeSharedResources(node_);
 
   geometry_msgs::msg::Twist msg;
   msg.linear.x = -1000.0;  // Open gripper
@@ -2466,7 +2479,7 @@ BT::NodeStatus OpenGripper::tick()
   msg.angular.z = 0.0;
   
   RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Sending cmd_vel_testicle_twister: linear.x=-1000.0 (open)");
-  twister_pub->publish(msg);
+  g_resources.twister_pub->publish(msg);
   
   std::this_thread::sleep_for(500ms);
   return BT::NodeStatus::SUCCESS;
@@ -2474,19 +2487,11 @@ BT::NodeStatus OpenGripper::tick()
 
 BT::NodeStatus CloseGripperAroundCan::tick()
 {
+  initializeSharedResources(node_);
   double can_diameter;
   getInput("canDiameter", can_diameter);
   
   RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] START: can_diameter=%.4f", can_diameter);
-  
-  static rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr twister_pub;
-  
-  if (!twister_pub) {
-    RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Creating /cmd_vel_testicle_twister publisher...");
-    twister_pub = node_->create_publisher<geometry_msgs::msg::Twist>(
-      "/cmd_vel_testicle_twister", 10);
-    std::this_thread::sleep_for(100ms);
-  }
   
   geometry_msgs::msg::Twist msg;
   msg.linear.x = 1000.0;  // Close gripper
@@ -2498,7 +2503,7 @@ BT::NodeStatus CloseGripperAroundCan::tick()
 
   RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Sending cmd_vel_testicle_twister: linear.x=1000.0 (close)");
   
-  twister_pub->publish(msg);
+  g_resources.twister_pub->publish(msg);
 
   std::this_thread::sleep_for(1500ms);
   return BT::NodeStatus::SUCCESS;
@@ -2506,6 +2511,7 @@ BT::NodeStatus CloseGripperAroundCan::tick()
 
 BT::NodeStatus ExtendTowardsCan::tick()
 {
+  initializeSharedResources(node_);
   std::string object_name;
   getInput("objectOfInterest", object_name);
   
@@ -2561,21 +2567,15 @@ BT::NodeStatus ExtendTowardsCan::tick()
   // - Open/retracted gripper target surface is at x=0.23m in base_link.
   // Therefore required extension is the forward gap from this surface to can front x.
   constexpr double kGripperTargetSurfaceXBase = 0.23;
+  constexpr double kExtensionTrimMeters = 0.04;  // temporary calibration trim
   const double can_front_x_base = det_in_base.point.x;
-  double extension_distance = can_front_x_base - kGripperTargetSurfaceXBase;
+  double extension_distance = can_front_x_base - kGripperTargetSurfaceXBase - kExtensionTrimMeters;
   
   RCLCPP_INFO(node_->get_logger(),
-              "[ExtendTowardsCan] OAK-D base_link can_x=%.3fm, target_surface_x=%.3fm -> requested extension=%.3fm (obj='%s')",
-              can_front_x_base, kGripperTargetSurfaceXBase, extension_distance, object_name.c_str());
+              "[ExtendTowardsCan] OAK-D base_link can_x=%.3fm, target_surface_x=%.3fm, trim=%.3fm -> requested extension=%.3fm (obj='%s')",
+              can_front_x_base, kGripperTargetSurfaceXBase, kExtensionTrimMeters,
+              extension_distance, object_name.c_str());
               
-  // Use /gripper/position/command with new API
-  static rclcpp::Publisher<sigyn_interfaces::msg::GripperPositionCommand>::SharedPtr pos_pub;
-  if (!pos_pub) {
-    RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Creating publisher...");
-    pos_pub = node_->create_publisher<sigyn_interfaces::msg::GripperPositionCommand>(
-      "/gripper/position/command", 10);
-  }
-
   // Command extender to the calculated position
   float current_extender = 0.0f;
   {
@@ -2598,7 +2598,7 @@ BT::NodeStatus ExtendTowardsCan::tick()
   const char* direction = (msg.extender_position > current_extender + 1e-4f) ? "EXTEND" :
                           (msg.extender_position < current_extender - 1e-4f) ? "RETRACT" : "HOLD";
   
-  pos_pub->publish(msg);
+  g_resources.gripper_position_pub->publish(msg);
   RCLCPP_INFO(node_->get_logger(),
               "[ExtendTowardsCan] Commanded extender to %.4fm (current=%.4fm, %s; clamped to 0.0-0.3418)",
               msg.extender_position, current_extender, direction);
@@ -2724,14 +2724,11 @@ BT::NodeStatus AdjustExtenderToCenterCan::tick()
     // Keep pulses bounded to reduce open-loop rotation drift.
     duration_sec = std::clamp(duration_sec, 0.04, 0.40);
 
+  initializeSharedResources(node_);
+  
   // Publish twist command to rotate robot
   // Use cmd_vel_smoothed to bypass velocity smoother latency for small movements
   // and go directly to the twist multiplexer.
-  static rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr twist_pub;
-  if (!twist_pub) {
-    twist_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_smoothed", 10);
-  }
-
   geometry_msgs::msg::Twist twist;
   twist.linear.x = 0.0;
   twist.linear.y = 0.0;
@@ -2742,7 +2739,7 @@ BT::NodeStatus AdjustExtenderToCenterCan::tick()
   
   long duration_ms = static_cast<long>(duration_sec * 1000);
   
-  twist_pub->publish(twist);
+  g_resources.cmd_vel_smoothed_pub->publish(twist);
   
   RCLCPP_INFO(node_->get_logger(), 
               "[AdjustExtenderToCenterCan] EXECUTING: z=%.3f rad/s for %ldms", 
@@ -2753,7 +2750,7 @@ BT::NodeStatus AdjustExtenderToCenterCan::tick()
   
   // Stop rotation
   twist.angular.z = 0.0;
-  twist_pub->publish(twist);
+  g_resources.cmd_vel_smoothed_pub->publish(twist);
   
   // Wait a bit for settling
   std::this_thread::sleep_for(500ms);

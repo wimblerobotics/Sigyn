@@ -578,6 +578,11 @@ private:
   double target_position_ = 0.0;
   double step_size_ = 0.02;
   bool command_sent_ = false;
+  bool movement_started_ = false;
+  bool command_retried_ = false;
+  rclcpp::Time command_time_{0, 0, RCL_ROS_TIME};
+  bool stop_seen_ = false;
+  rclcpp::Time stop_time_{0, 0, RCL_ROS_TIME};
 };
 
 class BackAwayFromTable : public BT::SyncActionNode, public RosNodeBT
