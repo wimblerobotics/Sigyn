@@ -5,7 +5,7 @@
             <Action ID="SaveRobotPose" saveTo="{startingPose}" />
             <SubTree ID="SetupCanChallenge" __shared_blackboard="true"
                 objectOfInterest="CokeZeroCan" />
-            <Action ID="MoveElevatorToHeight" targetHeight="0.5" />
+            <!-- <Action ID="MoveElevatorToHeight" targetHeight="0.5" /> -->
             <Action ID="WaitForDetection" />
             <Condition ID="CanDetectedByOAKD" objectOfInterest="{objectOfInterest}" />
             <SubTree ID="RaiseElevatorToCanHeight" __shared_blackboard="true"
@@ -100,4 +100,69 @@
             <Action ID="LowerElevatorSafely" />
         </Sequence>
     </BehaviorTree>
+
+    <TreeNodesModel>
+        <Action ID="AdjustExtenderToCenterCan">
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
+            <input_port default="2.0" name="max_center_error_deg">Maximum allowed horizontal centering error in degrees</input_port>
+        </Action>
+        <Condition ID="CanCenteredInPiCamera">
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
+        </Condition>
+        <Condition ID="CanDetectedByOAKD">
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
+        </Condition>
+        <Condition ID="CanIsGrasped">
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
+        </Condition>
+        <Condition ID="CheckBoolFlag">
+            <input_port name="expected">Expected value</input_port>
+            <input_port name="flag">Boolean flag to check</input_port>
+        </Condition>
+        <Action ID="CloseGripperAroundCan">
+            <input_port default="0.066" name="canDiameter">Diameter of can in meters</input_port>
+        </Action>
+        <Action ID="ExtendTowardsCan">
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
+        </Action>
+        <Action ID="LowerElevator" />
+        <Action ID="LowerElevatorSafely" />
+        <Action ID="MoveElevatorToHeight">
+            <input_port name="targetHeight">Target height in meters</input_port>
+        </Action>
+        <Action ID="MoveElevatorToObjectHeight">
+            <input_port default="{objectOfInterest}" name="objectOfInterest">Object class/name to target</input_port>
+            <input_port default="0.0" name="heightOffset">Optional height offset in meters</input_port>
+        </Action>
+        <Action ID="OpenGripper" />
+        <Action ID="ReportGraspFailure" />
+        <Action ID="RetractExtender" />
+        <Action ID="RetractGripper" />
+        <Action ID="SaveRobotPose">
+            <output_port name="saveTo">Where to save current pose</output_port>
+        </Action>
+        <Action ID="StepElevatorUp">
+            <input_port default="0.01" name="stepMeters">Step size in meters</input_port>
+        </Action>
+        <Action ID="WaitForDetection" />
+        <Condition ID="WaitForNewPiFrameProcessed" />
+
+        <SubTree ID="CenterCanInPiCamera">
+            <input_port default="true" name="__shared_blackboard" />
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
+        </SubTree>
+        <SubTree ID="ExecuteGrasp">
+            <input_port default="true" name="__shared_blackboard" />
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
+        </SubTree>
+        <SubTree ID="RaiseElevatorToCanHeight">
+            <input_port default="true" name="__shared_blackboard" />
+            <input_port default="{objectOfInterest}" name="objectOfInterest" />
+        </SubTree>
+        <SubTree ID="RetractAfterGrasp" />
+        <SubTree ID="SetupCanChallenge">
+            <input_port default="true" name="__shared_blackboard" />
+            <input_port default="CokeZeroCan" name="objectOfInterest" />
+        </SubTree>
+    </TreeNodesModel>
 </root>

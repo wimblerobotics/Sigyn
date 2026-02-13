@@ -23,7 +23,7 @@ def generate_launch_description():
 		),
 		launch_arguments={
 			"use_sim_time": "false",
-			"do_rviz": "true",
+			"do_rviz": "false",
 			"make_map": "false",
 			"do_oakd": "false",
 			"do_oakd_yolo26": "false",
@@ -60,13 +60,13 @@ def generate_launch_description():
 			"use_sim_time": False,
 			"enable_groot_monitoring": True,
 			"groot_port": 1667,
-			"bt_xml_filename": os.path.join(can_do_pkg, "bt_xml", "center_can.xml"),
-			# "bt_xml_filename": os.path.join(can_do_pkg, "bt_xml", "main.orig.xml"),
+			# "bt_xml_filename": os.path.join(can_do_pkg, "bt_xml", "center_can.xml"),
+			"bt_xml_filename": os.path.join(can_do_pkg, "bt_xml", "main.orig.xml"),
 		}],
 	)
 
 	return LaunchDescription([
-		sigyn_launch,
-		oakd_node,
+		# sigyn_launch,
+		# oakd_node,
 		can_do_node,
 	])
