@@ -116,6 +116,7 @@ public:
     factory.registerNodeType<LowerElevatorSafely>("LowerElevatorSafely");
     factory.registerNodeType<LowerElevatorToTable>("LowerElevatorToTable");
     factory.registerNodeType<MoveElevatorToHeight>("MoveElevatorToHeight");
+    factory.registerNodeType<MoveElevatorToObjectHeight>("MoveElevatorToObjectHeight");
     factory.registerNodeType<StepElevatorUp>("StepElevatorUp");
     factory.registerNodeType<MoveElevatorAction>("MoveElevatorAction");  factory.registerNodeType<StepElevatorUpAction>("StepElevatorUpAction");    factory.registerNodeType<BackAwayFromTable>("BackAwayFromTable");
     factory.registerNodeType<ComputeElevatorHeight>("ComputeElevatorHeight");

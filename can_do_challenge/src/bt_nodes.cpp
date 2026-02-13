@@ -1744,6 +1744,72 @@ BT::NodeStatus MoveElevatorToHeight::tick()
   return BT::NodeStatus::SUCCESS;
 }
 
+BT::NodeStatus MoveElevatorToObjectHeight::tick()
+{
+  initializeSharedResources(node_);
+  initializeSimulatedSensors(node_);
+  initializeObjectDetection(node_);
+
+  std::string object_name = "object";
+  getInput("objectOfInterest", object_name);
+  double height_offset = 0.0;
+  getInput("heightOffset", height_offset);
+
+  double can_height = 0.0;
+  double age_sec = 999.0;
+  {
+    std::lock_guard<std::mutex> lock(g_detection_mutex);
+    age_sec = (node_->now() - g_detection_state.oakd_last_detection_time).seconds();
+    const bool fresh = g_detection_state.oakd_can_detected &&
+                       g_detection_state.oakd_detection_has_odom &&
+                       age_sec < ObjectDetectionState::DETECTION_TIMEOUT_SEC;
+    if (!fresh) {
+      RCLCPP_WARN(node_->get_logger(),
+                  "[MoveElevatorToObjectHeight] No fresh OAK-D ODOM detection for '%s' (age=%.2fs)",
+                  object_name.c_str(), age_sec);
+      return BT::NodeStatus::FAILURE;
+    }
+    can_height = g_detection_state.oakd_detection_position_odom.z;
+  }
+
+  // Keep conversion consistent with existing MoveElevatorToHeight in sim path.
+  double base_link_z = 0.0;
+  if (g_tf_buffer) {
+    try {
+      const auto tf_odom_from_base = g_tf_buffer->lookupTransform(
+        "odom", "base_link", tf2::TimePointZero);
+      base_link_z = tf_odom_from_base.transform.translation.z;
+    } catch (const tf2::TransformException&) {
+      // best-effort
+    }
+  }
+
+  double homing_offset = kElevatorHomingOffset;
+  {
+    std::lock_guard<std::mutex> lock(g_sensor_mutex);
+    if (g_sensor_state.use_sim_time) {
+      homing_offset = 0.0;
+    }
+  }
+
+  const double requested_height = can_height + height_offset;
+  const double commanded_joint = requested_height + base_link_z - homing_offset;
+
+  std_msgs::msg::Float64 msg;
+  msg.data = commanded_joint;
+  {
+    std::lock_guard<std::mutex> lock(g_resources.pub_mutex);
+    g_resources.elevator_pub->publish(msg);
+  }
+
+  RCLCPP_INFO(node_->get_logger(),
+              "[MoveElevatorToObjectHeight] '%s' OAK-D z=%.3fm offset=%.3fm -> commanding joint=%.3fm",
+              object_name.c_str(), can_height, height_offset, commanded_joint);
+
+  std::this_thread::sleep_for(2s);
+  return BT::NodeStatus::SUCCESS;
+}
+
 BT::NodeStatus StepElevatorUp::onStart()
 {
   initializeSharedResources(node_);

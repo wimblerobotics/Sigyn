@@ -490,6 +490,22 @@ public:
   BT::NodeStatus tick() override;
 };
 
+class MoveElevatorToObjectHeight : public BT::SyncActionNode, public RosNodeBT
+{
+public:
+  MoveElevatorToObjectHeight(const std::string & name, const BT::NodeConfiguration & config)
+  : BT::SyncActionNode(name, config) {}
+
+  static BT::PortsList providedPorts() {
+    return {
+      BT::InputPort<std::string>("objectOfInterest", "Object label for logging"),
+      BT::InputPort<double>("heightOffset", 0.0, "Meters to add to detected object height")
+    };
+  }
+
+  BT::NodeStatus tick() override;
+};
+
 class StepElevatorUp : public BT::StatefulActionNode, public RosNodeBT
 {
 public:
