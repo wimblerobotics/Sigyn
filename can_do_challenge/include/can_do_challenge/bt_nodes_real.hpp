@@ -575,33 +575,9 @@ public:
   void onHalted() override;
 
 private:
-  using MoveElevatorActionType = sigyn_interfaces::action::MoveElevator;
-  
-  enum class ActionState {
-    IDLE,
-    READING_POSITION,
-    SENDING_GOAL,
-    GOAL_ACTIVE,
-    GOAL_COMPLETED,
-    GOAL_FAILED
-  };
-  
-  rclcpp_action::Client<MoveElevatorActionType>::SharedPtr action_client_;
-  rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr goal_handle_;
-  std::shared_future<rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr> goal_handle_future_;
-  
-  ActionState action_state_ = ActionState::IDLE;
-  std::atomic<bool> result_received_{false};
-  std::atomic<BT::NodeStatus> action_result_{BT::NodeStatus::FAILURE};
   double target_position_ = 0.0;
   double step_size_ = 0.02;
-
-  bool sendGoal();
-  void goalResponseCallback(const rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr& goal_handle);
-  void resultCallback(const rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::WrappedResult& result);
-  void feedbackCallback(
-    rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr,
-    const std::shared_ptr<const MoveElevatorActionType::Feedback> feedback);
+  bool command_sent_ = false;
 };
 
 class BackAwayFromTable : public BT::SyncActionNode, public RosNodeBT

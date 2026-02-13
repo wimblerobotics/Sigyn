@@ -1946,7 +1946,7 @@ BT::NodeStatus StepElevatorUp::onStart()
   const double max_travel_m = 0.91;
   const int max_steps = 400;
 
-  static rclcpp::Subscription<sigyn_interfaces::msg::GripperStatus>::SharedPtr gripper_status_sub;
+  // static rclcpp::Subscription<sigyn_interfaces::msg::GripperStatus>::SharedPtr gripper_status_sub;
   static double current_elevator_position = 0.0;
   static std::mutex position_mutex;
   static bool position_seen = false;
@@ -2190,9 +2190,10 @@ BT::NodeStatus StepElevatorUpAction::onStart()
     step_size_ = 0.02;  // Default to 2cm
   }
 
-  // Subscribe to gripper status to get current position
+  // Subscribe to gripper status to get current position and is_moving status
   static rclcpp::Subscription<sigyn_interfaces::msg::GripperStatus>::SharedPtr gripper_status_sub;
   static double current_elevator_position = 0.0;
+  static bool is_elevator_moving = false;
   static std::mutex position_mutex;
   static bool position_seen = false;
 
@@ -2202,11 +2203,12 @@ BT::NodeStatus StepElevatorUpAction::onStart()
       [](const sigyn_interfaces::msg::GripperStatus::SharedPtr msg) {
         std::lock_guard<std::mutex> lock(position_mutex);
         current_elevator_position = msg->elevator_position;
+        is_elevator_moving = msg->is_moving;
         position_seen = true;
       });
   }
 
-  // Wait briefly for position update (subscription will update in background)
+  // Wait briefly for position update
   auto start_time = std::chrono::steady_clock::now();
   while (!position_seen && 
          std::chrono::steady_clock::now() - start_time < std::chrono::milliseconds(500)) {
@@ -2214,8 +2216,8 @@ BT::NodeStatus StepElevatorUpAction::onStart()
   }
 
   if (!position_seen) {
-    RCLCPP_ERROR(node_->get_logger(), 
-                 "[StepElevatorUpAction] Failed to get current elevator position from /gripper/status");
+    RCLCPP_WARN(node_->get_logger(), 
+                "[StepElevatorUpAction] Failed to get current elevator position from /gripper/status");
     return BT::NodeStatus::FAILURE;
   }
 
@@ -2238,34 +2240,27 @@ BT::NodeStatus StepElevatorUpAction::onStart()
   }
 
   if (target_position_ <= current_pos) {
-    RCLCPP_ERROR(node_->get_logger(), 
-                 "[StepElevatorUpAction] Target position %.4f not greater than current %.4f",
-                 target_position_, current_pos);
-    return BT::NodeStatus::FAILURE;
-  }
-
-  // Create action client if not exists
-  if (!action_client_) {
-    action_client_ = rclcpp_action::create_client<MoveElevatorActionType>(
-      node_, "/gripper/move_elevator");
-  }
-
-  // Wait for action server
-  if (!action_client_->wait_for_action_server(std::chrono::seconds(2))) {
     RCLCPP_WARN(node_->get_logger(), 
-                "[StepElevatorUpAction] Action server /gripper/move_elevator not available");
-    return BT::NodeStatus::FAILURE;
+                "[StepElevatorUpAction] Target position %.4f not greater than current %.4f",
+                target_position_, current_pos);
+    return BT::NodeStatus::SUCCESS;  // Already at or past target
   }
 
-  // Send goal
-  action_state_ = ActionState::SENDING_GOAL;
-  result_received_ = false;
+  // Use position command (same as MoveElevatorToHeight)
+  static rclcpp::Publisher<sigyn_interfaces::msg::GripperPositionCommand>::SharedPtr pos_pub;
+  if (!pos_pub) {
+    pos_pub = node_->create_publisher<sigyn_interfaces::msg::GripperPositionCommand>(
+      "/gripper/position/command", 10);
+  }
+
+  // Publish position command
+  auto msg = sigyn_interfaces::msg::GripperPositionCommand();
+  msg.elevator_position = std::max(0.0f, std::min(0.8999f, static_cast<float>(target_position_)));
+  msg.extender_position = -1.0; // No change to extender
+  pos_pub->publish(msg);
+
+  command_sent_ = true;
   
-  if (!sendGoal()) {
-    RCLCPP_ERROR(node_->get_logger(), "[StepElevatorUpAction] Failed to send goal");
-    return BT::NodeStatus::FAILURE;
-  }
-
   RCLCPP_INFO(node_->get_logger(), 
               "[StepElevatorUpAction] Stepping up %.4fm: %.4f -> %.4f meters", 
               step_size_, current_pos, target_position_);
@@ -2273,104 +2268,45 @@ BT::NodeStatus StepElevatorUpAction::onStart()
   return BT::NodeStatus::RUNNING;
 }
 
-bool StepElevatorUpAction::sendGoal()
-{
-  auto goal_msg = MoveElevatorActionType::Goal();
-  goal_msg.goal_position = target_position_;
-
-  auto send_goal_options = rclcpp_action::Client<MoveElevatorActionType>::SendGoalOptions();
-  
-  send_goal_options.goal_response_callback =
-    std::bind(&StepElevatorUpAction::goalResponseCallback, this, std::placeholders::_1);
-  
-  send_goal_options.result_callback =
-    std::bind(&StepElevatorUpAction::resultCallback, this, std::placeholders::_1);
-  
-  send_goal_options.feedback_callback =
-    std::bind(&StepElevatorUpAction::feedbackCallback, this, 
-              std::placeholders::_1, std::placeholders::_2);
-
-  goal_handle_future_ = action_client_->async_send_goal(goal_msg, send_goal_options);
-  
-  return true;
-}
-
-void StepElevatorUpAction::goalResponseCallback(
-  const rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr& goal_handle)
-{
-  if (!goal_handle) {
-    RCLCPP_ERROR(node_->get_logger(), "[StepElevatorUpAction] Goal was rejected by server");
-    action_state_ = ActionState::GOAL_FAILED;
-    action_result_ = BT::NodeStatus::FAILURE;
-    result_received_ = true;
-  } else {
-    RCLCPP_DEBUG(node_->get_logger(), "[StepElevatorUpAction] Goal accepted by server");
-    action_state_ = ActionState::GOAL_ACTIVE;
-    goal_handle_ = goal_handle;
-  }
-}
-
-void StepElevatorUpAction::resultCallback(
-  const rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::WrappedResult& result)
-{
-  switch (result.code) {
-    case rclcpp_action::ResultCode::SUCCEEDED:
-      RCLCPP_INFO(node_->get_logger(), 
-                  "[StepElevatorUpAction] Step completed! Final position: %.4f meters",
-                  result.result->final_position);
-      action_state_ = ActionState::GOAL_COMPLETED;
-      action_result_ = BT::NodeStatus::SUCCESS;
-      break;
-    case rclcpp_action::ResultCode::ABORTED:
-      RCLCPP_ERROR(node_->get_logger(), "[StepElevatorUpAction] Goal was aborted");
-      action_state_ = ActionState::GOAL_FAILED;
-      action_result_ = BT::NodeStatus::FAILURE;
-      break;
-    case rclcpp_action::ResultCode::CANCELED:
-      RCLCPP_WARN(node_->get_logger(), "[StepElevatorUpAction] Goal was canceled");
-      action_state_ = ActionState::GOAL_FAILED;
-      action_result_ = BT::NodeStatus::FAILURE;
-      break;
-    default:
-      RCLCPP_ERROR(node_->get_logger(), "[StepElevatorUpAction] Unknown result code");
-      action_state_ = ActionState::GOAL_FAILED;
-      action_result_ = BT::NodeStatus::FAILURE;
-      break;
-  }
-  result_received_ = true;
-}
-
-void StepElevatorUpAction::feedbackCallback(
-  rclcpp_action::ClientGoalHandle<MoveElevatorActionType>::SharedPtr,
-  const std::shared_ptr<const MoveElevatorActionType::Feedback> feedback)
-{
-  RCLCPP_DEBUG(node_->get_logger(), 
-               "[StepElevatorUpAction] Current position: %.4f meters", 
-               feedback->current_position);
-}
-
 BT::NodeStatus StepElevatorUpAction::onRunning()
 {
-  // Check if result received
-  if (result_received_) {
-    return action_result_.load();
+  // Poll /gripper/status for is_moving flag
+  static rclcpp::Subscription<sigyn_interfaces::msg::GripperStatus>::SharedPtr gripper_status_sub;
+  static bool is_elevator_moving = false;
+  static std::mutex position_mutex;
+  static bool status_received = false;
+
+  if (!gripper_status_sub) {
+    gripper_status_sub = node_->create_subscription<sigyn_interfaces::msg::GripperStatus>(
+      "/gripper/status", 10,
+      [](const sigyn_interfaces::msg::GripperStatus::SharedPtr msg) {
+        std::lock_guard<std::mutex> lock(position_mutex);
+        is_elevator_moving = msg->is_moving;
+        status_received = true;
+      });
   }
 
-  // Still waiting for result
-  return BT::NodeStatus::RUNNING;
+  // Check if still moving
+  bool still_moving;
+  {
+    std::lock_guard<std::mutex> lock(position_mutex);
+    still_moving = is_elevator_moving;
+  }
+
+  if (still_moving) {
+    RCLCPP_DEBUG(node_->get_logger(), "[StepElevatorUpAction] Still moving...");
+    return BT::NodeStatus::RUNNING;
+  } else {
+    RCLCPP_INFO(node_->get_logger(), "[StepElevatorUpAction] Movement complete!");
+    return BT::NodeStatus::SUCCESS;
+  }
 }
 
 void StepElevatorUpAction::onHalted()
 {
-  // Cancel the goal if it's active
-  if (goal_handle_ && action_state_ == ActionState::GOAL_ACTIVE) {
-    RCLCPP_INFO(node_->get_logger(), "[StepElevatorUpAction] Canceling active goal");
-    action_client_->async_cancel_goal(goal_handle_);
-  }
-  
-  action_state_ = ActionState::IDLE;
-  result_received_ = false;
-  goal_handle_.reset();
+  // Reset state
+  command_sent_ = false;
+  RCLCPP_INFO(node_->get_logger(), "[StepElevatorUpAction] Halted");
 }
 
 BT::NodeStatus BackAwayFromTable::tick()
