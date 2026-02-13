@@ -1,5 +1,8 @@
 <?xml version="1.0"?>
-<root main_tree_to_execute="CenterCanInPiCamera">
+<root main_tree_to_execute="RaiseElevatorToCanHeight">
+    <BehaviorTree ID="foo">
+        <MoveElevatorToHeight targetHeight="0.25" />
+    </BehaviorTree>
     <BehaviorTree ID="GraspCan">
         <Sequence>
             <!-- Initialize blackboard -->
@@ -76,6 +79,7 @@
                         <Action ID="StepElevatorUpAction" stepMeters="0.02" />
                         <ForceFailure>
                             <Condition ID="WaitForNewPiFrameProcessed" />
+                             <!-- <SaySomething message="Stepping elevator up to reach can height" /> -->
                         </ForceFailure>
                     </Sequence>
                 </ReactiveFallback>

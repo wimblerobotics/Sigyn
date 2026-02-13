@@ -2156,7 +2156,7 @@ void TeensyBridge::ExecuteElevatorMove(
   // oss << "STEPPOS:elevator:" << goal->goal_position
   //     << ",extender:" << current_extender << "\n";
   oss << "STEPPOS:elevator:" << goal->goal_position
-      << ",extender:0.005\n";
+      << ",extender:-1.0\n";
   
   {
     std::lock_guard<std::mutex> lock(gripper_queue_mutex_);
@@ -2165,7 +2165,7 @@ void TeensyBridge::ExecuteElevatorMove(
   
   RCLCPP_INFO(this->get_logger(),
               "Sent elevator command: elev=%.3f ext=%.3f",
-              goal->goal_position, current_extender);
+              goal->goal_position, -1.0);
   
   // Monitor progress via gripper status updates
   rclcpp::Rate rate(10);  // 10 Hz polling
