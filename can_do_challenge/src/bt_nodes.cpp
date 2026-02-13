@@ -64,6 +64,43 @@ static constexpr double kElevatorHomingOffset = 0.13;
 static SimulatedSensorState g_sensor_state;
 static std::mutex g_sensor_mutex;
 
+// Centralized ROS interfaces for BT nodes (single initialization)
+struct SharedResources {
+  bool initialized = false;
+  std::mutex pub_mutex;
+
+  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
+  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr extender_pub;
+  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr left_finger_pub;
+  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr right_finger_pub;
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_smoothed_pub;
+};
+
+static SharedResources g_resources;
+static std::mutex g_resources_mutex;
+
+static void initializeSharedResources(std::shared_ptr<rclcpp::Node> node)
+{
+  std::lock_guard<std::mutex> lock(g_resources_mutex);
+  if (g_resources.initialized) {
+    return;
+  }
+
+  g_resources.elevator_pub = node->create_publisher<std_msgs::msg::Float64>(
+    "/elevator_connector_plate/position", 10);
+  g_resources.extender_pub = node->create_publisher<std_msgs::msg::Float64>(
+    "/gripper_elevator_plate_to_gripper_extender/position", 10);
+  g_resources.left_finger_pub = node->create_publisher<std_msgs::msg::Float64>(
+    "/parallel_gripper_base_plate_to_left_finger/position", 10);
+  g_resources.right_finger_pub = node->create_publisher<std_msgs::msg::Float64>(
+    "/parallel_gripper_base_plate_to_right_finger/position", 10);
+  g_resources.cmd_vel_smoothed_pub = node->create_publisher<geometry_msgs::msg::Twist>(
+    "/cmd_vel_smoothed", 10);
+
+  g_resources.initialized = true;
+  RCLCPP_INFO(node->get_logger(), "Shared BT resources initialized");
+}
+
 // Global object detection state
 struct ObjectDetectionState {
   // OAK-D camera detection
@@ -1159,6 +1196,7 @@ BT::NodeStatus MoveTowardsCan::onStart()
 
 BT::NodeStatus MoveTowardsCan::onRunning()
 {
+  initializeSharedResources(node_);
   bool can_detected = false;
   geometry_msgs::msg::PointStamped can_location;
   double target_distance_from_object = 0.01;
@@ -1191,7 +1229,6 @@ BT::NodeStatus MoveTowardsCan::onRunning()
     return BT::NodeStatus::FAILURE;
   }
 
-  static auto cmd_vel_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_smoothed", 10);
   static rclcpp::Time last_cmd_time(0, 0, RCL_ROS_TIME);
   const auto can_publish_now = [&](const rclcpp::Time& now) {
     if (commands_per_sec <= 0.0) {
@@ -1208,7 +1245,8 @@ BT::NodeStatus MoveTowardsCan::onRunning()
     if (!can_publish_now(now)) {
       return false;
     }
-    cmd_vel_pub->publish(cmd);
+    std::lock_guard<std::mutex> lock(g_resources.pub_mutex);
+    g_resources.cmd_vel_smoothed_pub->publish(cmd);
     last_cmd_time = now;
     return true;
   };
@@ -1564,18 +1602,16 @@ void NavigateToPoseAction::resultCallback(
 
 BT::NodeStatus LowerElevator::tick()
 {
-  // Create publisher if needed
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
-  if (!elevator_pub) {
-    elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/elevator_connector_plate/position", 10);
-  }
+  initializeSharedResources(node_);
   
   // Lower to 0.0m (minimum)
   auto msg = std_msgs::msg::Float64();
   // Respect the URDF lower limit (0.15m).
   msg.data = 0.15;
-  elevator_pub->publish(msg);
+  {
+    std::lock_guard<std::mutex> lock(g_resources.pub_mutex);
+    g_resources.elevator_pub->publish(msg);
+  }
   
   RCLCPP_INFO(node_->get_logger(), "[LowerElevator] Lowering elevator to 0.15m minimum");
   std::this_thread::sleep_for(1s);
@@ -1584,17 +1620,15 @@ BT::NodeStatus LowerElevator::tick()
 
 BT::NodeStatus LowerElevatorSafely::tick()
 {
-  // Create publisher if needed
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
-  if (!elevator_pub) {
-    elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/elevator_connector_plate/position", 10);
-  }
+  initializeSharedResources(node_);
   
   // Lower to 0.1m safe height
   auto msg = std_msgs::msg::Float64();
   msg.data = 0.1;
-  elevator_pub->publish(msg);
+  {
+    std::lock_guard<std::mutex> lock(g_resources.pub_mutex);
+    g_resources.elevator_pub->publish(msg);
+  }
   
   RCLCPP_INFO(node_->get_logger(), "[LowerElevatorSafely] Lowering elevator to 0.1m safe height");
   std::this_thread::sleep_for(1s);
@@ -1603,6 +1637,7 @@ BT::NodeStatus LowerElevatorSafely::tick()
 
 BT::NodeStatus LowerElevatorToTable::tick()
 {
+  initializeSharedResources(node_);
   initializeSimulatedSensors(node_);
 
   // Get target height from blackboard (set by ComputeElevatorHeight)
@@ -1637,17 +1672,13 @@ BT::NodeStatus LowerElevatorToTable::tick()
 
   const double commanded_joint = target_height + base_link_z - homing_offset;
   
-  // Create publisher if needed
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
-  if (!elevator_pub) {
-    elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/elevator_connector_plate/position", 10);
-  }
-  
   // Publish position command
   auto msg = std_msgs::msg::Float64();
   msg.data = commanded_joint;
-  elevator_pub->publish(msg);
+  {
+    std::lock_guard<std::mutex> lock(g_resources.pub_mutex);
+    g_resources.elevator_pub->publish(msg);
+  }
   
   RCLCPP_INFO(node_->get_logger(),
               "[LowerElevatorToTable] Lowering to world_z=%.5fm (base_link_z=%.3fm -> joint=%.5fm)",
@@ -1658,6 +1689,7 @@ BT::NodeStatus LowerElevatorToTable::tick()
 
 BT::NodeStatus MoveElevatorToHeight::tick()
 {
+  initializeSharedResources(node_);
   initializeSimulatedSensors(node_);
 
   double target_height;
@@ -1697,17 +1729,13 @@ BT::NodeStatus MoveElevatorToHeight::tick()
   
   const double commanded_joint = target_height + base_link_z + kExtraTableClearance - homing_offset;
   
-  // Create publisher if needed
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
-  if (!elevator_pub) {
-    elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/elevator_connector_plate/position", 10);
-  }
-  
   // Publish position command
   auto msg = std_msgs::msg::Float64();
   msg.data = commanded_joint;
-  elevator_pub->publish(msg);
+  {
+    std::lock_guard<std::mutex> lock(g_resources.pub_mutex);
+    g_resources.elevator_pub->publish(msg);
+  }
   
   RCLCPP_INFO(node_->get_logger(),
               "[MoveElevatorToHeight] Moving elevator to world_z=%.5fm (base_link_z=%.3fm + clearance=%.2fm -> joint=%.5fm)",
@@ -1718,6 +1746,7 @@ BT::NodeStatus MoveElevatorToHeight::tick()
 
 BT::NodeStatus StepElevatorUp::onStart()
 {
+  initializeSharedResources(node_);
   initializeSimulatedSensors(node_);
 
   double step_m = 0.01;
@@ -1725,33 +1754,11 @@ BT::NodeStatus StepElevatorUp::onStart()
   const double max_travel_m = 0.91;
   const int max_steps = 400;
 
-  static rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub;
-  static double current_elevator_position = 0.0;
-  static std::mutex position_mutex;
-  static bool joint_state_seen = false;
-
-  if (!joint_state_sub) {
-    joint_state_sub = node_->create_subscription<sensor_msgs::msg::JointState>(
-      "/joint_states", 10,
-      [](const sensor_msgs::msg::JointState::SharedPtr msg) {
-        std::lock_guard<std::mutex> lock(position_mutex);
-        for (size_t i = 0; i < msg->name.size(); ++i) {
-          if (msg->name[i] == "elevator_pole_to_elevator_connector_plate") {
-            current_elevator_position = msg->position[i];
-            joint_state_seen = true;
-            break;
-          }
-        }
-      });
-  }
-
-  double current_pos = 0.0;
+  double current_pos = 0.15;
   {
-    std::lock_guard<std::mutex> lock(position_mutex);
-    if (joint_state_seen) {
-      current_pos = current_elevator_position;
-    } else {
-      current_pos = 0.15;
+    std::lock_guard<std::mutex> lock(g_sensor_mutex);
+    if (g_sensor_state.last_joint_state_update.nanoseconds() > 0) {
+      current_pos = g_sensor_state.elevator_position;
     }
   }
 
@@ -1776,15 +1783,12 @@ BT::NodeStatus StepElevatorUp::onStart()
     return BT::NodeStatus::FAILURE;
   }
 
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_pub;
-  if (!elevator_pub) {
-    elevator_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/elevator_connector_plate/position", 10);
-  }
-
   std_msgs::msg::Float64 msg;
   msg.data = next_pos;
-  elevator_pub->publish(msg);
+  {
+    std::lock_guard<std::mutex> lock(g_resources.pub_mutex);
+    g_resources.elevator_pub->publish(msg);
+  }
 
   last_commanded_ = next_pos;
   step_count_++;
@@ -1809,6 +1813,7 @@ void StepElevatorUp::onHalted()
 
 BT::NodeStatus BackAwayFromTable::tick()
 {
+  initializeSharedResources(node_);
   double distance = 0.3;
   double speed = 0.1;
   getInput("distance", distance);
@@ -1821,17 +1826,22 @@ BT::NodeStatus BackAwayFromTable::tick()
 
   const double duration_sec = std::abs(distance / speed);
 
-  auto cmd_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_smoothed", 10);
   geometry_msgs::msg::Twist cmd;
   cmd.linear.x = -std::abs(speed);
-  cmd_pub->publish(cmd);
+  {
+    std::lock_guard<std::mutex> lock(g_resources.pub_mutex);
+    g_resources.cmd_vel_smoothed_pub->publish(cmd);
+  }
 
   RCLCPP_INFO(node_->get_logger(), "[BackAwayFromTable] Backing away %.2fm at %.2fm/s",
               distance, speed);
   std::this_thread::sleep_for(std::chrono::duration<double>(duration_sec));
 
   geometry_msgs::msg::Twist stop;
-  cmd_pub->publish(stop);
+  {
+    std::lock_guard<std::mutex> lock(g_resources.pub_mutex);
+    g_resources.cmd_vel_smoothed_pub->publish(stop);
+  }
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -1893,15 +1903,10 @@ BT::NodeStatus ComputeElevatorHeight::tick()
 }
 BT::NodeStatus RetractExtender::tick()
 {
+  initializeSharedResources(node_);
   RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Retracting extender");
 
   initializeSimulatedSensors(node_);
-
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr extender_pub;
-  if (!extender_pub) {
-    extender_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/gripper_elevator_plate_to_gripper_extender/position", 10);
-  }
 
   std_msgs::msg::Float64 msg;
   double current_position = g_sensor_state.extender_position;
@@ -1915,12 +1920,18 @@ BT::NodeStatus RetractExtender::tick()
 
   RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Tug step: current=%.3f -> target=%.3f", current_position, tug_target);
   msg.data = tug_target;
-  extender_pub->publish(msg);
+  {
+    std::lock_guard<std::mutex> lock(g_resources.pub_mutex);
+    g_resources.extender_pub->publish(msg);
+  }
   std::this_thread::sleep_for(500ms);
 
   RCLCPP_INFO(node_->get_logger(), "[RetractExtender] Full retract to 0.0");
   msg.data = 0.0;
-  extender_pub->publish(msg);
+  {
+    std::lock_guard<std::mutex> lock(g_resources.pub_mutex);
+    g_resources.extender_pub->publish(msg);
+  }
 
   std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
@@ -1928,17 +1939,15 @@ BT::NodeStatus RetractExtender::tick()
 
 BT::NodeStatus RetractGripper::tick()
 {
+  initializeSharedResources(node_);
   RCLCPP_INFO(node_->get_logger(), "[RetractGripper] Retracting gripper assembly");
-
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr extender_pub;
-  if (!extender_pub) {
-    extender_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/gripper_elevator_plate_to_gripper_extender/position", 10);
-  }
 
   std_msgs::msg::Float64 msg;
   msg.data = 0.0;
-  extender_pub->publish(msg);
+  {
+    std::lock_guard<std::mutex> lock(g_resources.pub_mutex);
+    g_resources.extender_pub->publish(msg);
+  }
 
   std::this_thread::sleep_for(1s);
   return BT::NodeStatus::SUCCESS;
@@ -1946,24 +1955,17 @@ BT::NodeStatus RetractGripper::tick()
 
 BT::NodeStatus OpenGripper::tick()
 {
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr left_finger_pub;
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr right_finger_pub;
-  
-  if (!left_finger_pub) {
-    RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Creating publishers...");
-    left_finger_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/parallel_gripper_base_plate_to_left_finger/position", 10);
-    right_finger_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/parallel_gripper_base_plate_to_right_finger/position", 10);
-    std::this_thread::sleep_for(100ms);
-  }
+  initializeSharedResources(node_);
 
   std_msgs::msg::Float64 msg;
   msg.data = 0.0;
   
   RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Opening fingers (0.0)");
-  left_finger_pub->publish(msg);
-  right_finger_pub->publish(msg);
+  {
+    std::lock_guard<std::mutex> lock(g_resources.pub_mutex);
+    g_resources.left_finger_pub->publish(msg);
+    g_resources.right_finger_pub->publish(msg);
+  }
   
   std::this_thread::sleep_for(500ms);
   return BT::NodeStatus::SUCCESS;
@@ -1971,22 +1973,11 @@ BT::NodeStatus OpenGripper::tick()
 
 BT::NodeStatus CloseGripperAroundCan::tick()
 {
+  initializeSharedResources(node_);
   double can_diameter;
   getInput("canDiameter", can_diameter);
   
   RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] START: can_diameter=%.4f", can_diameter);
-  
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr left_finger_pub;
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr right_finger_pub;
-  
-  if (!left_finger_pub) {
-    RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Creating publishers...");
-    left_finger_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/parallel_gripper_base_plate_to_left_finger/position", 10);
-    right_finger_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/parallel_gripper_base_plate_to_right_finger/position", 10);
-    std::this_thread::sleep_for(100ms);
-  }
   
   // Calculate squeeze position
   // Finger Origin is at approx 0.047m from center.
@@ -2015,8 +2006,11 @@ BT::NodeStatus CloseGripperAroundCan::tick()
 
   RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Closing to Left=%.4f, Right=%.4f", 
               target_pos_left, target_pos_right);
-  left_finger_pub->publish(msg_left);
-  right_finger_pub->publish(msg_right);
+  {
+    std::lock_guard<std::mutex> lock(g_resources.pub_mutex);
+    g_resources.left_finger_pub->publish(msg_left);
+    g_resources.right_finger_pub->publish(msg_right);
+  }
 
   std::this_thread::sleep_for(1500ms);
   return BT::NodeStatus::SUCCESS;
@@ -2024,6 +2018,7 @@ BT::NodeStatus CloseGripperAroundCan::tick()
 
 BT::NodeStatus ExtendTowardsCan::tick()
 {
+  initializeSharedResources(node_);
   std::string object_name;
   getInput("objectOfInterest", object_name);
   
@@ -2091,17 +2086,12 @@ BT::NodeStatus ExtendTowardsCan::tick()
               "[ExtendTowardsCan] Extending gripper %.3fm toward '%s' (detected at %.3fm) [Offset 0.045]",
               extension_distance, object_name.c_str(), distance_to_can);
               
-  // Log every step
-  static rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr extender_pub;
-  if (!extender_pub) {
-      RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Creating publisher...");
-    extender_pub = node_->create_publisher<std_msgs::msg::Float64>(
-      "/gripper_elevator_plate_to_gripper_extender/position", 10);
-  }
-
   std_msgs::msg::Float64 msg;
   msg.data = extension_distance;
-  extender_pub->publish(msg);
+  {
+    std::lock_guard<std::mutex> lock(g_resources.pub_mutex);
+    g_resources.extender_pub->publish(msg);
+  }
   RCLCPP_INFO(node_->get_logger(), "[ExtendTowardsCan] Published extension command: %.3f", extension_distance);
 
   {
@@ -2115,6 +2105,7 @@ BT::NodeStatus ExtendTowardsCan::tick()
 
 BT::NodeStatus AdjustExtenderToCenterCan::tick()
 {
+  initializeSharedResources(node_);
   std::string object_name;
   getInput("objectOfInterest", object_name);
   
@@ -2203,11 +2194,6 @@ BT::NodeStatus AdjustExtenderToCenterCan::tick()
   // Publish twist command to rotate robot
   // Use cmd_vel_smoothed to bypass velocity smoother latency for small movements
   // and go directly to the twist multiplexer.
-  static rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr twist_pub;
-  if (!twist_pub) {
-    twist_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_smoothed", 10);
-  }
-
   geometry_msgs::msg::Twist twist;
   twist.linear.x = 0.0;
   twist.linear.y = 0.0;
@@ -2218,7 +2204,10 @@ BT::NodeStatus AdjustExtenderToCenterCan::tick()
   
   long duration_ms = static_cast<long>(duration_sec * 1000);
   
-  twist_pub->publish(twist);
+  {
+    std::lock_guard<std::mutex> lock(g_resources.pub_mutex);
+    g_resources.cmd_vel_smoothed_pub->publish(twist);
+  }
   
   RCLCPP_INFO(node_->get_logger(), 
               "[AdjustExtenderToCenterCan] EXECUTING: z=%.3f rad/s for %ldms", 
@@ -2229,7 +2218,10 @@ BT::NodeStatus AdjustExtenderToCenterCan::tick()
   
   // Stop rotation
   twist.angular.z = 0.0;
-  twist_pub->publish(twist);
+  {
+    std::lock_guard<std::mutex> lock(g_resources.pub_mutex);
+    g_resources.cmd_vel_smoothed_pub->publish(twist);
+  }
   
   // Wait a bit for settling
   std::this_thread::sleep_for(500ms);
