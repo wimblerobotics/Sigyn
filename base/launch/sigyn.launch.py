@@ -477,17 +477,17 @@ def generate_launch_description():
             description="Launch Pi Camera detector node if true",
         )
     )    
-    # Launch OAK-D camera driver (provides depth stream)
-    oakd_camera = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-          [base_pgk, "/launch/sub_launch/oakd_stereo.launch.py"]
-        ),
-        launch_arguments={
-            "params_file": oakd_params_file,
-        }.items(),
-        condition=IfCondition(AndSubstitution(NotSubstitution(use_sim_time), do_oakd)),
-    )
-    ld.add_action(oakd_camera)
+    # # Launch OAK-D camera driver (provides depth stream)
+    # oakd_camera = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(
+    #       [base_pgk, "/launch/sub_launch/oakd_stereo.launch.py"]
+    #     ),
+    #     launch_arguments={
+    #         "params_file": oakd_params_file,
+    #     }.items(),
+    #     condition=IfCondition(AndSubstitution(NotSubstitution(use_sim_time), do_oakd)),
+    # )
+    # ld.add_action(oakd_camera)
     
     # Launch YOLO26 detector (subscribes to OAK-D streams)
     oakd_elevator_top = IncludeLaunchDescription(

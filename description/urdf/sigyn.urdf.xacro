@@ -43,7 +43,7 @@
        code continues to use the 'top_lidar' name and 'scan' topic. -->
   <xacro:if value="$(arg do_top_lidar)">
     <xacro:ld06 lidar_prefix="top_lidar" topic_name="scan">
-      <origin xyz="${0.155-0.34} 0 ${0.300+1.485}" rpy="0 0 0" />
+      <origin xyz="${0.155-0.34} 0 ${1.485}" rpy="0 0 0" />
     </xacro:ld06>
 
     <xacro:ld06 lidar_prefix="cup_lidar" topic_name="scan_cup">
@@ -69,7 +69,7 @@
   <!-- <xacro:oakd_link mount_point="elevator_top" /> -->
   <xacro:unless value="$(arg sim_mode)">
     <xacro:oakd_joint mount_point="elevator_top">
-      <origin xyz="-0.0625 0.0 1.47" rpy="${-(90*pi/180.0)} ${-27.5*pi/180.0} 0" />
+      <origin xyz="-0.0625 0.0 1.665" rpy="${-(90*pi/180.0)} ${-27.5*pi/180.0} 0" />
     </xacro:oakd_joint>
   </xacro:unless>
 

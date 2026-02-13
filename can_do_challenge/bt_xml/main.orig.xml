@@ -123,12 +123,12 @@
     </BehaviorTree>
     <!-- ////////// -->
     <BehaviorTree ID="CenterCanInPiCamera">
-        <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="5">
+        <Decorator ID="ReactiveRepeatUntilSuccessOrCount" num_cycles="10">
             <Sequence>
                 <Condition ID="WaitForNewPiFrameProcessed" />
                 <ReactiveFallback name="CheckOrAdjust">
                     <Condition ID="CanCenteredInPiCamera" objectOfInterest="{objectOfInterest}" />
-                    <Action ID="AdjustExtenderToCenterCan" objectOfInterest="{objectOfInterest}" />
+                    <Action ID="AdjustExtenderToCenterCan" objectOfInterest="{objectOfInterest}" max_center_error_deg="2.0" />
                 </ReactiveFallback>
             </Sequence>
         </Decorator>
@@ -258,6 +258,7 @@
     <TreeNodesModel>
         <Action ID="AdjustExtenderToCenterCan">
             <input_port default="{objectOfInterest}" name="objectOfInterest" />
+            <input_port default="2.0" name="max_center_error_deg">Maximum allowed horizontal centering error in degrees</input_port>
         </Action>
         <SubTree ID="ApproachCanWithOAKD">
             <input_port default="true" name="__shared_blackboard" />

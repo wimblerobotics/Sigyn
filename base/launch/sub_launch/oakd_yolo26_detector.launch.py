@@ -28,7 +28,7 @@ def generate_launch_description():
             "blob_path": os.path.join(yolo_pkg, "models", "can_detector.blob"),
             "camera_frame": "oak_rgb_camera_optical_frame",
             "spatial_axis_map": "-z,x,y",
-            "log_tf_debug": False,
+            "log_tf_debug": True,
         }],
         remappings=[
             ("/oakd_top/can_point_camera", "/oakd/can_detection"),

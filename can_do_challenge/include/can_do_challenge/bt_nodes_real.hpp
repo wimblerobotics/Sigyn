@@ -696,7 +696,11 @@ public:
   : BT::SyncActionNode(name, config) {}
   
   static BT::PortsList providedPorts() {
-    return { BT::InputPort<std::string>("objectOfInterest") };
+    return {
+      BT::InputPort<std::string>("objectOfInterest"),
+      BT::InputPort<double>("max_center_error_deg", 2.0,
+        "Maximum allowed horizontal centering error in degrees")
+    };
   }
   BT::NodeStatus tick() override;
 };

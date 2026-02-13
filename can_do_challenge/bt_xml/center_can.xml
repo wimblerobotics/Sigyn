@@ -31,7 +31,7 @@
                 <Condition ID="WaitForNewPiFrameProcessed" />
                 <ReactiveFallback name="CheckOrAdjust">
                     <Condition ID="CanCenteredInPiCamera" objectOfInterest="{objectOfInterest}" />
-                    <Action ID="AdjustExtenderToCenterCan" objectOfInterest="{objectOfInterest}" />
+                    <Action ID="AdjustExtenderToCenterCan" objectOfInterest="{objectOfInterest}" max_center_error_deg="2.0" />
                 </ReactiveFallback>
             </Sequence>
         </Decorator>
@@ -89,7 +89,7 @@
             <SetBlackboard output_key="needToNavigate" value="true" />
             <SetBlackboard output_key="needToVisuallyAcquire" value="true" />
             <SetBlackboard output_key="needToGrasp" value="true" />
-            <SetBlackboard output_key="within_distance" value="0.45" />
+            <SetBlackboard output_key="within_distance" value="0.49" />
             <Action ID="RetractGripper" />
             <Action ID="LowerElevator" />
         </Sequence>
