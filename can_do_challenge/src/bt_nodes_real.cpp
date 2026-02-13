@@ -67,6 +67,9 @@ struct SimulatedSensorState {
 //   Real Height = (Command + Offset)
 //   Command = DesiredWorldHeight - BaseHeight - Offset
 static constexpr double kElevatorHomingOffset = 0.13;
+// Real robot calibration: when elevator_position == 0.0 (homed),
+// gripper center is 0.502 m above base_link in +Z.
+static constexpr double kGripperCenterAtHomeAboveBaseLink = 0.502;
 
 static SimulatedSensorState g_sensor_state;
 static std::mutex g_sensor_mutex;
@@ -1950,12 +1953,211 @@ BT::NodeStatus MoveElevatorToHeight::tick()
   auto msg = sigyn_interfaces::msg::GripperPositionCommand();
   msg.elevator_position = std::max(0.0f, std::min(0.8999f, static_cast<float>(elevator_position)));
   msg.extender_position = -1.0; // No change to extender
+
+  // Breakaway assist near home: when starting from hard-stop, do a small pre-lift first.
+  if (g_resources.gripper_status_received && msg.elevator_position > 0.10f) {
+    float current_pos = 0.0f;
+    bool moving = false;
+    {
+      std::lock_guard<std::mutex> lock(g_resources.gripper_mutex);
+      current_pos = static_cast<float>(g_resources.elevator_position);
+      moving = g_resources.is_moving;
+    }
+
+    if (!moving && current_pos < 0.03f) {
+      auto pre_msg = sigyn_interfaces::msg::GripperPositionCommand();
+      pre_msg.elevator_position = std::min(msg.elevator_position, 0.08f);
+      pre_msg.extender_position = -1.0;
+      g_resources.gripper_position_pub->publish(pre_msg);
+
+      RCLCPP_INFO(node_->get_logger(),
+                  "[MoveElevatorToHeight] Home breakaway pre-lift: current=%.3f -> %.3f",
+                  current_pos, pre_msg.elevator_position);
+
+      bool saw_motion = false;
+      const auto wait_start = node_->now();
+      while (rclcpp::ok() && (node_->now() - wait_start).seconds() < 2.5) {
+        bool now_moving = false;
+        {
+          std::lock_guard<std::mutex> lock(g_resources.gripper_mutex);
+          now_moving = g_resources.is_moving;
+        }
+        saw_motion = saw_motion || now_moving;
+        if (saw_motion && !now_moving) {
+          break;
+        }
+        std::this_thread::sleep_for(50ms);
+      }
+    }
+  }
+
   g_resources.gripper_position_pub->publish(msg);
   
   RCLCPP_INFO(node_->get_logger(),
               "[MoveElevatorToHeight] Commanding elevator to %.5fm (target=%.3f + clearance=%.2f, clamped to 0.0-0.8999)",
               msg.elevator_position, target_height, kExtraTableClearance);
   std::this_thread::sleep_for(3s);
+  return BT::NodeStatus::SUCCESS;
+}
+
+BT::NodeStatus MoveElevatorToObjectHeight::tick()
+{
+  initializeSharedResources(node_);
+  initializeObjectDetection(node_);
+
+  std::string object_name = "object";
+  getInput("objectOfInterest", object_name);
+  double height_offset = 0.0;
+  getInput("heightOffset", height_offset);
+
+  // If previous homing/move is still active, wait briefly to avoid command fights.
+  if (g_resources.gripper_status_received) {
+    auto wait_start = node_->now();
+    while (rclcpp::ok()) {
+      bool moving = false;
+      {
+        std::lock_guard<std::mutex> lock(g_resources.gripper_mutex);
+        moving = g_resources.is_moving;
+      }
+      if (!moving) {
+        break;
+      }
+      if ((node_->now() - wait_start).seconds() > 3.0) {
+        RCLCPP_WARN(node_->get_logger(),
+                    "[MoveElevatorToObjectHeight] Timed out waiting for previous elevator motion to stop");
+        break;
+      }
+      std::this_thread::sleep_for(50ms);
+    }
+  }
+
+  double can_height_in_base = 0.0;
+  double age_sec = 999.0;
+  geometry_msgs::msg::Point raw_point;
+  std::string raw_frame;
+  rclcpp::Time raw_stamp;
+  bool have_raw = false;
+  bool have_odom = false;
+  double odom_z = 0.0;
+  {
+    std::lock_guard<std::mutex> lock(g_detection_mutex);
+    age_sec = (node_->now() - g_detection_state.oakd_last_detection_time).seconds();
+    const bool fresh = g_detection_state.oakd_can_detected &&
+                       age_sec < ObjectDetectionState::DETECTION_TIMEOUT_SEC;
+    if (!fresh) {
+      RCLCPP_WARN(node_->get_logger(),
+                  "[MoveElevatorToObjectHeight] No fresh OAK-D detection for '%s' (age=%.2fs)",
+                  object_name.c_str(), age_sec);
+      return BT::NodeStatus::FAILURE;
+    }
+
+    raw_point = g_detection_state.oakd_detection_position_raw;
+    raw_frame = g_detection_state.oakd_detection_frame_raw;
+    raw_stamp = g_detection_state.oakd_last_detection_time;
+    have_raw = !raw_frame.empty();
+
+    have_odom = g_detection_state.oakd_detection_has_odom;
+    odom_z = g_detection_state.oakd_detection_position_odom.z;
+  }
+
+  bool used_base_link_height = false;
+  if (have_raw && g_tf_buffer) {
+    try {
+      geometry_msgs::msg::PointStamped raw_msg;
+      raw_msg.header.frame_id = raw_frame;
+      raw_msg.header.stamp = raw_stamp;
+      raw_msg.point = raw_point;
+      const auto in_base = g_tf_buffer->transform(raw_msg, "base_link");
+      can_height_in_base = in_base.point.z;
+      used_base_link_height = true;
+    } catch (const tf2::TransformException & ex) {
+      RCLCPP_WARN(node_->get_logger(),
+                  "[MoveElevatorToObjectHeight] TF to base_link failed (%s), falling back to odom z",
+                  ex.what());
+    }
+  }
+
+  if (!used_base_link_height) {
+    if (!have_odom) {
+      RCLCPP_WARN(node_->get_logger(),
+                  "[MoveElevatorToObjectHeight] No usable OAK-D 3D height for '%s'",
+                  object_name.c_str());
+      return BT::NodeStatus::FAILURE;
+    }
+    if (!g_tf_buffer) {
+      RCLCPP_WARN(node_->get_logger(),
+                  "[MoveElevatorToObjectHeight] TF unavailable for odom->base_link conversion");
+      return BT::NodeStatus::FAILURE;
+    }
+
+    try {
+      const auto tf_odom_from_base = g_tf_buffer->lookupTransform(
+        "odom", "base_link", tf2::TimePointZero);
+      can_height_in_base = odom_z - tf_odom_from_base.transform.translation.z;
+    } catch (const tf2::TransformException & ex) {
+      RCLCPP_WARN(node_->get_logger(),
+                  "[MoveElevatorToObjectHeight] Odom fallback failed (%s)",
+                  ex.what());
+      return BT::NodeStatus::FAILURE;
+    }
+  }
+
+  // Convert object height in base_link to elevator command in meters from home.
+  // command = object_z_in_base - (gripper_center_z_in_base at home) + user_offset
+  const double requested_height =
+    can_height_in_base - kGripperCenterAtHomeAboveBaseLink + height_offset;
+
+  auto msg = sigyn_interfaces::msg::GripperPositionCommand();
+  msg.elevator_position = std::max(0.0f, std::min(0.8999f, static_cast<float>(requested_height)));
+  msg.extender_position = -1.0;  // no extender change
+
+  // Breakaway assist near home: when starting from hard-stop, do a small pre-lift first.
+  if (g_resources.gripper_status_received && msg.elevator_position > 0.10f) {
+    float current_pos = 0.0f;
+    bool moving = false;
+    {
+      std::lock_guard<std::mutex> lock(g_resources.gripper_mutex);
+      current_pos = static_cast<float>(g_resources.elevator_position);
+      moving = g_resources.is_moving;
+    }
+
+    if (!moving && current_pos < 0.03f) {
+      auto pre_msg = sigyn_interfaces::msg::GripperPositionCommand();
+      pre_msg.elevator_position = std::min(msg.elevator_position, 0.08f);
+      pre_msg.extender_position = -1.0;
+      g_resources.gripper_position_pub->publish(pre_msg);
+
+      RCLCPP_INFO(node_->get_logger(),
+                  "[MoveElevatorToObjectHeight] Home breakaway pre-lift: current=%.3f -> %.3f",
+                  current_pos, pre_msg.elevator_position);
+
+      bool saw_motion = false;
+      const auto wait_start = node_->now();
+      while (rclcpp::ok() && (node_->now() - wait_start).seconds() < 2.5) {
+        bool now_moving = false;
+        {
+          std::lock_guard<std::mutex> lock(g_resources.gripper_mutex);
+          now_moving = g_resources.is_moving;
+        }
+        saw_motion = saw_motion || now_moving;
+        if (saw_motion && !now_moving) {
+          break;
+        }
+        std::this_thread::sleep_for(50ms);
+      }
+    }
+  }
+
+  g_resources.gripper_position_pub->publish(msg);
+
+  RCLCPP_INFO(node_->get_logger(),
+              "[MoveElevatorToObjectHeight] '%s' object_z_base=%.3fm home_gripper_z=%.3fm offset=%.3fm (%s) -> commanding elevator=%.3fm",
+              object_name.c_str(), can_height_in_base, kGripperCenterAtHomeAboveBaseLink,
+              height_offset,
+              used_base_link_height ? "base_link" : "odom_fallback",
+              msg.elevator_position);
+
+  std::this_thread::sleep_for(2s);
   return BT::NodeStatus::SUCCESS;
 }
 

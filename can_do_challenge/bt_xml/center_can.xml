@@ -5,14 +5,13 @@
             <Action ID="SaveRobotPose" saveTo="{startingPose}" />
             <SubTree ID="SetupCanChallenge" __shared_blackboard="true"
                 objectOfInterest="CokeZeroCan" />
+            <Action ID="MoveElevatorToHeight" targetHeight="0.5" />
             <Action ID="WaitForDetection" />
             <Condition ID="CanDetectedByOAKD" objectOfInterest="{objectOfInterest}" />
             <SubTree ID="RaiseElevatorToCanHeight" __shared_blackboard="true"
                 objectOfInterest="{objectOfInterest}" />
-            <SubTree ID="ExecuteGrasp" __shared_blackboard="true"
-                objectOfInterest="{objectOfInterest}" />
-            <!-- <Condition ID="WaitForNewPiFrameProcessed" />
-            <Action ID="ExtendTowardsCan" objectOfInterest="{objectOfInterest}" /> -->
+            <!-- <SubTree ID="ExecuteGrasp" __shared_blackboard="true"
+                objectOfInterest="{objectOfInterest}" /> -->
         </Sequence>
     </BehaviorTree>
     <BehaviorTree ID="GraspCan">
@@ -78,28 +77,8 @@
             <!-- Wait for vision system to be ready -->
             <Condition ID="WaitForNewPiFrameProcessed" />
 
-            <!-- Incrementally raise elevator with visual feedback -->
-            <!-- Start from home, step up 2cm at a time using action server -->
-            <!-- Continue until can appears at target pixel height -->
-            <RetryUntilSuccessful num_attempts="50">
-                <ReactiveFallback>
-                    <!-- Check if can is at target height (342 pixels) -->
-                    <Condition ID="ElevatorAtHeight" targetHeightPixels="342.0"
-                        z_tolerance_pixels="10.0" />
-
-                    <!-- If not, step up using action server and check again -->
-                    <Sequence>
-                        <Action ID="StepElevatorUpAction" stepMeters="0.02" />
-                        <ForceFailure>
-                            <Sequence>
-                                <Action ID="SleepSeconds" seconds="0.20" />
-                                <Condition ID="WaitForNewPiFrameProcessed" />
-                            </Sequence>
-                            <!-- <SaySomething message="Stepping elevator up to reach can height" /> -->
-                        </ForceFailure>
-                    </Sequence>
-                </ReactiveFallback>
-            </RetryUntilSuccessful>
+            <!-- One-shot elevator move from OAK-D object Z height -->
+            <Action ID="MoveElevatorToObjectHeight" objectOfInterest="{objectOfInterest}" />
         </Sequence>
     </BehaviorTree>
 
