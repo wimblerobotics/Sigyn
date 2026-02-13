@@ -4,7 +4,7 @@
             <Action ID="SaySomething" message="Starting Step3: VisuallyAcquireCan" />
             <Action ID="SetBlackboard" output_key="objectOfInterest" value="CokeZeroCan" />
             <Action ID="SetBlackboard" output_key="needToVisuallyAcquire" value="true" />
-            <Action ID="SetBlackboard" output_key="within_distance" value="0.45" />
+            <Action ID="SetBlackboard" output_key="within_distance" value="0.49" />
             <!-- <SubTree ID="VisuallyAcquireCan" __shared_blackboard="true"
                 objectOfInterest="{objectOfInterest}"
                 within_distance="{within_distance}" />

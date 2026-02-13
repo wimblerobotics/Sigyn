@@ -106,6 +106,7 @@ struct ObjectDetectionState {
   static constexpr int PI_WAIT_TIMEOUT_MS = 10000;  // 10s to allow camera initialization
   static constexpr double WITHIN_REACH_DISTANCE = -1.0;  // MUST be provided by BT
   static constexpr double CENTERING_TOLERANCE = 0.02;   // Tightened to 2cm for precision
+  static constexpr double PI_HORIZONTAL_TARGET_OFFSET = -0.030; // Offset to compensate for camera/gripper alignment (negative = target left of optical center)
   static constexpr double PI_VERTICAL_TOLERANCE = 0.05; // 5cm for elevator height check
   static constexpr double PI_VERTICAL_TARGET_OFFSET = 0.0; // target offset in optical Y (positive down)
   static constexpr double PI_MIN_DISTANCE_M = 0.15;
@@ -369,14 +370,14 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
         const auto& det = msg->detections[0];
         
         // Convert pixel coordinates to normalized camera frame
-        // Gripper camera resolution is typically 640x480
-        // Assuming camera center at (320, 240) and focal length ~500px
+        // Gripper camera (Pi AI HAT) uses 640x640 resolution
+        // Camera center at (320, 320) and focal length ~500px
         const double image_width = 640.0;
-        const double image_height = 480.0;
+        const double image_height = 640.0;
         const double fx = 500.0;  // Approximate focal length in pixels
         const double fy = 500.0;
         const double cx = image_width / 2.0;  // 320
-        const double cy = image_height / 2.0; // 240
+        const double cy = image_height / 2.0; // 320
         
         // Assume a nominal distance for projection (will be refined with actual distance if available)
         double nominal_distance = 0.3;  // 30cm typical gripper reach
@@ -731,7 +732,8 @@ BT::NodeStatus CanCenteredInPiCamera::tick()
   // Check if can is centered HORIZONTALLY only (X axis in camera frame).
   // Pi camera detector emits in Optical Frame (X=Right, Y=Down, Z=Forward).
   // We only care about horizontal (X) centering - vertical (Y) is handled by ElevatorAtHeight.
-  const double offset_x = std::abs(det_point.x);
+  // Apply target offset to compensate for camera/gripper physical alignment
+  const double offset_x = std::abs(det_point.x - ObjectDetectionState::PI_HORIZONTAL_TARGET_OFFSET);
   
   if (offset_x < ObjectDetectionState::CENTERING_TOLERANCE) {
     RCLCPP_INFO(node_->get_logger(), "[CanCenteredInPiCamera] SUCCESS: Can '%s' check passed. x_offset=%.4fm < tolerance=%.4fm (age=%.2fs)", 
@@ -1036,6 +1038,14 @@ BT::NodeStatus OAKDDetectCan::detectOnce()
     return BT::NodeStatus::FAILURE;
   }
 
+  // Require a newer detection timestamp than the one previously consumed by this BT node.
+  // This prevents reusing the same sample across many control ticks.
+  if (det_stamp.nanoseconds() <= last_detection_stamp_.nanoseconds()) {
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *node_->get_clock(), 200,
+      "[OAKDDetectCan] Waiting for newer detection sample (stamp unchanged)");
+    return BT::NodeStatus::RUNNING;
+  }
+
   // Reject stale detections to avoid overshoot
   if (age_sec > ObjectDetectionState::OAKD_MAX_AGE_SEC) {
     RCLCPP_WARN(node_->get_logger(),
@@ -1087,6 +1097,7 @@ BT::NodeStatus OAKDDetectCan::detectOnce()
 
     setOutput("can_detected", true);
     setOutput("can_location", det_msg);
+    last_detection_stamp_ = det_stamp;
     return BT::NodeStatus::SUCCESS;
   }
 
@@ -1107,6 +1118,7 @@ BT::NodeStatus OAKDDetectCan::detectOnce()
 
     setOutput("can_detected", true);
     setOutput("can_location", det_in_base);  // Output full PointStamped, not just Point
+    last_detection_stamp_ = det_stamp;
     return BT::NodeStatus::SUCCESS;
 
   } catch (const tf2::TransformException& ex) {
@@ -1385,7 +1397,8 @@ BT::NodeStatus MoveTowardsCan::tick()
   // Get inputs from blackboard
   bool can_detected = false;
   geometry_msgs::msg::PointStamped can_location;
-  double max_distance = 0.01;  // Default: move 0.01m per tick
+  double target_distance_from_object = 0.55;
+  double distance_tolerance = 0.01;
 
   if (!getInput("can_detected", can_detected)) {
     RCLCPP_ERROR(node_->get_logger(), "[MoveTowardsCan] Missing input 'can_detected'");
@@ -1399,7 +1412,8 @@ BT::NodeStatus MoveTowardsCan::tick()
     return BT::NodeStatus::FAILURE;
   }
 
-  getInput("max_distance", max_distance);  // Optional, uses default if not provided
+  getInput("target_distance_from_object", target_distance_from_object);
+  getInput("distance_tolerance", distance_tolerance);
 
   if (!can_detected) {
     RCLCPP_WARN(node_->get_logger(), "[MoveTowardsCan] can_detected is false, not moving");
@@ -1468,11 +1482,22 @@ BT::NodeStatus MoveTowardsCan::tick()
   double angle_error = std::atan2(rel_y, rel_x);
 
   RCLCPP_INFO(node_->get_logger(), 
-              "[MoveTowardsCan] Target relative to base_link: x=%.3f, y=%.3f. Dist=%.3f, Angle=%.2f deg",
-              rel_x, rel_y, distance, angle_error * 180.0 / M_PI);
+              "[MoveTowardsCan] Target relative to base_link: x=%.3f, y=%.3f. Dist=%.3f Target=%.3f Angle=%.2f deg",
+              rel_x, rel_y, distance, target_distance_from_object, angle_error * 180.0 / M_PI);
 
   static auto cmd_vel_pub = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_nav", 10);
   geometry_msgs::msg::Twist cmd;
+
+  // Safety stop: if we're already at the requested standoff, stop immediately.
+  if (rel_x > 0.0 && distance <= (target_distance_from_object + distance_tolerance)) {
+    cmd.linear.x = 0.0;
+    cmd.angular.z = 0.0;
+    cmd_vel_pub->publish(cmd);
+    RCLCPP_INFO(node_->get_logger(),
+                "[MoveTowardsCan] At target standoff (dist=%.3f <= %.3f). STOP",
+                distance, target_distance_from_object + distance_tolerance);
+    return BT::NodeStatus::SUCCESS;
+  }
 
   // Rotate in place if target not in front (X <= 0.05) or angle is large
   // If X is small, we are "abreast" of it or it is behind us.
@@ -1495,8 +1520,9 @@ BT::NodeStatus MoveTowardsCan::tick()
     return BT::NodeStatus::SUCCESS;
   }
 
-  // Move forward by max_distance (proportional to remaining distance, capped at max)
-  double move_speed = std::min(0.15, max_distance * 10.0);  // 10.0 = scale factor for speed
+  // Move forward (proportional to remaining distance error, capped)
+  const double distance_error = std::max(0.0, distance - target_distance_from_object);
+  double move_speed = std::clamp(distance_error * 0.6, 0.04, 0.12);
   cmd.linear.x = move_speed;
   cmd.angular.z = angle_error * 0.5;  // Gentle steering correction
   cmd_vel_pub->publish(cmd);
@@ -2496,14 +2522,14 @@ BT::NodeStatus OpenGripper::tick()
   }
 
   geometry_msgs::msg::Twist msg;
-  msg.linear.x = 1000.0;  // Open gripper
+  msg.linear.x = -1000.0;  // Open gripper
   msg.linear.y = 0.0;
   msg.linear.z = 0.0;
   msg.angular.x = 0.0;
   msg.angular.y = 0.0;
   msg.angular.z = 0.0;
   
-  RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Sending cmd_vel_testicle_twister: linear.x=1000.0 (open)");
+  RCLCPP_INFO(node_->get_logger(), "[OpenGripper] Sending cmd_vel_testicle_twister: linear.x=-1000.0 (open)");
   twister_pub->publish(msg);
   
   std::this_thread::sleep_for(500ms);
@@ -2527,14 +2553,14 @@ BT::NodeStatus CloseGripperAroundCan::tick()
   }
   
   geometry_msgs::msg::Twist msg;
-  msg.linear.x = -1000.0;  // Close gripper
+  msg.linear.x = 1000.0;  // Close gripper
   msg.linear.y = 0.0;
   msg.linear.z = 0.0;
   msg.angular.x = 0.0;
   msg.angular.y = 0.0;
   msg.angular.z = 0.0;
 
-  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Sending cmd_vel_testicle_twister: linear.x=-1000.0 (close)");
+  RCLCPP_INFO(node_->get_logger(), "[CloseGripperAroundCan] Sending cmd_vel_testicle_twister: linear.x=1000.0 (close)");
   
   twister_pub->publish(msg);
 
@@ -2641,6 +2667,8 @@ BT::NodeStatus AdjustExtenderToCenterCan::tick()
 {
   std::string object_name;
   getInput("objectOfInterest", object_name);
+  double max_center_error_deg = 2.0;
+  getInput("max_center_error_deg", max_center_error_deg);
   
   initializeObjectDetection(node_);
   
@@ -2658,11 +2686,28 @@ BT::NodeStatus AdjustExtenderToCenterCan::tick()
   }
 
   // Get horizontal offset in camera frame (X axis, positive = right)
-  const double x_offset = det_point.x;
+  // Apply target offset to compensate for camera/gripper physical alignment
+  const double x_offset = det_point.x - ObjectDetectionState::PI_HORIZONTAL_TARGET_OFFSET;
+  const double distance = det_point.z;
+  if (distance <= 1e-3) {
+    RCLCPP_WARN(node_->get_logger(),
+                "[AdjustExtenderToCenterCan] Invalid detection distance z=%.4f",
+                distance);
+    return BT::NodeStatus::FAILURE;
+  }
+
+  if (max_center_error_deg <= 0.0) {
+    max_center_error_deg = 2.0;
+  }
+
+  const double max_center_error_rad = max_center_error_deg * M_PI / 180.0;
+  const double angle_error_rad = std::atan2(x_offset, distance);
   
   // If already centered, we're done
-  if (std::abs(x_offset) < ObjectDetectionState::CENTERING_TOLERANCE) {
-    RCLCPP_INFO(node_->get_logger(), "[AdjustExtenderToCenterCan] Already centered");
+  if (std::abs(angle_error_rad) <= max_center_error_rad) {
+    RCLCPP_INFO(node_->get_logger(),
+                "[AdjustExtenderToCenterCan] Already centered: angle_err=%.2fdeg <= %.2fdeg",
+                angle_error_rad * 180.0 / M_PI, max_center_error_deg);
     return BT::NodeStatus::SUCCESS;
   }
 
@@ -2672,42 +2717,45 @@ BT::NodeStatus AdjustExtenderToCenterCan::tick()
   // Therefore, we need a NEGATIVE angular_z for a POSITIVE x_offset.
   
   // Use distance to calculate precise rotation angle needed:
-  double distance = det_point.z;
-  double angle_error_rad = std::atan2(x_offset, distance);
-  
+
   // We desire to zero this angle error.
   
-  // Bse duration for the rotation maneuver
-  double duration_sec = 0.5;
+  // Damped incremental correction to avoid overshoot with low camera frame rate.
+  // We intentionally DO NOT apply full error in one pulse.
+  constexpr double kNominalPulseSec = 0.20;
+  constexpr double kCorrectionGain = 0.45;
+  constexpr double kMaxCommandAngleRad = 4.0 * M_PI / 180.0;  // 4 deg max per tick
 
-  // Calculate required velocity to complete correction in 'duration_sec'
-  // angular_z * duration = -angle_error
-  double required_omega = -angle_error_rad / duration_sec;
+  const double target_angle_rad = -angle_error_rad * kCorrectionGain;
+  const double commanded_angle_rad = std::clamp(target_angle_rad, -kMaxCommandAngleRad, kMaxCommandAngleRad);
+
+  double duration_sec = kNominalPulseSec;
+  double required_omega = commanded_angle_rad / duration_sec;
   
   RCLCPP_INFO(node_->get_logger(), 
-            "[AdjustExtenderToCenterCan] Plan: err=%.4fm, dist=%.3fm -> angle_err=%.4f rad. Need omega=%.3f rad/s for %.1fs", 
-             x_offset, distance, angle_error_rad, required_omega, duration_sec);
+            "[AdjustExtenderToCenterCan] Plan: err=%.4fm, dist=%.3fm -> angle_err=%.4f rad (%.2fdeg, limit=%.2fdeg), cmd_angle=%.2fdeg. Need omega=%.3f rad/s for %.2fs", 
+             x_offset, distance, angle_error_rad, angle_error_rad * 180.0 / M_PI, max_center_error_deg,
+             commanded_angle_rad * 180.0 / M_PI, required_omega, duration_sec);
   
   const double min_angular = 0.15; // Minimum robust rotation speed
   double angular_z = 0.0;
   
-  if (std::abs(required_omega) < min_angular) {
+    if (std::abs(required_omega) < min_angular) {
       // If required velocity is too low for the robot to move reliably,
-      // we set velocity to min_angular and reduce duration proportionally
-      // to achieve the same total rotation angle.
+      // use min velocity and adjust pulse duration to achieve commanded angle.
       double direction = (required_omega >= 0) ? 1.0 : -1.0;
       angular_z = direction * min_angular;
       
       // New duration: time = angle / velocity
-      duration_sec = std::abs(angle_error_rad / min_angular);
+      duration_sec = std::abs(commanded_angle_rad / min_angular);
       
       RCLCPP_INFO(node_->get_logger(), 
-            "[AdjustExtenderToCenterCan] Micro-adjust: Required %.3f < min %.3f. Boosting to %.3f, reducing time to %.3fs", 
-             required_omega, min_angular, angular_z, duration_sec);
+        "[AdjustExtenderToCenterCan] Micro-adjust: Required %.3f < min %.3f. Boosting to %.3f, duration %.3fs", 
+         required_omega, min_angular, angular_z, duration_sec);
 
       // Ensure we don't have excessively short pulses
-      if (duration_sec < 0.1) {
-          duration_sec = 0.1;
+        if (duration_sec < 0.04) {
+          duration_sec = 0.04;
       }
   } else {
       angular_z = required_omega;
@@ -2717,12 +2765,15 @@ BT::NodeStatus AdjustExtenderToCenterCan::tick()
   const double max_angular = 1.0; 
   if (std::abs(angular_z) > max_angular) {
       angular_z = (angular_z > 0) ? max_angular : -max_angular;
-      // Note: If we cap velocity, we won't complete rotation in original duration,
-      // but we iterate so next frame will catch remaining error.
+      // Recompute duration to preserve commanded angle with capped speed.
+      duration_sec = std::abs(commanded_angle_rad / max_angular);
       RCLCPP_WARN(node_->get_logger(), 
             "[AdjustExtenderToCenterCan] Saturated: %.3f > max %.3f. Capped at %.3f", 
              std::abs(required_omega), max_angular, angular_z);
   }
+
+    // Keep pulses bounded to reduce open-loop rotation drift.
+    duration_sec = std::clamp(duration_sec, 0.04, 0.40);
 
   // Publish twist command to rotate robot
   // Use cmd_vel_smoothed to bypass velocity smoother latency for small movements
@@ -2947,13 +2998,12 @@ void WaitForDetection::onHalted()
 
 BT::NodeStatus WaitForNewOAKDFrame::onStart()
 {
-  // Capture the current heartbeat/frame timestamp
+  // Capture the current OAK-D detection timestamp
   initializeObjectDetection(node_);
   
   {
     std::lock_guard<std::mutex> lock(g_detection_mutex);
-    // Initialize with current heartbeat time (if available), or 0 if not
-    last_frame_timestamp_ = g_detection_state.oakd_last_heartbeat_time;
+    last_frame_timestamp_ = g_detection_state.oakd_last_detection_time;
   }
   
   // Immediately check if a new frame is available (might already be newer)
@@ -2964,22 +3014,18 @@ BT::NodeStatus WaitForNewOAKDFrame::onRunning()
 {
   initializeObjectDetection(node_);
   
-  rclcpp::Time current_heartbeat_timestamp;
+  rclcpp::Time current_detection_timestamp;
   bool system_alive = false;
   
   {
     std::lock_guard<std::mutex> lock(g_detection_mutex);
     system_alive = g_detection_state.oakd_alive;
-    if (system_alive) {
-      current_heartbeat_timestamp = g_detection_state.oakd_last_heartbeat_time;
-      
-      // Check if heartbeat timestamp has changed (new frame processed)
-      if (current_heartbeat_timestamp.nanoseconds() > last_frame_timestamp_.nanoseconds()) {
-        // double latency = (node_->now() - current_heartbeat_timestamp).seconds();
-        // RCLCPP_DEBUG(node_->get_logger(), "[WaitForNewOAKDFrame] New frame/heartbeat acquired");
-        
-        // Update last timestamp for next call
-        last_frame_timestamp_ = current_heartbeat_timestamp;
+    if (system_alive && g_detection_state.oakd_can_detected) {
+      current_detection_timestamp = g_detection_state.oakd_last_detection_time;
+
+      // Check if we have a new detection sample
+      if (current_detection_timestamp.nanoseconds() > last_frame_timestamp_.nanoseconds()) {
+        last_frame_timestamp_ = current_detection_timestamp;
         return BT::NodeStatus::SUCCESS;
       }
     }

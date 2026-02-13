@@ -341,7 +341,7 @@ namespace sigyn_teensy {
     // stepPulse internally takes 1000us (500us high + 500us low), but
     // we need to gate calls to this function to prevent rapid-fire execution
     uint32_t now = micros();
-    if (now - last_step_time_us_ < 1000) {
+    if (now - last_step_time_us_ < 1500) { //### Was 1000, increased to 1500 for safety margin
       return;  // Too soon, skip this iteration
     }
     
