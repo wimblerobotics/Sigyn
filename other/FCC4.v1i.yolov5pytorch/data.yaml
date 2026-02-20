@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 1
+names: ['CokeZero-can']
+
+roboflow:
+  workspace: s-irbpz
+  project: fcc4
+  version: 1
+  license: Private
+  url: https://app.roboflow.com/s-irbpz/fcc4/1

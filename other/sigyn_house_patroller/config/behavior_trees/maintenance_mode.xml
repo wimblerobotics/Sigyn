@@ -1,0 +1,104 @@
+<!--
+  Maintenance mode behavior tree - For diagnostics and maintenance
+-->
+<root BTCPP_format="4" main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <ReactiveSequence name="MaintenanceMode">
+      
+      <!-- Maintenance mode initialization -->
+      <Sequence name="MaintenanceInitialization">
+        
+        <!-- Send maintenance mode alert -->
+        <SendThreatAlert name="maintenance_mode_alert" 
+                        threat_type="maintenance_mode_activated" 
+                        threat_description="Maintenance mode activated" 
+                        threat_severity="INFO" 
+                        threat_confidence="1.0" />
+        
+        <!-- Navigate to maintenance position -->
+        <NavigateToWaypoint name="go_to_maintenance_position" 
+                           waypoint_name="maintenance_position"
+                           target_pose="2.0;2.0;0.0;map" 
+                           timeout_seconds="60.0" />
+        
+        <!-- System diagnostics -->
+        <Sequence name="SystemDiagnostics">
+          
+          <!-- Battery diagnostics -->
+          <Sequence name="BatteryDiagnostics">
+            <CheckBatteryLevel name="battery_diagnostic" min_battery_level="0.0" />
+            <SendThreatAlert name="battery_status" 
+                            threat_type="battery_diagnostic" 
+                            threat_description="Battery diagnostic completed" 
+                            threat_severity="INFO" 
+                            threat_confidence="0.9" />
+          </Sequence>
+          
+          <!-- Environmental diagnostics -->
+          <Sequence name="EnvironmentalDiagnostics">
+            <CheckTemperature name="temp_diagnostic" 
+                             min_temperature="-10.0" 
+                             max_temperature="60.0" />
+            <SendThreatAlert name="environmental_status" 
+                            threat_type="environmental_diagnostic" 
+                            threat_description="Environmental diagnostic completed" 
+                            threat_severity="INFO" 
+                            threat_confidence="0.9" />
+          </Sequence>
+          
+          <!-- Navigation diagnostics -->
+          <Sequence name="NavigationDiagnostics">
+            <NavigateToWaypoint name="nav_test_1" 
+                               waypoint_name="test_position_1"
+                               target_pose="3.0;3.0;0.0;map" 
+                               timeout_seconds="30.0" />
+            <NavigateToWaypoint name="nav_test_2" 
+                               waypoint_name="test_position_2"
+                               target_pose="4.0;4.0;0.0;map" 
+                               timeout_seconds="30.0" />
+            <NavigateToWaypoint name="return_to_maintenance" 
+                               waypoint_name="maintenance_position"
+                               target_pose="2.0;2.0;0.0;map" 
+                               timeout_seconds="30.0" />
+            <SendThreatAlert name="navigation_status" 
+                            threat_type="navigation_diagnostic" 
+                            threat_description="Navigation diagnostic completed" 
+                            threat_severity="INFO" 
+                            threat_confidence="0.9" />
+          </Sequence>
+          
+          <!-- Sensor diagnostics -->
+          <Sequence name="SensorDiagnostics">
+            <PerformRoomCheck name="sensor_diagnostic" 
+                             room_name="maintenance_area" 
+                             check_duration="30.0" 
+                             min_observations="10" />
+            <SendThreatAlert name="sensor_status" 
+                            threat_type="sensor_diagnostic" 
+                            threat_description="Sensor diagnostic completed" 
+                            threat_severity="INFO" 
+                            threat_confidence="0.9" />
+          </Sequence>
+          
+        </Sequence>
+        
+        <!-- Maintenance mode completion -->
+        <Sequence name="MaintenanceCompletion">
+          <SendThreatAlert name="maintenance_complete" 
+                          threat_type="maintenance_mode_complete" 
+                          threat_description="Maintenance mode completed successfully" 
+                          threat_severity="INFO" 
+                          threat_confidence="1.0" />
+          
+          <!-- Return to standby position -->
+          <NavigateToWaypoint name="return_to_standby" 
+                             waypoint_name="standby_position"
+                             target_pose="1.0;1.0;0.0;map" 
+                             timeout_seconds="60.0" />
+        </Sequence>
+        
+      </Sequence>
+      
+    </ReactiveSequence>
+  </BehaviorTree>
+</root>

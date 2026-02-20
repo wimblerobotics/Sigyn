@@ -1,4 +1,0 @@
-(sym_lib_table
-  (lib (name TeensyMonitorV5-rescue)(type Legacy)(uri ${KIPRJMOD}/TeensyMonitorV5-rescue.lib)(options "")(descr ""))
-  (lib (name WizNet)(type Legacy)(uri "/media/psf/Home/Library/Mobile Documents/com~apple~CloudDocs/KiCad/EthernetDevice/2021-02-20_06-50-43.lib")(options "")(descr ""))
-)

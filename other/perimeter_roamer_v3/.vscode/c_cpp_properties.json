@@ -1,0 +1,35 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${workspaceFolder}/.vscode/browse.vc.db",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "${workspaceFolder}/include/**",
+        "/home/ros/sigyn_ws/install/perimeter_roamer_v3/include/**",
+        "/home/ros/sigyn_ws/install/sigyn_to_sensor_v2/include/**",
+        "/home/ros/sigyn_ws/install/sigyn_nav_goals/include/**",
+        "/home/ros/sigyn_ws/install/sigyn_interfaces/include/**",
+        "/home/ros/sigyn_ws/install/sigyn_house_patroller/include/**",
+        "/home/ros/sigyn_ws/install/sigyn_behavior_trees/include/**",
+        "/home/ros/sigyn_ws/install/msgs/include/**",
+        "/home/ros/sigyn_ws/install/line_finder/include/**",
+        "/home/ros/sigyn_ws/install/base/include/**",
+        "/opt/ros/jazzy/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ros2",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++17",
+      "defines": [
+        "ROS_DISTRO_JAZZY",
+        "RCUTILS_ENABLE_FAULT_INJECTION"
+      ],
+      "compileCommands": "/home/ros/sigyn_ws/build/perimeter_roamer_v3/compile_commands.json"
+    }
+  ],
+  "version": 4
+}

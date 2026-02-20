@@ -1,0 +1,38 @@
+###
+# 36V Cables
+###
+  36V_Mon_C+_To_Lever_Nut:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  36V_Mon_C-_To_Lever_Nut:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  36V_VOLTAGE_DIVIDER_PLUS:
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  36V_VOLTAGE_DIVIDER_GND:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  36V_VOLTAGE_DIVIDER_TAP:
+    wirecount: 1
+    color_code: IEC
+    colors: [GN]
+    gauge: "16 AWG"
+    show_wirecount: false
+

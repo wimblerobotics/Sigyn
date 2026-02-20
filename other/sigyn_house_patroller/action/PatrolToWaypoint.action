@@ -1,0 +1,30 @@
+# PatrolToWaypoint.action
+# Action to navigate to a specific waypoint and perform checks
+
+# Goal
+string waypoint_name
+geometry_msgs/PoseStamped target_pose
+string[] required_checks  # e.g., "temperature", "door_state", "motion"
+float64 timeout_seconds
+bool use_perimeter_following  # Use your existing perimeter_roamer behavior
+string approach_behavior  # "direct", "wall_follow", "cautious"
+
+---
+
+# Result
+bool success
+string final_room
+ThreatAlert[] detected_threats
+float64 time_taken
+float64 distance_traveled
+string failure_reason
+
+---
+
+# Feedback
+string current_status
+geometry_msgs/PoseStamped current_pose
+string current_room
+float64 progress  # 0.0 to 1.0
+float64 estimated_time_remaining
+ThreatAlert[] immediate_threats

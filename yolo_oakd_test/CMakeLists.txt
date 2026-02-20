@@ -22,8 +22,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 # Install Python executables
 install(PROGRAMS
   yolo_oakd_test/oakd_can_detector.py
-  scripts/train_yolo.py
-  scripts/convert_to_blob.py
+  # scripts/train_yolo.py
+  # scripts/convert_to_blob.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

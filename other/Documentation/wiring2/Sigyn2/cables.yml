@@ -1,0 +1,175 @@
+
+###
+# Lever Nuts Wiring
+###
+  GNDp1_TO_GNDp2: #+
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GNDp3_TO_GNDp2: #+
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GNDp1_TO_PS2:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GNDp3_TO_PS2: #+
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  3R3V4-1_TO_3.3v1-2:
+    wirecount: 1
+    color_code: IEC
+    colors: [BU]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GND3_TO_GNDPC: #+
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  3R3V4-1_TO_3R3v1-2:
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  5V5_TO_5VPC: #+
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GND4_TO_GNDp4: #+
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "14 AWG"
+    show_wirecount: false 
+
+  5V4_TO_5VPC: #+
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GND1_TO_GNDPC: #+
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  GND2_TO_GNDPC: #+
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "14 AWG"
+    show_wirecount: false 
+
+  12V4_TO_12VPC: #+
+    wirecount: 1
+    color_code: IEC
+    colors: [GN]
+    gauge: "14 AWG"
+    show_wirecount: false 
+
+  5V2_TO_5Vx4: #+
+    wirecount: 2
+    color_code: IEC
+    colors: [RD, BK]
+    gauge: "16 AWG"
+    show_wirecount: false 
+
+  5VPC_TO_5V2: #+
+    wirecount: 1
+    color_code: IEC
+    colors: [RD]
+    gauge: "14 AWG"
+    show_wirecount: false 
+
+  GNDPC__TO_GNDp4 : #+
+    wirecount: 1
+    color_code: IEC
+    colors: [BK ]
+    gauge: "14 AWG"
+    show_wirecount: false 
+
+  12VPC_TO_12Vp1: #+
+    wirecount: 1
+    color_code: IEC
+    colors: [GN]
+    gauge: "14 AWG"
+    show_wirecount: false 
+
+  12VPC_TO_12V5: #+
+    wirecount: 1
+    color_code: IEC
+    colors: [GN]
+    gauge: "14 AWG"
+    show_wirecount: false 
+
+##
+# Fuse box Wiring
+###
+  FUSE_BOX_IN:
+    wirecount: 4
+    color_code: IEC
+    colors: [GY, GY, GY, GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  FUSE_BOX_OUT:
+    wirecount: 4
+    color_code: IEC
+    colors: [GY, GY, GY, GY]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  ROBOCLAW_TO_GNDp2: #+
+    wirecount: 1
+    color_code: IEC
+    colors: [BK]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  ROBOCLAW_TO_24V1: #+
+    wirecount: 1
+    color_code: IEC
+    colors: [RD
+    ]
+    gauge: "16 AWG"
+    show_wirecount: false
+  
+  GNDp2_TO_GNDp4: #+
+    wirecount: 1
+    color_code: IEC
+    colors: [BK]
+    gauge: "16 AWG"
+    show_wirecount: false
+
+  USBC_CHARGER_CABLE: #+
+    wirecount: 2
+    color_code: IEC
+    colors: [RD, BK]
+    gauge: "16 AWG"
+    show_wirecount: false

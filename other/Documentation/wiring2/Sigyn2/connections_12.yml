@@ -1,0 +1,44 @@
+  -
+    - DC_DC_12V_30A: [IN_PLUS]
+    - 12V_DC_DC_30A: [4]
+    - 36V1: [5]
+
+  -
+    - DC_DC_12V_30A: [IN_GND]
+    - 12V_DC_DC_30A: [3]
+    - 12VGND7: [1]
+
+  -
+    - DC_DC_12V_30A: [OUT_GND]
+    - 12V_DC_DC_30A: [2]
+    - 12VGND7: [2]
+
+  -
+    - DC_DC_12V_30A: [OUT_PLUS]
+    - 12V_DC_DC_30A: [1]
+    - 12VMON: [V+]
+
+  -
+    - DC_DC_12V_30A: [OUT_PLUS]
+    - 12V_DC_DC_30A: [1]
+    - 12VMON: [C+]
+
+  -
+    - GNDp1: [1]
+    - FUSE_BOX_IN: [3]
+    - FUSE_BOX: [FUSE3_IN]
+
+  -
+    - FUSE_BOX: [FUSE3_OUT]
+    - FUSE_BOX_OUT: [3]
+    - 12VGND7: [3]
+
+  -
+    - 12VMON: [C-]
+    - 12V_Mon_C-_To_Lever_Nut: [1]
+    - 12Vp1: [1]
+
+  -
+    - 12VMON: [V-]
+    - 12V_Mon_V-_To_Lever_Nut: [1]
+    - GNDp1: [3]

@@ -1,1 +1,0 @@
-# sigyn_websocket package

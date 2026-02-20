@@ -42,7 +42,7 @@ from ament_index_python.packages import get_package_share_directory
 def launch_robot_state_publisher(
     context, file_name_var, use_ros2_control, use_sim_time, do_top_lidar
 ):
-    description_directory_path = get_package_share_directory("description")
+    description_directory_path = get_package_share_directory("sigyn_description")
     file_name = context.perform_substitution(file_name_var)
     print(f"[launch_robot_state_publisher] file_name: {file_name}")
     xacro_file_path = os.path.join(description_directory_path, "urdf", file_name)
@@ -82,7 +82,7 @@ def launch_robot_state_publisher(
 def generate_launch_description():
     ld = LaunchDescription()
     base_pgk = get_package_share_directory("base")
-    description_pkg = get_package_share_directory("description")
+    description_pkg = get_package_share_directory("sigyn_description")
     default_world = os.path.join(
         description_pkg,
         "worlds",
@@ -385,14 +385,25 @@ def generate_launch_description():
     ld.add_action(echo_action)
 
     # Bring up the twist multiplexer.
-    multiplexer_directory_path = get_package_share_directory("twist_multiplexer")
-    multiplexer_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            [multiplexer_directory_path, "/launch/twist_multiplexer.launch.py"]
-        ),
+    # Launched with namespace='sigyn' so the output topic resolves to /sigyn/cmd_vel,
+    # which matches the teensy_bridge subscription. Input topics are absolute paths
+    # so they are unaffected by the namespace.
+    multiplexer_config = os.path.join(
+        get_package_share_directory('wr_twist_multiplexer'),
+        'config',
+        'wr_twist_multiplexer.yaml',
+    )
+    multiplexer_node = Node(
+        package='wr_twist_multiplexer',
+        executable='wr_twist_multiplexer',
+        name='wr_twist_multiplexer_node',
+        arguments=['--config', multiplexer_config],
+        emulate_tty=True,
+        respawn=True,
+        output='screen',
         condition=UnlessCondition(use_sim_time),
     )
-    ld.add_action(multiplexer_launch)
+    ld.add_action(multiplexer_node)
 
     # Bring up the LIDAR.
     lidars_launch = IncludeLaunchDescription(
@@ -668,8 +679,8 @@ def generate_launch_description():
 
     # Battery overlay for RViz
     battery_overlay = Node(
-        package='py_scripts',
-        executable='battery_overlay_publisher',
+        package='base',
+        executable='battery_overlay_publisher.py',
         name='battery_overlay_publisher',
         output='screen',
         parameters=[{

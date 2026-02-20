@@ -1,0 +1,2 @@
+ros2 action send_goal /spin nav2_msgs/action/Spin "{target_yaw: 0.5, time_allowance: { sec: 2.0, nanosec: 0} }"
+
