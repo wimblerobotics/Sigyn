@@ -1,7 +1,0 @@
-motor_characterization:
-  ros__parameters:
-    loop_rate: 100.0
-    topics:
-      -
-        name: "cmd_vel"
-        topic: "cmd_vel"
