@@ -4,7 +4,7 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, TextSubstitution
 import os
 
-multiplexer_directory_path = get_package_share_directory('twist_multiplexer');
+multiplexer_directory_path = get_package_share_directory('wr_twist_multiplexer');
 base_directory_path = get_package_share_directory('base')
 description_directory_path = get_package_share_directory('description')
 urdf_path = os.path.join(description_directory_path, 'urdf/sigyn.urdf.xacro')

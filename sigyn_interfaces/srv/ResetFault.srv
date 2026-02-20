@@ -1,7 +1,0 @@
-# Request
-string source  # Source of the fault to reset (e.g., "ROBOCLAW_CURRENT")
-string reason  # Optional: specific reason to reset
----
-# Response
-bool success
-string message

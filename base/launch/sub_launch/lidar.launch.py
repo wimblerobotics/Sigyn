@@ -16,14 +16,14 @@ def generate_launch_description():
         
         DeclareLaunchArgument(
             name='do_top_lidar',
-            default_value='false',
+            default_value='true',
             description='Launch top LiDAR node if true'
         ),
     
         Node(
             condition=IfCondition(LaunchConfiguration('do_top_lidar')),
-            package='ldlidar',
-            executable='ldlidar',
+            package='wr_ldlidar',
+            executable='wr_ldlidar',
             name='top_ldlidar',
             output='screen',
             parameters=[
@@ -38,8 +38,8 @@ def generate_launch_description():
         # Cup lidar with scan_cup remapping when top lidar is enabled
         Node(
             condition=IfCondition(LaunchConfiguration('do_top_lidar')),
-            package='ldlidar',
-            executable='ldlidar',
+            package='wr_ldlidar',
+            executable='wr_ldlidar',
             name='cup_ldlidar',
             output='screen',
             parameters=[
@@ -54,13 +54,13 @@ def generate_launch_description():
         # Cup lidar with raw_scan remapping when top lidar is disabled
         Node(
             condition=UnlessCondition(LaunchConfiguration('do_top_lidar')),
-            package='ldlidar',
-            executable='ldlidar',
+            package='wr_ldlidar',
+            executable='wr_ldlidar',
             name='top_ldlidar',
             output='screen',
             parameters=[
                 {'serial_port': "/dev/lidar_cup"},
-                {'topic_name': "scan"},
+                {'topic_name': "scan_cup"},
                 {'lidar_frame': "lidar_frame_top_lidar"},
                 {'range_threshold': LaunchConfiguration("range_threshold")}
                 ],

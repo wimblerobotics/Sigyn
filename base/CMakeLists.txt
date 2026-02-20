@@ -48,10 +48,10 @@ install(DIRECTORY
 )
 
 # Install script files.
-#install(DIRECTORY
-#  scripts
-#  DESTINATION share/${PROJECT_NAME}/
-#)
+install(PROGRAMS
+  scripts/battery_overlay_publisher.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 ament_export_dependencies(rosidl_default_runtime)
 ament_package()

@@ -13,9 +13,9 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     ld = LaunchDescription()
     ekf_config_path = os.path.join(get_package_share_directory('base'), 'config/ekf.yaml')
-    multiplexer_directory_path = get_package_share_directory('twist_multiplexer');
+    multiplexer_directory_path = get_package_share_directory('wr_twist_multiplexer');
     base_directory_path = get_package_share_directory('base')
-    description_directory_path = get_package_share_directory('description')
+    description_directory_path = get_package_share_directory('sigyn_description')
     use_sim_time = False
     publish_joints = LaunchConfiguration('publish_joints')
     ld.add_action(DeclareLaunchArgument(
@@ -26,7 +26,7 @@ def generate_launch_description():
     # Bring up the twist multiplexer.
     multiplexer_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            [multiplexer_directory_path, '/launch/twist_multiplexer.launch.py'])
+            [multiplexer_directory_path, '/launch/wr_twist_multiplexer.launch.py'])
     )
     ld.add_action(multiplexer_launch)
 

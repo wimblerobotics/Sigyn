@@ -1,9 +1,0 @@
-# Request: filename to dump from SD card
-string filename
-
----
-
-# Response: file contents result
-string file_contents
-bool success
-string error_message

@@ -30,8 +30,9 @@ Panels:
         - /TOF1/VL53L0X-71
         - /TOF1/VL53L0X-71/Topic1
         - /OAKD TOP DEPTH1/Topic1
+        - /GripperCamera1
+        - /GripperCamera1/Status1
         - /GripperCamera1/Topic1
-        - /Camera Top1
       Splitter Ratio: 0.5437352061271667
     Tree Height: 582
   - Class: rviz_common/Selection
@@ -215,7 +216,6 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-          Value: true
         oak_rgb_camera_frame:
           Alpha: 1
           Show Axes: false
@@ -1318,7 +1318,7 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: 1.5832483768463135e-08
+      Angle: 0
       Class: rviz_default_plugins/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
@@ -1328,11 +1328,11 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 85.33065032958984
+      Scale: 78.25133514404297
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz_default_plugins)
-      X: 9.303013801574707
-      Y: 7.7072224617004395
+      X: 8.824668884277344
+      Y: 8.342077255249023
     Saved: ~
 Window Geometry:
   Camera Top:
