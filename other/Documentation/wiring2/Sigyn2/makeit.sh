@@ -1,1 +1,0 @@
-clear;m4 <wireviz_sigyn2.yml >foo.yml;wireviz --format hp -O sigyn2_wiring foo.yml

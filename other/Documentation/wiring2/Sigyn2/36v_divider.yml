@@ -1,9 +1,0 @@
-  36V_DIVIDER:
-    type: Voltage Divider
-    pincount: 3
-    pinlabels: [V+, TAP, GND]
-    # image:
-    #   src: "images/24V10A_DC_DC.jpeg"
-    #   width: 160
-    #   height: 147
-  

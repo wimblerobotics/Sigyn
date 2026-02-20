@@ -1,6 +1,0 @@
-(sym_lib_table
-  (version 7)
-  (lib (name "TeensySensor")(type "KiCad")(uri "${KIPRJMOD}/TeensyMonitorV5-rescue.kicad_sym")(options "")(descr ""))
-  (lib (name "WizNet")(type "Legacy")(uri "/media/psf/Home/Library/Mobile Documents/com~apple~CloudDocs/KiCad/EthernetDevice/2021-02-20_06-50-43.lib")(options "")(descr ""))
-  (lib (name "DEV-16771")(type "KiCad")(uri "/Users/michaelwimble/Downloads/DEV-16771/DEV-16771.kicad_sym")(options "")(descr ""))
-)
