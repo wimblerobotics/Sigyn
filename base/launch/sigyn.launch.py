@@ -662,20 +662,17 @@ def generate_launch_description():
     )
     ld.add_action(nimbus_steelseries_joystick)
     
-    sigyn_to_sensor = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(
-                get_package_share_directory("sigyn_to_sensor_v2"),
-                "launch",
-                "teensy_bridge.launch.py",
-            )
-        ),
-        condition=UnlessCondition(use_sim_time),  # Only run for real robot
-        launch_arguments={
-            'namespace': 'sigyn',
-        }.items(),
-    )
-    ld.add_action(sigyn_to_sensor)
+    def launch_sigyn_to_sensor(context, *args, **kwargs):
+        if use_sim_time.perform(context).lower() == 'true':
+            return []
+        pkg = get_package_share_directory("sigyn_to_sensor_v2")
+        return [IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(pkg, "launch", "teensy_bridge.launch.py")
+            ),
+            launch_arguments={'namespace': 'sigyn'}.items(),
+        )]
+    ld.add_action(OpaqueFunction(function=launch_sigyn_to_sensor))
 
     # Battery overlay for RViz
     battery_overlay = Node(
