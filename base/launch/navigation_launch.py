@@ -61,9 +61,14 @@ def generate_launch_description():
     remappings = [('/tf', 'tf'), ('/tf_static', 'tf_static')]
 
     # Create our own temporary YAML files that include substitutions
+    # Disable realtime priority in simulation (no RT permissions needed/available)
+    realtime_priority = PythonExpression(
+        ["'False' if '", use_sim_time, "'.lower() == 'true' else 'True'"]
+    )
     param_substitutions = {
         'use_sim_time': use_sim_time, ###
-        'autostart': autostart}
+        'autostart': autostart,
+        'velocity_smoother.ros__parameters.use_realtime_priority': realtime_priority}
 
     configured_params = ParameterFile(
         RewrittenYaml(

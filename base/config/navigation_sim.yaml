@@ -73,9 +73,10 @@ bt_navigator:
     # plugin_lib_names is used to add custom BT plugins to the executor (vector of strings).
     # Built-in plugins are added automatically
     # plugin_lib_names: []
-    plugin_lib_names:
-    - sigyn_say_something_plugin_node
-    - sigyn_move_a_short_distance_ahead_plugin_node
+    # sigyn_behavior_trees plugins disabled - package not built in this workspace
+    # plugin_lib_names:
+    # - sigyn_say_something_plugin_node
+    # - sigyn_move_a_short_distance_ahead_plugin_node
 
     error_code_names:
       - compute_path_error_code
@@ -440,7 +441,7 @@ waypoint_follower:
 
 velocity_smoother:
   ros__parameters:
-    use_realtime_priority: yes
+    use_realtime_priority: true  # overridden to false in simulation via nav launch param substitution
     smoothing_frequency: 20.0
     scale_velocities: False
     feedback: "OPEN_LOOP"
