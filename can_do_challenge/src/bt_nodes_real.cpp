@@ -12,7 +12,7 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "vision_msgs/msg/detection2_d_array.hpp"
-#include "gripper_camera_detector/msg/detection_array.hpp"
+#include "sigyn_interfaces/msg/detection_array.hpp"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
 #include "tf2/LinearMath/Quaternion.h"
@@ -204,7 +204,7 @@ static bool piDetectionInRange(const geometry_msgs::msg::Point& point)
 // Store subscriptions so they don't get destroyed
 static rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr g_oakd_sub;
 static rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr g_oakd_real_sub;
-static rclcpp::Subscription<gripper_camera_detector::msg::DetectionArray>::SharedPtr g_pi_sub;
+static rclcpp::Subscription<sigyn_interfaces::msg::DetectionArray>::SharedPtr g_pi_sub;
 static rclcpp::Subscription<std_msgs::msg::Header>::SharedPtr g_pi_processed_sub;
 static std::shared_ptr<tf2_ros::Buffer> g_tf_buffer;
 static std::shared_ptr<tf2_ros::TransformListener> g_tf_listener;
@@ -374,14 +374,14 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
     RCLCPP_INFO(node->get_logger(), "Subscribed to /oakd/can_detection (best_effort)");
   }
   
-  // Subscribe to Pi camera detection (gripper_camera_detector package)
+  // Subscribe to Pi camera detection (sigyn_interfaces package)
   rclcpp::QoS pi_qos(10);
   // Use RELIABLE to match publisher QoS (detection data is low-rate and critical)
   pi_qos.reliable();
 
-  g_pi_sub = node->create_subscription<gripper_camera_detector::msg::DetectionArray>(
+  g_pi_sub = node->create_subscription<sigyn_interfaces::msg::DetectionArray>(
     "/gripper/camera/detections", pi_qos,
-    [node](const gripper_camera_detector::msg::DetectionArray::SharedPtr msg) {
+    [node](const sigyn_interfaces::msg::DetectionArray::SharedPtr msg) {
       // Update frame timestamp for WaitForNewPiFrameProcessed
       {
         std::lock_guard<std::mutex> lock(g_pi_frame_mutex);
@@ -438,7 +438,7 @@ static void initializeObjectDetection(std::shared_ptr<rclcpp::Node> node) {
                 pos.x, pos.y, pos.z, det.confidence, msg->header.frame_id.c_str());
       }
     });
-  RCLCPP_INFO(node->get_logger(), "Subscribed to /gripper/camera/detections (best_effort, gripper_camera_detector::msg::DetectionArray)");
+  RCLCPP_INFO(node->get_logger(), "Subscribed to /gripper/camera/detections (best_effort, sigyn_interfaces::msg::DetectionArray)");
   
   initialized = true;
 }

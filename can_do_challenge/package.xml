@@ -17,7 +17,6 @@
   <depend>std_msgs</depend>
   <depend>vision_msgs</depend>
   <depend>depthai_ros_msgs</depend>
-  <depend>gripper_camera_detector</depend>
   <depend>trajectory_msgs</depend>
   <depend>sigyn_interfaces</depend>
   <depend>visualization_msgs</depend>
