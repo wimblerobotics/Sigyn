@@ -11,7 +11,7 @@
 - ROS 2 packages (C++ and Python)
 - Behavior tree XMLs
 - Configuration and launch files
-- Teensy 4.1 firmware (PlatformIO) under `TeensyV2/`
+- Teensy 4.1 firmware (PlatformIO) under `TeensyV2/` — **being migrated** to `wimblerobotics/sigyn_teensy_boards`
 
 The robot runs on Ubuntu 24.04 + ROS 2 Jazzy. Simulation uses Gazebo Harmonic.
 
@@ -26,7 +26,7 @@ The robot runs on Ubuntu 24.04 + ROS 2 Jazzy. Simulation uses Gazebo Harmonic.
 | `can_do_challenge` | C++ / Python | Behavior tree mission for fetching a Coke can |
 | `rviz` | — | RViz config only |
 | `sigyn_to_sensor_v2` | C++ | Teensy bridge: motors, IMU, battery (Board 1 & 2) |
-| `TeensyV2` | C++ (PlatformIO) | Teensy 4.1 firmware for all boards |
+| `TeensyV2` | C++ (PlatformIO) | Teensy 4.1 firmware — **kept here until `sigyn_teensy_boards` is verified** |
 | `udev` | — | udev rules for device nodes |
 
 ### Packages in separate repos (symlinked into `~/sigyn_ws/src/`)
@@ -37,6 +37,7 @@ The robot runs on Ubuntu 24.04 + ROS 2 Jazzy. Simulation uses Gazebo Harmonic.
 | `sigyn_interfaces` | `wimblerobotics/sigyn_interfaces` | `~/sigyn_ws/src/` |
 | `sigyn_behavior_trees` | `wimblerobotics/sigyn_behavior_trees` | extraction in progress |
 | **`sigyn_oakd_detection`** | **`wimblerobotics/sigyn_oakd_detection`** | **`~/sigyn_oakd_detection_ws/src/`** |
+| **`sigyn_teensy_boards`** | **`wimblerobotics/sigyn_teensy_boards`** | **`~/sigyn_teensy_boards/`** (standalone, not a ROS workspace) |
 | `wr_ldlidar` | `wimblerobotics/wr_ldlidar` | `~/sigyn_ws/src/` |
 | `wr_teleop_twist_keyboard` | *(fork)* | `~/sigyn_ws/src/` |
 
@@ -66,7 +67,31 @@ It has been superseded by the standalone package **`sigyn_oakd_detection`**:
 
 ---
 
-## 4. Key Topics
+## 4. In Progress: `TeensyV2` Migration to `sigyn_teensy_boards`
+
+**Status:** `TeensyV2/` is kept in this monorepo as a read-only reference until
+the new standalone repo is confirmed working. **Do not make firmware changes in
+`TeensyV2/` — edit `~/sigyn_teensy_boards/` instead.**
+
+- **New repo:** `wimblerobotics/sigyn_teensy_boards`
+- **Local path:** `~/sigyn_teensy_boards/` (pure PlatformIO, not inside a ROS workspace)
+- **Contents:** Identical to `TeensyV2/` minus build artifacts and ROS scaffolding (`package.xml`, `CMakeLists.txt`)
+- **New docs:** `AI_CONTEXT.md` + `TODO.md` added (architectural review, GPIO e-stop, message redesign)
+
+### Bash aliases updated
+
+All `compileBoard1`, `buildBoard1`, `buildBoard2`, `buildElevator`, `compileElevator`, `test_teensy` aliases now point to `~/sigyn_teensy_boards/`. The comment in `bashrc` notes when `TeensyV2/` can be removed.
+
+### When to remove `TeensyV2/` from this monorepo
+
+- [ ] Verify `compileBoard1` / `compileBoard2` / `compileElevator` succeed from new location
+- [ ] Verify `buildBoard1` / `buildBoard2` / `buildElevator` upload successfully
+- [ ] Verify `test_teensy` passes
+- [ ] Update `REFACTORING_PLAN.md` Section 5/6 to mark TeensyV2 extraction complete
+
+---
+
+## 5. Key Topics
 
 | Topic | Type | Publisher |
 |---|---|---|
@@ -81,7 +106,7 @@ It has been superseded by the standalone package **`sigyn_oakd_detection`**:
 
 ---
 
-## 5. Key Custom Messages (sigyn_interfaces)
+## 6. Key Custom Messages (sigyn_interfaces)
 
 | Message | Purpose |
 |---|---|
@@ -95,7 +120,7 @@ Actions defined in `sigyn_interfaces`:
 
 ---
 
-## 6. Behavior Tree Library
+## 7. Behavior Tree Library
 
 - **Framework:** BehaviorTree.CPP **v4** (`behaviortree_cpp` package)
 - **`sigyn_behavior_trees`:** Core patrol/navigation BT nodes (separate repo, see above)
@@ -108,7 +133,7 @@ Actions defined in `sigyn_interfaces`:
 
 ---
 
-## 7. Build
+## 8. Build
 
 ```bash
 # From ~/sigyn_ws
@@ -130,7 +155,7 @@ source ~/sigyn_oakd_detection_ws/install/setup.bash
 
 ---
 
-## 8. Open Refactoring Work
+## 9. Open Refactoring Work
 
 See `REFACTORING_PLAN.md` for full details. Current priority order:
 
@@ -143,7 +168,7 @@ See `REFACTORING_PLAN.md` for full details. Current priority order:
 
 ---
 
-## 9. Safety Notes
+## 10. Safety Notes
 
 - E-stop topics flow through `sigyn_to_sensor_v2` → Teensy serial
 - Never send velocity commands while the elevator is in motion unless the BT safety subtree is active
