@@ -23,7 +23,7 @@ Break the Sigyn monorepo into a set of clean, independently deployable repositor
 | `sigyn_behavior_trees` | Extraction in progress | New repo: `wimblerobotics/sigyn_behavior_trees` |
 | `sigyn_to_sensor_v2` | Extract + rename | New repo: `wimblerobotics/sigyn_teensy_bridge` |
 | `TeensyV2` | Extract + rename | New repo: `wimblerobotics/sigyn_teensy_firmware` |
-| `yolo_oakd_test` | Extract + rename | New repo: `wimblerobotics/sigyn_oakd_detector` |
+| ~~`yolo_oakd_test`~~ | ✅ Extracted | Lives at `wimblerobotics/sigyn_oakd_detection`; removed from monorepo Feb 2026 |
 
 ### Separate repos already in `sigyn_ws/src`
 
@@ -158,8 +158,8 @@ Maps directory contains:
 | File | Notes |
 |---|---|
 | `config/bt1.xml` | Wait node with negative duration was fixed; review remaining content |
-| `config/nn/can_yolov5.json`, `can_yolov8.json` | Used by `yolo_oakd_test`; should move to that package when extracted |
-| `config/oakd_camera.yaml` | OAK-D camera config; should move to `sigyn_oakd_detector` when extracted |
+| `config/nn/can_yolov5.json`, `can_yolov8.json` | Were used by `yolo_oakd_test` (now deleted). Move to `sigyn_oakd_detection` workspace or remove if obsolete. |
+| `config/oakd_camera.yaml` | OAK-D camera config; move to `sigyn_oakd_detection` workspace. |
 | `config/pcl.yaml` | PointCloud filter config; appears unused (pointcloud.launch.py is dead) |
 | `config/gazebo.yaml` | Review if still relevant for sim |
 | `config/gz_bridge.yaml` | Actively used for Gazebo simulation |
@@ -244,36 +244,27 @@ See `REFACTORING_PLAN.md` in that repo for the full issue list from code review.
 
 ---
 
-## Section 7 — Extract `yolo_oakd_test` → `sigyn_oakd_detector`
+## ✅ Section 7 — Extract `yolo_oakd_test` → `sigyn_oakd_detection` — COMPLETE
 
-**New repo name:** `wimblerobotics/sigyn_oakd_detector`
+**Actual final repo name:** `wimblerobotics/sigyn_oakd_detection` (not `sigyn_oakd_detector` as originally planned)
+**Workspace:** `~/sigyn_oakd_detection_ws/src/sigyn_oakd_detection/`
+**Completed:** February 2026
 
-### 7.1 Pre-extraction cleanup
+### What was done
 
-- [ ] Rename package: `yolo_oakd_test` → `sigyn_oakd_detector` in `CMakeLists.txt` and `package.xml`
-- [ ] Fix `package.xml` maintainer: `"Your Name" / "you@example.com"` → correct values
-- [ ] Fix `package.xml` license: `MIT` → `Apache-2.0` (to match rest of project)
-- [ ] Update description: remove "Isolated test package" wording
-- [ ] **Model file discrepancy:** The launch sub-file `oakd_yolo26_detector.launch.py` calls the node from `yolo_oakd_test` and expects `models/can_detector.blob`, but the package ships `models/oakd_yolov5_v5a.blob`. Determine which is the correct model, rename / update `launch.py` accordingly. Also note `models/can_data.yaml` references V5a.
-- [ ] Move `base/config/nn/can_yolov5.json` and `can_yolov8.json` into this package under `config/nn/`
-- [ ] Move `base/config/oakd_camera.yaml` into this package (it's OAK-D specific config)
-- [ ] `CanDetection.msg` is defined here but used across packages; evaluate moving to `sigyn_interfaces` for proper multi-package sharing
-- [ ] Apply Google style + clang-format to `oakd_can_detector.py`
-- [ ] Add SPDX copyright headers
-- [ ] Rename launch file `test_can_detection.launch.py` → `oakd_detector.launch.py`
+- [x] Renamed package: `yolo_oakd_test` → `sigyn_oakd_detection`
+- [x] Fixed `package.xml` maintainer and license
+- [x] Resolved model file discrepancy (correct blob shipped with the new package)
+- [x] `OakdDetection.msg` (renamed from `CanDetection.msg`) moved to `sigyn_interfaces` (v0.9.4)
+- [x] Applied Google style and SPDX copyright headers
+- [x] Launch file renamed to `oakd_detector.launch.py`
+- [x] Updated `base/launch/sub_launch/oakd_yolo26_detector.launch.py` and `can_do_challenge` launch files to delegate to `sigyn_oakd_detection`
+- [x] Removed `yolo_oakd_test/` from Sigyn monorepo
 
-### 7.2 Impact on `base`/`sigyn_bringup`
-
-After extraction, update references in `sigyn.launch.py`:
-- `sub_launch/oakd_yolo26_detector.launch.py` should use new package name
-
-### 7.3 Extraction steps
-
-- [ ] Create `~/sigyn_oakd_detector_ws/src/sigyn_oakd_detector/`
-- [ ] `git init`, rename package, initial commit
-- [ ] Create `wimblerobotics/sigyn_oakd_detector` on GitHub, push
-- [ ] Update `Sigyn2/packages.yaml` to reference new repo
-- [ ] Remove `yolo_oakd_test/` from Sigyn monorepo
+Remaining follow-up (not blocking):
+- [ ] Move `base/config/nn/can_yolov5.json` / `can_yolov8.json` to the new workspace or remove
+- [ ] Move `base/config/oakd_camera.yaml` to the new workspace
+- [ ] Update `Sigyn2/packages.yaml` to add `sigyn_vision` group with `wimblerobotics/sigyn_oakd_detection`
 
 ---
 
@@ -285,7 +276,7 @@ This package will remain in the monorepo as the application-level behavior for t
 
 - [ ] `<depend>behaviortree_cpp_v3</depend>` — The rest of the project uses `behaviortree_cpp` (v4 API). Migrate `can_do_challenge` from v3 to v4. Key API differences: `BT::NodeStatus`, `BT::InputPort`, action node base class names. This is a significant refactor.
 - [ ] `<depend>gripper_camera_detector</depend>` — This package does not exist in `sigyn_ws/src`. Determine whether this should be `pi_can_detector` (on sigynVision) or something else. Either add it or remove the dependency.
-- [ ] Review whether `depthai_ros_msgs` is still needed now that OAK-D detection is via `yolo_oakd_test`/`sigyn_oakd_detector`
+- [ ] Review whether `depthai_ros_msgs` is still needed now that OAK-D detection is via `sigyn_oakd_detection` (separate workspace)
 
 ### 8.2 Dead code / files to move to `~/other_repository`
 
@@ -347,7 +338,7 @@ After each extraction above, `Sigyn2/config/packages.yaml` and `Sigyn2/config/ro
 | `base` renamed to `sigyn_bringup` | Update `sigyn_navigation` group — Sigyn monorepo name stays but package name changes |
 | `sigyn_to_sensor_v2` extracted | Add `sigyn_hardware` repo entry: `wimblerobotics/sigyn_teensy_bridge` |
 | `TeensyV2` extracted | No ROS package to add (firmware only), but document it |
-| `yolo_oakd_test` extracted | Add `sigyn_vision` group: `wimblerobotics/sigyn_oakd_detector` |
+| ✅ `yolo_oakd_test` extracted | Add `sigyn_vision` group: `wimblerobotics/sigyn_oakd_detection` (done — Sigyn2 packages.yaml update pending) |
 
 ---
 
@@ -425,8 +416,8 @@ Apply `ruff` or `flake8`/`black` formatting to all Python files:
 - `battery_overlay_publisher.py`
 - All launch files
 - `can_do_challenge/can_do_challenge/*.py`
-- `yolo_oakd_test/yolo_oakd_test/oakd_can_detector.py`
 - `scripts/*.py`
+- (Note: `yolo_oakd_test` has been removed; the successor `sigyn_oakd_detection` lives in its own workspace)
 
 ### 12.5 Add a top-level `.clang-format`
 
@@ -488,7 +479,7 @@ Currently `precheck` is a separate launch. Consider making it the canonical entr
 
 ### 14.4 Consolidate `rviz` config
 
-`rviz/config/config.rviz` and `yolo_oakd_test/config/can_detection.rviz` are separate RViz configs. After renaming packages, ensure all topic references are current and create one canonical general-purpose config and one OAK-D detection visualization config.
+`rviz/config/config.rviz` is the monorepo RViz config. `yolo_oakd_test/config/can_detection.rviz` no longer exists (package deleted). The `sigyn_oakd_detection` workspace may ship its own RViz config. Ensure all topic references are current and create one canonical general-purpose config and one OAK-D detection visualization config.
 
 ### 14.5 Remove `CMakePresets.json` from `base/`
 
@@ -508,7 +499,7 @@ This file is for local IDE integration (VS Code CMake Tools) and references mach
 4. **Extract `sigyn_behavior_trees`** (Section 4) — in progress
 5. **Style sweep: SPDX + clang-format** (Section 12) — do per-package as each is touched
 6. **Extract `sigyn_to_sensor_v2` + `TeensyV2`** (Sections 5, 6) — do together (tightly coupled)
-7. **Extract `yolo_oakd_test`** (Section 7)
+7. ✅ **Extract `yolo_oakd_test`** (Section 7) — DONE (now `wimblerobotics/sigyn_oakd_detection`)
 8. **`can_do_challenge` cleanup** (Section 8) — especially BT v3 → v4 migration
 9. **Testing** (Section 13) — add tests after each package is in a clean state
 10. **`Sigyn2` updates** (Section 11) — update after each extraction
@@ -520,6 +511,6 @@ This file is for local IDE integration (VS Code CMake Tools) and references mach
 1. Should `bluetooth_joystick` stay in the monorepo or get its own repo? (Lean: own repo, as it is hardware-specific and others might reuse it)
 2. Should `rviz` merge into `sigyn_bringup` or stay standalone? (Lean: merge — it's only one config file)
 3. Should `can_do_challenge` eventually move to its own repo? It's application-specific but has significant infrastructure (BT nodes, action servers, PI camera integration).
-4. The `can_do_challenge` `CanDetection.msg` vs. `yolo_oakd_test` `CanDetection.msg` — are these the same message or different? If the same, consolidate into `sigyn_interfaces`.
+4. ✅ The `CanDetection.msg` question is resolved: `yolo_oakd_test` deleted; `OakdDetection.msg` (renamed) now lives in `sigyn_interfaces` v0.9.4.
 5. Does anything actually use `base/config/pcl.yaml`? If the pointcloud launch is dead, this config is too.
 6. What is the intended purpose of `config/gazebo.yaml` vs `config/gz_bridge.yaml`? Both appear to exist. Is `gazebo.yaml` for something other than the bridge?

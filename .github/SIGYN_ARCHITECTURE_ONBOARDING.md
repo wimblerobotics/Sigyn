@@ -56,7 +56,7 @@ ros2 launch base sigyn.launch.py use_sim_time:=false
 ### Hardware Bridges
 - `sigyn_to_sensor_v2`: Teensy bridge for base motors, IMU, and battery.
 - `pi_servo1`: Teensy bridge for the Gripper and Elevator servos.
-- `oakd_detector`: OAK-D Camera AI integration (YOLO).
+- `sigyn_oakd_detection` *(separate workspace: `~/sigyn_oakd_detection_ws`)* — OAK-D Camera AI integration (YOLO). Publishes `OakdDetection.msg` (defined in `sigyn_interfaces`). The old `oakd_detector` / `yolo_oakd_test` package has been **deleted** from this monorepo.
 
 ## 4. Hardware Specifics
 
