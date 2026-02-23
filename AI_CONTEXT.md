@@ -37,7 +37,7 @@ The robot runs on Ubuntu 24.04 + ROS 2 Jazzy. Simulation uses Gazebo Harmonic.
 | `sigyn_interfaces` | `wimblerobotics/sigyn_interfaces` | `~/sigyn_ws/src/` |
 | `sigyn_behavior_trees` | `wimblerobotics/sigyn_behavior_trees` | extraction in progress |
 | **`sigyn_oakd_detection`** | **`wimblerobotics/sigyn_oakd_detection`** | **`~/sigyn_oakd_detection_ws/src/`** |
-| **`sigyn_teensy_boards`** | **`wimblerobotics/sigyn_teensy_boards`** | **`~/sigyn_teensy_boards/`** (standalone, not a ROS workspace) |
+| **`sigyn_teensy_boards`** | **`wimblerobotics/sigyn_teensy_boards`** | **`~/sigyn_ws/src/sigyn_teensy_boards/`** (PlatformIO only, not colcon-built) |
 | `wr_ldlidar` | `wimblerobotics/wr_ldlidar` | `~/sigyn_ws/src/` |
 | `wr_teleop_twist_keyboard` | *(fork)* | `~/sigyn_ws/src/` |
 
@@ -71,16 +71,16 @@ It has been superseded by the standalone package **`sigyn_oakd_detection`**:
 
 **Status:** `TeensyV2/` is kept in this monorepo as a read-only reference until
 the new standalone repo is confirmed working. **Do not make firmware changes in
-`TeensyV2/` — edit `~/sigyn_teensy_boards/` instead.**
+`TeensyV2/` — edit `~/sigyn_ws/src/sigyn_teensy_boards/` instead.**
 
 - **New repo:** `wimblerobotics/sigyn_teensy_boards`
-- **Local path:** `~/sigyn_teensy_boards/` (pure PlatformIO, not inside a ROS workspace)
+- **Local path:** `~/sigyn_ws/src/sigyn_teensy_boards/` (deployed by vcstool into `sigyn_ws/src/` alongside ROS packages, but `tool_repo: true` so colcon ignores it)
 - **Contents:** Identical to `TeensyV2/` minus build artifacts and ROS scaffolding (`package.xml`, `CMakeLists.txt`)
 - **New docs:** `AI_CONTEXT.md` + `TODO.md` added (architectural review, GPIO e-stop, message redesign)
 
 ### Bash aliases updated
 
-All `compileBoard1`, `buildBoard1`, `buildBoard2`, `buildElevator`, `compileElevator`, `test_teensy` aliases now point to `~/sigyn_teensy_boards/`. The comment in `bashrc` notes when `TeensyV2/` can be removed.
+All `compileBoard1`, `buildBoard1`, `buildBoard2`, `buildElevator`, `compileElevator`, `test_teensy` aliases now point to `~/sigyn_ws/src/sigyn_teensy_boards/`. The comment in `bashrc` notes when `TeensyV2/` can be removed.
 
 ### When to remove `TeensyV2/` from this monorepo
 
