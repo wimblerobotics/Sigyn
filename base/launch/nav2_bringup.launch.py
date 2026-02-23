@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Wimble Robotics
+# Derived from nav2_bringup (Copyright 2018 Intel Corporation, Apache-2.0)
+#
 # Copyright (c) 2018 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -73,7 +77,7 @@ def generate_launch_description():
     )
 
     base_directory_path = get_package_share_directory('base')
-    default_bt_xml_path = os.path.join(base_directory_path, "config", "nav_through_poses.xmlx")
+    default_bt_xml_path = os.path.join(base_directory_path, "config", "nav_through_poses.xml")
 
     # Range sensors:
     # - default is 'auto': enabled on real robot, disabled in simulation

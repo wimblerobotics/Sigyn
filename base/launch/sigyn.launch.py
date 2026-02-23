@@ -1,11 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Wimble Robotics
+
 # Options:
 # bt_xml = Full path to behavior tree overriding default_nav_to_pose_bt_xml in the navigation yaml file.
 # do_joint_state_gui (false) - Flag to enable joint_state_publisher_gui.
 # do_rviz (true) - Launch RViz if true.
-# make_map (false) - Make a map vs navigate.
 # urdf_file_name (sigyn.urdf.xacro) - URDF file name.
-# use_sim_time (true) - Use simulation vs a real robot.
-# world (home.world) - World to load if simulating.
+# use_sim_time (false) - Use simulation vs a real robot.
+# world (home.world) - World to load if simulating (passed to sigyn_sim.launch.py).
 
 import os
 import platform
@@ -17,20 +19,16 @@ import launch_ros.actions
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
-    ExecuteProcess,
     IncludeLaunchDescription,
     LogInfo,
     OpaqueFunction,
-    RegisterEventHandler,
     SetEnvironmentVariable,
     TimerAction,
 )
 from launch.conditions import IfCondition, UnlessCondition
-from launch.event_handlers import OnProcessStart
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
     AndSubstitution,
-    Command,
     LaunchConfiguration,
     NotSubstitution,
     PathJoinSubstitution,
@@ -44,16 +42,11 @@ def launch_robot_state_publisher(
 ):
     description_directory_path = get_package_share_directory("sigyn_description")
     file_name = context.perform_substitution(file_name_var)
-    print(f"[launch_robot_state_publisher] file_name: {file_name}")
     xacro_file_path = os.path.join(description_directory_path, "urdf", file_name)
-    print(f"[launch_robot_state_publisher] xacro_file_path: {xacro_file_path}")
-    print(f"[launch_robot_state_publisher] use_sim_time: {use_sim_time.perform(context)}")
-    # urdf_as_xml = Command(['xacro ', xacro_file_path, ' use_ros2_control:=', use_ros2_control, ' sim_mode:=', use_sim_time])
-    # print(F"urdf_as_xml: {urdf_as_xml}")
 
-    # Determine if we should use ros2_control based on sim_time setting
+    # Use ros2_control only in simulation; the real Teensy boards own hardware control.
     use_ros2_control_value = "true" if use_sim_time.perform(context) == "true" else "false"
-    
+
     urdf_as_xml = xacro.process_file(
         xacro_file_path,
         mappings={
@@ -66,22 +59,18 @@ def launch_robot_state_publisher(
         package="robot_state_publisher",
         executable="robot_state_publisher",
         output="screen",
-        parameters=[
-            {
-                # 'frame_prefix': '',
-                "ignore_timestamp": False,
-                # 'publish_frequency': 30.0,
-                "robot_description": urdf_as_xml,
-                "use_sim_time": use_sim_time,
-            }
-        ],
+        parameters=[{
+            "ignore_timestamp": False,
+            "robot_description": urdf_as_xml,
+            "use_sim_time": use_sim_time,
+        }],
     )
     return [robot_state_publisher_node]
 
 
 def generate_launch_description():
     ld = LaunchDescription()
-    base_pgk = get_package_share_directory("base")
+    base_pkg = get_package_share_directory("base")
     description_pkg = get_package_share_directory("sigyn_description")
     default_world = os.path.join(
         description_pkg,
@@ -115,12 +104,6 @@ def generate_launch_description():
             name="do_rviz", default_value="true", description="Launch RViz if true"
         )
     )
-
-    make_map = LaunchConfiguration("make_map")
-    make_map_arg = DeclareLaunchArgument(
-        "make_map", default_value="False", description="Make a map vs navigate"
-    )
-    ld.add_action(make_map_arg)
 
     urdf_file_name = LaunchConfiguration("urdf_file_name")
     ld.add_action(
@@ -160,8 +143,6 @@ def generate_launch_description():
             do_joint_state_gui,
             "], do_rviz: [",
             do_rviz,
-            "], make_map: [",
-            make_map,
             "], urdf_file_name: [",
             urdf_file_name,
             "], use_sim_time: [",
@@ -206,31 +187,7 @@ def generate_launch_description():
         )
     )
 
-    # Include the SLAM Toolbox launch file for mapping
-    slam_toolbox = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            [
-                os.path.join(
-                    get_package_share_directory("slam_toolbox"),
-                    "launch",
-                    "online_async_launch.py",
-                )
-            ],
-        ),
-        condition=IfCondition(make_map),
-        launch_arguments={
-            "use_lifecycle_manager": "False",
-            "use_sim_time": use_sim_time,
-            "slam_params_file": os.path.join(
-                base_pgk, "config", "mapper_params_online_async.yaml"
-            ),
-            # "params_file": "/opt/ros/jazzy/share/slam_toolbox/config/mapper_params_online_async.yaml",
-        }.items(),
-    )
-    ld.add_action(slam_toolbox)
-
-    # Set Gazebo resource path to find textures and materials
-    base_pkg = get_package_share_directory("base")
+    # Set Gazebo resource path to find textures and materials.
     gz_resource_path = SetEnvironmentVariable(
         name="GZ_SIM_RESOURCE_PATH",
         value=os.path.join(base_pkg, "..") + ":" + os.environ.get("GZ_SIM_RESOURCE_PATH", "")
@@ -280,11 +237,6 @@ def generate_launch_description():
     ld.add_action(spawn_entity)
     
 
-    # Note: controller_manager is provided by Gazebo's gz_ros2_control plugin
-    # No need for separate ros2_control_node in simulation
-    controller_params_file = PathJoinSubstitution(
-        [description_pkg, "config", "my_controllers.yaml"])
-
     # Add delays to ensure Gazebo's controller manager is ready
     delayed_joint_broadcaster_spawner = TimerAction(
         period=3.0,  # Wait for Gazebo controller manager
@@ -308,15 +260,7 @@ def generate_launch_description():
     )
     ld.add_action(delayed_diff_drive_spawner)
 
-    # joint_state_broadcaster_spawner = Node(
-    #     condition=UnlessCondition(use_sim_time),
-    #     package="controller_manager",
-    #     executable="spawner",
-    #     arguments=["joint_state_broadcaster"],
-    # )
-    # ld.add_action(joint_state_broadcaster_spawner)
-
-    bridge_params = os.path.join(base_pgk, "config", "gz_bridge.yaml")
+    bridge_params = os.path.join(base_pkg, "config", "gz_bridge.yaml")
     ros_gz_bridge = Node(
         package="ros_gz_bridge",
         executable="parameter_bridge",
@@ -349,15 +293,13 @@ def generate_launch_description():
 
     # Bring up the navigation stack.
     navigation_launch_path = PathJoinSubstitution(
-        [base_pgk, "launch", "nav2_bringup.launch.py"]
+        [base_pkg, "launch", "nav2_bringup.launch.py"]
     )
  
-    # map_path_sim = os.path.join(base_pgk, "maps", "map2.yaml")
-    map_path_sim = os.path.join(base_pgk, "maps", "my_map.yaml")
-    map_path_real = os.path.join(base_pgk, "maps", "my_map.yaml") # "20241210l.yaml")
+    map_path_real = os.path.join(base_pkg, "maps", "my_map.yaml")
     
     nav2_config_path = os.path.join(
-        base_pgk, "config", "navigation_sim.yaml"
+        base_pkg, "config", "navigation_sim.yaml"
         # "/opt/ros/jazzy/share/nav2_bringup/params/nav2_params.yaml"
     )         
 
@@ -377,12 +319,6 @@ def generate_launch_description():
         }.items(),
     )
     ld.add_action(nav2_launch)
-    
-    echo_action = ExecuteProcess(
-        cmd=["echo", "[sim] Rviz config file path: " + rviz_config_path],
-        output="screen",
-    )
-    ld.add_action(echo_action)
 
     # Bring up the twist multiplexer.
     # Launched with namespace='sigyn' so the output topic resolves to /sigyn/cmd_vel,
@@ -408,7 +344,7 @@ def generate_launch_description():
     # Bring up the LIDAR.
     lidars_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            [base_pgk, "/launch/sub_launch/lidar.launch.py"]
+            [base_pkg, "/launch/sub_launch/lidar.launch.py"]
         ),
         condition=UnlessCondition(use_sim_time),
         launch_arguments={
@@ -435,24 +371,12 @@ def generate_launch_description():
     )
     ld.add_action(start_robot_localization_cmd)
 
-    # Publish joints.
+    # Publish joints (real robot only; simulation uses joint_state_broadcaster).
     joint_state_publisher_node = Node(
         package="joint_state_publisher",
         condition=UnlessCondition(use_sim_time),
         executable="joint_state_publisher",
         name="joint_state_publisher",
-        ### condition=IfCondition(LaunchConfiguration("publish_joints")),
-        # parameters=[
-        #     {
-        #         'delta': 0.0,
-        #         'publish_default_efforts': False,
-        #         'publish_default_positions': True,
-        #         'publish_default_velocities': False,
-        #         'rate': 30.0,
-        #         'use_mimic_tag': True,
-        #         'use_smallest_joint_limits': True
-        #     }
-        # ]
     )
     ld.add_action(joint_state_publisher_node)
     
@@ -469,7 +393,7 @@ def generate_launch_description():
     ld.add_action(
         DeclareLaunchArgument(
             name="oakd_params_file",
-            default_value=os.path.join(base_pgk, "config", "oakd_camera.yaml"),
+            default_value=os.path.join(base_pkg, "config", "oakd_camera.yaml"),
             description="OAK-D camera params file",
         )
     )
@@ -494,7 +418,7 @@ def generate_launch_description():
     # # Launch OAK-D camera driver (provides depth stream)
     # oakd_camera = IncludeLaunchDescription(
     #     PythonLaunchDescriptionSource(
-    #       [base_pgk, "/launch/sub_launch/oakd_stereo.launch.py"]
+    #       [base_pkg, "/launch/sub_launch/oakd_stereo.launch.py"]
     #     ),
     #     launch_arguments={
     #         "params_file": oakd_params_file,
@@ -506,7 +430,7 @@ def generate_launch_description():
     # Launch YOLO26 detector (subscribes to OAK-D streams)
     oakd_elevator_top = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-          [base_pgk, "/launch/sub_launch/oakd_yolo26_detector.launch.py"]
+          [base_pkg, "/launch/sub_launch/oakd_yolo26_detector.launch.py"]
         ),
         condition=IfCondition(AndSubstitution(NotSubstitution(use_sim_time), AndSubstitution(do_oakd, do_oakd_yolo26))),
     )
@@ -552,7 +476,7 @@ def generate_launch_description():
     # Add compressed image republisher for OAK-D
     oakd_compressed = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-          [base_pgk, "/launch/sub_launch/oakd_compressed_republisher.launch.py"]
+          [base_pkg, "/launch/sub_launch/oakd_compressed_republisher.launch.py"]
         ),
         condition=IfCondition(AndSubstitution(NotSubstitution(use_sim_time), do_oakd)),
     )
@@ -602,45 +526,7 @@ def generate_launch_description():
           ("/scan", "/stereo/points2")],
     )
     ld.add_action(pc2ls)
-    
-    # wifi_logger = IncludeLaunchDescription(
-    #   PythonLaunchDescriptionSource(
-    #     os.path.join(
-    #       get_package_share_directory('wifi_logger_visualizer'),
-    #       'launch',
-    #       'wifi_logger.launch.py'
-    #     )
-    #   )
-    # )
-    # ld.add_action(wifi_logger)
-    
-    # heat_mapper = IncludeLaunchDescription(
-    #   PythonLaunchDescriptionSource(
-    #     os.path.join(
-    #       get_package_share_directory('wifi_logger_visualizer'),sigyn
-    #       'launch',
-    #       'heat_mapper.launch.py'
-    #     )
-    #   )
-    # )
-    # ld.add_action(heat_mapper)
 
-    # SaySomethingActionServer = Node(
-    #     package="sigyn_behavior_trees",
-    #     executable="SaySomethingActionServer",
-    #     name="SaySomethingActionServer",
-    #     # prefix=['xterm -e gdb -ex run --args'],
-    # )
-    # ld.add_action(SaySomethingActionServer)
-    
-    # MoveAShortDistanceAheadActionServer = Node(
-    #     package="sigyn_behavior_trees",
-    #     executable="MoveAShortDistanceAheadActionServer",
-    #     name="MoveAShortDistanceAheadActionServer",
-    #     # prefix=['xterm -e gdb -ex run --args'],
-    # )
-    # ld.add_action(MoveAShortDistanceAheadActionServer)
-    
     do_joystick = LaunchConfiguration("do_joystick")
     ld.add_action(
         DeclareLaunchArgument(
@@ -689,23 +575,6 @@ def generate_launch_description():
         }]
     )
     ld.add_action(battery_overlay)
-
-    # sigyn_to_sensor = Node(
-    #     package="sigyn_to_sensor_v",
-    #     condition=UnlessCondition(use_sim_time),
-    #     executable="sigyn_to_sensor",
-    #     name="sigyn_to_sensor",
-    #     output="screen",    )
-    # ld.add_action(sigyn_to_sensor)
-    
-    # sigyn_to_elevator = Node(
-    #     package="sigyn_to_elevator",
-    #     condition=UnlessCondition(use_sim_time),
-    #     executable="sigyn_to_elevator",
-    #     name="sigyn_to_elevator",
-    #     output="screen",
-    # )
-    # ld.add_action(sigyn_to_elevator)
 
     rviz_env = {}
     if on_a_mac:

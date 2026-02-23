@@ -1,4 +1,3 @@
-````python
 # filepath: Sigyn/base/launch/precheck.launch.py
 # SPDX-License-Identifier: Apache-2.0
 #

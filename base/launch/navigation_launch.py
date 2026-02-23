@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Wimble Robotics
+# Derived from nav2_bringup (Copyright 2018 Intel Corporation, Apache-2.0)
+#
 # Copyright (c) 2018 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -66,7 +70,7 @@ def generate_launch_description():
         ["'False' if '", use_sim_time, "'.lower() == 'true' else 'True'"]
     )
     param_substitutions = {
-        'use_sim_time': use_sim_time, ###
+        'use_sim_time': use_sim_time,
         'autostart': autostart,
         'velocity_smoother.ros__parameters.use_realtime_priority': realtime_priority}
 
@@ -75,9 +79,9 @@ def generate_launch_description():
             source_file=params_file,
             root_key=namespace,
             param_rewrites=param_substitutions,
-            convert_types=False,  # CRITICAL: Don't convert types to preserve plugin strings
+            convert_types=False,  # Do not convert types — preserves nav2 plugin name strings.
         ),
-        ### allow_substs=True,
+        # allow_substs=True,
     )
 
     stdout_linebuf_envvar = SetEnvironmentVariable(

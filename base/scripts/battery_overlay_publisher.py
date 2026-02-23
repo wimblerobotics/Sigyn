@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Wimble Robotics
 """
 Battery overlay publisher for RViz2
 Subscribes to battery status and publishes as OverlayText
