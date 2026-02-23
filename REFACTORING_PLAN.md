@@ -499,27 +499,32 @@ This file is for local IDE integration (VS Code CMake Tools) and references mach
 
 ---
 
-## Execution Order (Suggested)
+## Execution Order (Updated 2026-02-22)
 
-1. **Git/Repo hygiene** (Section 1) — quick wins, no functional impact
-2. **Rename `base` → `sigyn_bringup`** (Section 2) — do in one PR to keep it atomic
-3. **`base` config/launch file purge** (Section 3) — remove dead files, create cartographer launch
+1. ✅ **Git/Repo hygiene** (Section 1) — done
+2. **Rename `base` → `sigyn_bringup`** (Section 2) — deferred, not current priority
+3. **`base` config/launch file purge** (Section 3) — deferred
 4. **Extract `sigyn_behavior_trees`** (Section 4) — in progress
 5. **Style sweep: SPDX + clang-format** (Section 12) — do per-package as each is touched
-6. **Extract `sigyn_to_sensor_v2` + `TeensyV2`** (Sections 5, 6) — do together (tightly coupled)
-7. ✅ **Extract `yolo_oakd_test`** (Section 7) — DONE (now `wimblerobotics/sigyn_oakd_detection`)
-8. **`can_do_challenge` BT v3→v4 migration + cleanup** (Section 8)
-8. **`can_do_challenge` cleanup** (Section 8) — especially BT v3 → v4 migration
-9. **Testing** (Section 13) — add tests after each package is in a clean state
-10. **`Sigyn2` updates** (Section 11) — update after each extraction
+6. ✅ **Extract `yolo_oakd_test`** (Section 7) — DONE (now `wimblerobotics/sigyn_oakd_detection`)
+7. **Verify + remove `TeensyV2/`** (Section 6 IN PROGRESS) — `sigyn_teensy_boards` created; verify builds/uploads work, then delete `TeensyV2/`
+8. **Extract `can_do_challenge`** (Section 8) — *next after TeensyV2 verified*
+   - Clean up AI model training bits → move to `sigyn_ai` repo
+   - Extract remaining challenge code to its own repo
+9. **Extract `bluetooth_joystick`** (Section 9) — after can_do_challenge
+10. **Extract `sigyn_to_sensor_v2`** (Section 5, tightly coupled with TeensyV2) — after bluetooth_joystick
+11. **`Documentation/` cleanup** — review and rationalize what stays in monorepo vs. moves
+12. **`scripts/` cleanup** — audit each script; remove or move stale ones
+13. **Testing** (Section 13) — add tests after each package is in a clean state
+14. **`Sigyn2` updates** (Section 11) — update after each extraction
 
 ---
 
 ## Open Questions
 
-1. Should `bluetooth_joystick` stay in the monorepo or get its own repo? (Lean: own repo, as it is hardware-specific and others might reuse it)
+1. ✅ Should `bluetooth_joystick` stay in the monorepo or get its own repo? **Decision: extract to own repo (priority 9 above)**
 2. Should `rviz` merge into `sigyn_bringup` or stay standalone? (Lean: merge — it's only one config file)
-3. Should `can_do_challenge` eventually move to its own repo? It's application-specific but has significant infrastructure (BT nodes, action servers, PI camera integration).
+3. ✅ Should `can_do_challenge` eventually move to its own repo? **Decision: yes (priority 8 above)**
 4. ✅ The `CanDetection.msg` question is resolved: `yolo_oakd_test` deleted; `OakdDetection.msg` (renamed) now lives in `sigyn_interfaces` v0.9.4.
 5. Does anything actually use `base/config/pcl.yaml`? If the pointcloud launch is dead, this config is too.
 6. What is the intended purpose of `config/gazebo.yaml` vs `config/gz_bridge.yaml`? Both appear to exist. Is `gazebo.yaml` for something other than the bridge?
