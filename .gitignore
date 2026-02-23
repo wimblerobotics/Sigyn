@@ -49,6 +49,7 @@ CMakeLists.txt.user
 srv/_*.py
 *.pcd
 *.pyc
+**/__pycache__/
 qtcreator-*
 *.user
 
@@ -104,3 +105,8 @@ runs/
 *.onnx
 *.blob
 foo.*
+
+# can_do_challenge — training data and model training artifacts (not source)
+can_do_challenge/resources/calibration_imgs/
+can_do_challenge/resources/models/can_yolov5n_repo/
+can_do_challenge/resources/models/can_yolov5n_repo2/

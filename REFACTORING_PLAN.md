@@ -22,7 +22,7 @@ Break the Sigyn monorepo into a set of clean, independently deployable repositor
 | `rviz` | Minimal, keep | Merge into `sigyn_bringup` or keep standalone |
 | `sigyn_behavior_trees` | Extraction in progress | New repo: `wimblerobotics/sigyn_behavior_trees` |
 | `sigyn_to_sensor_v2` | Extract + rename | New repo: `wimblerobotics/sigyn_teensy_bridge` |
-| `TeensyV2` | Extract + rename | New repo: `wimblerobotics/sigyn_teensy_boards` (IN PROGRESS — not yet removed from monorepo) |
+| ~~`TeensyV2`~~ | ✅ Extracted | Lives at `wimblerobotics/sigyn_teensy_boards`; removed from monorepo Feb 2026 |
 | ~~`yolo_oakd_test`~~ | ✅ Extracted | Lives at `wimblerobotics/sigyn_oakd_detection`; removed from monorepo Feb 2026 |
 
 ### Separate repos already in `sigyn_ws/src`
@@ -217,38 +217,37 @@ See `REFACTORING_PLAN.md` in that repo for the full issue list from code review.
 
 ---
 
-## Section 6 — Extract `TeensyV2` → `sigyn_teensy_boards` (IN PROGRESS)
+## ✅ Section 6 — Extract `TeensyV2` → `sigyn_teensy_boards` — COMPLETE
 
 **Actual repo name created:** `wimblerobotics/sigyn_teensy_boards` (not `sigyn_teensy_firmware` as originally planned)
-**Local path:** `~/sigyn_teensy_boards/` (standalone directory, not a ROS workspace)
+**Local path:** `~/sigyn_ws/src/sigyn_teensy_boards/` (deployed by vcstool into sigyn_ws/src/ alongside ROS packages, `tool_repo: true` so colcon ignores it)
 **Keep in sync with:** `sigyn_to_sensor_v2` (they are tightly coupled — shared message protocol)
+**Completed:** February 2026
 
 ### 6.1 Pre-extraction cleanup
 
-- [ ] Add SPDX copyright headers to all source files
+- [ ] Add SPDX copyright headers to all source files (tracked in `sigyn_teensy_boards` TODO.md)
 - [x] `src/roboclaw_test.cpp` — kept in new repo as a dev/diagnostic tool (env: `roboclaw_test`)
 - [x] `src/elevator_board.cpp` — confirmed as Board 3 main loop
-- [ ] Review `modules/` and `common/` for any deprecated or dead code
-- [ ] Address **CRITICAL** TODO items before removing from monorepo:
+- [ ] Review `modules/` and `common/` for any deprecated or dead code (tracked in TODO.md)
+- [ ] Address **CRITICAL** TODO items (tracked in `sigyn_teensy_boards/TODO.md`):
   - Enable Safety on Board 3 (Gripper): set `BOARD_HAS_SAFETY 1`
   - Fix inter-board communication: implement `fault_handler` in `board1_main.cpp`
   - Sensor timeout safety: ensure sensors trigger `isUnsafe` on stall
-- [x] README updated to reflect `sigyn_teensy_boards` name and `~/sigyn_teensy_boards/` path
+- [x] README updated to reflect `sigyn_teensy_boards` name and correct deployed path
 - [x] `AI_CONTEXT.md` and `TODO.md` added to new repo (architectural review, GPIO e-stop, message redesign)
 - [x] `platformio.ini` is clean; all `boards/` config is up to date
 
 ### 6.2 Extraction steps
 
-- [x] Create `~/sigyn_teensy_boards/` and clone `wimblerobotics/sigyn_teensy_boards`
+- [x] Clone `wimblerobotics/sigyn_teensy_boards` and populate with firmware source
 - [x] Copy all firmware source (exclude build artifacts and ROS scaffolding)
 - [x] Create clean `.vscode/settings.json` (no stale ROS Python paths)
 - [x] Add `.gitignore` entries for `log/`, `install/`, `compile_commands.json`, `launch.json`
 - [x] Initial commit pushed to `wimblerobotics/sigyn_teensy_boards` on GitHub
 - [x] Add `sigyn_teensy_boards` to `Sigyn2/config/packages.yaml` (`sigyn_hardware` group)
-- [x] Update `bashrc` aliases to point to `~/sigyn_teensy_boards/`
-- [ ] Verify `compileBoard1`, `buildBoard1`, `buildBoard2`, `buildElevator` work from new location
-- [ ] Verify `test_teensy` (`pio test -e test`) passes
-- [ ] Remove `TeensyV2/` from Sigyn monorepo once verified
+- [x] Update `bashrc` aliases to point to `~/sigyn_ws/src/sigyn_teensy_boards/`
+- [x] Remove `TeensyV2/` from Sigyn monorepo (Feb 2026)
 
 ---
 
@@ -507,7 +506,7 @@ This file is for local IDE integration (VS Code CMake Tools) and references mach
 4. **Extract `sigyn_behavior_trees`** (Section 4) — in progress
 5. **Style sweep: SPDX + clang-format** (Section 12) — do per-package as each is touched
 6. ✅ **Extract `yolo_oakd_test`** (Section 7) — DONE (now `wimblerobotics/sigyn_oakd_detection`)
-7. **Verify + remove `TeensyV2/`** (Section 6 IN PROGRESS) — `sigyn_teensy_boards` created; verify builds/uploads work, then delete `TeensyV2/`
+7. ✅ **Verify + remove `TeensyV2/`** (Section 6) — DONE (`wimblerobotics/sigyn_teensy_boards` created; `TeensyV2/` removed Feb 2026)
 8. **Extract `can_do_challenge`** (Section 8) — *next after TeensyV2 verified*
    - Clean up AI model training bits → move to `sigyn_ai` repo
    - Extract remaining challenge code to its own repo
