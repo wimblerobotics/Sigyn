@@ -21,7 +21,7 @@ Behavior Trees -- Create a single, parameterized Condition Node (e.g., `IsFaultA
 ✓ [DONE 2026-02-08] Add position feedback messages from Board 3 to ROS2
   - Implemented STEPPERSTAT3 message with JSON payload
   - Reports elevator_position, extender_position, limit switch states, max travel values
-  - Published on /gripper/status topic via sigyn_to_sensor_v2
+  - Published on /gripper/status topic via sigyn_to_teensy
 ✓ [DONE 2026-02-08] ROS2 Integration - Phase 1 Complete
   - Created GripperStatus.msg and GripperPositionCommand.msg in sigyn_interfaces
   - Added /gripper/status publisher (STEPPERSTAT3 → GripperStatus)
@@ -52,7 +52,7 @@ Behavior Trees -- Create a single, parameterized Condition Node (e.g., `IsFaultA
   - Visual servoing loop: step 2cm → check camera → repeat until target reached
 
 # Multi-Board Safety Coordination (2025-01-06)
-* [HIGH] Enable SafetyCoordinator on Board2 and Board3 - Each board needs to send FAULT messages to sigyn_to_sensor_v2
+* [HIGH] Enable SafetyCoordinator on Board2 and Board3 - Each board needs to send FAULT messages to sigyn_to_teensy
   - Update config.h to ensure BOARD_HAS_SAFETY=1 for boards 2 and 3
   - Verify SafetyCoordinator::getInstance() is called in board2_main.cpp and board3_main.cpp
 * [HIGH] GPIO Inter-Board E-Stop Signaling - Implement hardware-level fault propagation
@@ -71,7 +71,7 @@ Behavior Trees -- Create a single, parameterized Condition Node (e.g., `IsFaultA
 # General
 * Predict battery discharge time based on current draw.
 * Board1 should pick up roboclaw temp, motor1 current, motor2 current.
-* Implement heartbeat/watchdog from sigyn_to_sensor_v2.
+* Implement heartbeat/watchdog from sigyn_to_teensy.
 
 # IMU
 * Detect critical tilt in x or y.

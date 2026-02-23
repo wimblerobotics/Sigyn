@@ -17,11 +17,11 @@ Break the Sigyn monorepo into a set of clean, independently deployable repositor
 | Package | Status | Destination |
 |---|---|---|
 | `base` | Keep, but rename and purge | Rename → `sigyn_bringup` (or `sigyn_launch`), stays here |
-| `bluetooth_joystick` | Keep or extract | Stays here for now; extract later if desired |
+| ~~`bluetooth_joystick`~~ | ✅ Extracted | Lives at `wimblerobotics/sigyn_bluetooth_joystick`; removal from monorepo pending |
 | `can_do_challenge` | Major cleanup needed | Stays here as application layer |
 | `rviz` | Minimal, keep | Merge into `sigyn_bringup` or keep standalone |
 | `sigyn_behavior_trees` | Extraction in progress | New repo: `wimblerobotics/sigyn_behavior_trees` |
-| `sigyn_to_sensor_v2` | Extract + rename | New repo: `wimblerobotics/sigyn_teensy_bridge` |
+| ~~`sigyn_to_sensor_v2`~~ | ✅ Extracted | Lives at `wimblerobotics/sigyn_to_teensy`; removal from monorepo pending |
 | ~~`TeensyV2`~~ | ✅ Extracted | Lives at `wimblerobotics/sigyn_teensy_boards`; removed from monorepo Feb 2026 |
 | ~~`yolo_oakd_test`~~ | ✅ Extracted | Lives at `wimblerobotics/sigyn_oakd_detection`; removed from monorepo Feb 2026 |
 
@@ -188,32 +188,29 @@ See `REFACTORING_PLAN.md` in that repo for the full issue list from code review.
 
 ---
 
-## Section 5 — Extract `sigyn_to_sensor_v2` → `sigyn_teensy_bridge`
+## ✅ Section 5 — Extract `sigyn_to_sensor_v2` → `sigyn_to_teensy` — COMPLETE
 
-**New repo name:** `wimblerobotics/sigyn_teensy_bridge`
+**Actual repo name created:** `wimblerobotics/sigyn_to_teensy`
+**Local path:** `~/sigyn_to_teensy_ws/src/sigyn_to_teensy/`
+**Completed:** February 2026
 
-### 5.1 Pre-extraction cleanup inside the current directory
+### What was done
 
-- [ ] Add SPDX copyright headers to all source files
-- [ ] Rename package in `CMakeLists.txt` / `package.xml`: `sigyn_to_sensor_v2` → `sigyn_teensy_bridge`
-- [ ] Apply Google style + clang-format to all C++ headers and sources
-- [ ] Review `include/sigyn_to_sensor_v2/` — any `.h` files should become `.hpp` (ROS 2 / Google convention)
-- [ ] `performance_monitor.h` and `safety_publisher.h` — audit whether these are used in compilation; if headers-only features that were planned but not yet wired, move to `~/other_repository`
-- [ ] Check for and remove any `printf` / `cout` calls; use `RCLCPP_*` logging
-- [ ] The `docs/` directory has good audit documents; keep but convert to proper Doxygen or package README sections
-- [ ] **TODO from TODO_list.txt:**
-  - Implement heartbeat/watchdog from `sigyn_to_sensor_v2`
-  - Battery discharge prediction
-  - Enable SafetyCoordinator on Board2 and Board3
+- [x] Renamed package: `sigyn_to_sensor_v2` → `sigyn_to_teensy`
+- [x] Renamed all `TeensyV2` references → `sigyn_teensy_boards`
+- [x] Removed unused `rclcpp_lifecycle`, `rclcpp_components` dependencies
+- [x] Renamed config: `teensy_v2_config.yaml` → `sigyn_to_teensy.yaml`
+- [x] Renamed launch: `teensy_bridge.launch.py` → `sigyn_to_teensy.launch.py`
+- [x] Renamed include directory: `sigyn_to_sensor_v2/` → `sigyn_to_teensy/`
+- [x] SPDX Apache-2.0 headers on all source files; copyright 2025 → 2026
+- [x] `AI_CONTEXT.md`, `README.md` rewritten; `docs/` kept
+- [x] Updated `base/launch/sigyn.launch.py` package/launch name references
+- [x] Initial commit `491abf5` pushed to `wimblerobotics/sigyn_to_teensy`
 
-### 5.2 Extraction steps
-
-- [ ] Create `~/sigyn_teensy_bridge_ws/src/sigyn_teensy_bridge/`
-- [ ] `git init`, rename package, initial commit
-- [ ] Create `wimblerobotics/sigyn_teensy_bridge` on GitHub, push
-- [ ] Update `Sigyn2/packages.yaml` to reference new repo
-- [ ] Update `sigyn.launch.py` to use `sigyn_teensy_bridge` package name
-- [ ] Remove `sigyn_to_sensor_v2/` from Sigyn monorepo
+Remaining follow-up:
+- [ ] Remove `sigyn_to_sensor_v2/` from Sigyn monorepo; update `Sigyn2/packages.yaml`
+- [ ] Add unit tests for `message_parser.cpp` (ament_cmake_gtest)
+- [ ] Rework with dependency injection; rearchitect to align with `sigyn_teensy_boards` changes
 
 ---
 
@@ -221,7 +218,7 @@ See `REFACTORING_PLAN.md` in that repo for the full issue list from code review.
 
 **Actual repo name created:** `wimblerobotics/sigyn_teensy_boards` (not `sigyn_teensy_firmware` as originally planned)
 **Local path:** `~/sigyn_ws/src/sigyn_teensy_boards/` (deployed by vcstool into sigyn_ws/src/ alongside ROS packages, `tool_repo: true` so colcon ignores it)
-**Keep in sync with:** `sigyn_to_sensor_v2` (they are tightly coupled — shared message protocol)
+**Keep in sync with:** `sigyn_to_teensy` (tightly coupled — shared message protocol; now at `wimblerobotics/sigyn_to_teensy`)
 **Completed:** February 2026
 
 ### 6.1 Pre-extraction cleanup
@@ -312,15 +309,19 @@ Currently 9 step-by-step launch files (`step1_real_launch.py` ... `step5_elevato
 
 ---
 
-## Section 9 — `bluetooth_joystick` Cleanup
+## ✅ Section 9 — `bluetooth_joystick` → `sigyn_bluetooth_joystick` — COMPLETE
 
-This package is self-contained and relatively clean.
+**Actual repo name created:** `wimblerobotics/sigyn_bluetooth_joystick`
+**Local path:** `~/sigyn_bluetooth_joystick_ws/src/sigyn_bluetooth_joystick/`
+**Completed:** February 2026
 
-- [ ] Add SPDX copyright headers
-- [ ] Apply Google style + clang-format to `src/joystick_node.cpp`
-- [ ] `udev_rules/` has two files (`01-joystick.rules` and `93.nimbus.rules` — note the `.` separator on one, `_` on the other); consolidate/fix naming
-- [ ] README is present — review for accuracy
-- [ ] Consider whether this warrants its own repo (`wimblerobotics/sigyn_bluetooth_joystick`) or stays in the monorepo
+- [x] Renamed package and executable to `sigyn_bluetooth_joystick`
+- [x] Fixed include path, removed unused globals, fixed misleading button comment
+- [x] Added missing `std_msgs` dependency
+- [x] SPDX Apache-2.0 headers; README rewritten (fixed MIT→Apache-2.0 error)
+- [x] `AI_CONTEXT.md` created; initial commit pushed
+
+Remaining: Remove `bluetooth_joystick/` from Sigyn monorepo
 
 ---
 
@@ -343,7 +344,7 @@ After each extraction above, `Sigyn2/config/packages.yaml` and `Sigyn2/config/ro
 |---|---|
 | `sigyn_behavior_trees` extracted | Add new group `sigyn_behavior_trees` with `wimblerobotics/sigyn_behavior_trees` |
 | `base` renamed to `sigyn_bringup` | Update `sigyn_navigation` group — Sigyn monorepo name stays but package name changes |
-| `sigyn_to_sensor_v2` extracted | Add `sigyn_hardware` repo entry: `wimblerobotics/sigyn_teensy_bridge` |
+| ✅ `sigyn_to_sensor_v2` extracted | `sigyn_hardware` group: `wimblerobotics/sigyn_to_teensy` (done — monorepo removal pending) |
 | `TeensyV2` extracted | Add `sigyn_hardware` group: `wimblerobotics/sigyn_teensy_boards` (done — pending TeensyV2/ removal from monorepo) |
 | ✅ `yolo_oakd_test` extracted | Add `sigyn_vision` group: `wimblerobotics/sigyn_oakd_detection` (done — Sigyn2 packages.yaml update pending) |
 
@@ -359,7 +360,7 @@ After each extraction above, `Sigyn2/config/packages.yaml` and `Sigyn2/config/ro
 - [ ] Add a `README.md` covering: hardware wiring (PCA9685 I2C address, servo channel assignments), udev rules needed, deployment instructions
 - [ ] Verify `Sigyn2/packages.yaml` `pi_gripper` group entry has correct git URL and branch
 - [ ] Ensure the `pi_gripper` action interface (if any) is defined in `sigyn_interfaces`, not privately inside this repo
-- [ ] Confirm the topic/service names match what `sigyn_to_sensor_v2` (or `sigyn_teensy_bridge`) and `can_do_challenge` expect
+- [ ] Confirm the topic/service names match what `sigyn_to_teensy` and `can_do_challenge` expect
 - [ ] Add basic unit tests with `pytest` for any non-ROS servo math/limit-checking logic
 
 ---
@@ -440,9 +441,9 @@ PointerAlignment: Left
 
 ## Section 13 — Testing
 
-### 13.1 `sigyn_to_sensor_v2` (→ `sigyn_teensy_bridge`)
+### 13.1 `sigyn_to_teensy` (formerly `sigyn_to_sensor_v2`)
 
-Tests exist in `TeensyV2/test/` (PlatformIO side). On the ROS 2 side:
+Tests exist in `sigyn_teensy_boards/test/` (PlatformIO side). On the ROS 2 side:
 - [ ] Add `ament_cmake_gtest` tests for `message_parser.cpp` — unit test all message format strings
 - [ ] Add a mock serial port test to verify the bridge correctly publishes sensor data
 - [ ] Wire up `BUILD_TESTING` in `CMakeLists.txt` — currently the block is present in `package.xml` test_depend but the CMake side may be empty
@@ -498,24 +499,44 @@ This file is for local IDE integration (VS Code CMake Tools) and references mach
 
 ---
 
-## Execution Order (Updated 2026-02-22)
+## Execution Order (Updated 2026-02-23)
 
 1. ✅ **Git/Repo hygiene** (Section 1) — done
-2. **Rename `base` → `sigyn_bringup`** (Section 2) — deferred, not current priority
+2. **Rename `base` → `sigyn_bringup`** (Section 2) — deferred
 3. **`base` config/launch file purge** (Section 3) — deferred
 4. **Extract `sigyn_behavior_trees`** (Section 4) — in progress
-5. **Style sweep: SPDX + clang-format** (Section 12) — do per-package as each is touched
-6. ✅ **Extract `yolo_oakd_test`** (Section 7) — DONE (now `wimblerobotics/sigyn_oakd_detection`)
-7. ✅ **Verify + remove `TeensyV2/`** (Section 6) — DONE (`wimblerobotics/sigyn_teensy_boards` created; `TeensyV2/` removed Feb 2026)
-8. **Extract `can_do_challenge`** (Section 8) — *next after TeensyV2 verified*
-   - Clean up AI model training bits → move to `sigyn_ai` repo
-   - Extract remaining challenge code to its own repo
-9. **Extract `bluetooth_joystick`** (Section 9) — after can_do_challenge
-10. **Extract `sigyn_to_sensor_v2`** (Section 5, tightly coupled with TeensyV2) — after bluetooth_joystick
-11. **`Documentation/` cleanup** — review and rationalize what stays in monorepo vs. moves
-12. **`scripts/` cleanup** — audit each script; remove or move stale ones
+5. **Style sweep: SPDX + clang-format** (Section 12) — done per-package as each is touched
+6. ✅ **Extract `yolo_oakd_test`** (Section 7) — DONE (`wimblerobotics/sigyn_oakd_detection`)
+7. ✅ **Verify + remove `TeensyV2/`** (Section 6) — DONE (`wimblerobotics/sigyn_teensy_boards`; Feb 2026)
+8. ✅ **Extract `can_do_challenge`** — DONE (`wimblerobotics/can_do_challenge`; Feb 2026)
+9. ✅ **Extract `bluetooth_joystick`** (Section 9) — DONE (`wimblerobotics/sigyn_bluetooth_joystick`; Feb 2026)
+10. ✅ **Extract `sigyn_to_sensor_v2`** (Section 5) — DONE (`wimblerobotics/sigyn_to_teensy`; Feb 2026)
+11. **Remove extracted packages from monorepo** — `bluetooth_joystick/`, `sigyn_to_sensor_v2/` still present
+12. **`Sigyn2` updates** (Section 11) — add new repos to packages.yaml
 13. **Testing** (Section 13) — add tests after each package is in a clean state
-14. **`Sigyn2` updates** (Section 11) — update after each extraction
+
+## Next Priorities (2026-02-23)
+
+In rough order of urgency:
+
+1. **Clean up `base`** — code review of launches (remove dead files per Section 3),
+   rename to `sigyn_bringup` (Section 2). Many obsolete sub-launch files.
+
+2. **Get `~/other_repository/perimeter_roamer_v3` working** — restore to operational
+   state on the real robot.
+
+3. **Get `can_do_challenge` working** — both simulation and real robot. The package
+   was extracted to `wimblerobotics/can_do_challenge`; needs integration testing.
+
+4. **`sigyn_teensy_boards` rework** — analyze, rearchitect as necessary, shorten
+   message lengths, implement board-to-board e-stop via GPIO (see TODO.md and
+   `sigyn_teensy_boards/TODO.md`).
+
+5. **`sigyn_to_teensy` rework** — correspond to `sigyn_teensy_boards` changes,
+   add unit tests for `message_parser.cpp`, rework with dependency injection
+   to improve testability.
+
+6. **Audit all repos in `Sigyn2`** — check architecture, clean up, add tests.
 
 ---
 

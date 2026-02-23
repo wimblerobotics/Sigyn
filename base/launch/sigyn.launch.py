@@ -665,10 +665,10 @@ def generate_launch_description():
     def launch_sigyn_to_sensor(context, *args, **kwargs):
         if use_sim_time.perform(context).lower() == 'true':
             return []
-        pkg = get_package_share_directory("sigyn_to_sensor_v2")
+        pkg = get_package_share_directory("sigyn_to_teensy")
         return [IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
-                os.path.join(pkg, "launch", "teensy_bridge.launch.py")
+                os.path.join(pkg, "launch", "sigyn_to_teensy.launch.py")
             ),
             launch_arguments={'namespace': 'sigyn'}.items(),
         )]
