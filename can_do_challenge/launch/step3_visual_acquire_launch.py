@@ -9,7 +9,6 @@ import os
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
 
@@ -32,23 +31,16 @@ def generate_launch_description():
 		}.items(),
 	)
 
-	yolo_pkg = get_package_share_directory("yolo_oakd_test")
-	oakd_node = Node(
-		package="yolo_oakd_test",
-		executable="oakd_can_detector.py",
-		name="oakd_can_detector_custom",
-		output="screen",
-		parameters=[{
-			"blob_path": os.path.join(yolo_pkg, "models", "can_detector.blob"),
+	oakd_pkg = get_package_share_directory("sigyn_oakd_detection")
+	oakd_launch = IncludeLaunchDescription(
+		PythonLaunchDescriptionSource(
+			os.path.join(oakd_pkg, "launch", "oakd_detector.launch.py")
+		),
+		launch_arguments={
 			"camera_frame": "oak_rgb_camera_optical_frame",
 			"spatial_axis_map": "-z,x,y",
-			"log_tf_debug": False,
-		}],
-		remappings=[
-			("/oakd_top/can_point_camera", "/oakd/can_detection"),
-			# Annotated image output
-			("/oakd_top/annotated_image", "/oakd/annotated_image")
-		]
+			"log_tf_debug": "false",
+		}.items(),
 	)
 
 	can_do_node = Node(

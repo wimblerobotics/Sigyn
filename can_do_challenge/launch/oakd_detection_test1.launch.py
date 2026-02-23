@@ -4,7 +4,7 @@ Minimal OAK-D detection test launch.
 
 Runs:
 - robot description (TF tree)
-- yolo_oakd_test detector node
+- sigyn_oakd_detection detector node
 - can_do_challenge BT using bt_xml/oakd_detection_test1.xml
 """
 
@@ -19,8 +19,6 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     base_pkg = get_package_share_directory("base")
     can_do_pkg = get_package_share_directory("can_do_challenge")
-    yolo_pkg = get_package_share_directory("yolo_oakd_test")
-
     sigyn_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(base_pkg, "launch", "sigyn.launch.py")
@@ -36,21 +34,16 @@ def generate_launch_description():
         }.items(),
     )
 
-    oakd_node = Node(
-        package="yolo_oakd_test",
-        executable="oakd_can_detector.py",
-        name="oakd_can_detector_custom",
-        output="screen",
-        parameters=[{
-            "blob_path": os.path.join(yolo_pkg, "models", "can_detector.blob"),
+    oakd_pkg = get_package_share_directory("sigyn_oakd_detection")
+    oakd_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(oakd_pkg, "launch", "oakd_detector.launch.py")
+        ),
+        launch_arguments={
             "camera_frame": "oak_rgb_camera_optical_frame",
             "spatial_axis_map": "-z,x,y",
-            "log_tf_debug": False,
-        }],
-        remappings=[
-            ("/oakd_top/can_point_camera", "/oakd/can_detection"),
-            ("/oakd_top/annotated_image", "/oakd/annotated_image"),
-        ],
+            "log_tf_debug": "false",
+        }.items(),
     )
 
     can_do_node = Node(
@@ -68,6 +61,6 @@ def generate_launch_description():
 
     return LaunchDescription([
         sigyn_launch,
-        oakd_node,
+        oakd_launch,
         can_do_node,
     ])
