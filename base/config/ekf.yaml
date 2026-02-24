@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Wimble Robotics
 ekf_filter_node:
     ros__parameters:
         frequency: 50.0  # match /wheel_odom publish rate

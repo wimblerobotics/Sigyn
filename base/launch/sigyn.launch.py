@@ -299,8 +299,7 @@ def generate_launch_description():
     map_path_real = os.path.join(base_pkg, "maps", "my_map.yaml")
     
     nav2_config_path = os.path.join(
-        base_pkg, "config", "navigation_sim.yaml"
-        # "/opt/ros/jazzy/share/nav2_bringup/params/nav2_params.yaml"
+        base_pkg, "config", "navigation.yaml"
     )         
 
     nav2_launch = IncludeLaunchDescription(

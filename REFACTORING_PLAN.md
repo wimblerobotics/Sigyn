@@ -1,6 +1,6 @@
 # Sigyn Monorepo Refactoring Plan
 **Created:** 2026-02-20  
-**Status:** In progress — no changes made yet; this document is the roadmap.
+**Status:** In progress — updated 2026-02-24
 
 ---
 
@@ -47,27 +47,21 @@ Break the Sigyn monorepo into a set of clean, independently deployable repositor
 
 ## Section 1 — Git / Repo Hygiene
 
-### 1.1 Add missing `.gitignore` entries
+### 1.1 Add missing `.gitignore` entries ✅ DONE
 
-The current `.gitignore` covers `.pyc` but not:
-- `**/__pycache__/` directories (present in `base/launch/` and `base/launch/sub_launch/` and `can_do_challenge/launch/`)
-- `base/out/` — entire CMake IDE build tree committed to git (hundreds of generated files)
-- `can_do_challenge/launch/__pycache__/` (one file already committed: `step3_visual_acquire_launch.cpython-312.pyc`)
-- `base/launch/__pycache__/nav2_bringup.launch.cpython-312.pyc` committed to git
+The current `.gitignore` now covers:
+- `**/__pycache__/` directories ✅
+- `can_do_challenge/resources/calibration_imgs/` ✅
 
-**Action:** Add `**/__pycache__/` and `base/out/` to `.gitignore`, then `git rm -r --cached` those paths.
+**Remaining:** `base/out/` — full CMake IDE configure tree is still committed to git (see 1.2).
 
-### 1.2 Remove committed build artifacts
+### 1.2 Remove committed build artifacts ✅ DONE
 
-- `base/out/` — full CMake IDE configure tree with binaries; should never be committed.
+`base/out/` was never committed to git (already excluded). Added `base/out/` to `.gitignore`.
 
-### 1.3 Large binary assets in `can_do_challenge/resources/`
+### 1.3 Large binary assets in `can_do_challenge/resources/` ✅ DONE
 
-Calibration images (JPEGs) are committed to the main git history. These should either:
-- Be removed and documented with instructions to re-acquire, or
-- Moved to git-lfs.
-
-Affected path: `can_do_challenge/resources/calibration_imgs/` (~30 images).
+`can_do_challenge/resources/calibration_imgs/` is now in `.gitignore`. The `can_do_challenge` package itself has been extracted to `wimblerobotics/can_do_challenge`.
 
 ---
 
@@ -89,45 +83,30 @@ Affected path: `can_do_challenge/resources/calibration_imgs/` (~30 images).
 
 ## Section 3 — `base`/`sigyn_bringup` Package Cleanup
 
-### 3.1 Dead launch files to remove
+### 3.1 Dead launch files to remove ✅ DONE
 
-| File | Reason |
-|---|---|
-| `launch/foo.launch.py` | Placeholder code with `your_package`/`object_detection_node` references; never ran |
-| `launch/sub_launch/base.launch.py` | Never included by `sigyn.launch.py`; logic now inlined; references `wr_twist_multiplexer.launch.py` which may not exist |
-| `launch/sub_launch/common.py` | Not imported by anything; contains old `snowberry4v31.yaml` map reference and wrong description package name (`description` not `sigyn_description`) |
-| `launch/sub_launch/oakd_stereo.launch.py` | `oakd_camera` call in `sigyn.launch.py` is fully commented out |
-| `launch/sub_launch/pointcloud.launch.py` | Not referenced in `sigyn.launch.py`; re-composite of `sigyn_camera_launch.py` |
-| `launch/sub_launch/sigyn_camera_launch.py` | Only used by the two dead files above; dead code |
-
-**To keep / actively used:**
-- `launch/sigyn.launch.py` — main launch
+All dead launch files have been removed. Remaining active launch files:
+- `launch/sigyn.launch.py` — main bringup
 - `launch/nav2_bringup.launch.py` — called by `sigyn.launch.py`
 - `launch/navigation_launch.py` — called by `nav2_bringup.launch.py`
-- `launch/precheck.launch.py` — device node precheck; good, keep
-- `launch/sub_launch/lidar.launch.py` — called by `sigyn.launch.py`
-- `launch/sub_launch/oakd_yolo26_detector.launch.py` — called by `sigyn.launch.py`
-- `launch/sub_launch/oakd_compressed_republisher.launch.py` — called by `sigyn.launch.py`
+- `launch/precheck.launch.py` — device node precheck
+- `launch/map_cartographer.launch.py` — Cartographer SLAM mapping ✅ created
+- `launch/map_slam_toolbox.launch.py` — SLAM Toolbox mapping ✅ created
+- `launch/sigyn_sim.launch.py` — simulation bringup
+- `launch/sub_launch/lidar.launch.py`
+- `launch/sub_launch/oakd_yolo26_detector.launch.py`
+- `launch/sub_launch/oakd_compressed_republisher.launch.py`
 
-### 3.2 Create a Cartographer mapping launch file
+### 3.2 ✅ Mapping launch files — DONE
 
-`base/config/cartographer.lua` exists and is well-configured, but **there is no launch file to actually run Cartographer**. This is needed to regenerate the map.
+`launch/map_cartographer.launch.py` and `launch/map_slam_toolbox.launch.py` both exist and have been validated (Feb 2026). Key fixes applied:
+- `cartographer.lua`: `use_odometry = true`, `published_frame = "odom"`, `provide_odom_frame = false`, `num_accumulated_range_data = 1`, submap resolution `0.0508` m
+- `mapper_params_online_async.yaml`: `base_frame` corrected from `base_footprint` → `base_link` (URDF has no `base_footprint`), resolution `0.0508` m, `correlation_search_space_resolution` aligned to map resolution
+- Both launches bring up EKF + Teensy bridge for dead-reckoning between scans
 
-**Create:** `launch/cartographer_mapping.launch.py` that:
-- Launches `cartographer_ros` with `cartographer.lua`
-- Brings up the LIDAR (via `lidar.launch.py` sub-launch)
-- Brings up `robot_state_publisher` + `joint_state_publisher`
-- Brings up EKF for odometry
-- Optionally brings up RViz with a cartographer-appropriate config
+### 3.3 Separate real-robot and simulation navigation configs ✅ DONE
 
-Also confirm `mapper_params_lifelong.yaml` vs `mapper_params_online_async.yaml` — which is used for mapping and which for localization-only?
-
-### 3.3 Separate real-robot and simulation navigation configs
-
-Currently `navigation_sim.yaml` is used for **both** real robot and simulation (the filename is misleading). 
-
-- Rename `navigation_sim.yaml` → `navigation.yaml`
-- If there are genuinely sim-specific settings, split into `navigation_real.yaml` and `navigation_sim.yaml`, and pick the right one in `sigyn.launch.py` based on `use_sim_time`.
+`navigation_sim.yaml` renamed to `navigation.yaml` (the file was always used for the real robot; the name was misleading). Reference in `sigyn.launch.py` updated.
 
 ### 3.4 Clarify which map is current
 
@@ -139,28 +118,22 @@ Maps directory contains:
 
 **Action:** Audit maps. Keep one canonical current map. Move old maps to `~/other_repository` or a `maps/archive/` subdirectory. Document which map is in use.
 
-### 3.5 Fix `package.xml` dependency errors
+### 3.5 Fix `package.xml` dependency errors ✅ DONE
 
-- `<depend>ldlidar</depend>` — old package name; should be `<depend>wr_ldlidar</depend>`
-- `<depend>python3-cython</depend>` — not needed by anything in this package
-- `<member_of_group>rosidl_interface_packages</member_of_group>` — this package defines no interfaces; remove
-- `<buildtool_depend>rosidl_default_generators</buildtool_depend>` + `<exec_depend>rosidl_default_runtime</exec_depend>` — same issue, not needed
+`package.xml` is now clean: correct `exec_depend` entries only, no spurious `ldlidar`, `python3-cython`, `rosidl_interface_packages`, or unneeded buildtool/exec deps.
 
-### 3.6 Fix `CMakeLists.txt`
+### 3.6 Fix `CMakeLists.txt` ✅ DONE
 
-- `add_compile_options(-g)` — this package has **no C++ targets**; the line does nothing except bloat future accidental additions. Remove.
-- `find_package(geometry_msgs REQUIRED)` / `nav_msgs` / `rclcpp` / `tf2_ros` — none are used in CMakeLists.txt (no C++ targets); remove all.
-- Minimum CMake version: `3.5` → `3.8` (to match other packages in the monorepo).
-- Add `set(CMAKE_CXX_STANDARD_REQUIRED ON)` if C++ ever gets added.
+`CMakeLists.txt` is now clean: no C++ targets, no spurious `find_package` calls, `cmake_minimum_required(VERSION 3.8)`, only installs `config/`, `launch/`, `maps/`, and `scripts/`.
 
 ### 3.7 Config files to audit
 
 | File | Notes |
 |---|---|
 | `config/bt1.xml` | Wait node with negative duration was fixed; review remaining content |
-| `config/nn/can_yolov5.json`, `can_yolov8.json` | Were used by `yolo_oakd_test` (now deleted). Move to `sigyn_oakd_detection` workspace or remove if obsolete. |
-| `config/oakd_camera.yaml` | OAK-D camera config; move to `sigyn_oakd_detection` workspace. |
-| `config/pcl.yaml` | PointCloud filter config; appears unused (pointcloud.launch.py is dead) |
+| `config/nn/can_yolov5.json`, `can_yolov8.json` | Used by `yolo_oakd_test` (deleted). Move to `sigyn_oakd_detection` workspace or remove. |
+| `config/oakd_camera.yaml` | Move to `sigyn_oakd_detection` workspace. |
+| `config/pcl.yaml` | Appears unused — `pointcloud.launch.py` was deleted. Remove. |
 | `config/gazebo.yaml` | Review if still relevant for sim |
 | `config/gz_bridge.yaml` | Actively used for Gazebo simulation |
 
@@ -272,9 +245,9 @@ Remaining follow-up (not blocking):
 
 ---
 
-## Section 8 — `can_do_challenge` Cleanup
+## Section 8 — `can_do_challenge` Cleanup ✅ EXTRACTED
 
-This package will remain in the monorepo as the application-level behavior for the Coke can challenge.
+`can_do_challenge` has been extracted to `wimblerobotics/can_do_challenge`. The items below apply to that repo.
 
 ### 8.1 Dependency issues
 
@@ -325,14 +298,14 @@ Remaining: Remove `bluetooth_joystick/` from Sigyn monorepo
 
 ---
 
-## Section 10 — `rviz` Package
+## Section 10 — `rviz` Package ✅ HEADERS DONE
 
-Very minimal: one config file, `CMakeLists.txt`, `package.xml`, `README.md`.
-
-- [ ] Option A: Merge into `sigyn_bringup` (the bringup package already references the rviz config by `get_package_share_directory("rviz")`)
-- [ ] Option B: Keep as a standalone package (clean, minimal, reasonable)
-- [ ] Whichever option: add SPDX header to `CMakeLists.txt` and `package.xml`
-- [ ] Review `config/config.rviz` to ensure all panel/display references match current topic names (especially after renaming/refactoring)
+- ✅ SPDX headers added to `CMakeLists.txt` and `package.xml`
+- ✅ `CMakeLists.txt` cleaned: `cmake_minimum_required(3.8)`, dead C99/C++14 boilerplate removed
+- ✅ `package.xml` description fixed
+- [ ] Option A: Merge into `sigyn_bringup` — deferred until rename happens
+- [ ] Option B: Keep standalone — current state
+- [ ] Review `config/config.rviz` for stale topic/panel references
 
 ---
 
@@ -367,30 +340,21 @@ After each extraction above, `Sigyn2/config/packages.yaml` and `Sigyn2/config/ro
 
 ## Section 12 — Cross-Cutting: Style, Naming, and Copyright
 
-### 12.1 SPDX copyright headers
+### 12.1 SPDX copyright headers — partial
 
-Add to **every** `.cpp`, `.hpp`, `.h`, `.py`, `.lua`, `CMakeLists.txt`, `package.xml`, `.launch.py` file:
+Add to **every** `.cpp`, `.hpp`, `.h`, `.py`, `.lua`, `CMakeLists.txt`, `package.xml`, `.launch.py` file.
 
-```
-// SPDX-License-Identifier: Apache-2.0
-// Copyright 2026 Wimble Robotics
-```
+Done as of 2026-02-24:
+- ✅ All `base/launch/*.py` and `sub_launch/*.py` files
+- ✅ `base/package.xml`, `base/CMakeLists.txt`
+- ✅ `base/config/ekf.yaml`, `mapper_params_online_async.yaml`, `mapper_params_lifelong.yaml`
+- ✅ `rviz/CMakeLists.txt`, `rviz/package.xml`
 
-For Python:
-```python
-# SPDX-License-Identifier: Apache-2.0
-# Copyright 2026 Wimble Robotics
-```
-
-For CMake/Lua:
-```
-# SPDX-License-Identifier: Apache-2.0
-# Copyright 2026 Wimble Robotics
-```
-
-**Note:** The GitHub organization URL slug is `wimblerobotics` (no space) — this is correct and intentional. The human-readable company name in copyright notices, package.xml `<maintainer>`, and documentation is **Wimble Robotics** (with a space).
-
-Some files already have SPDX headers (the newer OAK-D sub-launch files). Apply consistently everywhere.
+Still missing:
+- `base/config/bt1.xml`
+- `base/config/gazebo.yaml`, `gz_bridge.yaml`, `ekf.yaml` sub-comments
+- `base/scripts/battery_overlay_publisher.py` — check
+- All files in extracted repos (tracked in their own repos)
 
 ### 12.2 Google C++ Style
 
@@ -499,42 +463,38 @@ This file is for local IDE integration (VS Code CMake Tools) and references mach
 
 ---
 
-## Execution Order (Updated 2026-02-23)
+## Execution Order (Updated 2026-02-24)
 
-1. ✅ **Git/Repo hygiene** (Section 1) — done
+1. ✅ **Git/Repo hygiene** (Section 1) — partial; `base/out/` still needs `git rm --cached`
 2. **Rename `base` → `sigyn_bringup`** (Section 2) — deferred
-3. **`base` config/launch file purge** (Section 3) — deferred
-4. **Extract `sigyn_behavior_trees`** (Section 4) — in progress
-5. **Style sweep: SPDX + clang-format** (Section 12) — done per-package as each is touched
-6. ✅ **Extract `yolo_oakd_test`** (Section 7) — DONE (`wimblerobotics/sigyn_oakd_detection`)
-7. ✅ **Verify + remove `TeensyV2/`** (Section 6) — DONE (`wimblerobotics/sigyn_teensy_boards`; Feb 2026)
-8. ✅ **Extract `can_do_challenge`** — DONE (`wimblerobotics/can_do_challenge`; Feb 2026)
-9. ✅ **Extract `bluetooth_joystick`** (Section 9) — DONE (`wimblerobotics/sigyn_bluetooth_joystick`; Feb 2026)
-10. ✅ **Extract `sigyn_to_sensor_v2`** (Section 5) — DONE (`wimblerobotics/sigyn_to_teensy`; Feb 2026)
-11. **Remove extracted packages from monorepo** — `bluetooth_joystick/`, `sigyn_to_sensor_v2/` still present
-12. **`Sigyn2` updates** (Section 11) — add new repos to packages.yaml
-13. **Testing** (Section 13) — add tests after each package is in a clean state
+3. ✅ **`base` launch file purge** (Section 3.1) — dead launch files removed
+4. ✅ **`base` package.xml + CMakeLists.txt** (Section 3.5, 3.6) — cleaned up
+5. ✅ **Mapping launches created and validated** (Section 3.2) — Cartographer and SLAM Toolbox both working Feb 2026
+6. **`base` remaining cleanup** (Section 3.3, 3.4, 3.7) — navigation_sim.yaml rename, maps audit, orphaned config files
+7. **Extract `sigyn_behavior_trees`** (Section 4) — in progress
+8. **Style sweep: SPDX + clang-format** (Section 12) — done per-package as each is touched
+9. ✅ **Extract `yolo_oakd_test`** (Section 7) — DONE (`wimblerobotics/sigyn_oakd_detection`)
+10. ✅ **Verify + remove `TeensyV2/`** (Section 6) — DONE (`wimblerobotics/sigyn_teensy_boards`; Feb 2026)
+11. ✅ **Extract `can_do_challenge`** — DONE (`wimblerobotics/can_do_challenge`; Feb 2026)
+12. ✅ **Extract `bluetooth_joystick`** (Section 9) — DONE (`wimblerobotics/sigyn_bluetooth_joystick`; Feb 2026)
+13. ✅ **Extract `sigyn_to_sensor_v2`** (Section 5) — DONE (`wimblerobotics/sigyn_to_teensy`; Feb 2026)
+14. ✅ **Remove extracted packages from monorepo** — `bluetooth_joystick/`, `sigyn_to_sensor_v2/`, `TeensyV2/`, `yolo_oakd_test/`, `can_do_challenge/` all removed
+15. **`Sigyn2` updates** (Section 11) — add new repos to packages.yaml
+16. **Testing** (Section 13) — add tests after each package is in a clean state
 
-## Next Priorities (2026-02-23)
+## Next Priorities (2026-02-24)
 
 In rough order of urgency:
 
-1. **Clean up `base`** — code review of launches (remove dead files per Section 3),
-   rename to `sigyn_bringup` (Section 2). Many obsolete sub-launch files.
+1. **Finish `base` cleanup** — rename package to `sigyn_bringup` (Section 2); review `config/bt1.xml` and `config/gazebo.yaml` (Section 3.7); review `config/config.rviz` for stale topic references (Section 10).
 
-2. **Get `~/other_repository/perimeter_roamer_v3` working** — restore to operational
-   state on the real robot.
+2. **Restore `~/other_repository/perimeter_roamer_v3`** — bring back to operational state on the real robot. Mapping launches are now working (Cartographer + SLAM Toolbox both validated Feb 2026).
 
-3. **Get `can_do_challenge` working** — both simulation and real robot. The package
-   was extracted to `wimblerobotics/can_do_challenge`; needs integration testing.
+3. **Integrate `can_do_challenge`** — extracted to `wimblerobotics/can_do_challenge`; needs integration testing on both simulation and the real robot, including the BT v3→v4 migration (Section 8.1).
 
-4. **`sigyn_teensy_boards` rework** — analyze, rearchitect as necessary, shorten
-   message lengths, implement board-to-board e-stop via GPIO (see TODO.md and
-   `sigyn_teensy_boards/TODO.md`).
+4. **`sigyn_teensy_boards` rework** — analyze, rearchitect as necessary, shorten message lengths, implement board-to-board e-stop via GPIO.
 
-5. **`sigyn_to_teensy` rework** — correspond to `sigyn_teensy_boards` changes,
-   add unit tests for `message_parser.cpp`, rework with dependency injection
-   to improve testability.
+5. **`sigyn_to_teensy` rework** — correspond to `sigyn_teensy_boards` changes, add unit tests for `message_parser.cpp`, rework with dependency injection.
 
 6. **Audit all repos in `Sigyn2`** — check architecture, clean up, add tests.
 
@@ -546,5 +506,5 @@ In rough order of urgency:
 2. Should `rviz` merge into `sigyn_bringup` or stay standalone? (Lean: merge — it's only one config file)
 3. ✅ Should `can_do_challenge` eventually move to its own repo? **Decision: yes (priority 8 above)**
 4. ✅ The `CanDetection.msg` question is resolved: `yolo_oakd_test` deleted; `OakdDetection.msg` (renamed) now lives in `sigyn_interfaces` v0.9.4.
-5. Does anything actually use `base/config/pcl.yaml`? If the pointcloud launch is dead, this config is too.
+5. ✅ `base/config/pcl.yaml` — deleted; the pointcloud launch was already gone.
 6. What is the intended purpose of `config/gazebo.yaml` vs `config/gz_bridge.yaml`? Both appear to exist. Is `gazebo.yaml` for something other than the bridge?

@@ -1,9 +1,11 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 Wimble Robotics -->
 <package format="3">
   <name>rviz</name>
   <version>1.0.0</version>
-  <description>S rviz package</description>
+  <description>Sigyn RViz configuration package</description>
   <maintainer email="mike@wimblerobotics.com">Michael Wimble</maintainer>
   <license>Apache-2.0</license>
 
