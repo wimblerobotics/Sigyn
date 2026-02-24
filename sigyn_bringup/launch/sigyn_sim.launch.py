@@ -22,7 +22,7 @@ from launch.substitutions import LaunchConfiguration
 
 def generate_launch_description():
     ld = LaunchDescription()
-    base_pkg = get_package_share_directory("base")
+    base_pkg = get_package_share_directory("sigyn_bringup")
     description_pkg = get_package_share_directory("sigyn_description")
     default_world = os.path.join(description_pkg, "worlds", "home.world")
 

@@ -57,7 +57,7 @@ def _launch_robot_state_publisher(context, urdf_file_name_var, use_sim_time, do_
 
 def generate_launch_description():
     ld = LaunchDescription()
-    base_pkg = get_package_share_directory("base")
+    base_pkg = get_package_share_directory("sigyn_bringup")
     rviz_config_path = os.path.join(
         get_package_share_directory("rviz"), "config", "config.rviz"
     )
@@ -149,7 +149,7 @@ def generate_launch_description():
     # (use_odometry = true in cartographer.lua).  Without this, the pose
     # extrapolator has nothing to work with and the map smears as the robot moves.
     ekf_config_path = os.path.join(
-        get_package_share_directory("base"), "config/ekf.yaml"
+        get_package_share_directory("sigyn_bringup"), "config/ekf.yaml"
     )
     ld.add_action(launch_ros.actions.Node(
         package="robot_localization",

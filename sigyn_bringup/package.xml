@@ -3,7 +3,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright 2026 Wimble Robotics -->
 <package format="3">
-  <name>base</name>
+  <name>sigyn_bringup</name>
   <version>1.0.0</version>
   <description>Sigyn robot bringup package: launch files, config, and maps.</description>
   <maintainer email="mike@wimblerobotics.com">Michael Wimble</maintainer>

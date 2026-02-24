@@ -37,7 +37,7 @@ from nav2_common.launch import ReplaceString, RewrittenYaml
 
 
 def generate_launch_description():
-    base_pgk = get_package_share_directory("base")
+    base_pgk = get_package_share_directory("sigyn_bringup")
 
     # Get the launch directory
     bringup_dir = get_package_share_directory('nav2_bringup')

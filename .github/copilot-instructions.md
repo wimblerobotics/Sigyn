@@ -10,11 +10,10 @@ colcon build --symlink-install
 ```
 
 ## 1. Big Picture Architecture
-- **base**
-  Base package for the Sigyn robot, providing core functionality and integration with ROS2. The main launch for the robot is `sigyn.launch.py`, which brings up all the components needed for the robot to operate, including navigation, perception, and control systems. The command line option `use_sim_time:=true` is used to bring up the robot in simulation mode, allowing for testing and development without requiring the physical robot.
+- **sigyn_bringup** *(directory: `sigyn_bringup/`, was `base/`)*
+  Main bringup package for the Sigyn robot. Contains `sigyn.launch.py` (full robot), `map_cartographer.launch.py` and `map_slam_toolbox.launch.py` (SLAM mapping), navigation params, EKF config, and map files. Use `use_sim_time:=true` for simulation.
 
-- **bluetooth_joystick**
-  Provides Bluetooth joystick control for the Sigyn robot. The main launch file is `bluetooth_joystick.launch.py`, which sets up the joystick interface and connects it to the robot's control systems.
+- **bluetooth_joystick** *(extracted → `wimblerobotics/sigyn_bluetooth_joystick`; no longer in this monorepo)*
 
 - **description**
   Contains the robot's URDF files and gazebo simulation models.

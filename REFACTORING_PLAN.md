@@ -65,19 +65,16 @@ The current `.gitignore` now covers:
 
 ---
 
-## Section 2 — Rename `base` → `sigyn_bringup`
+## Section 2 — Rename `base` → `sigyn_bringup` ✅ DONE
 
-`base` is dangerously generic and collides with common CMake/ROS concepts. The package's purpose is the top-level bringup of the Sigyn robot — rename it everywhere.
-
-**Files to update:**
-- `base/CMakeLists.txt` — `project(base)` → `project(sigyn_bringup)`
-- `base/package.xml` — `<name>base</name>` → `<name>sigyn_bringup</name>`
-- All launch files that call `get_package_share_directory("base")` (appears >10 times in `sigyn.launch.py`, and in several sub-launch files)
-- `~/.bash_aliases` — `nav` alias (currently `ros2 launch base sigyn.launch.py`)
-- `Sigyn2/config/robots.yaml` — package group reference
-- `Sigyn2/config/packages.yaml` (if `base` is listed there; it is implicit via `sigyn_navigation`)
-
-**Note:** The directory name `base/` can remain as-is for now (the ROS package name and directory name can differ), or rename the directory to `sigyn_bringup/` in a single `git mv` operation.
+**Completed:** February 2026
+- [x] Directory renamed: `base/` → `sigyn_bringup/` (`git mv`)
+- [x] `CMakeLists.txt`: `project(base)` → `project(sigyn_bringup)`
+- [x] `package.xml`: `<name>base</name>` → `<name>sigyn_bringup</name>`
+- [x] All `get_package_share_directory("base")` calls in all launch files updated
+- [x] `README.md` and `.github/SIGYN_ARCHITECTURE_ONBOARDING.md` `ros2 launch base` → `ros2 launch sigyn_bringup`
+- [x] `.github/copilot-instructions.md` updated
+- [x] `Sigyn2/config/packages.yaml` comment updated
 
 ---
 
@@ -298,14 +295,13 @@ Remaining: Remove `bluetooth_joystick/` from Sigyn monorepo
 
 ---
 
-## Section 10 — `rviz` Package ✅ HEADERS DONE
+## Section 10 — `rviz` Package ✅ DONE
 
 - ✅ SPDX headers added to `CMakeLists.txt` and `package.xml`
 - ✅ `CMakeLists.txt` cleaned: `cmake_minimum_required(3.8)`, dead C99/C++14 boilerplate removed
 - ✅ `package.xml` description fixed
-- [ ] Option A: Merge into `sigyn_bringup` — deferred until rename happens
-- [ ] Option B: Keep standalone — current state
-- [ ] Review `config/config.rviz` for stale topic/panel references
+- ✅ `config/config.rviz` audited Feb 2026: no stale topic references. OAK-D topics (`/oakd_top/oak/stereo/image_raw`, `/local_costmap/oakd_top_layer`) will show "no data" when `sigyn_oakd_detection` workspace is not active — expected behaviour.
+- Merged into `sigyn_bringup` or kept standalone: **keeping standalone** (renamed via `get_package_share_directory("rviz")` in all launch files — clean separation)
 
 ---
 
@@ -466,7 +462,7 @@ This file is for local IDE integration (VS Code CMake Tools) and references mach
 ## Execution Order (Updated 2026-02-24)
 
 1. ✅ **Git/Repo hygiene** (Section 1) — partial; `base/out/` still needs `git rm --cached`
-2. **Rename `base` → `sigyn_bringup`** (Section 2) — deferred
+2. ✅ **Rename `base` → `sigyn_bringup`** (Section 2) — DONE Feb 2026
 3. ✅ **`base` launch file purge** (Section 3.1) — dead launch files removed
 4. ✅ **`base` package.xml + CMakeLists.txt** (Section 3.5, 3.6) — cleaned up
 5. ✅ **Mapping launches created and validated** (Section 3.2) — Cartographer and SLAM Toolbox both working Feb 2026
@@ -486,7 +482,7 @@ This file is for local IDE integration (VS Code CMake Tools) and references mach
 
 In rough order of urgency:
 
-1. **Finish `base` cleanup** — rename package to `sigyn_bringup` (Section 2); review `config/bt1.xml` and `config/gazebo.yaml` (Section 3.7); review `config/config.rviz` for stale topic references (Section 10).
+1. **Finish `sigyn_bringup` cleanup** — review `config/bt1.xml` and `config/gazebo.yaml` (Section 3.7); review `config/config.rviz` for stale topic references (Section 10).
 
 2. **Restore `~/other_repository/perimeter_roamer_v3`** — bring back to operational state on the real robot. Mapping launches are now working (Cartographer + SLAM Toolbox both validated Feb 2026).
 

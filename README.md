@@ -127,7 +127,7 @@ sudo udevadm trigger
 
 Run everything in one launch file:
 ```bash
-ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=true
+ros2 launch sigyn_bringup sigyn.launch.py use_sim_time:=false do_rviz:=true
 ```
 
 This automatically launches:
@@ -144,7 +144,7 @@ If you need more control, launch components separately:
 
 1. **Main System** (without RViz):
    ```bash
-   ros2 launch base sigyn.launch.py use_sim_time:=false do_rviz:=false
+   ros2 launch sigyn_bringup sigyn.launch.py use_sim_time:=false do_rviz:=false
    ```
 
 2. **RViz** (separate window):
@@ -175,7 +175,7 @@ The robot displays real-time information in RViz:
 ## Running the Robot in Simulation
 The robot can be run in simulation by running the following command:
 ``` bash
-ros2 launch base sigyn.launch.py use_sim_time:=true
+ros2 launch sigyn_bringup sigyn.launch.py use_sim_time:=true
 ```
 
 ## Recent Updates

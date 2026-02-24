@@ -8,7 +8,7 @@ Sigyn is a ROS 2 Jazzy-based service robot designed for house patrolling, survei
 - **ROS Distro**: Jazzy Jalisco
 - **Simulation**: Gazebo Fortress
 - **Navigation**: Nav2
-- **Behavior**: BehaviorTree.CPP (v3)
+- **Behavior**: BehaviorTree.CPP (v4)
 
 ## 2. Key Operational Commands
 
@@ -21,42 +21,44 @@ colcon build --symlink-install
 ### Simulation (Gazebo)
 Launch the full robot simulation with Nav2, RViz, and Controllers:
 ```bash
-ros2 launch base sigyn.launch.py use_sim_time:=true
+ros2 launch sigyn_bringup sigyn.launch.py use_sim_time:=true
 ```
 
 To run the specific "Can Do Challenge" (Coke fetching) simulation:
 ```bash
 ros2 launch can_do_challenge can_do_sim_launch.py
 ```
+*(requires `can_do_challenge` from `wimblerobotics/can_do_challenge` in your workspace)*
 
 ### Real Robot
 Launch the physical driver stack:
 ```bash
-ros2 launch base sigyn.launch.py use_sim_time:=false
+ros2 launch sigyn_bringup sigyn.launch.py use_sim_time:=false
 ```
 
 ## 3. Package Structure Highlights
 
 ### Core System
-- `base`: Main entry point. Contains `sigyn.launch.py` and global configs.
-- `description`: URDF/Xacro definitions. Critical for TF tree and physical parameters (friction, stiffness).
+- `sigyn_bringup` *(was `base`)*: Main entry point. Contains `sigyn.launch.py`, mapping launches, and global configs.
+- `sigyn_description`: URDF/Xacro definitions. Critical for TF tree and physical parameters (friction, stiffness).
 - `sigyn_interfaces`: Custom ROS 2 Actions/Services/Messages.
 
 ### Control & Navigation
-- `twist_multiplexer`: Arbitrates velocity commands between Nav2, Joystick, and Behavior Trees.
-- `bluetooth_joystick`: Manual teleoperation.
+- `wr_twist_multiplexer`: Arbitrates velocity commands between Nav2, Joystick, and Behavior Trees.
+- `sigyn_bluetooth_joystick` *(separate repo: `wimblerobotics/sigyn_bluetooth_joystick`)*: Manual teleoperation.
 - `sigyn_nav_goals`: Pre-defined waypoints for patrolling.
 
 ### AI & Behavior
-- `sigyn_behavior_trees`: Core Behavior Tree nodes and XMLs for patrolling logic.
-- `can_do_challenge`: Logic for the manipulation challenge (Visual servoing + Grasping).
-    - Uses `CloseGripperAroundCan` custom BT node.
-    - Implements logic to center on object and approach.
+- `sigyn_behavior_trees` *(separate repo: `wimblerobotics/sigyn_behavior_trees`)*: Core Behavior Tree nodes and XMLs for patrolling logic.
+- `can_do_challenge` *(separate repo: `wimblerobotics/can_do_challenge`)*: Logic for the manipulation challenge (Visual servoing + Grasping).
 
 ### Hardware Bridges
-- `sigyn_to_sensor_v2`: Teensy bridge for base motors, IMU, and battery.
-- `pi_servo1`: Teensy bridge for the Gripper and Elevator servos.
-- `sigyn_oakd_detection` *(separate workspace: `~/sigyn_oakd_detection_ws`)* — OAK-D Camera AI integration (YOLO). Publishes `OakdDetection.msg` (defined in `sigyn_interfaces`). The old `oakd_detector` / `yolo_oakd_test` package has been **deleted** from this monorepo.
+- `sigyn_to_teensy` *(separate repo: `wimblerobotics/sigyn_to_teensy`)*: Teensy bridge for base motors, IMU, battery, elevator, and gripper. Replaces the old `sigyn_to_sensor_v2`.
+- `sigyn_oakd_detection` *(separate workspace: `~/sigyn_oakd_detection_ws`)*: OAK-D Camera AI integration (YOLO). Publishes `OakdDetection.msg` (defined in `sigyn_interfaces`). The old `yolo_oakd_test` package has been **deleted** from this monorepo.
+
+### Mapping
+- `ros2 launch sigyn_bringup map_cartographer.launch.py` — build a new map with Cartographer SLAM
+- `ros2 launch sigyn_bringup map_slam_toolbox.launch.py` — build a new map with SLAM Toolbox
 
 ## 4. Hardware Specifics
 

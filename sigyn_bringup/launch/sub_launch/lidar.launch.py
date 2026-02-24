@@ -77,7 +77,7 @@ def generate_launch_description():
           output="screen",
           parameters=[
             PathJoinSubstitution([
-                get_package_share_directory("base"),
+                get_package_share_directory("sigyn_bringup"),
                 "config", "laser_filters_angular.yaml",
             ])],
             remappings=[('scan', 'raw_scan'),
