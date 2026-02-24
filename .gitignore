@@ -53,10 +53,6 @@ srv/_*.py
 qtcreator-*
 *.user
 
-/planning/cfg
-/planning/docs
-/planning/src
-
 *~
 
 # Emacs
@@ -109,4 +105,5 @@ foo.*
 # can_do_challenge — training data and model training artifacts (not source)
 can_do_challenge/resources/calibration_imgs/
 can_do_challenge/resources/models/can_yolov5n_repo/
-can_do_challenge/resources/models/can_yolov5n_repo2/base/out/
+can_do_challenge/resources/models/can_yolov5n_repo2/
+

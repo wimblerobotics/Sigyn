@@ -341,15 +341,15 @@ After each extraction above, `Sigyn2/config/packages.yaml` and `Sigyn2/config/ro
 Add to **every** `.cpp`, `.hpp`, `.h`, `.py`, `.lua`, `CMakeLists.txt`, `package.xml`, `.launch.py` file.
 
 Done as of 2026-02-24:
-- ✅ All `base/launch/*.py` and `sub_launch/*.py` files
-- ✅ `base/package.xml`, `base/CMakeLists.txt`
-- ✅ `base/config/ekf.yaml`, `mapper_params_online_async.yaml`, `mapper_params_lifelong.yaml`
+- ✅ All `sigyn_bringup/launch/*.py` and `sub_launch/*.py` files
+- ✅ `sigyn_bringup/package.xml`, `sigyn_bringup/CMakeLists.txt`
+- ✅ `sigyn_bringup/config/ekf.yaml`, `mapper_params_online_async.yaml`, `mapper_params_lifelong.yaml`
 - ✅ `rviz/CMakeLists.txt`, `rviz/package.xml`
 
 Still missing:
-- `base/config/bt1.xml`
-- `base/config/gazebo.yaml`, `gz_bridge.yaml`, `ekf.yaml` sub-comments
-- `base/scripts/battery_overlay_publisher.py` — check
+- `sigyn_bringup/config/bt1.xml`
+- `sigyn_bringup/config/gazebo.yaml`, `gz_bridge.yaml`, `ekf.yaml` sub-comments
+- `sigyn_bringup/scripts/battery_overlay_publisher.py` — check
 - All files in extracted repos (tracked in their own repos)
 
 ### 12.2 Google C++ Style
@@ -439,7 +439,7 @@ Tests exist in `sigyn_teensy_boards/test/` (PlatformIO side). On the ROS 2 side:
 
 ### 14.2 Navigation — consider splitting `navigate_to_pose_w_replanning_and_recovery.xml` from nav2 defaults vs. custom Sigyn BT
 
-Currently `sigyn.launch.py` defaults to the nav2 stock BT XML for `navigate_to_pose`. The `base/config/bt1.xml` and `sigyn_behavior_trees/config/patrol.xml` are custom. These should eventually be brought together under a custom nav BT that integrates Sigyn's recovery behaviors.
+Currently `sigyn.launch.py` defaults to the nav2 stock BT XML for `navigate_to_pose`. The `sigyn_bringup/config/bt1.xml` and `sigyn_behavior_trees/config/patrol.xml` are custom. These should eventually be brought together under a custom nav BT that integrates Sigyn's recovery behaviors.
 
 ### 14.3 `precheck.launch.py` — integrate with `sigyn.launch.py`
 
@@ -449,9 +449,9 @@ Currently `precheck` is a separate launch. Consider making it the canonical entr
 
 `rviz/config/config.rviz` is the monorepo RViz config. `yolo_oakd_test/config/can_detection.rviz` no longer exists (package deleted). The `sigyn_oakd_detection` workspace may ship its own RViz config. Ensure all topic references are current and create one canonical general-purpose config and one OAK-D detection visualization config.
 
-### 14.5 Remove `CMakePresets.json` from `base/`
+### 14.5 Remove `CMakePresets.json` from `sigyn_bringup/`
 
-This file is for local IDE integration (VS Code CMake Tools) and references machine-specific toolchain paths. It should be in `.gitignore` or replaced with a generic version.
+`sigyn_bringup/CMakePresets.json` is for local IDE integration (VS Code CMake Tools) and references machine-specific toolchain paths. It should be in `.gitignore` or replaced with a generic version.
 
 ### 14.6 `navigation_launch.py` — confirm it is the right nav2 bringup entry point
 
@@ -461,7 +461,7 @@ This file is for local IDE integration (VS Code CMake Tools) and references mach
 
 ## Execution Order (Updated 2026-02-24)
 
-1. ✅ **Git/Repo hygiene** (Section 1) — partial; `base/out/` still needs `git rm --cached`
+1. ✅ **Git/Repo hygiene** (Section 1) — `sigyn_bringup/out/` confirmed never committed; `.gitignore` fixed
 2. ✅ **Rename `base` → `sigyn_bringup`** (Section 2) — DONE Feb 2026
 3. ✅ **`base` launch file purge** (Section 3.1) — dead launch files removed
 4. ✅ **`base` package.xml + CMakeLists.txt** (Section 3.5, 3.6) — cleaned up
