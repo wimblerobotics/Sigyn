@@ -392,7 +392,7 @@ def generate_launch_description():
     ld.add_action(
         DeclareLaunchArgument(
             name="oakd_params_file",
-            default_value=os.path.join(base_pkg, "config", "oakd_camera.yaml"),
+            default_value="",
             description="OAK-D camera params file",
         )
     )
@@ -561,7 +561,7 @@ def generate_launch_description():
 
     # Battery overlay for RViz
     battery_overlay = Node(
-        package='base',
+        package='sigyn_bringup',
         executable='battery_overlay_publisher.py',
         name='battery_overlay_publisher',
         output='screen',
