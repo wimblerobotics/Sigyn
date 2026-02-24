@@ -24,6 +24,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, Opaq
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
+import launch_ros.actions
 from launch_ros.actions import Node
 
 
@@ -98,8 +99,8 @@ def generate_launch_description():
     ))
     ld.add_action(DeclareLaunchArgument(
         "resolution",
-        default_value="0.05",
-        description="Occupancy grid resolution in metres per pixel.",
+        default_value="0.0508",
+        description="Occupancy grid resolution in metres per pixel (5.08 cm).",
     ))
     ld.add_action(DeclareLaunchArgument(
         "urdf_file_name",
@@ -143,9 +144,28 @@ def generate_launch_description():
         remappings=[('scan', 'raw_scan')],
     ))
 
-    # EKF is not started during mapping: there is no Teensy bridge providing
-    # wheel odometry, so the EKF would stall.  Cartographer handles localisation
-    # entirely via scan-matching (use_odometry = false in cartographer.lua).
+    # EKF — fuses wheel odometry (/sigyn/wheel_odom) and IMU to produce /odom.
+    # Cartographer consumes /odom for dead-reckoning between scan matches
+    # (use_odometry = true in cartographer.lua).  Without this, the pose
+    # extrapolator has nothing to work with and the map smears as the robot moves.
+    ekf_config_path = os.path.join(
+        get_package_share_directory("base"), "config/ekf.yaml"
+    )
+    ld.add_action(launch_ros.actions.Node(
+        package="robot_localization",
+        executable="ekf_node",
+        condition=UnlessCondition(use_sim_time),
+        name="ekf_filter_node",
+        output="screen",
+        parameters=[
+            {"use_sim_time": use_sim_time},
+            ekf_config_path,
+        ],
+        remappings=[
+            ("/odometry/filtered", "odom"),
+            ("/odom/unfiltered", "/sigyn/wheel_odom"),
+        ],
+    ))
 
     # Teensy bridge — provides wheel odometry and accepts cmd_vel so the robot
     # can be driven around while the map is being built.

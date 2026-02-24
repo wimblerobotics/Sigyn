@@ -21,12 +21,12 @@ options = {
   trajectory_builder = TRAJECTORY_BUILDER,
   map_frame = "map",
   tracking_frame = "base_link",
-  published_frame = "base_link",  -- Cartographer owns map→base_link; no external odom needed
+  published_frame = "odom",   -- Cartographer publishes map→odom; EKF owns odom→base_link
   odom_frame = "odom",
-  provide_odom_frame = true,  -- Cartographer also synthesises a map→odom→base_link chain
+  provide_odom_frame = false, -- EKF (robot_localization) provides the odom frame
   publish_frame_projected_to_2d = true,
   use_pose_extrapolator = true,
-  use_odometry = false,
+  use_odometry = true,        -- Use EKF-fused wheel odometry for dead-reckoning between scans
   use_nav_sat = false,
   use_landmarks = false,
   num_laser_scans = 1,
@@ -44,11 +44,12 @@ options = {
   landmarks_sampling_ratio = 1.,
 }
 
-TRAJECTORY_BUILDER_2D.num_accumulated_range_data = 10
+TRAJECTORY_BUILDER_2D.num_accumulated_range_data = 1  -- Match every scan; avoids smearing when robot moves
 
 MAP_BUILDER.use_trajectory_builder_2d = true
 
 TRAJECTORY_BUILDER_2D.submaps.num_range_data = 35
+TRAJECTORY_BUILDER_2D.submaps.grid_options_2d.resolution = 0.0508  -- 5.08 cm per cell
 TRAJECTORY_BUILDER_2D.min_range = 0.3
 TRAJECTORY_BUILDER_2D.max_range = 8.
 TRAJECTORY_BUILDER_2D.missing_data_ray_length = 1.
