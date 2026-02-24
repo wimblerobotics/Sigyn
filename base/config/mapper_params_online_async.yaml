@@ -12,7 +12,7 @@ slam_toolbox:
     # ROS Parameters
     odom_frame: odom
     map_frame: map
-    base_frame: base_footprint
+    base_frame: base_link  # URDF has no base_footprint; root link is base_link
     scan_topic: /scan
     use_map_saver: true
     mode: mapping #localization
@@ -28,7 +28,7 @@ slam_toolbox:
     throttle_scans: 1
     transform_publish_period: 0.02 #if 0 never publishes odometry
     map_update_interval: 1.0
-    resolution: 0.0254
+    resolution: 0.0508  # 5.08 cm per cell
     max_laser_range: 6.0 #for rastering images
     minimum_time_interval: 0.2
     transform_timeout: 0.3
@@ -54,7 +54,7 @@ slam_toolbox:
 
     # Correlation Parameters - Correlation Parameters
     correlation_search_space_dimension: 0.5
-    correlation_search_space_resolution: 0.01
+    correlation_search_space_resolution: 0.0508  # match map resolution; finer than map cell size adds no value
     correlation_search_space_smear_deviation: 0.1 
 
     # Correlation Parameters - Loop Closure Parameters
