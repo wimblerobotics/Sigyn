@@ -1,7 +1,7 @@
 # AI_CONTEXT.md — Sigyn Monorepo State
 
 > Machine-readable context for AI coding agents working in this repo.
-> **Branch:** `sigyn2` | **ROS Distro:** Jazzy | **Last updated:** 2026-02-22
+> **Branch:** `sigyn2` | **ROS Distro:** Jazzy | **Last updated:** 2026-02-25
 
 ---
 
@@ -11,7 +11,7 @@
 - ROS 2 packages (C++ and Python)
 - Behavior tree XMLs
 - Configuration and launch files
-- Teensy 4.1 firmware (PlatformIO) under `TeensyV2/` — **being migrated** to `wimblerobotics/sigyn_teensy_boards`
+- Teensy 4.1 firmware (PlatformIO) in `wimblerobotics/sigyn_teensy_boards` (migrated from `TeensyV2/` which has been removed from this repo)
 
 The robot runs on Ubuntu 24.04 + ROS 2 Jazzy. Simulation uses Gazebo Harmonic.
 
@@ -21,12 +21,8 @@ The robot runs on Ubuntu 24.04 + ROS 2 Jazzy. Simulation uses Gazebo Harmonic.
 
 | Package | Language | Purpose |
 |---|---|---|
-| `base` | Python (launch) | Main bringup: `sigyn.launch.py`, Navigation configs, map files |
-| `bluetooth_joystick` | C++ | Bluetooth joystick teleop driver |
-| `can_do_challenge` | C++ / Python | Behavior tree mission for fetching a Coke can |
+| `sigyn_bringup` | Python (launch) | Main bringup: `sigyn.launch.py`, Navigation configs, map files |
 | `rviz` | — | RViz config only |
-| `sigyn_to_sensor_v2` | C++ | Teensy bridge: motors, IMU, battery (Board 1 & 2) |
-| `TeensyV2` | C++ (PlatformIO) | Teensy 4.1 firmware — **kept here until `sigyn_teensy_boards` is verified** |
 | `udev` | — | udev rules for device nodes |
 
 ### Packages in separate repos (symlinked into `~/sigyn_ws/src/`)
@@ -63,7 +59,7 @@ It has been superseded by the standalone package **`sigyn_oakd_detection`**:
 |---|---|
 | `can_do_challenge/launch/step3_visual_acquire_launch.py` | Now delegates to `sigyn_oakd_detection/oakd_detector.launch.py` |
 | `can_do_challenge/launch/oakd_detection_test1.launch.py` | Now delegates to `sigyn_oakd_detection/oakd_detector.launch.py` |
-| `base/launch/sub_launch/oakd_yolo26_detector.launch.py` | Should be updated to delegate to `sigyn_oakd_detection` (pending) |
+| `sigyn_bringup/launch/sub_launch/oakd_yolo26_detector.launch.py` | Should be updated to delegate to `sigyn_oakd_detection` (pending) |
 
 ---
 
@@ -159,12 +155,11 @@ source ~/sigyn_oakd_detection_ws/install/setup.bash
 
 See `REFACTORING_PLAN.md` for full details. Current priority order:
 
-1. Rename `base` → `sigyn_bringup` (Section 2)
-2. Extract `sigyn_behavior_trees` (Section 4, in progress)
-3. Extract `sigyn_to_sensor_v2` + `TeensyV2` (Sections 5–6)
-4. ✅ ~~Extract `yolo_oakd_test`~~ (Section 7 — **DONE**)
-5. `can_do_challenge` BT v3→v4 migration + cleanup (Section 8)
-6. Update `Sigyn2/packages.yaml` to add `sigyn_oakd_detection` entry
+1. ✅ ~~Rename `base` → `sigyn_bringup`~~ (Section 2 — **DONE**)
+2. ✅ ~~Extract `yolo_oakd_test`~~ (Section 7 — **DONE**)
+3. Extract `sigyn_behavior_trees` (Section 4, in progress)
+4. `can_do_challenge` BT v3→v4 migration + cleanup (Section 8)
+5. Update `Sigyn2/packages.yaml` to add `sigyn_oakd_detection` entry
 
 ---
 
