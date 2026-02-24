@@ -61,6 +61,13 @@ def generate_launch_description():
         get_package_share_directory("rviz"), "config", "config.rviz"
     )
 
+    ld.add_action(DeclareLaunchArgument(
+        "do_joystick",
+        default_value="false",
+        description="Launch bluetooth joystick if true.",
+    ))
+    do_joystick = LaunchConfiguration("do_joystick")
+
     cartographer_config_dir = LaunchConfiguration("cartographer_config_dir")
     cartographer_config_basename = LaunchConfiguration("cartographer_config_basename")
     do_top_lidar = LaunchConfiguration("do_top_lidar")
@@ -117,28 +124,70 @@ def generate_launch_description():
         condition=UnlessCondition(use_sim_time),
     ))
 
-    ld.add_action(IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            [base_pkg, "/launch/sub_launch/lidar.launch.py"]
-        ),
+    # Launch the top lidar directly — bypass the scan_to_scan_filter_chain which
+    # is a no-op for the top lidar (full 360° view) and was the source of
+    # duplicate-timestamp scan messages seen by Cartographer.  Cartographer will
+    # subscribe to /raw_scan directly via the remapping below.
+    ld.add_action(Node(
         condition=UnlessCondition(use_sim_time),
-        launch_arguments={"do_top_lidar": do_top_lidar}.items(),
+        package='wr_ldlidar',
+        executable='wr_ldlidar',
+        name='top_ldlidar',
+        output='screen',
+        parameters=[
+            {'serial_port': '/dev/lidar_top'},
+            {'topic_name': 'scan'},
+            {'lidar_frame': 'lidar_frame_top_lidar'},
+            {'range_threshold': 0.0},
+        ],
+        remappings=[('scan', 'raw_scan')],
     ))
 
+    # EKF is not started during mapping: there is no Teensy bridge providing
+    # wheel odometry, so the EKF would stall.  Cartographer handles localisation
+    # entirely via scan-matching (use_odometry = false in cartographer.lua).
+
+    # Teensy bridge — provides wheel odometry and accepts cmd_vel so the robot
+    # can be driven around while the map is being built.
+    def _launch_teensy_bridge(context, *args, **kwargs):
+        if use_sim_time.perform(context).lower() == 'true':
+            return []
+        pkg = get_package_share_directory('sigyn_to_teensy')
+        return [IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(pkg, 'launch', 'sigyn_to_teensy.launch.py')
+            ),
+            launch_arguments={'namespace': 'sigyn'}.items(),
+        )]
+    ld.add_action(OpaqueFunction(function=_launch_teensy_bridge))
+
+    # Twist multiplexer — merges keyboard / joystick / autonomy cmd_vel streams.
+    multiplexer_config = os.path.join(
+        get_package_share_directory('wr_twist_multiplexer'),
+        'config',
+        'wr_twist_multiplexer.yaml',
+    )
     ld.add_action(Node(
-        package="robot_localization",
-        executable="ekf_node",
-        name="ekf_filter_node",
+        package='wr_twist_multiplexer',
+        executable='wr_twist_multiplexer',
+        name='wr_twist_multiplexer_node',
+        arguments=['--config', multiplexer_config],
+        emulate_tty=True,
+        respawn=True,
+        output='screen',
         condition=UnlessCondition(use_sim_time),
-        output="screen",
-        parameters=[
-            {"use_sim_time": use_sim_time},
-            os.path.join(base_pkg, "config", "ekf.yaml"),
-        ],
-        remappings=[
-            ("/odometry/filtered", "odom"),
-            ("/odom/unfiltered", "/sigyn/wheel_odom"),
-        ],
+    ))
+
+    # Optional bluetooth joystick for driving during mapping.
+    ld.add_action(IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('sigyn_bluetooth_joystick'),
+                'launch',
+                'sigyn_bluetooth_joystick.launch.py',
+            )
+        ),
+        condition=IfCondition(do_joystick),
     ))
 
     ld.add_action(Node(
@@ -147,6 +196,8 @@ def generate_launch_description():
         name="cartographer_node",
         output="screen",
         parameters=[{"use_sim_time": use_sim_time}],
+        # Subscribe to raw_scan directly — no filter chain in the middle.
+        remappings=[("scan", "raw_scan")],
         arguments=[
             "-configuration_directory", cartographer_config_dir,
             "-configuration_basename", cartographer_config_basename,

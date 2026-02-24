@@ -57,12 +57,18 @@ def generate_launch_description():
         get_package_share_directory("rviz"), "config", "config.rviz"
     )
 
-    do_top_lidar = LaunchConfiguration("do_top_lidar")
-    do_rviz = LaunchConfiguration("do_rviz")
+    do_joystick      = LaunchConfiguration("do_joystick")
+    do_top_lidar     = LaunchConfiguration("do_top_lidar")
+    do_rviz          = LaunchConfiguration("do_rviz")
     slam_params_file = LaunchConfiguration("slam_params_file")
-    urdf_file_name = LaunchConfiguration("urdf_file_name")
-    use_sim_time = LaunchConfiguration("use_sim_time")
+    urdf_file_name   = LaunchConfiguration("urdf_file_name")
+    use_sim_time     = LaunchConfiguration("use_sim_time")
 
+    ld.add_action(DeclareLaunchArgument(
+        "do_joystick",
+        default_value="false",
+        description="Launch bluetooth joystick if true.",
+    ))
     ld.add_action(DeclareLaunchArgument(
         "do_top_lidar",
         default_value="true",
@@ -101,14 +107,40 @@ def generate_launch_description():
         condition=UnlessCondition(use_sim_time),
     ))
 
-    ld.add_action(IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            [base_pkg, "/launch/sub_launch/lidar.launch.py"]
-        ),
+    # Top lidar feeds /scan directly — no filter chain in the path so there
+    # is no risk of the filter re-stamping and creating duplicate header times.
+    # SLAM Toolbox subscribes to /scan per mapper_params_online_async.yaml.
+    ld.add_action(Node(
         condition=UnlessCondition(use_sim_time),
-        launch_arguments={"do_top_lidar": do_top_lidar}.items(),
+        package='wr_ldlidar',
+        executable='wr_ldlidar',
+        name='top_ldlidar',
+        output='screen',
+        parameters=[
+            {'serial_port': '/dev/lidar_top'},
+            {'topic_name': 'scan'},
+            {'lidar_frame': 'lidar_frame_top_lidar'},
+            {'range_threshold': 0.0},
+        ],
+        # No remapping: driver publishes directly to /scan.
     ))
 
+    # Teensy bridge — must start before the EKF so that /sigyn/wheel_odom
+    # is available when the EKF initialises.
+    def _launch_teensy_bridge(context, *args, **kwargs):
+        if use_sim_time.perform(context).lower() == 'true':
+            return []
+        pkg = get_package_share_directory('sigyn_to_teensy')
+        return [IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(pkg, 'launch', 'sigyn_to_teensy.launch.py')
+            ),
+            launch_arguments={'namespace': 'sigyn'}.items(),
+        )]
+    ld.add_action(OpaqueFunction(function=_launch_teensy_bridge))
+
+    # EKF: SLAM Toolbox needs the odom frame.  The Teensy bridge above
+    # provides /sigyn/wheel_odom which the EKF fuses into /odom.
     ld.add_action(Node(
         package="robot_localization",
         executable="ekf_node",
@@ -123,6 +155,35 @@ def generate_launch_description():
             ("/odometry/filtered", "odom"),
             ("/odom/unfiltered", "/sigyn/wheel_odom"),
         ],
+    ))
+
+    # Twist multiplexer — merges keyboard / joystick / autonomy cmd_vel streams.
+    multiplexer_config = os.path.join(
+        get_package_share_directory('wr_twist_multiplexer'),
+        'config',
+        'wr_twist_multiplexer.yaml',
+    )
+    ld.add_action(Node(
+        package='wr_twist_multiplexer',
+        executable='wr_twist_multiplexer',
+        name='wr_twist_multiplexer_node',
+        arguments=['--config', multiplexer_config],
+        emulate_tty=True,
+        respawn=True,
+        output='screen',
+        condition=UnlessCondition(use_sim_time),
+    ))
+
+    # Optional bluetooth joystick for driving during mapping.
+    ld.add_action(IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('sigyn_bluetooth_joystick'),
+                'launch',
+                'sigyn_bluetooth_joystick.launch.py',
+            )
+        ),
+        condition=IfCondition(do_joystick),
     ))
 
     ld.add_action(IncludeLaunchDescription(
