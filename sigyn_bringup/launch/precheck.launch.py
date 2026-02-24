@@ -89,7 +89,7 @@ def precheck_fn(context, *args, **kwargs):
 def _include_main_launch():
     # Path to the main robot launch file
     main_launch = PathJoinSubstitution([
-        FindPackageShare('base'),
+        FindPackageShare('sigyn_bringup'),
         'launch',
         'sigyn.launch.py'
     ])

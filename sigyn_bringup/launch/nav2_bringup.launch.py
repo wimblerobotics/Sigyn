@@ -76,7 +76,7 @@ def generate_launch_description():
         condition=IfCondition(use_namespace),
     )
 
-    base_directory_path = get_package_share_directory('base')
+    base_directory_path = get_package_share_directory('sigyn_bringup')
     default_bt_xml_path = os.path.join(base_directory_path, "config", "nav_through_poses.xml")
 
     # Range sensors:
