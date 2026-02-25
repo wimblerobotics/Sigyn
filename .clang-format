@@ -1,3 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Wimble Robotics
+#
+# Google style with minor adjustments for ROS 2 / Nav2 compatibility.
+---
 BasedOnStyle: Google
-ColumnLimit: 120
+ColumnLimit: 100
 BreakStringLiterals: false
+DerivePointerAlignment: false
+PointerAlignment: Left

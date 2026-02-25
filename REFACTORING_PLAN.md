@@ -16,7 +16,7 @@ Break the Sigyn monorepo into a set of clean, independently deployable repositor
 
 | Package | Status | Destination |
 |---|---|---|
-| `base` | Keep, but rename and purge | Rename → `sigyn_bringup` (or `sigyn_launch`), stays here |
+| ~~`base`~~ | ✅ Renamed → `sigyn_bringup` | Stays here (bringup + launch + maps) |
 | ~~`bluetooth_joystick`~~ | ✅ Extracted | Lives at `wimblerobotics/sigyn_bluetooth_joystick`; removal from monorepo pending |
 | `can_do_challenge` | Major cleanup needed | Stays here as application layer |
 | `rviz` | Minimal, keep | Merge into `sigyn_bringup` or keep standalone |
@@ -52,8 +52,7 @@ Break the Sigyn monorepo into a set of clean, independently deployable repositor
 The current `.gitignore` now covers:
 - `**/__pycache__/` directories ✅
 - `can_do_challenge/resources/calibration_imgs/` ✅
-
-**Remaining:** `base/out/` — full CMake IDE configure tree is still committed to git (see 1.2).
+- `CMakePresets.json` ✅ (machine-specific IDE file; `sigyn_bringup/CMakePresets.json` untracked Feb 2026)
 
 ### 1.2 Remove committed build artifacts ✅ DONE
 
@@ -100,20 +99,19 @@ All dead launch files have been removed. Remaining active launch files:
 - `cartographer.lua`: `use_odometry = true`, `published_frame = "odom"`, `provide_odom_frame = false`, `num_accumulated_range_data = 1`, submap resolution `0.0508` m
 - `mapper_params_online_async.yaml`: `base_frame` corrected from `base_footprint` → `base_link` (URDF has no `base_footprint`), resolution `0.0508` m, `correlation_search_space_resolution` aligned to map resolution
 - Both launches bring up EKF + Teensy bridge for dead-reckoning between scans
+- Both launches include `map_saver_server` (lifecycle-managed) so the current map can be saved on demand via `/map_saver/save_map` service without stopping the mapping session
 
 ### 3.3 Separate real-robot and simulation navigation configs ✅ DONE
 
 `navigation_sim.yaml` renamed to `navigation.yaml` (the file was always used for the real robot; the name was misleading). Reference in `sigyn.launch.py` updated.
 
-### 3.4 Clarify which map is current
+### 3.4 Clarify which map is current ✅ DONE
 
-Maps directory contains:
-- `20241210l.pgm`/`20241210l.yaml` — dated map from Dec 2024
-- `map2.pgm`/`map2.yaml` + `map2s.data`/`map2s.posegraph` — another map
-- `my_map.yaml` (no corresponding `.pgm` found with correct name; `my_map2.pgm` exists)
-- The launch file references `my_map.yaml` for both real and sim
+Maps directory now contains only:
+- `my_map2.pgm` — current operational map (Dec 2024)
+- `my_map.yaml` — correctly references `my_map2.pgm`
 
-**Action:** Audit maps. Keep one canonical current map. Move old maps to `~/other_repository` or a `maps/archive/` subdirectory. Document which map is in use.
+Old dated maps were already removed. The launch file correctly references `my_map.yaml`. Resolution in `my_map.yaml` is `0.026176231` m (captured at original sensor resolution; different from the `0.0508` setting used when creating new maps with SLAM).
 
 ### 3.5 Fix `package.xml` dependency errors ✅ DONE
 
@@ -127,12 +125,12 @@ Maps directory contains:
 
 | File | Notes |
 |---|---|
-| `config/bt1.xml` | Wait node with negative duration was fixed; review remaining content |
-| `config/nn/can_yolov5.json`, `can_yolov8.json` | Used by `yolo_oakd_test` (deleted). Move to `sigyn_oakd_detection` workspace or remove. |
-| `config/oakd_camera.yaml` | Move to `sigyn_oakd_detection` workspace. |
-| `config/pcl.yaml` | Appears unused — `pointcloud.launch.py` was deleted. Remove. |
-| `config/gazebo.yaml` | Review if still relevant for sim |
-| `config/gz_bridge.yaml` | Actively used for Gazebo simulation |
+| `config/bt1.xml` | Wait node with negative duration was fixed; SPDX header added Feb 2026; review remaining content |
+| ~~`config/nn/can_yolov5.json`, `can_yolov8.json`~~ | ✅ Removed — `nn/` directory deleted; files belonged to `yolo_oakd_test` (gone) |
+| ~~`config/oakd_camera.yaml`~~ | ✅ Removed — moved to `sigyn_oakd_detection` workspace |
+| ~~`config/pcl.yaml`~~ | ✅ Removed — `pointcloud.launch.py` was deleted |
+| `config/gazebo.yaml` | Needed for sim; SPDX header added Feb 2026 |
+| `config/gz_bridge.yaml` | Actively used for Gazebo simulation; SPDX header added Feb 2026 |
 
 ---
 
@@ -344,12 +342,12 @@ Done as of 2026-02-24:
 - ✅ All `sigyn_bringup/launch/*.py` and `sub_launch/*.py` files
 - ✅ `sigyn_bringup/package.xml`, `sigyn_bringup/CMakeLists.txt`
 - ✅ `sigyn_bringup/config/ekf.yaml`, `mapper_params_online_async.yaml`, `mapper_params_lifelong.yaml`
+- ✅ `sigyn_bringup/config/gazebo.yaml`, `gz_bridge.yaml`, `laser_filters_angular.yaml`, `bt1.xml`
+- ✅ `sigyn_bringup/scripts/battery_overlay_publisher.py`
 - ✅ `rviz/CMakeLists.txt`, `rviz/package.xml`
 
 Still missing:
-- `sigyn_bringup/config/bt1.xml`
-- `sigyn_bringup/config/gazebo.yaml`, `gz_bridge.yaml`, `ekf.yaml` sub-comments
-- `sigyn_bringup/scripts/battery_overlay_publisher.py` — check
+- `sigyn_bringup/config/gazebo.yaml`, `gz_bridge.yaml` sub-comments (non-critical)
 - All files in extracted repos (tracked in their own repos)
 
 ### 12.2 Google C++ Style
@@ -387,15 +385,9 @@ Apply `ruff` or `flake8`/`black` formatting to all Python files:
 - `scripts/*.py`
 - (Note: `yolo_oakd_test` has been removed; the successor `sigyn_oakd_detection` lives in its own workspace)
 
-### 12.5 Add a top-level `.clang-format`
+### 12.5 ✅ Add a top-level `.clang-format` — DONE
 
-Place at `Sigyn/.clang-format`:
-```yaml
-BasedOnStyle: Google
-ColumnLimit: 100
-DerivePointerAlignment: false
-PointerAlignment: Left
-```
+`Sigyn/.clang-format` exists with Google base style, `ColumnLimit: 100`, `PointerAlignment: Left`. Updated Feb 2026 to add SPDX header and `DerivePointerAlignment: false`.
 
 ---
 
@@ -449,9 +441,9 @@ Currently `precheck` is a separate launch. Consider making it the canonical entr
 
 `rviz/config/config.rviz` is the monorepo RViz config. `yolo_oakd_test/config/can_detection.rviz` no longer exists (package deleted). The `sigyn_oakd_detection` workspace may ship its own RViz config. Ensure all topic references are current and create one canonical general-purpose config and one OAK-D detection visualization config.
 
-### 14.5 Remove `CMakePresets.json` from `sigyn_bringup/`
+### 14.5 ✅ Remove `CMakePresets.json` from `sigyn_bringup/` — DONE
 
-`sigyn_bringup/CMakePresets.json` is for local IDE integration (VS Code CMake Tools) and references machine-specific toolchain paths. It should be in `.gitignore` or replaced with a generic version.
+`sigyn_bringup/CMakePresets.json` has been removed from git tracking (`git rm --cached`) and `CMakePresets.json` added to `.gitignore`. The file remains on disk for those who want local IDE integration.
 
 ### 14.6 `navigation_launch.py` — confirm it is the right nav2 bringup entry point
 
@@ -465,8 +457,8 @@ Currently `precheck` is a separate launch. Consider making it the canonical entr
 2. ✅ **Rename `base` → `sigyn_bringup`** (Section 2) — DONE Feb 2026
 3. ✅ **`base` launch file purge** (Section 3.1) — dead launch files removed
 4. ✅ **`base` package.xml + CMakeLists.txt** (Section 3.5, 3.6) — cleaned up
-5. ✅ **Mapping launches created and validated** (Section 3.2) — Cartographer and SLAM Toolbox both working Feb 2026
-6. **`base` remaining cleanup** (Section 3.3, 3.4, 3.7) — navigation_sim.yaml rename, maps audit, orphaned config files
+5. ✅ **Mapping launches created and validated** (Section 3.2) — Cartographer and SLAM Toolbox both working Feb 2026; `map_saver_server` added Feb 2026
+6. ✅ **`sigyn_bringup` remaining cleanup** (Section 3.3, 3.4, 3.7) — nav config renamed, maps audited, dead config files removed, SPDX headers complete
 7. **Extract `sigyn_behavior_trees`** (Section 4) — in progress
 8. **Style sweep: SPDX + clang-format** (Section 12) — done per-package as each is touched
 9. ✅ **Extract `yolo_oakd_test`** (Section 7) — DONE (`wimblerobotics/sigyn_oakd_detection`)
@@ -482,7 +474,7 @@ Currently `precheck` is a separate launch. Consider making it the canonical entr
 
 In rough order of urgency:
 
-1. **Finish `sigyn_bringup` cleanup** — review `config/bt1.xml` and `config/gazebo.yaml` (Section 3.7); review `config/config.rviz` for stale topic references (Section 10).
+1. **Finish `sigyn_behavior_trees` extraction** (Section 4) — fix action server bugs, push to GitHub, update `Sigyn2/packages.yaml`.
 
 2. **Restore `~/other_repository/perimeter_roamer_v3`** — bring back to operational state on the real robot. Mapping launches are now working (Cartographer + SLAM Toolbox both validated Feb 2026).
 
@@ -499,8 +491,8 @@ In rough order of urgency:
 ## Open Questions
 
 1. ✅ Should `bluetooth_joystick` stay in the monorepo or get its own repo? **Decision: extract to own repo (priority 9 above)**
-2. Should `rviz` merge into `sigyn_bringup` or stay standalone? (Lean: merge — it's only one config file)
+2. ✅ Should `rviz` merge into `sigyn_bringup` or stay standalone? **Decision: keep standalone** — clean separation via `get_package_share_directory("rviz")`
 3. ✅ Should `can_do_challenge` eventually move to its own repo? **Decision: yes (priority 8 above)**
 4. ✅ The `CanDetection.msg` question is resolved: `yolo_oakd_test` deleted; `OakdDetection.msg` (renamed) now lives in `sigyn_interfaces` v0.9.4.
 5. ✅ `base/config/pcl.yaml` — deleted; the pointcloud launch was already gone.
-6. What is the intended purpose of `config/gazebo.yaml` vs `config/gz_bridge.yaml`? Both appear to exist. Is `gazebo.yaml` for something other than the bridge?
+6. ✅ `config/gazebo.yaml` is for the `ros_gz_bridge` publication rate parameter (not the bridge config itself); `config/gz_bridge.yaml` is the actual topic bridge mapping. Both are needed for simulation.

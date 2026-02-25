@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Wimble Robotics
 gazebo:
   ros__parameters:
     publish_rate: 400.0

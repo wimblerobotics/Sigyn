@@ -4,16 +4,19 @@
 # map_cartographer.launch.py — Create a new map using Cartographer SLAM.
 #
 # Usage:
-#   ros2 launch base map_cartographer.launch.py
-#   ros2 launch base map_cartographer.launch.py use_sim_time:=true
+#   ros2 launch sigyn_bringup map_cartographer.launch.py
+#   ros2 launch sigyn_bringup map_cartographer.launch.py use_sim_time:=true
 #
-# When done mapping, finish the trajectory and save the state:
+# When done mapping, save the map using the map_saver_server launched below:
+#   ros2 service call /map_saver/save_map nav2_msgs/srv/SaveMap \
+#       "{map_url: '$HOME/maps/my_map', image_format: 'pgm', map_mode: 'trinary',
+#         free_thresh: 0.25, occupied_thresh: 0.65}"
+#
+# To also export the Cartographer pose graph (.pbstream):
 #   ros2 service call /finish_trajectory cartographer_ros_msgs/srv/FinishTrajectory \
 #       "{trajectory_id: 0}"
 #   ros2 service call /write_state cartographer_ros_msgs/srv/WriteState \
 #       "{filename: '/tmp/my_map.pbstream', include_unfinished_submaps: true}"
-# Then save the occupancy grid:
-#   ros2 run nav2_map_server map_saver_cli -f ~/ros_ws/maps/my_map
 
 import os
 
@@ -239,6 +242,32 @@ def generate_launch_description():
         name="rviz2",
         condition=IfCondition(do_rviz),
         arguments=["-d", rviz_config_path],
+    ))
+
+    # Map saver — provides /map_saver/save_map service so you can save the
+    # current occupancy grid on demand without stopping the mapping session.
+    ld.add_action(Node(
+        package='nav2_map_server',
+        executable='map_saver_server',
+        name='map_saver',
+        output='screen',
+        parameters=[
+            {'use_sim_time': use_sim_time},
+            {'save_map_timeout': 5.0},
+            {'free_thresh_default': 0.25},
+            {'occupied_thresh_default': 0.65},
+        ],
+    ))
+    ld.add_action(Node(
+        package='nav2_lifecycle_manager',
+        executable='lifecycle_manager',
+        name='lifecycle_manager_map_saver',
+        output='screen',
+        parameters=[
+            {'use_sim_time': use_sim_time},
+            {'autostart': True},
+            {'node_names': ['map_saver']},
+        ],
     ))
 
     return ld

@@ -4,12 +4,18 @@
 # map_slam_toolbox.launch.py — Create a new map using SLAM Toolbox (online async).
 #
 # Usage:
-#   ros2 launch base map_slam_toolbox.launch.py
-#   ros2 launch base map_slam_toolbox.launch.py use_sim_time:=true
-#   ros2 launch base map_slam_toolbox.launch.py slam_params_file:=/path/to/params.yaml
+#   ros2 launch sigyn_bringup map_slam_toolbox.launch.py
+#   ros2 launch sigyn_bringup map_slam_toolbox.launch.py use_sim_time:=true
+#   ros2 launch sigyn_bringup map_slam_toolbox.launch.py slam_params_file:=/path/to/params.yaml
 #
-# When done mapping, save the map with:
-#   ros2 run nav2_map_server map_saver_cli -f ~/ros_ws/maps/my_map
+# When done mapping, save the map using the map_saver_server launched below:
+#   ros2 service call /map_saver/save_map nav2_msgs/srv/SaveMap \
+#       "{map_url: '$HOME/maps/my_map', image_format: 'pgm', map_mode: 'trinary',
+#         free_thresh: 0.25, occupied_thresh: 0.65}"
+#
+# SLAM Toolbox can also serialize its internal pose graph:
+#   ros2 service call /slam_toolbox/save_map slam_toolbox/srv/SaveMap \
+#       "{name: {data: '/tmp/my_map'}}"
 
 import os
 
@@ -207,6 +213,32 @@ def generate_launch_description():
         name="rviz2",
         condition=IfCondition(do_rviz),
         arguments=["-d", rviz_config_path],
+    ))
+
+    # Map saver — provides /map_saver/save_map service so you can save the
+    # current occupancy grid on demand without stopping the mapping session.
+    ld.add_action(Node(
+        package='nav2_map_server',
+        executable='map_saver_server',
+        name='map_saver',
+        output='screen',
+        parameters=[
+            {'use_sim_time': use_sim_time},
+            {'save_map_timeout': 5.0},
+            {'free_thresh_default': 0.25},
+            {'occupied_thresh_default': 0.65},
+        ],
+    ))
+    ld.add_action(Node(
+        package='nav2_lifecycle_manager',
+        executable='lifecycle_manager',
+        name='lifecycle_manager_map_saver',
+        output='screen',
+        parameters=[
+            {'use_sim_time': use_sim_time},
+            {'autostart': True},
+            {'node_names': ['map_saver']},
+        ],
     ))
 
     return ld
