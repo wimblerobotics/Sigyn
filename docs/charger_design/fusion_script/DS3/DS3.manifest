@@ -1,0 +1,9 @@
+{
+  "autodeskProduct": "Fusion360",
+  "type": "script",
+  "script": "DS3",
+  "supportedOS": "windows|mac",
+  "author": "Sigyn Project",
+  "description": "Sigyn docking station v3 — corrected stack, chamfers, funnel flange, FloatingPlate recess.",
+  "version": "3.0"
+}
