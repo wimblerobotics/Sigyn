@@ -1,0 +1,9 @@
+{
+  "autodeskProduct": "Fusion360",
+  "type": "script",
+  "script": "SigynDock",
+  "supportedOS": "windows|mac",
+  "author": "Sigyn Project",
+  "description": "Sigyn docking station assembly builder — step-by-step progress reporting.",
+  "version": "1.0"
+}
