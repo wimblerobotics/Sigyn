@@ -536,20 +536,26 @@ def run(context):
         app = adsk.core.Application.get()
         ui  = app.userInterface
 
-        # Confirm we have a Fusion design open
+        # Create a new standard Fusion Design document.
+        # This is critical: "Part Design" documents (the default in recent
+        # Fusion versions when you do File → New Design) only support a single
+        # component and will error on addNewComponent().  Creating the document
+        # here with FusionDesignDocumentType guarantees a multi-component
+        # assembly-capable design regardless of what was open before.
+        doc = app.documents.add(adsk.core.DocumentTypes.FusionDesignDocumentType)
         design = adsk.fusion.Design.cast(app.activeProduct)
         if not design:
             ui.messageBox(
-                "No active Fusion 360 design found.\n\n"
-                "Please create a new design (File → New Design) and run the script again.",
+                "Could not create a new Fusion Design document.\n"
+                "Please check that Fusion 360 is fully loaded and try again.",
                 "Docking Station — Error")
             return
 
         root = design.rootComponent
 
         ui.messageBox(
-            "About to build the Sigyn Docking Station assembly.\n\n"
-            "This will add 5 components to the current design.\n"
+            "A new Fusion Design document has been created.\n\n"
+            "About to build the Sigyn Docking Station assembly (5 components).\n"
             "Allow 30–90 seconds — click OK to start.",
             "Docking Station")
 
