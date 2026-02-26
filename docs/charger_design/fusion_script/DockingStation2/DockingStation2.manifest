@@ -1,0 +1,9 @@
+{
+  "autodeskProduct": "Fusion360",
+  "type": "script",
+  "script": "DockingStation2",
+  "supportedOS": "windows|mac",
+  "author": "Sigyn Project",
+  "description": "Builds the Sigyn docking station assembly v2 — corrected stack order, chamfered RobotBlock, funnel bolt flange, FloatingPlate in BackPlate recess.",
+  "version": "2.0"
+}
