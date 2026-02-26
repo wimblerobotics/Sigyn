@@ -1,0 +1,11 @@
+{
+    "autodeskProduct": "Fusion360",
+    "type": "script",
+    "script": "DockingStation",
+    "supportedOS": "windows|mac",
+    "author": "Sigyn Project",
+    "description": "Builds the Sigyn autonomous docking station assembly parametrically (robot block, guide pin, back plate, floating contact plate, entry funnel).",
+    "helpUrl": "",
+    "version": "2.0",
+    "editEnabled": true
+}
