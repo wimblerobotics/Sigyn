@@ -1,0 +1,17 @@
+#!/bin/bash
+# Wrapper script to run Groot with clean environment (no snap libraries)
+
+# Unset snap-related variables that interfere with Qt applications
+unset GIO_MODULE_DIR
+unset GTK_PATH
+unset GTK_EXE_PREFIX
+unset LOCPATH
+unset GTK_IM_MODULE_FILE
+unset GSETTINGS_SCHEMA_DIR
+
+# Restore original system paths
+export XDG_DATA_DIRS="${XDG_DATA_DIRS_VSCODE_SNAP_ORIG:-/usr/share/ubuntu:/usr/share/gnome:/usr/local/share:/usr/share:/var/lib/snapd/desktop}"
+export XDG_CONFIG_DIRS="${XDG_CONFIG_DIRS_VSCODE_SNAP_ORIG:-/etc/xdg}"
+
+# Run Groot
+exec ~/sigyn_ws/src/Sigyn/groot/build/Groot "$@"

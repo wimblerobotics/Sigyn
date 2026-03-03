@@ -74,9 +74,39 @@ def cm(mm): return mm / 10.0
 
 # ── GEOMETRY HELPERS ────────────────────────────────────────────────────────
 
-def new_occ(root):
-    """Add a blank new-component occurrence to root and return it."""
-    return root.occurrences.addNewComponent(adsk.core.Matrix3D.create())
+PART_MODE = False
+
+
+def component_offsets():
+    return {
+        "BackPlate":            0.0,
+        "FloatingContactPlate": BP_T,
+        "EntryFunnel":          BP_T,
+        "RobotBlock":           BP_T + FN_D,
+        "GuidePin":             BP_T + FN_D - PIN_OUT,
+    }
+
+
+def new_occ(root, name, log):
+    """Add a blank new-component occurrence to root and return (occ, comp).
+
+    If Fusion is in Part Design mode (single-component), fall back to using
+    the root component and build each part as a separate body.
+    """
+    global PART_MODE
+    if not PART_MODE:
+        try:
+            occ = root.occurrences.addNewComponent(adsk.core.Matrix3D.create())
+            occ.component.name = name
+            return occ, occ.component
+        except Exception as ex:
+            msg = str(ex)
+            if "Part Design" in msg or "single component" in msg:
+                PART_MODE = True
+                log.append("⚠️ Part Design detected — building as bodies in root component.")
+            else:
+                raise
+    return None, root
 
 
 def sk_on(comp, plane):
@@ -150,6 +180,15 @@ def extrude_all(comp, prof, op):
     return comp.features.extrudeFeatures.add(fi)
 
 
+def move_body_to_offset(comp, body, offset_mm):
+    entities = adsk.core.ObjectCollection.create()
+    entities.add(body)
+    m = adsk.core.Matrix3D.create()
+    m.translation = adsk.core.Vector3D.create(cm(offset_mm), 0, 0)
+    mi = comp.features.moveFeatures.createInput(entities, m)
+    comp.features.moveFeatures.add(mi)
+
+
 OP_NEW  = adsk.fusion.FeatureOperations.NewBodyFeatureOperation
 OP_JOIN = adsk.fusion.FeatureOperations.JoinFeatureOperation
 OP_CUT  = adsk.fusion.FeatureOperations.CutFeatureOperation
@@ -158,9 +197,7 @@ OP_CUT  = adsk.fusion.FeatureOperations.CutFeatureOperation
 # ── COMPONENT BUILDERS ──────────────────────────────────────────────────────
 
 def make_robot_block(root, log):
-    occ  = new_occ(root)
-    comp = occ.component
-    comp.name = "RobotBlock"
+    occ, comp = new_occ(root, "RobotBlock", log)
     yz   = comp.yZConstructionPlane
     pw   = PAD_W + 2*PAD_CLR
     pl   = PAD_L + 2*PAD_CLR
@@ -171,6 +208,7 @@ def make_robot_block(root, log):
 
     # Chamfer 4 long edges at contact face (X=0)
     body   = bf.bodies.item(0)
+    body.name = "RobotBlock"
     cedges = adsk.core.ObjectCollection.create()
     for e in body.edges:
         p1, p2 = e.startVertex.geometry, e.endVertex.geometry
@@ -219,17 +257,21 @@ def make_robot_block(root, log):
     if col.count > 0: extrude_all(comp, col, OP_CUT)
     log.append("  RobotBlock: all holes OK")
 
+    if PART_MODE:
+        move_body_to_offset(comp, body, component_offsets()["RobotBlock"])
+        log.append("  RobotBlock: positioned (Part Design mode)")
+
     return comp
 
 
 def make_guide_pin(root, log):
-    occ  = new_occ(root)
-    comp = occ.component
-    comp.name = "GuidePin"
+    occ, comp = new_occ(root, "GuidePin", log)
     yz   = comp.yZConstructionPlane
 
     sk = sk_on(comp, yz); circ(sk, 0, 0, PIN_OD)
-    extrude(comp, first_prof(sk), PIN_OUT + PIN_IN, OP_NEW)
+    ex = extrude(comp, first_prof(sk), PIN_OUT + PIN_IN, OP_NEW)
+    body = ex.bodies.item(0)
+    body.name = "GuidePin"
 
     sk = sk_on(comp, yz); circ(sk, 0, 0, PIN_BORE)
     extrude_all(comp, first_prof(sk), OP_CUT)
@@ -246,17 +288,21 @@ def make_guide_pin(root, log):
     except Exception as ex:
         log.append(f"  GuidePin: tip chamfer skipped ({ex})")
 
+    if PART_MODE:
+        move_body_to_offset(comp, body, component_offsets()["GuidePin"])
+        log.append("  GuidePin: positioned (Part Design mode)")
+
     return comp
 
 
 def make_back_plate(root, log):
-    occ  = new_occ(root)
-    comp = occ.component
-    comp.name = "BackPlate"
+    occ, comp = new_occ(root, "BackPlate", log)
     yz   = comp.yZConstructionPlane
 
     sk = sk_on(comp, yz); rect(sk, 0, 0, BP_W, BP_H)
-    extrude(comp, first_prof(sk), BP_T, OP_NEW)
+    ex = extrude(comp, first_prof(sk), BP_T, OP_NEW)
+    body = ex.bodies.item(0)
+    body.name = "BackPlate"
     log.append("  BackPlate: body OK")
 
     front = offset_plane(comp, yz, BP_T)
@@ -296,17 +342,21 @@ def make_back_plate(root, log):
     if col.count > 0: extrude_all(comp, col, OP_CUT)
     log.append("  BackPlate: wall slots OK")
 
+    if PART_MODE:
+        move_body_to_offset(comp, body, component_offsets()["BackPlate"])
+        log.append("  BackPlate: positioned (Part Design mode)")
+
     return comp
 
 
 def make_floating_plate(root, log):
-    occ  = new_occ(root)
-    comp = occ.component
-    comp.name = "FloatingContactPlate"
+    occ, comp = new_occ(root, "FloatingContactPlate", log)
     yz   = comp.yZConstructionPlane
 
     sk = sk_on(comp, yz); rect(sk, 0, 0, FP_W, FP_H)
-    extrude(comp, first_prof(sk), FP_T, OP_NEW)
+    ex = extrude(comp, first_prof(sk), FP_T, OP_NEW)
+    body = ex.bodies.item(0)
+    body.name = "FloatingContactPlate"
     log.append("  FloatingPlate: body OK")
 
     sk = sk_on(comp, yz)
@@ -347,13 +397,15 @@ def make_floating_plate(root, log):
     if col.count > 0: extrude(comp, col, SNS_DEP, OP_CUT)
     log.append("  FloatingPlate: sense recesses OK")
 
+    if PART_MODE:
+        move_body_to_offset(comp, body, component_offsets()["FloatingContactPlate"])
+        log.append("  FloatingPlate: positioned (Part Design mode)")
+
     return comp
 
 
 def make_entry_funnel(root, log):
-    occ  = new_occ(root)
-    comp = occ.component
-    comp.name = "EntryFunnel"
+    occ, comp = new_occ(root, "EntryFunnel", log)
     yz   = comp.yZConstructionPlane
 
     # Loft: exit (narrow) at X=0, entry (wide) at X=FN_D
@@ -366,6 +418,7 @@ def make_entry_funnel(root, log):
     log.append("  EntryFunnel: loft OK")
 
     body   = lf.bodies.item(0)
+    body.name = "EntryFunnel"
     sfaces = adsk.core.ObjectCollection.create()
     for face in body.faces:
         g = face.geometry
@@ -410,17 +463,19 @@ def make_entry_funnel(root, log):
         extrude(comp, col, FN_FL_T, OP_CUT)
     log.append("  EntryFunnel: bolt holes OK")
 
+    if PART_MODE:
+        move_body_to_offset(comp, body, component_offsets()["EntryFunnel"])
+        log.append("  EntryFunnel: positioned (Part Design mode)")
+
     return comp
 
 
 def position_all(root, log):
-    offsets = {
-        "BackPlate":            0.0,
-        "FloatingContactPlate": BP_T,
-        "EntryFunnel":          BP_T,
-        "RobotBlock":           BP_T + FN_D,
-        "GuidePin":             BP_T + FN_D - PIN_OUT,
-    }
+    offsets = component_offsets()
+    if PART_MODE:
+        log.append("  Positioned: skipped (Part Design mode already positioned)")
+        return
+
     moved = []
     for i in range(root.occurrences.count):
         occ  = root.occurrences.item(i)
