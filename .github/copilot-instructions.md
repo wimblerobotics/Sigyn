@@ -2,6 +2,18 @@
 
 This guide enables AI agents to work productively in the Sigyn workspace. It summarizes architecture, workflows, conventions, and integration points unique to this codebase.
 
+## Copilot Chat History Across Machines
+
+GitHub Copilot chat history is stored **locally** in VS Code's extension state and is **not** automatically synchronized across machines. This is why you cannot see chats from one Linux machine when using a different one.
+
+**Root cause**: Copilot chat sessions are persisted in VS Code's local storage (`~/.config/Code/User/globalStorage/github.copilot-chat/`) and there is currently no built-in cloud sync for this data. VS Code Settings Sync does **not** sync Copilot chat history.
+
+**Practical workarounds:**
+
+1. **Save important conversations manually**: Copy valuable chat content into a Markdown file in this repository's `Documentation/` directory so it is version-controlled and accessible on any machine after a `git pull`.
+
+2. **Use `@workspace` context**: On each machine, Copilot can reconstruct much of the relevant project context automatically by using `@workspace` prompts — it reads the current code rather than relying on prior chat history.
+
 ## 1. Colcon build instructions
 Always include the command-line option '--symlink-install' when building the package to ensure that the agent can access the latest code changes without needing to rebuild the entire workspace. This is crucial for rapid development and testing.
 
