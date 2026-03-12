@@ -133,13 +133,18 @@ controller_server:
       visualize: false         # disable visualization to reduce load
       regenerate_noises: true
       critics: [
-        "ConstraintCritic", "CostCritic", "GoalCritic",
+        "ConstraintCritic", "ObstacleFootprintCritic", "CostCritic", "GoalCritic",
         "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic",
         "PathAngleCritic", "PreferForwardCritic"]
       ConstraintCritic:
         enabled: true
         cost_power: 1
         cost_weight: 4.0
+      ObstacleFootprintCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 50.0
+        collision_cost: 1000000.0
       GoalCritic:
         enabled: true
         cost_power: 1
@@ -256,7 +261,7 @@ local_costmap:
       inflation_layer:
         enabled: True
         cost_scaling_factor: 8.0   # increased to push farther from obstacles
-        inflation_radius: 0.15   ## Was 0.35, changed for can_do_challenge # larger buffer radius around obstacles
+        inflation_radius: 0.35   # Restored from 0.15 - larger buffer radius around obstacles for safe navigation
         plugin: "nav2_costmap_2d::InflationLayer"
 
       oakd_top_layer:
