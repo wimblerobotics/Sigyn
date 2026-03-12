@@ -76,6 +76,43 @@ Behavior Trees -- Create a single, parameterized Condition Node (e.g., `IsFaultA
 # IMU
 * Detect critical tilt in x or y.
 
+# Navigation Configuration Improvements
+# From comprehensive Nav2 configuration analysis - 2025-01-08
+# Applied: Local costmap size, planner tolerance, consistent robot radius, 
+#          angular velocity limits, BT loop rate, MPPI computation
+# Deferred items below:
+
+## AMCL Localization Tuning
+* [MED] Increase update_min_d from 0.01m to 0.10m (too aggressive, causes odom jumps)
+* [MED] Increase update_min_a from 0.01 rad to 0.15 rad (too frequent updates)
+* Reason: Current values (1cm/0.6°) cause AMCL to update on sensor noise
+* Testing: Monitor /tf for odom→map smoothness, test in long hallways
+
+## AMCL Initial Pose Configuration  
+* [HIGH] Change set_initial_pose from true to false (hardcoded position problematic)
+* [HIGH] Use RViz "2D Pose Estimate" tool instead of hardcoded x/y/yaw
+* Reason: Robot may be placed anywhere, hardcoded [0,0,0] causes localization failure
+* Testing: Power on robot in different locations, verify AMCL convergence
+
+## Costmap Resolution Optimization
+* [LOW] Consider changing resolution from 0.0508m to 0.10m 
+* Reason: 5cm resolution may be overkill for robot with 28cm radius
+* Benefit: 4x fewer cells = faster planning and lower CPU usage
+* Risk: May miss narrow gaps or small obstacles
+* Testing: A/B test both resolutions, measure CPU usage and planning time
+
+## Planner Algorithm Selection
+* [MED] Enable A* instead of Dijkstra (change use_astar: false to true)
+* Reason: A* is faster and produces similar paths for most environments
+* Benefit: Reduced planning time, especially in large spaces
+* Testing: Compare planning times with ros2 topic echo /plan_smoothed
+
+## Speed Limit Tuning for Efficiency
+* [LOW] Consider increasing max_vel_x from 0.5 m/s to 0.8-1.0 m/s in hallways
+* Reason: Robot is conservative, could move faster in open spaces
+* Approach: Use velocity smoother or behavior tree to adjust dynamically
+* Testing: Ensure adequate stopping distance at higher speeds, test emergency stops
+
 # ============================================================================
 # Safety System Future Enhancements (from SAFETY_OVERVIEW.md Section XVI)
 # Updated: 2026-01-06

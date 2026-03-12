@@ -55,7 +55,7 @@ bt_navigator:
     global_frame: map
     robot_base_frame: base_link
     odom_topic: /odom
-    bt_loop_duration: 1      # was 10, tick BT every 1 s instead of 10 s
+    bt_loop_duration: 10     # 10ms = 100 Hz BT tick rate for responsive decisions
     default_server_timeout: 5 # 20
     wait_for_service_timeout: 1000
     action_server_result_timeout: 900.0
@@ -110,9 +110,9 @@ controller_server:
       stateful: True
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
-      time_steps: 56           # reduced for simpler predictions
+      time_steps: 40           # Reduced from 56 for computational efficiency
       model_dt: 0.05
-      batch_size: 2000         # reduced batch size for stability
+      batch_size: 1000         # Reduced from 2000 for better real-time performance
       ax_max: 1.0              # reduced acceleration
       ax_min: -1.0             
       ay_max: 2.0              # reduced lateral acceleration
@@ -204,7 +204,7 @@ local_costmap:
       debug: True
       # always_send_full_costmap: True # Whether to send full costmap every update, rather than updates.
       global_frame: odom
-      height: 3 # Height of costmap (m).
+      height: 4 # Height of costmap (m) - increased for better lookahead
       # initial_transform_timeout: 60.0 # Time to wait for transform to be available before erroring out.
       # lethal_cost_threshold: 100 # Minimum cost of an occupancy grid map to be considered a lethal obstacle.
       # map_topic: /map # Topic of map from map_server or SLAM.
@@ -220,7 +220,7 @@ local_costmap:
       # trinary_costmap: True # Whether to use trinary or continuous costmap.
       # unknown_cost_value: 255 # Cost of unknown space if tracking it.
       update_frequency: 15.0 # Costmap update frequency.
-      width: 3 # Width of costmap (m).
+      width: 4 # Width of costmap (m) - increased for better lookahead
 
       plugins: [
         "voxel_layer",        # Low lidar clears/marks first
@@ -320,7 +320,7 @@ global_costmap:
       publish_frequency: 1.0 # Frequency to publish costmap to topic.
       resolution: 0.0508 # Resolution of 1 pixel of the costmap, in meters.
       robot_base_frame: base_link
-      robot_radius: 0.3      # was 0.2286, enlarge footprint buffer
+      robot_radius: 0.28      # Match local costmap for consistency
       track_unknown_space: True # If false, treats unknown space as free space, else as unknown space.
       transform_tolerance: 0.5
       update_frequency: 5.0 # Costmap update frequency.
@@ -393,7 +393,7 @@ planner_server:
     costmap_update_timeout: 1.0
     GridBased:
       plugin: "nav2_navfn_planner::NavfnPlanner"
-      tolerance: 1.0
+      tolerance: 0.15  # Tighter goal tolerance (was 1.0)
       use_astar: false
       allow_unknown: true
 
@@ -429,7 +429,7 @@ behavior_server:
     robot_base_frame: base_link
     transform_tolerance: 0.1
     simulate_ahead_time: 2.0
-    max_rotational_vel: 1.0
+    max_rotational_vel: 1.5  # Match controller and smoother limits
     min_rotational_vel: 0.4
     rotational_acc_lim: 3.2
 
@@ -450,8 +450,8 @@ velocity_smoother:
     smoothing_frequency: 20.0
     scale_velocities: False
     feedback: "OPEN_LOOP"
-    max_velocity: [0.5, 0.0, 2.0]
-    min_velocity: [-0.5, 0.0, -2.0]
+    max_velocity: [0.5, 0.0, 1.5]  # Match controller angular velocity limit
+    min_velocity: [-0.5, 0.0, -1.5]
     max_accel: [2.5, 0.0, 3.2]
     max_decel: [-2.5, 0.0, -3.2]
     odom_topic: "odom"
