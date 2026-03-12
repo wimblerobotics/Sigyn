@@ -220,7 +220,7 @@ local_costmap:
       plugins: [
         "voxel_layer",        # Low lidar clears/marks first
         "oakd_top_layer",     # OAK-D (currently disabled)
-        "range_sensor_layer", # VL53L0X marks after lidar so it isn't cleared
+        # "range_sensor_layer", # VL53L0X marks after lidar so it isn't cleared
         "inflation_layer"]
 
       static_layer:
