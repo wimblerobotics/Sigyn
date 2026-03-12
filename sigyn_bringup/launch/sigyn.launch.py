@@ -101,7 +101,7 @@ def generate_launch_description():
     do_rviz = LaunchConfiguration("do_rviz")
     ld.add_action(
         DeclareLaunchArgument(
-            name="do_rviz", default_value="true", description="Launch RViz if true"
+            name="do_rviz", default_value="false", description="Launch RViz if true"
         )
     )
 

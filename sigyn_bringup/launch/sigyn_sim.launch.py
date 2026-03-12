@@ -54,7 +54,7 @@ def generate_launch_description():
     ))
     ld.add_action(DeclareLaunchArgument(
         "do_oakd",
-        default_value="false",
+        default_value="true",
         description="Launch OAK-D camera nodes if true.",
     ))
     ld.add_action(DeclareLaunchArgument(
@@ -64,7 +64,7 @@ def generate_launch_description():
     ))
     ld.add_action(DeclareLaunchArgument(
         "do_rviz",
-        default_value="true",
+        default_value="false",
         description="Launch RViz if true.",
     ))
     ld.add_action(DeclareLaunchArgument(
