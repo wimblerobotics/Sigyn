@@ -193,6 +193,42 @@ This work plan covers the complete Sigyn robotic platform, including:
 
 ---
 
+## 🟠 HIGH — ROS 2 Integration / Code Quality
+
+### Thread Safety: Bridge Receive Callback Data Race
+- **Issue:** `SerialBridge::ReadThreadFunc()` publishes from non-executor thread
+- **Details:** Bridge read thread calls `dispatcher_->HandleRawMessage()` → `TopicPublisher::HandleRange()` → `range_pub_->publish()` 
+- **Problem:** LifecyclePublisher state changes (`on_activate`/`on_deactivate`) happen on executor thread while publishing happens on read thread - unprotected data race
+- **Impact:** Occasional crashes or stale data under load, especially with MultiThreadedExecutor
+- **Fix Options:**
+  1. Post messages to mutex-protected queue, drain from ROS timer on executor
+  2. Use guard condition to notify executor when data available
+  3. Move all dispatch to executor thread (read thread only does I/O)
+- **Recommended:** Option 1 (already partially implemented with `rx_queue_` in teensy_bridge)
+- **Files:** `wr_ros_teensy/src/teensy_bridge.cpp`, `SerialBridge.cpp`
+- **Estimated Effort:** 6-8 hours
+
+### Proximity Sensor Topic Architecture for Nav2
+- **Issue:** All VL53L0X sensors publish to single aggregated `/sigyn/sensors/range` topic
+- **Problem:** Nav2's range_sensor_layer and costmap_2d require one topic per sensor or merged point cloud
+- **Impact:** Cannot use Nav2 obstacle avoidance without demux layer
+- **Design Options:**
+  1. One publisher per sensor (e.g., `/sigyn/sensors/range/front_left`, `/sigyn/sensors/range/front_right`)
+  2. Single `sensor_msgs/PointCloud2` aggregated topic
+- **Current:** Publishers created per-sensor in TopicPublisher constructor but all use same topic
+- **Required:** Decision on topic architecture + implementation + URDF/TF updates
+- **Files:** `wr_ros_teensy/src/TopicPublisher.cpp`, sensor_names.json, URDF
+- **Estimated Effort:** 8-12 hours (design + implementation + testing)
+
+### Dead Code Cleanup
+- **GetReasonList():** Declared in `SafetyCoordinator.hpp` but never implemented - remove declaration
+- **HB handler clock:** Creates new `rclcpp::Clock(RCL_STEADY_TIME)` per callback - use `this->get_clock()`
+- **MultiThreadedExecutor:** No callback groups defined, executor effectively single-threaded
+- **Files:** `wr_ros_teensy/include/wr_ros_teensy/SafetyCoordinator.hpp`, `teensy_bridge.cpp`
+- **Estimated Effort:** 2-3 hours
+
+---
+
 ## 🟠 HIGH — Can-Do Challenge
 
 ### Behavior Tree Safety Preservation
