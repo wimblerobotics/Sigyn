@@ -9,12 +9,12 @@
 ## AI Context Summary
 
 This work plan covers the complete Sigyn robotic platform, including:
-- **Hardware:** Teensy 4.1-based multi-board control system (3 boards: Navigation/Safety, Power/Sensors, Gripper/Elevator)
+- **Hardware:** Teensy 4.1-based multi-board control system (Boards 1 & 2: Navigation/Safety, Power/Sensors)
 - **Core Packages:** sigyn_bringup, sigyn_behavior_trees, sigyn_to_teensy, sigyn_teensy_boards
 - **Navigation:** Nav2-based autonomous navigation, perimeter patrol, house patrol
-- **Vision:** OAK-D depth cameras, Pi Camera for gripper fine control
+- **Vision:** OAK-D depth cameras for object detection
 - **Safety:** Multi-level fault handling, emergency stop, sensor monitoring
-- **Current Project:** can_do_challenge - autonomous can detection and pickup using behavior trees
+- **Note:** Board 3 (gripper/elevator) hardware is being replaced and all related work items have been removed from this plan
 
 **Key Architecture Notes:**
 - ROS 2 Humble on Ubuntu 22.04
@@ -36,17 +36,6 @@ This work plan covers the complete Sigyn robotic platform, including:
 
 ### Safety System
 
-#### Enable Safety on Board 3 (Gripper/Elevator)
-- **Status:** BLOCKING production use
-- **Issue:** `BOARD_HAS_SAFETY` is currently `0` on Board 3
-- **Required:** 
-  - Set `BOARD_HAS_SAFETY 1` in Board 3's `config.h`
-  - Instantiate `SafetyCoordinator` in `elevator_board.cpp`
-  - Test e-stop propagation from Board 3 to Board 1
-- **Impact:** Without this, gripper has no local e-stop and firmware hangs won't be detected
-- **Files:** `sigyn_teensy_boards/board3/elevator_board.cpp`, `board3/config.h`
-- **Estimated Effort:** 2-4 hours
-
 #### Enable SafetyCoordinator on Board 2
 - **Status:** BLOCKING production use
 - **Issue:** `board2_main.cpp` lacks SafetyCoordinator initialization
@@ -63,8 +52,8 @@ This work plan covers the complete Sigyn robotic platform, including:
 - **Issue:** Board 1's `fault_handler` has unimplemented TODO for inter-board notification
 - **Required:**
   - Implement serial message broadcast when Board 1 enters emergency stop
-  - Boards 2 & 3 should receive and react to Board 1 fault messages
-  - Test fault propagation in all directions
+  - Board 2 should receive and react to Board 1 fault messages
+  - Test fault propagation between boards
 - **Impact:** Software complement to GPIO e-stop; prevents unsafe operations when one board faults
 - **Files:** `sigyn_teensy_boards/board1/board1_main.cpp`, `common/core/serial_manager.cpp`
 - **Estimated Effort:** 4-8 hours
@@ -98,18 +87,17 @@ This work plan covers the complete Sigyn robotic platform, including:
 ### Cross-Board E-Stop via GPIO
 - **Purpose:** Hardware-level fault propagation independent of serial communication
 - **Design:**
-  - Board 1 asserts GPIO 10 high on `EMERGENCY_STOP`; Boards 2 & 3 interrupt on that pin
+  - Board 1 asserts GPIO 10 high on `EMERGENCY_STOP`; Board 2 interrupts on that pin
   - Board 2 asserts GPIO 11 high on fault; Board 1 monitors via interrupt
-  - Board 3 asserts GPIO 12 high on fault; Board 1 monitors via interrupt
   - Each board: `attachInterrupt()` → immediately invoke `SafetyCoordinator::raiseEmergencyStop(SOURCE_EXTERNAL)`
-  - Board 1 drops e-stop only when ALL GPIO pins clear AND no local faults
+  - Board 1 drops e-stop only when all GPIO pins clear AND no local faults
 - **Implementation:**
   - Use active-HIGH assertion with pull-down (wire-break safe)
   - Add `SOURCE_EXTERNAL` to `safety_coordinator.h`
-  - Update `board1_main.cpp`, `board2_main.cpp`, `elevator_board.cpp`
+  - Update `board1_main.cpp`, `board2_main.cpp`
   - Document in `docs/Safety_System.md`
 - **Testing:** Trigger fault on each board, verify propagation
-- **Estimated Effort:** 12-16 hours
+- **Estimated Effort:** 8-12 hours
 
 ### IMU Safety Integration (Board 2)
 - **Purpose:** Detect dangerous tilt/spin conditions
@@ -207,39 +195,11 @@ This work plan covers the complete Sigyn robotic platform, including:
 
 ## 🟠 HIGH — Can-Do Challenge
 
-### Gripper Code Review (Teensy)
-- **Issue:** Ensure stepping actions never return `RUNNING` while still stepping
-- **Requirement:** Gripper commands must be atomic from BT perspective
-- **Files:** `sigyn_teensy_boards/board3/elevator_board.cpp`
-- **Testing:** Send rapid STEPPOS commands, verify no overlapping execution
-- **Estimated Effort:** 4-6 hours
-
 ### Behavior Tree Safety Preservation
 - **Issue:** Some places use `Sequence` where `ReactiveSequence` needed
 - **Requirement:** Safety subtrees must remain responsive during long actions
 - **Review:** All BT XMLs in `can_do_challenge/bt_xml/`
 - **Testing:** Trigger e-stop during long operations
-- **Estimated Effort:** 6-8 hours
-
-### ExtendTowardsCan Continuous Monitoring
-- **Current:** Extension happens without alignment monitoring
-- **Required:**
-  1. Continuously verify gripper Z-height remains correct relative to can
-  2. Continuously verify robot rotation keeps can aligned with gripper centerline
-- **Implementation:** Add monitoring loop during extension with corrective actions
-- **Files:** `can_do_challenge/src/bt_nodes_real.cpp`
-- **Testing:** Place can at various angles/heights
-- **Estimated Effort:** 8-12 hours
-
-### Grasp Verification After Retraction
-- **Current:** No confirmation can is still held after `RetractExtender`
-- **Required:**
-  - Check if can visible in Pi camera after retraction
-  - Check gripper force sensor (future hardware)
-  - Design recovery: retry grasp, re-detect, or abort
-- **Implementation:** New BT node `VerifyCanGrasped`
-- **Files:** `can_do_challenge/src/bt_nodes_real.cpp`
-- **Testing:** Intentional grasp failures
 - **Estimated Effort:** 6-8 hours
 
 ### Nav2 Integration (Unimplemented Stubs)
@@ -272,14 +232,7 @@ This work plan covers the complete Sigyn robotic platform, including:
 - **Files:** `can_do_challenge/src/bt_nodes.cpp` vs `bt_nodes_real.cpp`
 - **Testing:** Run same XML in sim and real, verify matching behavior
 - **Estimated Effort:** 12-20 hours
-
----
-
-## 🟡 MEDIUM — Behavior Trees (General)
-
-### Parameterized IsFaultActive Node
-- **Current:** Individual condition nodes for each fault type
-- **Desired:** Single `IsFaultActive` node with `target_fault` input port
+Desired:** Single `IsFaultActive` node with `target_fault` input port
 - **Benefits:** Cleaner BT XMLs, easier to add new fault types
 - **Implementation:**
   - Create `IsFaultActive` condition node in `sigyn_behavior_trees`
@@ -483,15 +436,7 @@ These items are done and should not be re-implemented:
 | 2026-02-08 | MoveElevatorAction BT node with action client integration |
 | 2026-02-08 | StepElevatorUpAction for incremental visual servoing |
 | 2026-02-08 | ElevatorAtHeight condition for pixel-based feedback |
-| 2026-02-08 | raise_elevator.xml with incremental stepping from home |
-| 2025-01-08 | Nav2 configuration improvements (costmap, planner, MPPI) |
-
----
-
-## Notes
-
-- **Effort Estimates:** Conservative estimates for a developer familiar with the codebase
-- **Dependencies:** Some items block others (e.g., safety system must be complete before production)
+| 202ependencies:** Some items block others (e.g., safety system must be complete before production)
 - **Testing:** All safety-related changes require hardware testing before production
 - **Documentation:** Update relevant docs in `Sigyn/docs/` and individual package READMEs
 
