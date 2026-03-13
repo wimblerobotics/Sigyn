@@ -178,3 +178,15 @@ fi
 
 # ==================== TEST ALIASES ====================
 alias test_teensy='cd ~/sigyn_ws/src/sigyn_teensy_boards && pio test -e test && cd ~/sigyn_ws'
+
+# ROS2 functional tests (excludes linters)
+alias test_ros='cd ~/sigyn_ws && colcon test --ctest-args -E "cpplint|flake8|pep257|xmllint|uncrustify|lint|copyright"'
+
+# Show test summary after running tests
+alias test_results='cd ~/sigyn_ws && python3 scripts/test_results.py'
+
+# Show detailed test list
+alias test_list='cd ~/sigyn_ws && python3 scripts/test_list.py'
+
+# Run tests and show results in one command
+alias test_all='test_ros && test_results'

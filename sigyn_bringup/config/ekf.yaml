@@ -42,7 +42,7 @@ ekf_filter_node:
         
         # IMU1 - BNO055 sensor (right-side up, components facing up)
         # Fuses absolute yaw orientation + yaw rate for stable heading
-        imu1: /sigyn/teensy_bridge/imu/sensor_1
+        imu1: /sigyn/sensors/imu/front_right
         imu1_config: [false, false, false, 
                       false, false, true,      # Fuse absolute yaw orientation
                       false, false, false, 

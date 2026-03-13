@@ -383,7 +383,7 @@ def generate_launch_description():
     ld.add_action(
         DeclareLaunchArgument(
             name="do_oakd",
-            default_value="false",
+            default_value="true",
             description="Launch OAK-D camera nodes if true",
         )
     )
