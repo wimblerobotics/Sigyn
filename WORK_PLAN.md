@@ -1,8 +1,28 @@
 # Sigyn Robot — Consolidated Work Plan
 
-**Last Updated:** 2026-03-12  
+**Last Updated:** 2026-03-13  
 **Branch:** sigyn2  
 **Purpose:** Single authoritative source for all outstanding work across the Sigyn robotic platform
+
+---
+
+## Recently Completed (March 2026)
+
+### FaultCoordinator Safety System (2026-03-13)
+**Implemented comprehensive fault tracking and e-stop coordination across Boards 1 & 2:**
+- **FaultCoordinator Class:** Centralized fault management module for tracking multiple simultaneous faults, auto-clear vs latched faults, and e-stop GPIO assertion
+- **Multi-Fault Tracking:** Supports up to 16 concurrent faults, only releases e-stop when ALL EMERGENCY_STOP faults cleared
+- **Inter-Board Protocol:** Board 2 → Board 1 fault signaling via UART (`FAULT:module:id:severity:reason`, `FAULT_CLR:module:id`)
+- **GPIO E-Stop Integration:** Board 2 asserts pin A17 LOW on EMERGENCY_STOP faults, Board 1 monitors
+- **BatteryMonitor Integration:** Critical voltage/current faults trigger e-stop and notify Board 1
+- **BNO055Monitor Integration:** Tilt (>10°) and fallen (>20°) detection with auto-clear (tilt) and latched (fallen) behaviors
+- **PC Communication:** Both boards send FAULT messages directly to ROS (no Board 1 forwarding to avoid duplication)
+- **Manual Fault Clearing:** ROS → Board 1 → Board 2 clearing pathway for latched faults (via Telegram)
+- **Testing:** Comprehensive test plan in `wr_teensy_boards/test/FAULT_COORDINATOR_TEST_PLAN.md`
+- **Files:** `common/fault_coordinator.h/.cpp`, `board1/board2_main.cpp` updates, `battery_monitor.cpp`, `bno055_monitor.cpp`
+- **Architecture Decision:** Board reconnection not supported (requires system restart); future work item to reconsider
+
+**Note:** IMU safety thresholds already implemented in BNO055Monitor (not a new work item).
 
 ---
 
@@ -13,14 +33,14 @@ This work plan covers the complete Sigyn robotic platform, including:
 - **Core Packages:** sigyn_bringup, sigyn_behavior_trees, sigyn_to_teensy, sigyn_teensy_boards
 - **Navigation:** Nav2-based autonomous navigation, perimeter patrol, house patrol
 - **Vision:** OAK-D depth cameras for object detection
-- **Safety:** Multi-level fault handling, emergency stop, sensor monitoring
+- **Safety:** Multi-level fault handling (FaultCoordinator), emergency stop, sensor monitoring
 - **Note:** Board 3 (gripper/elevator) hardware is being replaced and all related work items have been removed from this plan
 
 **Key Architecture Notes:**
 - ROS 2 Humble on Ubuntu 22.04
 - Behavior Trees for mission logic (BT.CPP v4)
 - Multi-board Teensy system with JSON serial protocol
-- SafetyCoordinator pattern for fault management
+- FaultCoordinator pattern for multi-fault e-stop management
 - Nav2 for obstacle-aware navigation
 
 **Getting Started:**
@@ -35,28 +55,6 @@ This work plan covers the complete Sigyn robotic platform, including:
 ## 🔴 CRITICAL — Must Fix Before Production
 
 ### Safety System
-
-#### Enable SafetyCoordinator on Board 2
-- **Status:** BLOCKING production use
-- **Issue:** `board2_main.cpp` lacks SafetyCoordinator initialization
-- **Required:**
-  - Set `BOARD_HAS_SAFETY=1` in Board 2's `config.h`
-  - Initialize `SafetyCoordinator::getInstance()` in `board2_main.cpp`
-  - Verify FAULT messages sent to `sigyn_to_teensy`
-- **Impact:** Each board must be able to send FAULT messages independently
-- **Files:** `sigyn_teensy_boards/board2/board2_main.cpp`, `board2/config.h`
-- **Estimated Effort:** 2-4 hours
-
-#### Fix Inter-Board Fault Signaling
-- **Status:** CRITICAL gap in safety architecture
-- **Issue:** Board 1's `fault_handler` has unimplemented TODO for inter-board notification
-- **Required:**
-  - Implement serial message broadcast when Board 1 enters emergency stop
-  - Board 2 should receive and react to Board 1 fault messages
-  - Test fault propagation between boards
-- **Impact:** Software complement to GPIO e-stop; prevents unsafe operations when one board faults
-- **Files:** `sigyn_teensy_boards/board1/board1_main.cpp`, `common/core/serial_manager.cpp`
-- **Estimated Effort:** 4-8 hours
 
 #### E-Stop Pull-Down (Fail-Safe Wiring)
 - **Status:** CRITICAL hardware safety requirement
@@ -84,35 +82,16 @@ This work plan covers the complete Sigyn robotic platform, including:
 
 ## 🔴 HIGH — Safety System (Next 6 Months)
 
-### Cross-Board E-Stop via GPIO
-- **Purpose:** Hardware-level fault propagation independent of serial communication
-- **Design:**
-  - Board 1 asserts GPIO 10 high on `EMERGENCY_STOP`; Board 2 interrupts on that pin
-  - Board 2 asserts GPIO 11 high on fault; Board 1 monitors via interrupt
-  - Each board: `attachInterrupt()` → immediately invoke `SafetyCoordinator::raiseEmergencyStop(SOURCE_EXTERNAL)`
-  - Board 1 drops e-stop only when all GPIO pins clear AND no local faults
-- **Implementation:**
-  - Use active-HIGH assertion with pull-down (wire-break safe)
-  - Add `SOURCE_EXTERNAL` to `safety_coordinator.h`
-  - Update `board1_main.cpp`, `board2_main.cpp`
-  - Document in `docs/Safety_System.md`
-- **Testing:** Trigger fault on each board, verify propagation
-- **Estimated Effort:** 8-12 hours
-
-### IMU Safety Integration (Board 2)
-- **Purpose:** Detect dangerous tilt/spin conditions
-- **Hardware:** BNO055 on Board 2 (already present)
-- **Thresholds:**
-  - WARNING at 20° pitch/roll → cancel Nav2 goals
-  - EMERGENCY_STOP at 30° pitch/roll
-  - Rapid spin > 180°/s → EMERGENCY_STOP
-- **Implementation:**
-  - Create `IMUSafetyMonitor` module for Board 2
-  - Add config parameters in `imu_safety_monitor.h`
-  - Integrate with Nav2: cancel goals on WARNING
-  - Self-healing: auto-clear when tilt returns to normal
-- **Testing:** Mock IMU data + physical tilt stand
-- **Estimated Effort:** 16-20 hours
+### Board Reconnection Recovery
+- **Purpose:** Allow Board 1 or Board 2 to recover from temporary disconnection
+- **Current State:** System restart required if either board goes offline (per 2026-03-13 architecture decision)
+- **Design Considerations:**
+  - Board 1 tracks Board 2 heartbeat loss as a fault
+  - On reconnection, synchronize fault state (Board 2 → Board 1)
+  - Handle e-stop state recovery (was GPIO asserted before disconnect?)
+  - Test scenarios: UART disconnect, Board 2 power cycle, firmware upload
+- **Testing:** Comprehensive reconnection test suite
+- **Estimated Effort:** 12-16 hours
 
 ### VL53L0X Collision Prediction (Board 1)
 - **Purpose:** Direction-aware obstacle detection for collision prevention
@@ -165,11 +144,13 @@ This work plan covers the complete Sigyn robotic platform, including:
 
 ### Serial Message Protocol Redesign
 - **Issue:** Current JSON protocol (~100-300 bytes/frame at 85Hz) near bandwidth limits
+- **Recent Change (2026-03-13):** FaultCoordinator implementation has both boards sending FAULT messages directly to PC (not forwarding via Board 1). This adds minimal bandwidth overhead (~50-100 bytes/fault event, infrequent). Bandwidth analysis should include fault message frequency in measurements.
 - **Options to Evaluate:**
   1. Compact JSON (abbreviated key names)
   2. Hybrid: short fixed-prefix + minimal JSON
   3. Binary framing (length-prefixed structs + type byte)
   4. CBOR / MessagePack
+  5. **If bandwidth critical:** Reconsider fault forwarding strategy (Board 1 forwards Board 2 faults to PC to reduce Board 2 serial traffic)
 - **Constraints:**
   - Must remain debuggable via serial terminal
   - `message_parser.cpp` must be updated simultaneously
