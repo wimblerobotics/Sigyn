@@ -97,9 +97,9 @@ alias teles='ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --r
 # ==================== PLATFORMIO ALIASES ====================
 # Firmware source: ~/sigyn_ws/src/sigyn_teensy_boards/ (wimblerobotics/sigyn_teensy_boards)
 # (TeensyV2/ still exists in this monorepo as a reference until new repo is verified)
-alias compileBoard1='platformio run -e board1 -d ~/sigyn_ws/src/sigyn_teensy_boards'
-alias compileBoard2='platformio run -e board2 -d ~/sigyn_ws/src/sigyn_teensy_boards'
-alias compileElevator='platformio run -e elevator_board -d ~/sigyn_ws/src/sigyn_teensy_boards'
+alias compileBoard1='platformio run -e board1 -d ~/sigyn_ws/src/wr_teensy_boards'
+alias compileBoard2='platformio run -e board2 -d ~/sigyn_ws/src/wr_teensy_boards'
+alias compileElevator='platformio run -e elevator_board -d ~/sigyn_ws/src/wr_teensy_boards'
 
 # ==================== PLATFORMIO UPLOAD FUNCTIONS ====================
 # Safer upload helpers: refuse to auto-detect a board if the expected udev symlink isn't present.
@@ -117,7 +117,7 @@ function buildBoard1 {
         # Check if we can recover a board already in Bootloader mode
         if lsusb -d 16c0:0478 > /dev/null 2>&1; then
             echo "[WARN] Found a Teensy in Bootloader mode (HalfKay). Attempting blind upload..."
-            platformio run -e board1 -d ~/sigyn_ws/src/sigyn_teensy_boards --target upload --upload-port auto
+            platformio run -e board1 -d ~/sigyn_ws/src/wr_teensy_boards --target upload --upload-port auto
             return $?
         fi
         echo "       (Is the board plugged in? Check 'ls -l /dev/teensy*' and 'lsusb')"
@@ -128,7 +128,7 @@ function buildBoard1 {
     echo "[DEBUG] Resolved symlink $symlink -> $port"
     
     echo "[DEBUG] Attempting Upload (Attempt 1) to $port..."
-    platformio run -e board1 -d ~/sigyn_ws/src/sigyn_teensy_boards --target upload --upload-port "$port"
+    platformio run -e board1 -d ~/sigyn_ws/src/wr_teensy_boards --target upload --upload-port "$port"
     local ret=$?
 
     if [ $ret -ne 0 ]; then
@@ -137,11 +137,11 @@ function buildBoard1 {
         if [ ! -e "$port" ]; then
             echo "[INFO] Port $port is gone. Assuming board entered Bootloader mode."
             echo "[DEBUG] Attempting Upload (Attempt 2 - Blind/Auto)..."
-            platformio run -e board1 -d ~/sigyn_ws/src/sigyn_teensy_boards --target upload --upload-port auto
+            platformio run -e board1 -d ~/sigyn_ws/src/wr_teensy_boards --target upload --upload-port auto
         else
             echo "[INFO] Port $port still exists. Retrying upload to explicit port..."
             sleep 2
-            platformio run -e board1 -d ~/sigyn_ws/src/sigyn_teensy_boards --target upload --upload-port "$port"
+            platformio run -e board1 -d ~/sigyn_ws/src/wr_teensy_boards --target upload --upload-port "$port"
         fi
     fi
 }
@@ -154,7 +154,7 @@ function buildBoard2 {
         return 2
     fi
     local port=$(realpath "$symlink")
-    platformio run -e board2 -d ~/sigyn_ws/src/sigyn_teensy_boards --target upload --upload-port "$port"
+    platformio run -e board2 -d ~/sigyn_ws/src/wr_teensy_boards --target upload --upload-port "$port"
 }
 
 function buildElevator {
@@ -165,7 +165,7 @@ function buildElevator {
         return 2
     fi
     local port=$(realpath "$symlink")
-    platformio run -e elevator_board -d ~/sigyn_ws/src/sigyn_teensy_boards --target upload --upload-port "$port"
+    platformio run -e elevator_board -d ~/sigyn_ws/src/wr_teensy_boards --target upload --upload-port "$port"
 }
 
 # ==================== GROOT ALIASES ====================
@@ -177,7 +177,7 @@ elif [ -f "$HOME/Groot/build/Groot" ]; then
 fi
 
 # ==================== TEST ALIASES ====================
-alias test_teensy='cd ~/sigyn_ws/src/sigyn_teensy_boards && pio test -e test && cd ~/sigyn_ws'
+alias test_teensy='cd ~/sigyn_ws/src/wr_teensy_boards && pio test -e native_test && cd ~/sigyn_ws'
 
 # ROS2 functional tests (excludes linters)
 alias test_ros='cd ~/sigyn_ws && colcon test --ctest-args -E "cpplint|flake8|pep257|xmllint|uncrustify|lint|copyright"'
