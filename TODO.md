@@ -1,8 +1,10 @@
-TODO list:
-# RoboClawMonitor
-* Get localization info, see if it aligns with motor movement to detect wheels spinning but not moving.
-* Add ability to cycle power to clear latching hardware faults (see roboclaw_monitor.cpp TODOs)
-* Pull down e-stop so if the Teensy loses power or the wire breaks, the robot stops immediately.
+# TODO — ARCHIVED
+
+**This file has been superseded by [WORK_PLAN.md](WORK_PLAN.md)**  
+**Date Archived:** 2026-03-12  
+**All content has been migrated to the consolidated work plan.**
+
+Please refer to [WORK_PLAN.md](WORK_PLAN.md) for current outstanding work items.
 
 Behavior Trees -- Create a single, parameterized Condition Node (e.g., `IsFaultActive`) that takes a `target_fault` input port, instead of creating individual nodes for each fault type.
 

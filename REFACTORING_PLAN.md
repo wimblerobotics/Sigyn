@@ -1,8 +1,14 @@
-# Sigyn Monorepo — Outstanding Work
+# Sigyn Monorepo — Outstanding Work — ARCHIVED
 
+**This file has been superseded by [WORK_PLAN.md](WORK_PLAN.md)**  
+**Date Archived:** 2026-03-12  
 **Updated:** 2026-02-24 | **Branch:** `sigyn2`
 
+**Please refer to [WORK_PLAN.md](WORK_PLAN.md) for current outstanding work items.**
+
 ---
+
+## Original Content (For Historical Reference)
 
 ## Active Packages in This Monorepo
 

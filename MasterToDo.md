@@ -1,13 +1,21 @@
-# Sigyn Master TODO
-*Consolidated from all repos under `~/sigyn_ws/src/` — last updated 2026-02-28*
+# Sigyn Master TODO — ARCHIVED
 
-Sources aggregated:
-- `Sigyn/TODO.md`
-- `sigyn_teensy_boards/TODO.md`
-- `can_do_challenge/TODO.md`
-- Inline `TODO`/`FIXME` comments in source files
+**This file has been superseded by [WORK_PLAN.md](WORK_PLAN.md)**  
+**Date Archived:** 2026-03-12  
+**All content has been reorganized, updated, and migrated to the consolidated work plan.**
+
+**Please refer to [WORK_PLAN.md](WORK_PLAN.md) for current outstanding work items.**
+
+The new work plan:
+- Removes completed/historical entries
+- Focuses only on outstanding work
+- Includes AI context for new chat sessions
+- Provides better organization and effort estimates
+- Includes quick reference for key commands and files
 
 ---
+
+## Original Content (For Historical Reference)
 
 ## 🔴 CRITICAL — Must Fix Before Production
 
