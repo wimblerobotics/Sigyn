@@ -128,6 +128,27 @@ This work plan covers the complete Sigyn robotic platform, including:
 
 ## 🟠 HIGH — Firmware Architecture
 
+### ⬅️ NEXT UP: Dependency Injection Refactor (wr_teensy_boards)
+- **Status:** Not started. Baseline: 87 embedded tests + 131 ROS tests all passing.
+- **Problem:** Every firmware module calls sibling singletons directly inside its own methods (`SerialManager::GetInstance()`, `InterboardComm::GetInstance()`, `EStopPin::GetInstance()`). This is a Singleton Web — no seam to inject test doubles. Attempting to compile a test against `fault_coordinator.cpp` causes redefinition errors because the `.cpp` also pulls in the real class headers.
+- **Full diagnosis and code examples:** `wr_teensy_boards/AI_CONTEXT.md` Section 9.
+- **Implementation Steps (in order):**
+  1. **Create 3 interface headers** (no production impact):
+     - `common/i_serial_writer.h` — `ISerialWriter` with `SendRaw`, `IsLinkUp`, `SetProtocolAgreementReached`, `RegisterHandler`
+     - `modules/i_estop_pin.h` — `IEstopPin` with `SetEstopPin`
+     - `modules/i_interboard_comm.h` — `IInterboardComm` with `SendCommand`
+  2. **Have real classes inherit from interfaces** — `SerialManager : public ISerialWriter`, etc.
+  3. **Refactor `FaultCoordinator` first** (priority 1 — safety-critical):
+     - Constructor takes `ISerialWriter&`, `IInterboardComm&`, `IEstopPin&`
+     - Remove all inline `GetInstance()` calls inside methods
+     - Wire via `board1_main.cpp` / `board2_main.cpp` using real singletons
+  4. **Write `FaultCoordinator` unit tests** with mock implementations of the 3 interfaces
+  5. **Repeat for `ProtocolAgreement`** (priority 2 — state machine, easy once injectable)
+  6. **Repeat for `Heartbeat`** (priority 3 — simple logic, currently completely untestable)
+  7. **Repeat for `SerialManager`** (priority 4 — wraps Arduino `Serial`, needs `ISerial` wrapper)
+- **Files:** `wr_teensy_boards/common/fault_coordinator.*`, `heartbeat.*`, `protocol_agreement.*`, `serial_manager.*`
+- **Estimated Effort:** 16-24 hours (refactor + tests for all 4 modules)
+
 ### Full Architectural Review
 - **Purpose:** Validate current design before building more on top
 - **Questions to Answer:**
