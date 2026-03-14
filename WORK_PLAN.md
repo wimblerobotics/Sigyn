@@ -1,28 +1,8 @@
 # Sigyn Robot — Consolidated Work Plan
 
-**Last Updated:** 2026-03-13  
+**Last Updated:** 2026-03-14  
 **Branch:** sigyn2  
 **Purpose:** Single authoritative source for all outstanding work across the Sigyn robotic platform
-
----
-
-## Recently Completed (March 2026)
-
-### FaultCoordinator Safety System (2026-03-13)
-**Implemented comprehensive fault tracking and e-stop coordination across Boards 1 & 2:**
-- **FaultCoordinator Class:** Centralized fault management module for tracking multiple simultaneous faults, auto-clear vs latched faults, and e-stop GPIO assertion
-- **Multi-Fault Tracking:** Supports up to 16 concurrent faults, only releases e-stop when ALL EMERGENCY_STOP faults cleared
-- **Inter-Board Protocol:** Board 2 → Board 1 fault signaling via UART (`FAULT:module:id:severity:reason`, `FAULT_CLR:module:id`)
-- **GPIO E-Stop Integration:** Board 2 asserts pin A17 LOW on EMERGENCY_STOP faults, Board 1 monitors
-- **BatteryMonitor Integration:** Critical voltage/current faults trigger e-stop and notify Board 1
-- **BNO055Monitor Integration:** Tilt (>10°) and fallen (>20°) detection with auto-clear (tilt) and latched (fallen) behaviors
-- **PC Communication:** Both boards send FAULT messages directly to ROS (no Board 1 forwarding to avoid duplication)
-- **Manual Fault Clearing:** ROS → Board 1 → Board 2 clearing pathway for latched faults (via Telegram)
-- **Testing:** Comprehensive test plan in `wr_teensy_boards/test/FAULT_COORDINATOR_TEST_PLAN.md`
-- **Files:** `common/fault_coordinator.h/.cpp`, `board1/board2_main.cpp` updates, `battery_monitor.cpp`, `bno055_monitor.cpp`
-- **Architecture Decision:** Board reconnection not supported (requires system restart); future work item to reconsider
-
-**Note:** IMU safety thresholds already implemented in BNO055Monitor (not a new work item).
 
 ---
 
@@ -128,26 +108,22 @@ This work plan covers the complete Sigyn robotic platform, including:
 
 ## 🟠 HIGH — Firmware Architecture
 
-### ⬅️ NEXT UP: Dependency Injection Refactor (wr_teensy_boards)
-- **Status:** Not started. Baseline: 87 embedded tests + 131 ROS tests all passing.
-- **Problem:** Every firmware module calls sibling singletons directly inside its own methods (`SerialManager::GetInstance()`, `InterboardComm::GetInstance()`, `EStopPin::GetInstance()`). This is a Singleton Web — no seam to inject test doubles. Attempting to compile a test against `fault_coordinator.cpp` causes redefinition errors because the `.cpp` also pulls in the real class headers.
-- **Full diagnosis and code examples:** `wr_teensy_boards/AI_CONTEXT.md` Section 9.
-- **Implementation Steps (in order):**
-  1. **Create 3 interface headers** (no production impact):
-     - `common/i_serial_writer.h` — `ISerialWriter` with `SendRaw`, `IsLinkUp`, `SetProtocolAgreementReached`, `RegisterHandler`
-     - `modules/i_estop_pin.h` — `IEstopPin` with `SetEstopPin`
-     - `modules/i_interboard_comm.h` — `IInterboardComm` with `SendCommand`
-  2. **Have real classes inherit from interfaces** — `SerialManager : public ISerialWriter`, etc.
-  3. **Refactor `FaultCoordinator` first** (priority 1 — safety-critical):
-     - Constructor takes `ISerialWriter&`, `IInterboardComm&`, `IEstopPin&`
-     - Remove all inline `GetInstance()` calls inside methods
-     - Wire via `board1_main.cpp` / `board2_main.cpp` using real singletons
-  4. **Write `FaultCoordinator` unit tests** with mock implementations of the 3 interfaces
-  5. **Repeat for `ProtocolAgreement`** (priority 2 — state machine, easy once injectable)
-  6. **Repeat for `Heartbeat`** (priority 3 — simple logic, currently completely untestable)
-  7. **Repeat for `SerialManager`** (priority 4 — wraps Arduino `Serial`, needs `ISerial` wrapper)
-- **Files:** `wr_teensy_boards/common/fault_coordinator.*`, `heartbeat.*`, `protocol_agreement.*`, `serial_manager.*`
-- **Estimated Effort:** 16-24 hours (refactor + tests for all 4 modules)
+### Dependency Injection Refactor (wr_teensy_boards) — In Progress
+- **Status:** Phase 1 complete. Current baseline: 128 embedded tests + 131 ROS tests all passing.
+- **Completed (2026-03-14):**
+  - 4 interfaces created: `ISerialSink`, `IFaultReporter`, `IInterboardSink`, `IEstopController`
+  - 5 mocks created: `MockSerialSink`, `MockFaultReporter`, `MockInterboardSink`, `MockEstopController`, `MockPowerSensor`
+  - `FaultCoordinator` fully DI-refactored (17 new tests)
+  - `BatteryMonitor` fully DI-refactored (13 new tests)
+  - `Module` given `ResetForTesting()` + `Reregister()` (11 new tests)
+  - Production wiring in `board1_main.cpp` and `board2_main.cpp`
+- **Remaining (in priority order):**
+  1. **`ProtocolAgreement`** — still calls `SerialManager::GetInstance()` directly; needs interface injection + tests
+  2. **`Heartbeat`** — still calls `SerialManager::GetInstance()` directly; needs interface injection + tests
+  3. **`SerialManager`** — needs `ISerial` Arduino abstraction wrapper for full testability
+  4. **`RoboClawMonitor`** — not yet DI-refactored; no interface injection for kinematics/serial protocol
+- **Files:** `wr_teensy_boards/common/`, `wr_teensy_boards/board1/`, `wr_teensy_boards/board2/`
+- **Estimated Effort:** 12-18 hours (remaining 4 modules)
 
 ### Full Architectural Review
 - **Purpose:** Validate current design before building more on top
@@ -422,15 +398,16 @@ Desired:** Single `IsFaultActive` node with `target_fault` input port
 ## 🟢 LOW — Testing Coverage (12+ Months)
 
 ### Expand Mock Framework
-- **Current:** ~60% coverage (SafetyCoordinator, Temperature, Battery tested)
+- **Current:** ~75% coverage (FaultCoordinator, BatteryMonitor, Module, EstopPin, BNO055 tilt tested; DI mocks exist for ISerialSink, IFaultReporter, IInterboardSink, IEstopController, IPowerSensor)
 - **Target:** 90%+ coverage for all modules
 - **Missing Mocks:**
   - RoboClaw serial protocol
   - VL53L0X I2C
-  - BNO055 IMU
+  - BNO055 IMU (state machine level, beyond pure tilt math)
   - GPIO interrupts
+  - Arduino `Serial` wrapper (`ISerial`) for SerialManager testability
 - **Files:** `sigyn_teensy_boards/test/`
-- **Estimated Effort:** 40-60 hours
+- **Estimated Effort:** 30-50 hours
 
 ---
 
@@ -474,9 +451,16 @@ These items are done and should not be re-implemented:
 | 2026-02-08 | MoveElevatorAction BT node with action client integration |
 | 2026-02-08 | StepElevatorUpAction for incremental visual servoing |
 | 2026-02-08 | ElevatorAtHeight condition for pixel-based feedback |
-| 202ependencies:** Some items block others (e.g., safety system must be complete before production)
-- **Testing:** All safety-related changes require hardware testing before production
-- **Documentation:** Update relevant docs in `Sigyn/docs/` and individual package READMEs
+| 2026-03-13 | FaultCoordinator fault tracking and e-stop coordination (Boards 1 & 2) |
+| 2026-03-13 | BNO055Monitor tilt (>10°) and fallen (>20°) safety thresholds |
+| 2026-03-13 | test_fault_coordinator, test_heartbeat, test_module_framework suites (wr_teensy_boards) |
+| 2026-03-13 | test_sensor_name_table.cpp and expanded test_message_dispatcher.cpp (wr_ros_teensy) |
+| 2026-03-14 | DI interfaces: ISerialSink, IFaultReporter, IInterboardSink, IEstopController |
+| 2026-03-14 | DI mocks: MockSerialSink, MockFaultReporter, MockInterboardSink, MockEstopController, MockPowerSensor |
+| 2026-03-14 | FaultCoordinator DI refactored (17 new unit tests) |
+| 2026-03-14 | BatteryMonitor DI refactored (13 new unit tests) |
+| 2026-03-14 | Module.ResetForTesting() + Reregister() added (11 new unit tests) |
+| 2026-03-14 | Total embedded tests: 128 all passing |
 
 ---
 
