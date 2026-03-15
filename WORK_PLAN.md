@@ -108,8 +108,8 @@ This work plan covers the complete Sigyn robotic platform, including:
 
 ## 🟠 HIGH — Firmware Architecture
 
-### Dependency Injection Refactor (wr_teensy_boards) — In Progress
-- **Status:** Phase 1 complete. Current baseline: 128 embedded tests + 131 ROS tests all passing.
+### Dependency Injection Refactor (wr_teensy_boards) — COMPLETE
+- **Status:** Fully complete. All 6 target modules DI-refactored. **176 tests all passing** (48 new tests added this session).
 - **Completed (2026-03-14):**
   - 4 interfaces created: `ISerialSink`, `IFaultReporter`, `IInterboardSink`, `IEstopController`
   - 5 mocks created: `MockSerialSink`, `MockFaultReporter`, `MockInterboardSink`, `MockEstopController`, `MockPowerSensor`
@@ -117,13 +117,16 @@ This work plan covers the complete Sigyn robotic platform, including:
   - `BatteryMonitor` fully DI-refactored (13 new tests)
   - `Module` given `ResetForTesting()` + `Reregister()` (11 new tests)
   - Production wiring in `board1_main.cpp` and `board2_main.cpp`
-- **Remaining (in priority order):**
-  1. **`ProtocolAgreement`** — still calls `SerialManager::GetInstance()` directly; needs interface injection + tests
-  2. **`Heartbeat`** — still calls `SerialManager::GetInstance()` directly; needs interface injection + tests
-  3. **`SerialManager`** — needs `ISerial` Arduino abstraction wrapper for full testability
-  4. **`RoboClawMonitor`** — not yet DI-refactored; no interface injection for kinematics/serial protocol
-- **Files:** `wr_teensy_boards/common/`, `wr_teensy_boards/board1/`, `wr_teensy_boards/board2/`
-- **Estimated Effort:** 12-18 hours (remaining 4 modules)
+- **Completed (2026-03-15 — this session):**
+  - 2 new interfaces: `ISerialManager` (extends `ISerialSink` + RegisterHandler/IsLinkUp/SetProtocolAgreementReached), `IProtocolGate` (IsAgreementReached)
+  - `SerialManager` updated to implement `ISerialManager` instead of `ISerialSink` directly
+  - 3 new mocks: `MockSerialManager`, `MockProtocolGate`, `MockRoboClaw`
+  - `ProtocolAgreement` fully DI-refactored + implements `IProtocolGate` (23 new tests)
+  - `Heartbeat` fully DI-refactored: injects `ISerialManager` + `IProtocolGate` (10 new tests)
+  - `RoboClawMonitor` fully DI-refactored: injects `ISerialManager` + `IRoboClaw`; `State` enum made public; `GetState()`, `GetCmdLinearX()`, `GetCmdAngularZ()` getters added (15 new tests)
+  - All DI wiring completed in `board1_main.cpp` and `board2_main.cpp`
+- **Test count:** 128 → 176 (all passing)
+- **Files:** `wr_teensy_boards/common/`, `wr_teensy_boards/modules/`, `wr_teensy_boards/src/`
 
 ### Full Architectural Review
 - **Purpose:** Validate current design before building more on top
