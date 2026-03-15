@@ -1,6 +1,6 @@
 # Sigyn Robot — Consolidated Work Plan
 
-**Last Updated:** 2026-03-14  
+**Last Updated:** 2026-03-15  
 **Branch:** sigyn2  
 **Purpose:** Single authoritative source for all outstanding work across the Sigyn robotic platform
 
@@ -124,26 +124,17 @@ This work plan covers the complete Sigyn robotic platform, including:
 
 ### Serial Message Protocol Redesign
 - **Issue:** Current JSON protocol (~100-300 bytes/frame at 85Hz) near bandwidth limits
-- **Recent Change (2026-03-13):** FaultCoordinator implementation has both boards sending FAULT messages directly to PC (not forwarding via Board 1). This adds minimal bandwidth overhead (~50-100 bytes/fault event, infrequent). Bandwidth analysis should include fault message frequency in measurements.
 - **Options to Evaluate:**
   1. Compact JSON (abbreviated key names)
   2. Hybrid: short fixed-prefix + minimal JSON
   3. Binary framing (length-prefixed structs + type byte)
   4. CBOR / MessagePack
-  5. **If bandwidth critical:** Reconsider fault forwarding strategy (Board 1 forwards Board 2 faults to PC to reduce Board 2 serial traffic)
 - **Constraints:**
   - Must remain debuggable via serial terminal
   - `message_parser.cpp` must be updated simultaneously
   - Document in `docs/Message_Formats.md`
 - **Decision Criteria:** Bandwidth savings vs development/debugging cost
 - **Estimated Effort:** 20-30 hours (redesign + implementation + testing)
-
-### serial_manager.cpp TODOs
-- **L125:** Implement configuration-update handling
-- **L131:** Implement comprehensive status-report sending
-- **L144:** Route incoming sensor-query messages to appropriate modules
-- **Files:** `sigyn_teensy_boards/common/core/serial_manager.cpp`
-- **Estimated Effort:** 8-12 hours
 
 ### module.cpp Registration Failure Handling
 - **L76:** Decide whether module registration failure should trigger e-stop or fault indicator
@@ -156,19 +147,6 @@ This work plan covers the complete Sigyn robotic platform, including:
 
 ## 🟠 HIGH — ROS 2 Integration / Code Quality
 
-### Thread Safety: Bridge Receive Callback Data Race
-- **Issue:** `SerialBridge::ReadThreadFunc()` publishes from non-executor thread
-- **Details:** Bridge read thread calls `dispatcher_->HandleRawMessage()` → `TopicPublisher::HandleRange()` → `range_pub_->publish()` 
-- **Problem:** LifecyclePublisher state changes (`on_activate`/`on_deactivate`) happen on executor thread while publishing happens on read thread - unprotected data race
-- **Impact:** Occasional crashes or stale data under load, especially with MultiThreadedExecutor
-- **Fix Options:**
-  1. Post messages to mutex-protected queue, drain from ROS timer on executor
-  2. Use guard condition to notify executor when data available
-  3. Move all dispatch to executor thread (read thread only does I/O)
-- **Recommended:** Option 1 (already partially implemented with `rx_queue_` in teensy_bridge)
-- **Files:** `wr_ros_teensy/src/teensy_bridge.cpp`, `SerialBridge.cpp`
-- **Estimated Effort:** 6-8 hours
-
 ### Proximity Sensor Topic Architecture for Nav2
 - **Issue:** All VL53L0X sensors publish to single aggregated `/sigyn/sensors/range` topic
 - **Problem:** Nav2's range_sensor_layer and costmap_2d require one topic per sensor or merged point cloud
@@ -180,13 +158,6 @@ This work plan covers the complete Sigyn robotic platform, including:
 - **Required:** Decision on topic architecture + implementation + URDF/TF updates
 - **Files:** `wr_ros_teensy/src/TopicPublisher.cpp`, sensor_names.json, URDF
 - **Estimated Effort:** 8-12 hours (design + implementation + testing)
-
-### Dead Code Cleanup
-- **GetReasonList():** Declared in `SafetyCoordinator.hpp` but never implemented - remove declaration
-- **HB handler clock:** Creates new `rclcpp::Clock(RCL_STEADY_TIME)` per callback - use `this->get_clock()`
-- **MultiThreadedExecutor:** No callback groups defined, executor effectively single-threaded
-- **Files:** `wr_ros_teensy/include/wr_ros_teensy/SafetyCoordinator.hpp`, `teensy_bridge.cpp`
-- **Estimated Effort:** 2-3 hours
 
 ---
 
@@ -279,34 +250,14 @@ Desired:** Single `IsFaultActive` node with `target_fault` input port
 - **Implementation:**
   - Add power cycle function: relay off → 2sec delay → relay on
   - Trigger on specific fault conditions (see manual L47 for which faults latch)
-  - TODOs at L1112, L1130, L1153
-- **Files:** `sigyn_teensy_boards/board1/roboclaw_monitor.cpp`
+- **Files:** `wr_teensy_boards/modules/roboclaw/roboclaw_monitor.cpp`
 - **Testing:** Trigger latching fault, verify auto-recovery
 - **Estimated Effort:** 6-8 hours
 
-### Temperature Monitoring
-- **Current:** Temperature read but not acted on (L788)
-- **Required:**
-  - Raise WARNING when temp exceeds `roboclaw_temp_warning_c`
-  - Raise EMERGENCY_STOP at critical temp (compute from datasheet)
-  - Add hysteresis for recovery
-- **Files:** `sigyn_teensy_boards/board1/roboclaw_monitor.cpp`
-- **Testing:** Heat gun test (carefully) or mock readings
-- **Estimated Effort:** 4-6 hours
-
-### RoboClaw Status Publishing
-- **Purpose:** Expose RoboClaw health to behavior trees
-- **Implementation:**
-  - Board 1 publish to `sigyn_to_sensor_v2`: temperature, motor 1 current, motor 2 current
-  - Add RoboClaw status message type
-- **Files:** `sigyn_teensy_boards/board1/roboclaw_monitor.cpp`, `sigyn_interfaces/msg/`
-- **Testing:** Verify rostopic echo shows real-time data
-- **Estimated Effort:** 4-6 hours
-
-### Encoder Read Failure Escalation
-- **Current:** Encoder read failures logged (L842)
-- **Required:** Escalate via `SafetyCoordinator` after N consecutive failures
-- **Files:** `sigyn_teensy_boards/board1/roboclaw_monitor.cpp`
+### RoboClaw Temperature Hysteresis
+- **Current:** Over-temperature immediately asserts e-stop at `roboclaw_temp_fault_c`; no path to auto-recovery
+- **Required:** Add clearance threshold (e.g., `temp_fault_c - 10°C`) before auto-clearing the thermal fault
+- **Files:** `wr_teensy_boards/modules/roboclaw/roboclaw_monitor.cpp`
 - **Estimated Effort:** 2-3 hours
 
 ---
@@ -340,22 +291,13 @@ Desired:** Single `IsFaultActive` node with `target_fault` input port
 
 ### Heartbeat/Watchdog from ROS
 - **Purpose:** Detect if ROS side stops sending commands
-- **Implementation:**
-  - `sigyn_to_teensy` sends periodic heartbeat message
-  - Board 1 monitors heartbeat timestamp
-  - Raise WARNING (not e-stop) if heartbeat stale > 5 seconds
-- **Files:** `sigyn_teensy_boards/board1/board1_main.cpp`, `sigyn_to_teensy`
-- **Testing:** Kill `sigyn_to_teensy` node, verify WARNING
-- **Estimated Effort:** 4-6 hours
-
-### IMU Tilt Detection
-- **Purpose:** Publish tilt data to ROS for navigation awareness
-- **Implementation:**
-  - Board 2 reads BNO055 pitch/roll
-  - Publish in `sigyn_to_sensor_v2` message
-  - Add IMU message type to `sigyn_interfaces`
-- **Files:** `sigyn_teensy_boards/board2/`, `sigyn_interfaces/msg/`
-- **Estimated Effort:** 4-6 hours
+- **Current:** PC already sends 1 Hz HB messages (`hb_timer_` in `teensy_bridge.cpp`). Teensy `Heartbeat` module stores host timestamp on receipt.
+- **Missing:** Teensy does NOT raise WARNING if host heartbeat is stale > 5 seconds — `Heartbeat::Loop()` has no staleness check
+- **Required:**
+  - Add stale check to `Heartbeat::Loop()`: if `(millis() - last_local_time_ms_) > kStaleThresholdMs` and protocol agreement reached, raise WARNING via FaultCoordinator
+  - Test by killing `wr_ros_teensy` node and verifying WARNING on serial
+- **Files:** `wr_teensy_boards/modules/heartbeat.h`, `heartbeat.cpp`
+- **Estimated Effort:** 2-3 hours
 
 ### Nav2 Configuration: AMCL Tuning
 - **Issue:** AMCL update thresholds too aggressive (update_min_d=0.01m, update_min_a=0.01rad)
@@ -443,6 +385,13 @@ These items are done and should not be re-implemented:
 | 2026-03-14 | BatteryMonitor DI refactored (13 new unit tests) |
 | 2026-03-14 | Module.ResetForTesting() + Reregister() added (11 new unit tests) |
 | 2026-03-14 | Total embedded tests: 128 all passing |
+| 2026-03-15 | serial_manager.cpp TODOs eliminated by registered-handler dispatch pattern |
+| 2026-03-15 | Thread Safety: Bridge receive queue fully implemented (lock_guard + swap pattern) |
+| 2026-03-15 | Dead code cleanup: GetReasonList(), rclcpp::Clock(RCL_STEADY_TIME), MultiThreadedExecutor all removed |
+| 2026-03-15 | IMU Tilt Detection: BNO055 publishes sensor_msgs/Imu via TopicPublisher at /sigyn/sensors/imu_* |
+| 2026-03-15 | RoboClaw Temperature Monitoring: CheckTemperature() asserts e-stop above roboclaw_temp_fault_c |
+| 2026-03-15 | RoboClaw Status Publishing: RCLAW + ODOM handlers publish sigyn/roboclaw/status and odometry |
+| 2026-03-15 | Encoder Read Failure Escalation: CheckCommFailures() asserts e-stop after max_comm_failures and resets to kConnecting |
 
 ---
 
