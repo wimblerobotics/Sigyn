@@ -108,26 +108,6 @@ This work plan covers the complete Sigyn robotic platform, including:
 
 ## 🟠 HIGH — Firmware Architecture
 
-### Dependency Injection Refactor (wr_teensy_boards) — COMPLETE
-- **Status:** Fully complete. All 6 target modules DI-refactored. **176 tests all passing** (48 new tests added this session).
-- **Completed (2026-03-14):**
-  - 4 interfaces created: `ISerialSink`, `IFaultReporter`, `IInterboardSink`, `IEstopController`
-  - 5 mocks created: `MockSerialSink`, `MockFaultReporter`, `MockInterboardSink`, `MockEstopController`, `MockPowerSensor`
-  - `FaultCoordinator` fully DI-refactored (17 new tests)
-  - `BatteryMonitor` fully DI-refactored (13 new tests)
-  - `Module` given `ResetForTesting()` + `Reregister()` (11 new tests)
-  - Production wiring in `board1_main.cpp` and `board2_main.cpp`
-- **Completed (2026-03-15 — this session):**
-  - 2 new interfaces: `ISerialManager` (extends `ISerialSink` + RegisterHandler/IsLinkUp/SetProtocolAgreementReached), `IProtocolGate` (IsAgreementReached)
-  - `SerialManager` updated to implement `ISerialManager` instead of `ISerialSink` directly
-  - 3 new mocks: `MockSerialManager`, `MockProtocolGate`, `MockRoboClaw`
-  - `ProtocolAgreement` fully DI-refactored + implements `IProtocolGate` (23 new tests)
-  - `Heartbeat` fully DI-refactored: injects `ISerialManager` + `IProtocolGate` (10 new tests)
-  - `RoboClawMonitor` fully DI-refactored: injects `ISerialManager` + `IRoboClaw`; `State` enum made public; `GetState()`, `GetCmdLinearX()`, `GetCmdAngularZ()` getters added (15 new tests)
-  - All DI wiring completed in `board1_main.cpp` and `board2_main.cpp`
-- **Test count:** 128 → 176 (all passing)
-- **Files:** `wr_teensy_boards/common/`, `wr_teensy_boards/modules/`, `wr_teensy_boards/src/`
-
 ### Full Architectural Review
 - **Purpose:** Validate current design before building more on top
 - **Questions to Answer:**
@@ -401,16 +381,15 @@ Desired:** Single `IsFaultActive` node with `target_fault` input port
 ## 🟢 LOW — Testing Coverage (12+ Months)
 
 ### Expand Mock Framework
-- **Current:** ~75% coverage (FaultCoordinator, BatteryMonitor, Module, EstopPin, BNO055 tilt tested; DI mocks exist for ISerialSink, IFaultReporter, IInterboardSink, IEstopController, IPowerSensor)
+- **Current:** 176 tests passing; all 6 production modules DI-refactored; mocks exist for ISerialSink, IFaultReporter, IInterboardSink, IEstopController, IPowerSensor, ISerialManager, IProtocolGate, IRoboClaw
 - **Target:** 90%+ coverage for all modules
 - **Missing Mocks:**
-  - RoboClaw serial protocol
   - VL53L0X I2C
   - BNO055 IMU (state machine level, beyond pure tilt math)
   - GPIO interrupts
   - Arduino `Serial` wrapper (`ISerial`) for SerialManager testability
-- **Files:** `sigyn_teensy_boards/test/`
-- **Estimated Effort:** 30-50 hours
+- **Files:** `wr_teensy_boards/test/`
+- **Estimated Effort:** 20-30 hours
 
 ---
 
