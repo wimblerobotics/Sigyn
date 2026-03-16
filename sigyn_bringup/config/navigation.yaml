@@ -161,7 +161,7 @@ controller_server:
         cost_weight: 3.81
         near_collision_cost: 253
         critical_cost: 300.0
-        consider_footprint: true  # use actual footprint (was false = point robot; allowed table collisions)
+        consider_footprint: false  # true causes SIGSEGV when costmap uses robot_radius instead of footprint polygon
         collision_cost: 1000000.0
         near_goal_distance: 1.0
         trajectory_point_step: 2
