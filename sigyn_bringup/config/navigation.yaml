@@ -105,8 +105,8 @@ controller_server:
     # Goal checker parameters
     precise_goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.15         # slightly more reasonable tolerance
-      yaw_goal_tolerance: 0.15        # more relaxed orientation tolerance
+      xy_goal_tolerance: 0.30         # 30cm: accept slight overshoots rather than forcing a correction
+      yaw_goal_tolerance: 0.35        # ~20 degrees: patrol doesn't need precise heading at waypoint
       stateful: True
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
@@ -121,7 +121,7 @@ controller_server:
       vy_std: 0.3   
       wz_std: 0.5    
       vx_max: 0.5    
-      vx_min: -0.2             # minimal reverse motion
+      vx_min: 0.0              # no reverse motion — backing up caused table collisions
       vy_max: 0.5
       wz_max: 1.5              # reduced max angular velocity
       iteration_count: 1
@@ -388,7 +388,7 @@ planner_server:
     costmap_update_timeout: 1.0
     GridBased:
       plugin: "nav2_navfn_planner::NavfnPlanner"
-      tolerance: 0.15  # Tighter goal tolerance (was 1.0)
+      tolerance: 0.30  # match xy_goal_tolerance in goal checker
       use_astar: false
       allow_unknown: true
 
@@ -446,7 +446,7 @@ velocity_smoother:
     scale_velocities: False
     feedback: "OPEN_LOOP"
     max_velocity: [0.5, 0.0, 1.5]  # Match controller angular velocity limit
-    min_velocity: [-0.5, 0.0, -1.5]
+    min_velocity: [0.0, 0.0, -1.5]    # no reverse (matches vx_min=0 in MPPI controller)
     max_accel: [2.5, 0.0, 3.2]
     max_decel: [-2.5, 0.0, -3.2]
     odom_topic: "odom"
@@ -472,9 +472,9 @@ collision_monitor:
       type: "polygon"
       action_type: "approach"
       footprint_topic: "/local_costmap/published_footprint"
-      time_before_collision: 1.2
+      time_before_collision: 2.0      # increased: more stopping distance before impact
       simulation_time_step: 0.1
-      min_points: 6
+      min_points: 2               # lowered: table leg produces only 2-3 lidar returns; 6 made it invisible
       visualize: False
       enabled: True
     observation_sources: ["scan"]
