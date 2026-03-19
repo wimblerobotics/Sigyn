@@ -47,7 +47,7 @@ alias rd='rosdep install --from-paths src --ignore-src -r -y'
 alias record='rm -r ~/bag;~/sigyn_ws/src/Sigyn/base/scripts/bag_record.sh'
 alias rvs='rviz2 -d ~/sigyn_ws/src/Sigyn/rviz/config/config.rviz'
 alias sim='clear;ros2 launch base sigyn.launch.py use_sim_time:=true do_rviz:=true'
-alias sr='ssh -YC sigyn7900'
+alias sr='ssh -YC sigyn7900a'
 alias tele='ros2 run teleop_twist_keyboard teleop_twist_keyboard'
 alias teles='ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=/diff_cont/cmd_vel_unstamped'
 source /opt/ros/jazzy/setup.bash

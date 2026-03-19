@@ -65,7 +65,7 @@
             "type": "debugpy",
             "request": "attach",
             "connect": {
-                "host": "sigyn7900",
+                "host": "sigyn7900a",
                 "port": 5678
             },
             "pathMappings": [

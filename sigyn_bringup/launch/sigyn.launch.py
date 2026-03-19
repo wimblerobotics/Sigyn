@@ -105,6 +105,15 @@ def generate_launch_description():
         )
     )
 
+    use_compressed_rviz_feeds = LaunchConfiguration("use_compressed_rviz_feeds")
+    ld.add_action(
+        DeclareLaunchArgument(
+            name="use_compressed_rviz_feeds",
+            default_value="true",
+            description="Republish remote compressed image feeds locally for RViz image displays",
+        )
+    )
+
     urdf_file_name = LaunchConfiguration("urdf_file_name")
     ld.add_action(
         DeclareLaunchArgument(
@@ -574,6 +583,44 @@ def generate_launch_description():
         }]
     )
     ld.add_action(battery_overlay)
+
+    # Republish remote compressed image topics to local raw topics so RViz can
+    # use Image displays without requiring CameraInfo from the source hosts.
+    rviz_gripper_image_republisher = Node(
+        package="image_transport",
+        executable="republish",
+        name="rviz_gripper_image_republisher",
+        arguments=["compressed", "raw"],
+        remappings=[
+            ("in/compressed", "/gripper/camera/annotated_image/compressed"),
+            ("out", "/gripper/camera/annotated_image_rviz"),
+        ],
+        condition=IfCondition(
+            AndSubstitution(
+                NotSubstitution(use_sim_time),
+                AndSubstitution(do_rviz, use_compressed_rviz_feeds),
+            )
+        ),
+    )
+    ld.add_action(rviz_gripper_image_republisher)
+
+    rviz_oakd_image_republisher = Node(
+        package="image_transport",
+        executable="republish",
+        name="rviz_oakd_image_republisher",
+        arguments=["compressed", "raw"],
+        remappings=[
+            ("in/compressed", "/oakd/annotated_image/compressed"),
+            ("out", "/oakd/annotated_image_rviz"),
+        ],
+        condition=IfCondition(
+            AndSubstitution(
+                NotSubstitution(use_sim_time),
+                AndSubstitution(do_rviz, use_compressed_rviz_feeds),
+            )
+        ),
+    )
+    ld.add_action(rviz_oakd_image_republisher)
 
     rviz_env = {}
     if on_a_mac:

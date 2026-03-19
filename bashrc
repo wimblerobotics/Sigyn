@@ -73,7 +73,7 @@ alias dla="ros2 run --prefix 'gdbserver localhost:3000' line_finder laser_accumu
 alias fr='ros2 run tf2_tools view_frames'
 alias map='clear;ros2 launch sigyn_bringup sigyn.launch.py use_sim_time:=false do_rviz:=true make_map:=true'
 alias mr='micro-ros-agent serial --dev /dev/ttyACM0 -b 115200'
-alias nav='clear;ros2 launch sigyn_bringup sigyn.launch.py use_sim_time:=false do_rviz:=true do_oakd:=true'
+alias nav='clear;ros2 launch sigyn_bringup sigyn.launch.py use_sim_time:=false do_rviz:=false'
 alias pm='ros2 topic pub --rate 10 /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.2}}"'
 alias rd='rosdep install --from-paths src --ignore-src -r -y'
 alias redoudev='sudo service udev restart;sudo udevadm control --reload-rules;sudo udevadm trigger'

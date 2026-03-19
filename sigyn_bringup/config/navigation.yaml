@@ -37,7 +37,8 @@ amcl: # See: https://assets.researchsquare.com/files/rs-225880/v1_covered.pdf?c=
     tf_broadcast: true      # Set this to false to prevent amcl from publishing the transform between the global frame and the odometry frame.
     transform_tolerance: 0.2 # Time with which to post-date the transform that is published, to indicate that this transform is valid into the future.
     # One degree = 0.017453278 radians
-    update_min_a: 0.005      # Rotational movement required before performing a filter update.
+    update_min_a: 0.2        # Rotational movement required before performing a filter update.
+                             # 0.005 was too low (~0.3°): AMCL over-corrected map→odom during turns.
     update_min_d: 0.01     # Translational movement required before performing a filter update.
     z_hit: 0.9 ###0.95             # Mixture weight for z_hit part of model, sum of all used z weight must be 1. 
     z_max: 0.05 ###0.001            # Mixture weight for z_max part of model, sum of all used z weight must be 1. Beam uses all 4, likelihood model uses z_hit and z_rand.
@@ -242,7 +243,7 @@ local_costmap:
         # Low lidar at 30cm height - detects obstacles at robot navigation height
         # Upper lidar NOT used for navigation - it sees doorframes as obstacles!
         scan_low:
-          topic: /scan
+          topic: /scan_cup
           data_type: "LaserScan"
           clearing: True
           marking: True
@@ -315,7 +316,9 @@ global_costmap:
       publish_frequency: 1.0 # Frequency to publish costmap to topic.
       resolution: 0.0508 # Resolution of 1 pixel of the costmap, in meters.
       robot_base_frame: base_link
-      robot_radius: 0.28      # Match local costmap for consistency
+      robot_radius: 0.24      # Slightly smaller than physical radius (0.28m) so NavFn can plan
+                              # through tight doorways. Local costmap keeps 0.28m for actual
+                              # real-time collision avoidance.
       track_unknown_space: True # If false, treats unknown space as free space, else as unknown space.
       transform_tolerance: 0.5
       update_frequency: 5.0 # Costmap update frequency.
