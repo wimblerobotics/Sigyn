@@ -128,7 +128,7 @@ controller_server:
       vy_std: 0.3
       wz_std: 0.5
       vx_max: 0.5
-        vx_min: -0.10            # allow slow reverse motion so MPPI can back out of tight doorway approaches
+      vx_min: -0.10            # allow slow reverse motion so MPPI can back out of tight doorway approaches
       vy_max: 0.5
       wz_max: 1.5
       iteration_count: 1
