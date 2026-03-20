@@ -26,6 +26,11 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}/
 )
 
+install(DIRECTORY
+  bt_xml
+  DESTINATION share/${PROJECT_NAME}/
+)
+
 install(PROGRAMS
   scripts/battery_overlay_publisher.py
   DESTINATION lib/${PROJECT_NAME}

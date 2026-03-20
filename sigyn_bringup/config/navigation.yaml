@@ -65,7 +65,7 @@ bt_navigator:
       plugin: "nav2_bt_navigator::NavigateToPoseNavigator"
     navigate_through_poses:
       plugin: "nav2_bt_navigator::NavigateThroughPosesNavigator"
-    default_nav_to_pose_bt_xml: '/opt/ros/jazzy/share/nav2_bt_navigator/behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml'
+    default_nav_to_pose_bt_xml: '/home/ros/sigyn_ws/install/sigyn_bringup/share/sigyn_bringup/bt_xml/navigate_to_pose_w_recovery.xml'
     # 'default_nav_through_poses_bt_xml' and 'default_nav_to_pose_bt_xml' are use defaults:
     # nav2_bt_navigator/navigate_to_pose_w_replanning_and_recovery.xml
     # nav2_bt_navigator/navigate_through_poses_w_replanning_and_recovery.xml
@@ -102,7 +102,7 @@ controller_server:
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
       required_movement_radius: 0.15    # reduced radius requirement
-      movement_time_allowance: 8.0     # 8s: enough headroom for in-place rotation before MPPI engages (was 5.0 — too close to rotation time)
+      movement_time_allowance: 6.0     # 6s: enough for RotationShim 180° turn (~2.5s) plus MPPI to start moving; was 8.0 which meant 8s of inaction per recovery cycle at narrow doorways
     # Goal checker parameters
     precise_goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
