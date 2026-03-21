@@ -1,6 +1,6 @@
 # Sigyn Robot — Consolidated Work Plan
 
-**Last Updated:** 2026-03-15  
+**Last Updated:** 2026-03-20  
 **Branch:** sigyn2  
 **Purpose:** Single authoritative source for all outstanding work across the Sigyn robotic platform
 
@@ -392,6 +392,10 @@ These items are done and should not be re-implemented:
 | 2026-03-15 | RoboClaw Temperature Monitoring: CheckTemperature() asserts e-stop above roboclaw_temp_fault_c |
 | 2026-03-15 | RoboClaw Status Publishing: RCLAW + ODOM handlers publish sigyn/roboclaw/status and odometry |
 | 2026-03-15 | Encoder Read Failure Escalation: CheckCommFailures() asserts e-stop after max_comm_failures and resets to kConnecting |
+| 2026-03-20 | Board 3 gripper elevator port: GRIP handler in TopicPublisher publishes /gripper/status |
+| 2026-03-20 | ElevatorPositionController: /gripper/home, /gripper/position/command, /gripper/move_elevator, /gripper/move_extender |
+| 2026-03-20 | STEPPOS/STEPHOME commands in CommandFactory, MessageParser, stepper_monitor firmware handlers |
+| 2026-03-20 | test_gripper_protocol (wr_proto_msgs, 14 tests) and test_elevator_position_controller (wr_ros_teensy, 9 tests) |
 
 ---
 
