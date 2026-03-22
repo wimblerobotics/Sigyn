@@ -14,17 +14,22 @@
   <!-- Runtime launch dependencies -->
   <exec_depend>cartographer_ros</exec_depend>
   <exec_depend>controller_manager</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>laser_filters</exec_depend>
   <exec_depend>nav2_bringup</exec_depend>
   <exec_depend>nav2_lifecycle_manager</exec_depend>
   <exec_depend>nav2_map_server</exec_depend>
   <exec_depend>nav2_smac_planner</exec_depend>
   <exec_depend>pointcloud_to_laserscan</exec_depend>
+  <exec_depend>rclpy</exec_depend>
   <exec_depend>robot_localization</exec_depend>
   <exec_depend>ros_gz_bridge</exec_depend>
   <exec_depend>ros_gz_sim</exec_depend>
   <exec_depend>rviz2</exec_depend>
+  <exec_depend>sigyn_interfaces</exec_depend>
   <exec_depend>slam_toolbox</exec_depend>
+  <exec_depend>tf2_geometry_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
   <exec_depend>wr_twist_multiplexer</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>

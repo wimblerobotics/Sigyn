@@ -33,6 +33,7 @@ install(DIRECTORY
 
 install(PROGRAMS
   scripts/battery_overlay_publisher.py
+  scripts/detection_frame_reporter.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
