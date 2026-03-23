@@ -91,7 +91,9 @@ See §7 for why this matters.
 | Band | 5 GHz only (`802-11-wireless.band = a`) |
 | Channel | Any (`802-11-wireless.channel = 0`) |
 | Powersave | Disabled (`802-11-wireless.powersave = 2`) |
+| PMF | Optional on WPA2 mesh profiles (`802-11-wireless-security.pmf = 2`) |
 | MAC randomization | Off (`mac-address-randomization = never`) |
+| Background scan | `bgscan="simple:30:-65:8"` applied on reconnect via NM dispatcher |
 | Route metric | 50 (lowest = preferred default route) |
 
 ### 4.3 `sigynVision` — Robot Vision Processor (Wi-Fi)
@@ -105,7 +107,9 @@ See §7 for why this matters.
 | Band | 5 GHz only (`802-11-wireless.band = a`) |
 | Channel | Any (`802-11-wireless.channel = 0`) |
 | Powersave | Disabled |
+| PMF | Optional on the production mesh profile |
 | MAC randomization | Off |
+| Background scan | `bgscan="simple:30:-65:8"` applied on reconnect via NM dispatcher |
 | Route metric | 50 |
 
 `sigynVision` is a Raspberry Pi 5 mounted on the robot's gripper assembly. It is always
@@ -226,6 +230,43 @@ wifi.powersave = 2
 wifi.scan-rand-mac-address = no
 ```
 
+### `/etc/NetworkManager/dispatcher.d/99-bgscan.sh`
+This NetworkManager dispatcher script reapplies the `bgscan` policy each time a Wi-Fi
+connection comes up or is reapplied. The apply happens after a short delay because
+NetworkManager can still be rewriting supplicant state during the first few seconds of a
+reconnect:
+
+```sh
+#!/bin/sh
+set -eu
+
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+IFACE="${1:-}"
+ACTION="${2:-}"
+
+case "$ACTION" in
+  up|dhcp4-change|reapply|connectivity-change)
+    ;;
+  *)
+    exit 0
+    ;;
+esac
+
+[ -n "$IFACE" ] || exit 0
+
+(
+   sleep 5
+   network_id=$(wpa_cli -i "$IFACE" status 2>/dev/null | awk -F= '/^id=/{print $2; exit}')
+   [ -n "$network_id" ] || exit 0
+
+   wpa_cli -i "$IFACE" set_network "$network_id" bgscan '"simple:30:-65:8"' >/dev/null 2>&1 || exit 0
+   wpa_cli -i "$IFACE" reassociate >/dev/null 2>&1 || true
+   logger -t nm-bgscan "Applied bgscan simple:30:-65:8 to $IFACE network $network_id after $ACTION"
+) &
+
+exit 0
+```
+
 After creating or changing these files, reload NetworkManager:
 ```bash
 sudo systemctl reload NetworkManager
@@ -233,66 +274,64 @@ sudo systemctl reload NetworkManager
 
 ---
 
-## 7. The Roaming Agent
+## 7. Wi-Fi Roaming on Google Mesh
 
-The mesh has 4 Google Nest repeaters spread through the house. The robot roams between all of
-them as it navigates. Without intervention, Linux's default roaming policy is conservative:
-it only roams when the signal is completely unusable (around -80 dBm), by which point MCS
-(modulation order) has already dropped from MCS 8/9 down to MCS 0/1, reducing throughput
-from ~800 Mbps to ~40 Mbps.
+The house mesh uses Google Nest Wi-Fi points that already support 802.11v BSS Transition
+Management. That means the mesh can tell the client which node it should move to when the
+robot is moving through the house, as long as the client keeps its BSS table fresh and can
+accept protected transition-management frames.
 
-A systemd service (`wifi-roam-agent`) runs on both `sigyn7900a` and `sigynVision` to override
-this behavior.
+### The problem with the previous fix
 
-### How it works
+An earlier AI-generated solution installed `wifi-roam-agent.service`, a systemd unit that ran
+`/usr/local/sbin/wifi-roam-agent.sh` in a loop. That script called `wpa_cli scan` every
+6 seconds to try to force faster roaming between mesh nodes.
 
-Every 6 seconds the agent:
-1. Reads the current BSSID, signal (dBm), and frequency from the driver.
-2. Triggers a passive background scan.
-3. Selects the strongest 5 GHz BSSID for the `livingroom` SSID from scan results.
-4. If the current signal is on **2.4 GHz** and a 5 GHz AP is reachable at ≥ −72 dBm,
-   it forces an immediate roam to the 5 GHz node.
-5. If the current signal is ≤ **−55 dBm** and a better 5 GHz AP exists with at least
-   **5 dB** improvement, it roams — subject to a 15-second minimum between roams to
-   avoid thrashing.
+That configuration was wrong for this environment for two reasons:
 
-The −55 dBm threshold is deliberately above the point where MCS degrades (~−65 dBm for MCS 7
-at 80 MHz), so the robot pre-emptively hands off while throughput is still close to peak.
+1. Each full scan takes the radio briefly off-channel, which drops in-flight packets and can
+   create measurable LAN packet loss.
+2. It fights Google Mesh's own 802.11v steering logic instead of cooperating with it.
 
-### Service locations
+On `sigynVision`, that aggressive scan loop was measured to cause about **10% packet loss**.
+The service and script are therefore kept **disabled** and must not be re-enabled unless the
+roaming design is revisited from first principles.
+
+### Correct solution
+
+The correct configuration for Google Mesh on Ubuntu + NetworkManager is:
+
+1. Disable Wi-Fi powersave globally with `/etc/NetworkManager/conf.d/99-wifi-powersave-off.conf`
+   using `wifi.powersave = 2`.
+2. Disable scan MAC randomisation globally with
+   `/etc/NetworkManager/conf.d/20-wifi-scan-rand-off.conf` using
+   `wifi.scan-rand-mac-address = no`.
+3. Set PMF (802.11w) to optional on the production Wi-Fi connection profiles. Google Mesh uses
+   PMF-protected 802.11v BSS Transition frames, so the client must allow them. Some test
+   profiles that use SAE may legitimately require PMF instead of allowing `optional`; that is
+   acceptable and still compatible with the mesh.
+4. Apply `bgscan "simple:30:-65:8"` via a NetworkManager dispatcher script
+   (`/etc/NetworkManager/dispatcher.d/99-bgscan.sh`) each time the Wi-Fi connection comes up.
+5. Apply the same `bgscan` setting immediately to the live session after installing the script.
+
+`bgscan "simple:30:-65:8"` tells `wpa_supplicant` to perform low-impact background scanning on
+a longer cadence during healthy signal conditions and more frequently when RSSI drops below
+`-65 dBm`. Unlike an explicit `wpa_cli scan` loop, this keeps roaming information current
+without repeatedly forcing disruptive full scans.
+
+### Required disabled components
+
+These legacy components may still exist on disk, but they must remain disabled:
+
 ```
-/usr/local/sbin/wifi-roam-agent.sh          # the script
-/etc/systemd/system/wifi-roam-agent.service # systemd unit
+/usr/local/sbin/wifi-roam-agent.sh
+/etc/systemd/system/wifi-roam-agent.service
 ```
 
-### Environment variables (configurable in the service unit)
+Check the disabled state with:
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `IFACE` | `wlp8s0` / `wlan0` | Wi-Fi interface name |
-| `TARGET_SSID` | `livingroom` | SSID to roam within |
-| `LOW_SIGNAL_DBM` | `-55` | Roam trigger threshold (dBm) |
-| `MIN_IMPROVEMENT_DB` | `5` | Minimum gain to justify a roam |
-| `SCAN_INTERVAL` | `6` | Seconds between scan cycles |
-| `MIN_ROAM_INTERVAL` | `15` | Minimum seconds between roams |
-
-### Deploying to a new robot machine
 ```bash
-# On your development machine (assuming passwordless sudo SSH):
-scp /usr/local/sbin/wifi-roam-agent.sh $NEW_ROBOT:/tmp/
-ssh -t $NEW_ROBOT "sudo cp /tmp/wifi-roam-agent.sh /usr/local/sbin/ && \
-  sudo chmod +x /usr/local/sbin/wifi-roam-agent.sh"
-
-# Create /etc/systemd/system/wifi-roam-agent.service on the new machine.
-# Change IFACE to match the interface name (wlp8s0 or wlan0, etc.).
-# Then:
-ssh -t $NEW_ROBOT "sudo systemctl daemon-reload && \
-  sudo systemctl enable --now wifi-roam-agent"
-```
-
-Check logs:
-```bash
-journalctl -u wifi-roam-agent -f
+systemctl status wifi-roam-agent.service
 ```
 
 ---
@@ -317,7 +356,8 @@ When adding a computer to the fleet:
    nmcli con modify <profile-name> \
      802-11-wireless.band a \
      802-11-wireless.powersave 2 \
-     802-11-wireless.mac-address-randomization never
+     802-11-wireless.mac-address-randomization never \
+     802-11-wireless-security.pmf 2
    ```
 
 3. **Add the global NM conf.d files** (see §6).
@@ -328,17 +368,26 @@ When adding a computer to the fleet:
    sudo systemctl reload NetworkManager
    ```
 
-5. **Add the PCIe ASPM fix** if the machine uses the MT7922 or similar MediaTek PCIe chip:
+5. **Install the bgscan dispatcher script** and apply it to the live session:
+   ```bash
+   sudo install -m 755 99-bgscan.sh /etc/NetworkManager/dispatcher.d/99-bgscan.sh
+   sudo /etc/NetworkManager/dispatcher.d/99-bgscan.sh <iface> reapply
+   ```
+
+6. **Ensure the legacy roaming service stays disabled:**
+   ```bash
+   sudo systemctl disable --now wifi-roam-agent.service
+   ```
+
+7. **Add the PCIe ASPM fix** if the machine uses the MT7922 or similar MediaTek PCIe chip:
    ```bash
    echo "options mt7921e disable_aspm=Y" | sudo tee /etc/modprobe.d/mt7921e.conf
    sudo update-initramfs -u
    ```
 
-6. **Update `/etc/hosts`** on every machine in the fleet with the new entry.
+8. **Update `/etc/hosts`** on every machine in the fleet with the new entry.
 
-7. **Deploy the roaming agent** (see §7).
-
-8. **Apply and reboot:**
+9. **Apply and reconnect if needed:**
    ```bash
    nmcli con up <profile-name>
    ```
@@ -364,7 +413,8 @@ Expected results at good signal (−50 dBm, MCS 8, 2×2 MIMO, 80 MHz):
 If you see unexpectedly low throughput, check:
 ```bash
 iw dev <iface> link          # look at tx/rx bitrate and MCS index
-journalctl -u wifi-roam-agent -n 20   # recent roam events
+journalctl -t nm-bgscan -n 20   # recent bgscan applications
+sudo wpa_cli -i <iface> get_network 0 bgscan
 nmcli -f ACTIVE,BSSID,SSID,FREQ,SIGNAL,RATE dev wifi   # current AP
 ```
 
@@ -385,9 +435,10 @@ nmcli con show --active
 # Force reconnect (picks up any profile changes)
 nmcli con up livingroom
 
-# Roam agent status and recent events
+# Verify bgscan and legacy roam-agent state
+sudo wpa_cli -i wlp8s0 get_network 0 bgscan
+journalctl -t nm-bgscan -n 30
 systemctl status wifi-roam-agent
-journalctl -u wifi-roam-agent -n 30
 
 # Verify static IP is applied
 ip -4 addr show wlp8s0
