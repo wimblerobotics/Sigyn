@@ -236,6 +236,9 @@ connection comes up or is reapplied. The apply happens after a short delay becau
 NetworkManager can still be rewriting supplicant state during the first few seconds of a
 reconnect:
 
+Tracked source in this repository:
+`scripts/network/99-bgscan.sh`
+
 ```sh
 #!/bin/sh
 set -eu
@@ -370,7 +373,7 @@ When adding a computer to the fleet:
 
 5. **Install the bgscan dispatcher script** and apply it to the live session:
    ```bash
-   sudo install -m 755 99-bgscan.sh /etc/NetworkManager/dispatcher.d/99-bgscan.sh
+   sudo install -m 755 scripts/network/99-bgscan.sh /etc/NetworkManager/dispatcher.d/99-bgscan.sh
    sudo /etc/NetworkManager/dispatcher.d/99-bgscan.sh <iface> reapply
    ```
 
