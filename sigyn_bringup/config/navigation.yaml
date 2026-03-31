@@ -227,7 +227,7 @@ local_costmap:
       plugins: [
         "voxel_layer",        # Low lidar clears/marks first
         "oakd_top_layer",     # OAK-D (currently disabled)
-        # "range_sensor_layer", # VL53L0X marks after lidar so it isn't cleared
+        "range_sensor_layer", # VL53L0X proximity sensors
         "inflation_layer"]
 
       static_layer:
@@ -288,30 +288,33 @@ local_costmap:
           topic: /stereo/points2 # Topic of data.
 
       range_sensor_layer:
-        enabled: False  # Disabled in simulation - VL53L0X sensors not available
+        enabled: True
         plugin: "nav2_costmap_2d::RangeSensorLayer"
         combination_method: 1   # Max combine so marked cells persist
         topics: [
-          "/sigyn/teensy_bridge/range/vl53l0x_0",
-          "/sigyn/teensy_bridge/range/vl53l0x_1", 
-          "/sigyn/teensy_bridge/range/vl53l0x_2",
-          "/sigyn/teensy_bridge/range/vl53l0x_3",
-          "/sigyn/teensy_bridge/range/vl53l0x_4",
-          "/sigyn/teensy_bridge/range/vl53l0x_5",
-          "/sigyn/teensy_bridge/range/vl53l0x_6",
-          "/sigyn/teensy_bridge/range/vl53l0x_7"
+          "/sigyn/sensors/range/rear_right_bkwd",
+          "/sigyn/sensors/range/rear_right_side",
+          "/sigyn/sensors/range/front_right_side",
+          "/sigyn/sensors/range/front_right_fwd",
+          "/sigyn/sensors/range/front_left_fwd",
+          "/sigyn/sensors/range/front_left_side",
+          "/sigyn/sensors/range/rear_left_side",
+          "/sigyn/sensors/range/rear_left_bkwd"
         ]
-        phi: 0.087            # Very narrow ~5° cone to avoid broad wedges
-        inflate_cone: 0.0     # No inflation; mark only where cone intersects
-        no_readings_timeout: 2.0   # Keep marks around longer so controller can react
-        # Thresholds are relative to layer's max_range; mark if range < mark_threshold * max_range
-        # With max_range=0.12, mark_threshold=0.95 => mark only when range < ~0.114 m
-        mark_threshold: 0.95
-        # Avoid aggressive auto-clearing so short occlusions/heading changes don't erase obstacles
+        phi: 0.218            # VL53L0X half-angle: 25° total FOV = 12.5° = 0.218 rad.
+                              # nav2 RangeSensorLayer phi is a HALF-angle: cells within
+                              # ±phi of the sensor's pointing direction are marked/cleared.
+        inflate_cone: 0.0     # No artificial cone inflation
+        no_readings_timeout: 2.0   # Keep marks 2 s if sensor goes silent
+        # mark_threshold: fraction of max_range below which cells are marked.
+        # With max_range=0.5 m, 0.90 * 0.5 = 0.45 m — marks obstacles within ~45 cm.
+        mark_threshold: 0.90
+        # clear_threshold: fraction of max_range above which cells are cleared.
+        # A reading at 0.5 m (max_range == out-of-range cap) clears the cell.
         clear_threshold: 0.98
-        clear_on_max_reading: false
+        clear_on_max_reading: true  # Out-of-range readings (2 m capped) clear marks
         min_range: 0.03
-        max_range: 0.12
+        max_range: 0.50
 
 
 global_costmap:

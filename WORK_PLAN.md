@@ -73,20 +73,74 @@ This work plan covers the complete Sigyn robotic platform, including:
 - **Testing:** Comprehensive reconnection test suite
 - **Estimated Effort:** 12-16 hours
 
-### VL53L0X Collision Prediction (Board 1)
-- **Purpose:** Direction-aware obstacle detection for collision prevention
-- **Hardware:** 8 VL53L0X sensors on Board 1 (already present)
-- **Thresholds:**
-  - WARNING at 500mm → slow down
-  - EMERGENCY_STOP at 200mm → immediate stop
-  - Hysteresis: 600mm clearance before recovery
-- **Implementation:**
-  - Extend `VL53L0XMonitor` with collision prediction
-  - Direction-aware: only trigger when obstacle is in direction of motion
-  - Add `allow_close_approach` behavior-tree flag for docking
-  - Config parameters in `vl53l0x_monitor.h`
-- **Testing:** Mock sensor data + real wall-approach runs
-- **Estimated Effort:** 12-16 hours
+### VL53L0X Proximity System — COMPLETED (2026-03-30)
+- **Firmware:** `wr_teensy_boards/modules/vl53l0x/vl53l0x_monitor.h/.cpp`
+  - `VL53L0XMonitor` module polls 8 sensors via TCA9548A I²C mux (address 0x70, enable pin 8)
+  - **Ring-counter loop:** exactly 1 sensor checked per `Loop()` call; full pass = ~8 ms ≤ I²C budget ~400 µs/call
+  - Non-blocking continuous-mode reads; sends `PROX<1>:` messages immediately on new data
+  - Fault IDs: `VL53L0X_RING2` (EMERGENCY_STOP, inner ring) / `VL53L0X_RING3` (WARNING, outer ring)
+  - **Thresholds (geometry-derived):** 175 mm estop (~60 mm clearance outside robot edge), 300 mm warning (~185 mm clearance), 50 mm hysteresis
+    - Robot cylinder radius 280 mm; sensors inset ~115–120 mm from edge; 0.75 m doorway gives ~210 mm side-sensor reading (35 mm margin)
+  - Dependency-injected `ISerialSink` + `IFaultReporter` (same pattern as BatteryMonitor)
+  - 27 native PlatformIO tests in `test/test_vl53l0x_monitor/`
+- **PC bridge:** `wr_ros_teensy` PROX → `sensor_msgs/Range` pipeline was already wired;
+  `sensor_names.json` already had all 8 sensors mapped to `/sigyn/sensors/range/<name>` topics
+- **Costmap:** `navigation.yaml` `range_sensor_layer` re-enabled with correct topic names;
+  `phi: 0.218` (VL53L0X 12.5° half-angle), `max_range: 0.50 m`, `clear_on_max_reading: true`
+
+---
+
+### 🔴 VL53L0X Outstanding Items
+*Prioritize these as BT and navigation work progresses.*
+
+#### VL53L0X — Runtime Threshold Tuning via ROS 2 Parameter Server
+- **Status:** Deferred — thresholds are compile-time constants for now
+- **Purpose:** Allow `estop_mm` / `warning_mm` / `hysteresis_mm` to be adjusted via
+  `ros2 param set` without reflashing firmware
+- **Design:** Requires a PC→Teensy `CONFIG` command pathway (see `ResponseFactory::ConfigAck`),
+  a `set_parameters_callback` in `teensy_bridge.cpp`, and firmware-side parameter storage
+- **Note:** No dynamic parameter server integration exists yet in `wr_ros_teensy`
+- **Files:** `wr_ros_teensy/src/teensy_bridge.cpp`, `wr_teensy_boards/modules/vl53l0x/vl53l0x_monitor.h`
+- **Estimated Effort:** 8-12 hours
+
+#### VL53L0X — Direction-Aware Safety Gating (PC Side)
+- **Status:** Deferred — **CANDIDATE FOR REMOVAL** (see note below)
+- **Note (Q6):** `cmd_vel` is available via the `RoboclawMonitor` on the Teensy, so the signal
+  path exists on the robot. However the value add is uncertain: the Teensy safety estop is
+  a last-resort hardware override, not a navigation fence — suppressing it based on direction
+  may be more dangerous than helpful. Re-evaluate before implementing.
+- **Purpose:** Suppress forward-facing sensor faults when the robot is reversing (and vice versa),
+  preventing needless emergency stops when backing away from a close object
+- **Design:** Implement in `SafetyCoordinator` (PC side — Teensy does not receive cmd_vel)
+  - If `cmd_vel.linear.x > 0`: only instances 3, 4 (`front_*_fwd`) contribute to ring2 estop
+  - If `cmd_vel.linear.x < 0`: only instances 0, 7 (`rear_*_bkwd`) contribute
+  - Side sensors (1, 2, 5, 6) always active for lateral obstacle detection
+  - Requires `SafetyCoordinator` to track last cmd_vel direction and know sensor→direction map
+- **Files:** `wr_ros_teensy/src/SafetyCoordinator.cpp`, `wr_ros_teensy/src/FaultRegistry.cpp`
+- **Estimated Effort:** 6-8 hours
+
+#### VL53L0X — `allow_close_approach` Behavior-Tree Flag
+- **Status:** Deferred
+- **Purpose:** Allow docking / close-approach manoeuvres to suppress inner-ring estop
+- **Design:** BT condition flag → PC topic → wr_ros_teensy → inhibit VL53L0X_RING2 fault
+  escalation to ESTOP (downgrade to WARNING only during docking)
+- **Depends on:** Direction-aware gating item above
+- **Estimated Effort:** 4-6 hours
+
+#### VL53L0X — Sensor Timeout / Stale Data Safety
+- **Status:** Deferred (part of broader sensor-timeout safety work item)
+- **Purpose:** Trigger `VL53L0X_RING2` fault if any sensor stops updating for > 2× expected period
+  (detects I²C hang, cable disconnection, firmware crash)
+- **Files:** `wr_teensy_boards/modules/vl53l0x/vl53l0x_monitor.cpp`
+- **Estimated Effort:** 3-4 hours (builds on the broader sensor-timeout work item)
+
+#### VL53L0X — Custom Low-Level Driver (Performance Option)
+- **Status:** Future consideration — do not start until navigation lag is measurable
+- **Purpose:** Replace Pololu Arduino library with a direct register-level driver to reduce
+  per-sensor read latency and increase per-sensor update rate above ~10 Hz
+- **Trigger:** Profile actual loop rates after full navigation stack integration
+- **Files:** New `wr_teensy_boards/modules/vl53l0x/vl53l0x_driver.h/.cpp`
+- **Estimated Effort:** 16-24 hours (driver + validation tests)
 
 ### System Shutdown on Low Battery
 - **Purpose:** Graceful power-down before battery damage
