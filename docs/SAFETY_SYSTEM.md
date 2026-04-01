@@ -208,8 +208,8 @@ All fault ID strings are defined in `wr_proto_msgs/include/wr_proto_msgs/fault_i
 
 | Fault ID | Wire String | Source | Board | Severity | auto_clear | Latching? | Notes |
 |---|---|---|---|---|---|---|---|
-| `kVl53l0xRing2` | `VL53L0X_RING2` | VL53L0X proximity | 1 | EMERGENCY_STOP | true | No | Clears when obstacle leaves ring 2; human can override while obstacle still present |
-| `kVl53l0xRing3` | `VL53L0X_RING3` | VL53L0X proximity | 1 | WARNING | true | No | Behavior-tree only; no Telegram notification |
+| `kVl53l0xRing2` | `VL53L0X_RING2` | VL53L0X proximity | 1 | EMERGENCY_STOP | true | No | 8 instances (0–7), one per sensor; each reported and cleared independently; clears when obstacle leaves ring 2; human can override while obstacle still present |
+| `kVl53l0xRing3` | `VL53L0X_RING3` | VL53L0X proximity | 1 | WARNING | true | No | 8 instances (0–7), one per sensor; each independent of ring 2; behavior-tree only; no Telegram |
 | `kMotorRunawayM1` | `RUNAWAY_M1` | RoboClawMonitor | 1 | EMERGENCY_STOP | false | **Yes** | Motor 1 speed exceeded threshold; requires human override; no power cycle needed |
 | `kMotorRunawayM2` | `RUNAWAY_M2` | RoboClawMonitor | 1 | EMERGENCY_STOP | false | **Yes** | Motor 2 speed exceeded threshold; requires human override; no power cycle needed |
 | `kMotorHwOvercurrM1` | `HW_OVERCURR_M1` | RoboClawMonitor | 1 | EMERGENCY_STOP | true | No | RoboClaw hardware M1_CURRENT_ERROR bit set; threshold set very high on device to avoid false triggers; self-heals when bit clears (e.g., after SSR power cycle) |
@@ -262,6 +262,8 @@ All fault ID strings are defined in `wr_proto_msgs/include/wr_proto_msgs/fault_i
 **Hysteresis:** 50 mm. Once in ESTOP, the distance must rise to `estop_mm + 50 = 180 mm` before transitioning to WARNING; must rise to `warning_mm + 50 = 350 mm` before returning to CLEAR. This prevents chattering when an obstacle is exactly at the threshold.
 
 **Consecutive-sample confirmation:** The firmware requires a configurable number of consecutive readings at the new ring level before transitioning (except ESTOP, which triggers immediately for safety). This filters single-sample noise.
+
+**Per-sensor independence:** Each of the 8 VL53L0X sensors (instances 0–7) reports its own `VL53L0X_RING2` and `VL53L0X_RING3` faults independently. Sensor 3 faulting does not affect sensor 4's state. Ring 2 (ESTOP) and Ring 3 (WARNING) are also independent per sensor: transitioning into ring 2 asserts both ring 3 and ring 2; transitioning back to ring 3 clears ring 2 only; ring 3 only clears when the obstacle fully exits ring 3.
 
 **Human override behavior:** After a Ring 2 ESTOP event is cleared by the human operator (via `/human_override`), the VL53L0X monitor will **not re-trigger Ring 2** until the ring state has transitioned (e.g., the obstacle moved away and then returned). This prevents a persistent obstacle from immediately re-asserting ESTOP after each override.
 
@@ -354,14 +356,20 @@ Too many consecutive failures reading encoder or current data.
 
 **Fault behavior:** All battery/power faults are `auto_clear=true` — they self-heal when voltage returns to normal (e.g., charger connected, load spike passes).
 
-| Fault | Trigger | Severity |
-|---|---|---|
-| `BATT_CRIT` | Battery 0 voltage critically low | EMERGENCY_STOP |
-| `BATT_CRIT` | Battery 1 voltage critically low | WARNING |
-| `BATT_LOW` | Battery voltage in low-warning band | WARNING |
-| `POWER_RAIL_5V/12V/24V/3V3` | Rail voltage out of spec | EMERGENCY_STOP |
+There is **one** battery (a 36 V 10S Li-Po pack, `idx=0`). Channels `idx=1–4` are DC-DC converter power rails, not a second battery.
 
-The primary (drive) battery triggers EMERGENCY_STOP on critical low; the secondary battery is WARNING only, reflecting different risk profiles.
+| Fault ID | Channel | Trigger | Critical Severity |
+|---|---|---|---|
+| `BATT_CRIT` | idx 0 — 36 V Li-Po | Battery voltage critically low (≤ 32.5 V) | EMERGENCY_STOP |
+| `BATT_LOW` | idx 0 — 36 V Li-Po | Battery voltage in warning band (≤ 34 V) | WARNING |
+| `POWER_RAIL_5V` | idx 1 — 5 V DC-DC | Rail voltage critically out of spec | WARNING |
+| `POWER_RAIL_12V` | idx 2 — 12 V DC-DC | Rail voltage critically out of spec | WARNING |
+| `POWER_RAIL_24V` | idx 3 — 24 V DC-DC | Rail voltage critically out of spec | WARNING |
+| `POWER_RAIL_3V3` | idx 4 — 3.3 V DC-DC | Rail voltage critically out of spec | WARNING |
+
+**Note:** All DC-DC rail faults are currently WARNING pending log analysis to validate sensor accuracy. Rail sensors occasionally trigger spuriously during boot before initialization completes. Severities will be elevated (24 V → EMERGENCY_STOP, 3.3 V → EMERGENCY_STOP, 5 V/12 V → CRITICAL) once the sensors are confirmed trustworthy.
+
+Warning-band violations for all channels are always WARNING severity.
 
 ---
 
@@ -436,6 +444,21 @@ The PC expects a heartbeat wire message (`HB<n>`) from each expected board at a 
 | Any other EMERGENCY_STOP | Yes — tier 2 alert |
 | Human override timer reminder | Yes — one-shot, does not repeat |
 
+### HumanAlert Message Fields
+
+The `HumanAlert.msg` message (`wr_interfaces/msg/HumanAlert.msg`) carries:
+
+| Field | Type | Purpose |
+|---|---|---|
+| `fault_id` | `string` | Fault ID string (e.g., `VL53L0X_RING2`) |
+| `instance` | `uint8` | Sensor/channel instance (0 for module-level faults) |
+| `board_id` | `uint8` | Originating Teensy board (0 if unknown) |
+| `tier` | `uint8` | Notification urgency tier (1–3) |
+| `permitted_reasons` | `string[]` | Telegram button labels; if empty, no response expected |
+| `notify_people` | `string[]` | People nicknames from `people.json` |
+
+Both `instance` and `board_id` are propagated from the Teensy fault wire message through `TeensyBridge` → `HumanAlert` → notifier's `_pending_alerts` cache → `/human_override` service request. This ensures the correct sensor instance is cleared (e.g., `VL53L0X_RING2` instance 3, board 1) rather than defaulting to instance 0.
+
 All timers in the notifier that schedule future messages use the one-shot pattern (`timer_ref[0].cancel()` inside the callback) to prevent timer accumulation if the callback fires multiple times.
 
 ---
@@ -453,10 +476,14 @@ class IFaultReporter {
  public:
   virtual void ReportFault(const char* module_name, const char* fault_id,
                            FaultSeverity severity, bool auto_clear,
-                           const char* reason) = 0;
-  virtual void ClearFault(const char* module_name, const char* fault_id) = 0;
+                           const char* reason, uint8_t inst = 0,
+                           const char* sensor_name = "") = 0;
+  virtual bool ClearFault(const char* module_name, const char* fault_id,
+                          uint8_t inst = 0) = 0;
 };
 ```
+
+The `inst` parameter identifies the sensor instance (e.g., 0–7 for VL53L0X sensors). It defaults to 0 for module-level faults that have no per-instance distinction. `FaultCoordinator` uses `inst` as part of the fault key (`MODULE:FAULTID:INST`) so multiple instances of the same fault ID coexist independently.
 
 ### `IEstopController` (`common/interfaces/i_estop_controller.h`)
 
@@ -508,7 +535,7 @@ To add a new fault:
 ```bash
 cd wr_teensy_boards
 pio test -e native_test
-# Expected: 225/225 passed
+# Expected: 228/228 passed
 ```
 
 Key test suites:

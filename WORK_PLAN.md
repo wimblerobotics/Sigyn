@@ -1,6 +1,6 @@
 # Sigyn Robot — Consolidated Work Plan
 
-**Last Updated:** 2026-03-20  
+**Last Updated:** 2026-03-31  
 **Branch:** sigyn2  
 **Purpose:** Single authoritative source for all outstanding work across the Sigyn robotic platform
 
@@ -10,14 +10,14 @@
 
 This work plan covers the complete Sigyn robotic platform, including:
 - **Hardware:** Teensy 4.1-based multi-board control system (Boards 1 & 2: Navigation/Safety, Power/Sensors)
-- **Core Packages:** sigyn_bringup, sigyn_behavior_trees, sigyn_to_teensy, sigyn_teensy_boards
+- **Core Packages:** `wr_ros_teensy` (PC bridge), `wr_teensy_boards` (firmware), `wr_interfaces`, `wr_proto_msgs`, `sigyn_notifier`
 - **Navigation:** Nav2-based autonomous navigation, perimeter patrol, house patrol
 - **Vision:** OAK-D depth cameras for object detection
 - **Safety:** Multi-level fault handling (FaultCoordinator), emergency stop, sensor monitoring
 - **Note:** Board 3 (gripper/elevator) hardware is being replaced and all related work items have been removed from this plan
 
 **Key Architecture Notes:**
-- ROS 2 Humble on Ubuntu 22.04
+- ROS 2 Jazzy on Ubuntu 24.04
 - Behavior Trees for mission logic (BT.CPP v4)
 - Multi-board Teensy system with JSON serial protocol
 - FaultCoordinator pattern for multi-fault e-stop management
@@ -26,8 +26,8 @@ This work plan covers the complete Sigyn robotic platform, including:
 **Getting Started:**
 - Main launch: `ros2 launch sigyn_bringup sigyn.launch.py`
 - Behavior trees in `sigyn_behavior_trees` package
-- Hardware bridge: `sigyn_to_teensy` node
-- Firmware: `sigyn_teensy_boards` (separate repo, PlatformIO)
+- Hardware bridge: `wr_ros_teensy` node
+- Firmware: `wr_teensy_boards` (separate repo, PlatformIO)
 - Can challenge: `ros2 launch can_do_challenge can_do_challenge_launch.py`
 
 ---
@@ -72,23 +72,6 @@ This work plan covers the complete Sigyn robotic platform, including:
   - Test scenarios: UART disconnect, Board 2 power cycle, firmware upload
 - **Testing:** Comprehensive reconnection test suite
 - **Estimated Effort:** 12-16 hours
-
-### VL53L0X Proximity System — COMPLETED (2026-03-30)
-- **Firmware:** `wr_teensy_boards/modules/vl53l0x/vl53l0x_monitor.h/.cpp`
-  - `VL53L0XMonitor` module polls 8 sensors via TCA9548A I²C mux (address 0x70, enable pin 8)
-  - **Ring-counter loop:** exactly 1 sensor checked per `Loop()` call; full pass = ~8 ms ≤ I²C budget ~400 µs/call
-  - Non-blocking continuous-mode reads; sends `PROX<1>:` messages immediately on new data
-  - Fault IDs: `VL53L0X_RING2` (EMERGENCY_STOP, inner ring) / `VL53L0X_RING3` (WARNING, outer ring)
-  - **Thresholds (geometry-derived):** 175 mm estop (~60 mm clearance outside robot edge), 300 mm warning (~185 mm clearance), 50 mm hysteresis
-    - Robot cylinder radius 280 mm; sensors inset ~115–120 mm from edge; 0.75 m doorway gives ~210 mm side-sensor reading (35 mm margin)
-  - Dependency-injected `ISerialSink` + `IFaultReporter` (same pattern as BatteryMonitor)
-  - 27 native PlatformIO tests in `test/test_vl53l0x_monitor/`
-- **PC bridge:** `wr_ros_teensy` PROX → `sensor_msgs/Range` pipeline was already wired;
-  `sensor_names.json` already had all 8 sensors mapped to `/sigyn/sensors/range/<name>` topics
-- **Costmap:** `navigation.yaml` `range_sensor_layer` re-enabled with correct topic names;
-  `phi: 0.218` (VL53L0X 12.5° half-angle), `max_range: 0.50 m`, `clear_on_max_reading: true`
-
----
 
 ### 🔴 VL53L0X Outstanding Items
 *Prioritize these as BT and navigation work progresses.*
@@ -416,56 +399,25 @@ Desired:** Single `IsFaultActive` node with `target_fault` input port
 
 ---
 
-## ✅ Recently Completed (For Context)
-
-These items are done and should not be re-implemented:
-
-| Date | Item |
-|------|------|
-| 2026-02-08 | Board 3: STEPPOS, STEPHOME, STEPSTATUS commands |
-| 2026-02-08 | Board 3: STEPPERSTAT3 JSON message with position/limits |
-| 2026-02-08 | GripperStatus.msg and GripperPositionCommand.msg in sigyn_interfaces |
-| 2026-02-08 | MoveElevator.action and MoveExtender.action servers in sigyn_to_teensy |
-| 2026-02-08 | MoveElevatorAction BT node with action client integration |
-| 2026-02-08 | StepElevatorUpAction for incremental visual servoing |
-| 2026-02-08 | ElevatorAtHeight condition for pixel-based feedback |
-| 2026-03-13 | FaultCoordinator fault tracking and e-stop coordination (Boards 1 & 2) |
-| 2026-03-13 | BNO055Monitor tilt (>10°) and fallen (>20°) safety thresholds |
-| 2026-03-13 | test_fault_coordinator, test_heartbeat, test_module_framework suites (wr_teensy_boards) |
-| 2026-03-13 | test_sensor_name_table.cpp and expanded test_message_dispatcher.cpp (wr_ros_teensy) |
-| 2026-03-14 | DI interfaces: ISerialSink, IFaultReporter, IInterboardSink, IEstopController |
-| 2026-03-14 | DI mocks: MockSerialSink, MockFaultReporter, MockInterboardSink, MockEstopController, MockPowerSensor |
-| 2026-03-14 | FaultCoordinator DI refactored (17 new unit tests) |
-| 2026-03-14 | BatteryMonitor DI refactored (13 new unit tests) |
-| 2026-03-14 | Module.ResetForTesting() + Reregister() added (11 new unit tests) |
-| 2026-03-14 | Total embedded tests: 128 all passing |
-| 2026-03-15 | serial_manager.cpp TODOs eliminated by registered-handler dispatch pattern |
-| 2026-03-15 | Thread Safety: Bridge receive queue fully implemented (lock_guard + swap pattern) |
-| 2026-03-15 | Dead code cleanup: GetReasonList(), rclcpp::Clock(RCL_STEADY_TIME), MultiThreadedExecutor all removed |
-| 2026-03-15 | IMU Tilt Detection: BNO055 publishes sensor_msgs/Imu via TopicPublisher at /sigyn/sensors/imu_* |
-| 2026-03-15 | RoboClaw Temperature Monitoring: CheckTemperature() asserts e-stop above roboclaw_temp_fault_c |
-| 2026-03-15 | RoboClaw Status Publishing: RCLAW + ODOM handlers publish sigyn/roboclaw/status and odometry |
-| 2026-03-15 | Encoder Read Failure Escalation: CheckCommFailures() asserts e-stop after max_comm_failures and resets to kConnecting |
-| 2026-03-20 | Board 3 gripper elevator port: GRIP handler in TopicPublisher publishes /gripper/status |
-| 2026-03-20 | ElevatorPositionController: /gripper/home, /gripper/position/command, /gripper/move_elevator, /gripper/move_extender |
-| 2026-03-20 | STEPPOS/STEPHOME commands in CommandFactory, MessageParser, stepper_monitor firmware handlers |
-| 2026-03-20 | test_gripper_protocol (wr_proto_msgs, 14 tests) and test_elevator_position_controller (wr_ros_teensy, 9 tests) |
-
----
-
 ## Quick Reference
 
 ### Key Repositories
-- `wimblerobotics/Sigyn` - Main monorepo (this file)
-- `wimblerobotics/sigyn_teensy_boards` - Firmware (PlatformIO)
-- `wimblerobotics/sigyn_behavior_trees` - BT nodes (in progress)
-- `wimblerobotics/sigyn_to_teensy` - Hardware bridge
-- `wimblerobotics/can_do_challenge` - Can pickup challenge
+- `wimblerobotics/Sigyn` — Main monorepo (this file)
+- `wimblerobotics/wr_teensy_boards` — Firmware (PlatformIO)
+- `wimblerobotics/wr_ros_teensy` — PC-side hardware bridge (ROS 2)
+- `wimblerobotics/wr_interfaces` — Custom ROS 2 message/service types
+- `wimblerobotics/wr_proto_msgs` — Serial wire protocol library
+- `wimblerobotics/sigyn_notifier` — Telegram notification node
+- `wimblerobotics/sigyn_behavior_trees` — BT nodes (in progress)
+- `wimblerobotics/can_do_challenge` — Can pickup challenge
 
 ### Key Files
-- Safety: `sigyn_teensy_boards/common/core/safety_coordinator.*`
-- Firmware: `sigyn_teensy_boards/board*/board*_main.cpp`
-- Bridge: `sigyn_to_teensy/src/message_parser.cpp`
+- Safety firmware: `wr_teensy_boards/common/fault_coordinator.h/.cpp`
+- Board 1 main: `wr_teensy_boards/src/board1_main.cpp`
+- Board 2 main: `wr_teensy_boards/src/board2_main.cpp`
+- PC bridge: `wr_ros_teensy/src/teensy_bridge.cpp`
+- PC fault registry: `wr_ros_teensy/src/FaultRegistry.cpp`
+- Notifier: `sigyn_notifier/sigyn_notifier/notifier_node.py`
 - Nav Config: `sigyn_bringup/config/navigation.yaml`
 - BT XML: `can_do_challenge/bt_xml/*.xml`
 
@@ -480,11 +432,15 @@ ros2 launch sigyn_bringup sigyn.launch.py
 # Run can challenge
 ros2 launch can_do_challenge can_do_challenge_launch.py
 
-# Flash firmware (from sigyn_teensy_boards repo)
-platformio run -e board1 -t upload
+# Flash firmware (from wr_teensy_boards repo)
+pio run -e board1 -t upload
+pio run -e board2 -t upload
 
-# Check safety status
-ros2 topic echo /teensy/safety_status
+# Run firmware unit tests (no hardware needed)
+cd ~/sigyn_ws/src/wr_teensy_boards && pio test -e native_test
+
+# Check active faults
+ros2 topic echo /sigyn/safety/fault_list
 ```
 
 ---
