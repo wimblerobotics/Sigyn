@@ -1,0 +1,25 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${workspaceFolder}/.vscode/browse.vc.db",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/ros/sigyn_ws/install/wr_twist_multiplexer/include/**",
+        "/home/ros/sigyn_ws/install/sigyn_to_teensy/include/**",
+        "/home/ros/sigyn_ws/install/sigyn_interfaces/include/**",
+        "/home/ros/sigyn_ws/install/sigyn_bluetooth_joystick/include/**",
+        "/home/ros/sigyn_ws/install/sigyn_behavior_trees/include/**",
+        "/opt/ros/jazzy/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ros2",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++17"
+    }
+  ],
+  "version": 4
+}

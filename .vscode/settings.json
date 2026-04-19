@@ -1,0 +1,36 @@
+{
+  "ROS2.distro": "jazzy",
+  "python.autoComplete.extraPaths": [
+    "/home/ros/sigyn_ws/build/wr_teleop_twist_keyboard",
+    "/home/ros/sigyn_ws/install/wr_teleop_twist_keyboard/lib/python3.12/site-packages",
+    "/home/ros/sigyn_ws/install/sigyn_interfaces/lib/python3.12/site-packages",
+    "/home/ros/sigyn_ws/install/sigyn_bluetooth_joystick/lib/python3.12/site-packages",
+    "/home/ros/sigyn_ws/install/sigyn_behavior_trees/lib/python3.12/site-packages",
+    "/opt/ros/jazzy/lib/python3.12/site-packages"
+  ],
+  "python.analysis.extraPaths": [
+    "/home/ros/sigyn_ws/build/wr_teleop_twist_keyboard",
+    "/home/ros/sigyn_ws/install/wr_teleop_twist_keyboard/lib/python3.12/site-packages",
+    "/home/ros/sigyn_ws/install/sigyn_interfaces/lib/python3.12/site-packages",
+    "/home/ros/sigyn_ws/install/sigyn_bluetooth_joystick/lib/python3.12/site-packages",
+    "/home/ros/sigyn_ws/install/sigyn_behavior_trees/lib/python3.12/site-packages",
+    "/opt/ros/jazzy/lib/python3.12/site-packages"
+  ],
+  "cmake.sourceDirectory": "/home/ros/sigyn_ws/src/Sigyn/rviz",
+  "workbench.colorCustomizations": {
+    "editor.background": "#132018",
+    "editorGroupHeader.tabsBackground": "#1a2b21",
+    "editorGroupHeader.noTabsBackground": "#1a2b21",
+    "sideBar.background": "#1a2b21",
+    "sideBar.foreground": "#d6e5d8",
+    "activityBar.background": "#254031",
+    "activityBar.foreground": "#ffffff",
+    "statusBar.background": "#254031",
+    "statusBar.foreground": "#ffffff",
+    "titleBar.activeBackground": "#254031",
+    "titleBar.activeForeground": "#ffffff",
+    "titleBar.inactiveBackground": "#1a2b21",
+    "titleBar.inactiveForeground": "#c6dbc8",
+    "panel.background": "#16261d",
+    "terminal.background": "#16261d"
+  }}
