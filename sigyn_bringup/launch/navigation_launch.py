@@ -35,7 +35,6 @@ from nav2_common.launch import RewrittenYaml
 
 
 def generate_launch_description():
-    nav2_pkg     = get_package_share_directory("nav2_bringup")
     bringup_pkg  = get_package_share_directory("sigyn_bringup")
     default_params = os.path.join(bringup_pkg, "config", "navigation.yaml")
 

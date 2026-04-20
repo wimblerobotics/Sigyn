@@ -102,11 +102,11 @@ controller_server:
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
       required_movement_radius: 0.15    # reduced radius requirement
-      movement_time_allowance: 6.0     # 6s: enough for RotationShim 180° turn (~2.5s) plus MPPI to start moving; was 8.0 which meant 8s of inaction per recovery cycle at narrow doorways
+      movement_time_allowance: 10.0    # 10s: VL53 false-positive emergency stops can stall the robot for several seconds; 6s was too tight and caused spurious progress-checker failures
     # Goal checker parameters
     precise_goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.30         # 30cm: accept slight overshoots rather than forcing a correction
+      xy_goal_tolerance: 0.10          # 10cm: achievable for a slow-moving differential drive robot
       yaw_goal_tolerance: 0.35        # ~20 degrees: patrol doesn't need precise heading at waypoint
       stateful: True
     FollowPath:
@@ -313,7 +313,7 @@ local_costmap:
         # A reading at 0.5 m (max_range == out-of-range cap) clears the cell.
         clear_threshold: 0.98
         clear_on_max_reading: true  # Out-of-range readings (2 m capped) clear marks
-        min_range: 0.03
+        min_range: 0.10  # 10 cm: VL53L0X readings at exactly 0.000 m are hardware noise (minimum reliable range is ~30 mm); filtering sub-10 cm readings prevents spurious local-costmap inflation that blocks short-range goals
         max_range: 0.50
 
 
@@ -400,7 +400,7 @@ planner_server:
     costmap_update_timeout: 1.0
     GridBased:
       plugin: "nav2_navfn_planner::NavfnPlanner"
-      tolerance: 0.30  # match xy_goal_tolerance in goal checker
+      tolerance: 0.10  # match xy_goal_tolerance in goal checker
       use_astar: false
       allow_unknown: true
 

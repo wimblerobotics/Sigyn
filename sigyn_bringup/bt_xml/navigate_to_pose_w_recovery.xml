@@ -25,7 +25,11 @@
       <PipelineSequence name="NavigateWithReplanning">
         <ControllerSelector selected_controller="{selected_controller}" default_controller="FollowPath" topic_name="controller_selector"/>
         <PlannerSelector selected_planner="{selected_planner}" default_planner="GridBased" topic_name="planner_selector"/>
-        <RateController hz="1.0">
+        <RateController hz="0.5">
+          <!-- 0.5 Hz replanning: for short-range goals (< 1 m) replanning every
+               second was generating ~25 path updates and causing MPPI to
+               continuously re-aim, appearing as many small corrections.
+               Every 2 s is sufficient for a home-environment patrol robot. -->
           <RecoveryNode number_of_retries="1" name="ComputePathToPose">
             <ComputePathToPose goal="{goal}" path="{path}" planner_id="{selected_planner}" error_code_id="{compute_path_error_code}"/>
             <Sequence>

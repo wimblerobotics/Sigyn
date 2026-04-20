@@ -95,7 +95,7 @@ alias stele='ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --r
 alias teles='ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=/diff_cont/cmd_vel_unstamped'
 
 # ==================== PLATFORMIO ALIASES ====================
-# Firmware source: ~/sigyn_ws/src/sigyn_teensy_boards/ (wimblerobotics/sigyn_teensy_boards)
+# Firmware source: ~/sigyn_ws/src/wr_teensy_boards/ (wimblerobotics/wr_teensy_boards)
 # (TeensyV2/ still exists in this monorepo as a reference until new repo is verified)
 alias compileBoard1='platformio run -e board1 -d ~/sigyn_ws/src/wr_teensy_boards'
 alias compileBoard2='platformio run -e board2 -d ~/sigyn_ws/src/wr_teensy_boards'
