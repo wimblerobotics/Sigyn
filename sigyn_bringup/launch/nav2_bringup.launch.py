@@ -1,25 +1,32 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Wimble Robotics
 # Derived from nav2_bringup (Copyright 2018 Intel Corporation, Apache-2.0)
-#
-# Copyright (c) 2018 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+
+"""nav2_bringup.launch.py — Nav2 full bringup for the Sigyn robot.
+
+Orchestrates SLAM or AMCL localisation plus the full Nav2 navigation stack.
+Supports both composed (component container) and standalone node deployment.
+
+Launch arguments:
+  autostart        (true)   Auto-transition lifecycle nodes to active.
+  bt_xml           ('')     Override BT XML path; empty → nav_through_poses default.
+  container_name   (nav2_container)  Component container name when use_composition=true.
+  log_level        (info)   ROS 2 log level for all Nav2 nodes.
+  map              ('')     Absolute path to the map YAML file.
+  namespace        ('')     Top-level namespace for all Nav2 nodes.
+  params_file      (nav2_bringup default)  Absolute path to navigation YAML.
+  slam             (false)  Run SLAM instead of AMCL localisation.
+  use_composition  (true)   Load Nav2 servers into a shared component container.
+  use_localization (true)   Enable AMCL or SLAM; disable for nav-only deployments.
+  use_namespace    (false)  Push the ROS namespace onto all Nav2 nodes.
+  use_range_sensors (auto)  Enable VL53 range sensors: 'auto'|'true'|'false'.
+  use_respawn      (false)  Respawn standalone nodes on crash.
+  use_sim_time     (false)  Use /clock from Gazebo instead of wall clock.
+"""
 
 import os
 
 from ament_index_python.packages import get_package_share_directory
-
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
@@ -30,241 +37,242 @@ from launch.actions import (
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression
-from launch_ros.actions import Node
-from launch_ros.actions import PushROSNamespace
+from launch_ros.actions import Node, PushROSNamespace
 from launch_ros.descriptions import ParameterFile
 from nav2_common.launch import ReplaceString, RewrittenYaml
 
 
 def generate_launch_description():
-    base_pgk = get_package_share_directory("sigyn_bringup")
+    bringup_pkg  = get_package_share_directory("sigyn_bringup")
+    nav2_pkg     = get_package_share_directory("nav2_bringup")
+    nav2_launch  = os.path.join(nav2_pkg, "launch")
+    default_params = os.path.join(bringup_pkg, "config", "navigation.yaml")
 
-    # Get the launch directory
-    bringup_dir = get_package_share_directory('nav2_bringup')
-    launch_dir = os.path.join(bringup_dir, 'launch')
+    # ---------------------------------------------------------------------------
+    # Declare all arguments up-front so they are resolvable by all actions below.
+    # ---------------------------------------------------------------------------
+    declared_args = [
+        DeclareLaunchArgument(
+            "autostart",
+            default_value="true",
+            description="Automatically transition Nav2 lifecycle nodes to active",
+        ),
+        DeclareLaunchArgument(
+            "bt_xml",
+            default_value="",
+            description=(
+                "Absolute path to the BT XML to use. "
+                "Empty string selects the default nav_through_poses tree."
+            ),
+        ),
+        DeclareLaunchArgument(
+            "container_name",
+            default_value="nav2_container",
+            description="Name of the component container when use_composition=true",
+        ),
+        DeclareLaunchArgument(
+            "log_level",
+            default_value="info",
+            description="ROS 2 log level for all Nav2 nodes",
+        ),
+        DeclareLaunchArgument(
+            "map",
+            default_value="",
+            description="Absolute path to the map YAML file",
+        ),
+        DeclareLaunchArgument(
+            "namespace",
+            default_value="",
+            description="Top-level ROS namespace for Nav2 nodes",
+        ),
+        DeclareLaunchArgument(
+            "params_file",
+            default_value=default_params,
+            description="Absolute path to the Nav2 parameters YAML file",
+        ),
+        DeclareLaunchArgument(
+            "slam",
+            default_value="false",
+            description="Run SLAM Toolbox instead of AMCL localisation",
+        ),
+        DeclareLaunchArgument(
+            "use_composition",
+            default_value="true",
+            description="Load Nav2 servers into a shared component container",
+        ),
+        DeclareLaunchArgument(
+            "use_localization",
+            default_value="true",
+            description="Enable localisation (AMCL or SLAM); false for nav-only mode",
+        ),
+        DeclareLaunchArgument(
+            "use_namespace",
+            default_value="false",
+            description="Push the ROS namespace onto all Nav2 nodes",
+        ),
+        DeclareLaunchArgument(
+            "use_range_sensors",
+            default_value="auto",
+            description=(
+                "Enable VL53 range-sensor costmap layer: "
+                "'auto' (on for real robot, off in sim), 'true', or 'false'"
+            ),
+        ),
+        DeclareLaunchArgument(
+            "use_respawn",
+            default_value="false",
+            description="Respawn standalone Nav2 nodes on crash (composition=false only)",
+        ),
+        DeclareLaunchArgument(
+            "use_sim_time",
+            default_value="false",
+            description="Use simulation clock from /clock topic instead of wall clock",
+        ),
+    ]
 
-    # Create the launch configuration variables
-    namespace = LaunchConfiguration('namespace')
-    use_namespace = LaunchConfiguration('use_namespace')
-    slam = LaunchConfiguration('slam')
-    map_yaml_file = LaunchConfiguration('map')
-    use_sim_time = LaunchConfiguration('use_sim_time')
-    use_range_sensors = LaunchConfiguration('use_range_sensors')
-    params_file = LaunchConfiguration('params_file')
-    autostart = LaunchConfiguration('autostart')
-    bt_xml = LaunchConfiguration('bt_xml')
-    use_composition = LaunchConfiguration('use_composition')
-    use_respawn = LaunchConfiguration('use_respawn')
-    log_level = LaunchConfiguration('log_level')
-    use_localization = LaunchConfiguration('use_localization')
+    # ---------------------------------------------------------------------------
+    # LaunchConfiguration handles.
+    # ---------------------------------------------------------------------------
+    autostart        = LaunchConfiguration("autostart")
+    bt_xml           = LaunchConfiguration("bt_xml")
+    container_name   = LaunchConfiguration("container_name")
+    log_level        = LaunchConfiguration("log_level")
+    map_yaml_file    = LaunchConfiguration("map")
+    namespace        = LaunchConfiguration("namespace")
+    params_file      = LaunchConfiguration("params_file")
+    slam             = LaunchConfiguration("slam")
+    use_composition  = LaunchConfiguration("use_composition")
+    use_localization = LaunchConfiguration("use_localization")
+    use_namespace    = LaunchConfiguration("use_namespace")
+    use_range_sensors = LaunchConfiguration("use_range_sensors")
+    use_respawn      = LaunchConfiguration("use_respawn")
+    use_sim_time     = LaunchConfiguration("use_sim_time")
 
-    # Map fully qualified names to relative ones so the node's namespace can be prepended.
-    # In case of the transforms (tf), currently, there doesn't seem to be a better alternative
-    # https://github.com/ros/geometry2/issues/32
-    # https://github.com/ros/robot_state_publisher/pull/30
-    # TODO(orduno) Substitute with `PushNodeRemapping`
-    #              https://github.com/ros2/launch_ros/issues/56
-    remappings = [('/tf', 'tf'), ('/tf_static', 'tf_static')]
+    # ---------------------------------------------------------------------------
+    # Parameter substitutions applied to the Nav2 YAML at launch time.
+    # ---------------------------------------------------------------------------
 
-    # Only it applys when `use_namespace` is True.
-    # '<robot_namespace>' keyword shall be replaced by 'namespace' launch argument
-    # in config file 'nav2_multirobot_params.yaml' as a default & example.
-    # User defined config file should contain '<robot_namespace>' keyword for the replacements.
+    # When use_namespace=true, replace the '<robot_namespace>' token in multi-robot
+    # param files so that topic names are correctly prefixed.
     params_file = ReplaceString(
         source_file=params_file,
-        replacements={'<robot_namespace>': ('/', namespace)},
+        replacements={"<robot_namespace>": ("/", namespace)},
         condition=IfCondition(use_namespace),
     )
 
-    base_directory_path = get_package_share_directory('sigyn_bringup')
-    default_bt_xml_path = os.path.join(base_directory_path, "config", "nav_through_poses.xml")
+    default_bt_xml = os.path.join(bringup_pkg, "config", "nav_through_poses.xml")
 
-    # Range sensors:
-    # - default is 'auto': enabled on real robot, disabled in simulation
-    # - can be overridden with use_range_sensors:=true|false
-    range_sensor_layer_enabled = PythonExpression([
-        "'True' if '", use_range_sensors, "'.lower() == 'true' else (",
+    # Resolve the BT XML path: use the caller-supplied value when non-empty,
+    # otherwise fall back to the Sigyn default tree.
+    bt_xml_resolved = PythonExpression(
+        ["'", bt_xml, "' if '", bt_xml, "' else '", default_bt_xml, "'"]
+    )
+
+    # Range sensor layer: 'auto' → enabled on real robot, disabled in simulation.
+    range_sensor_enabled = PythonExpression([
+        "'True' if '",  use_range_sensors, "'.lower() == 'true' else (",
         "'False' if '", use_range_sensors, "'.lower() == 'false' else (",
-        "'False' if '", use_sim_time, "'.lower() == 'true' else 'True'))"
+        "'False' if '", use_sim_time,      "'.lower() == 'true' else 'True'))",
     ])
-    
-    # Use bt_xml if provided (non-empty), otherwise use default
-    bt_xml_to_use = PythonExpression(["'", bt_xml, "' if '", bt_xml, "' else '", default_bt_xml_path, "'"])
-
-    param_substitutions = {
-      'bt_navigator.ros__parameters.default_nav_through_poses_bt_xml': bt_xml_to_use,
-      'bt_navigator.ros__parameters.default_nav_to_pose_bt_xml': bt_xml_to_use,
-      # Disable VL53 RangeSensorLayer in simulation (no Teensy topics), enable on real robot.
-      'local_costmap.local_costmap.ros__parameters.range_sensor_layer.enabled': range_sensor_layer_enabled,
-    }
 
     configured_params = ParameterFile(
         RewrittenYaml(
             source_file=params_file,
             root_key=namespace,
-            param_rewrites=param_substitutions,
+            param_rewrites={
+                "bt_navigator.ros__parameters.default_nav_through_poses_bt_xml": bt_xml_resolved,
+                "bt_navigator.ros__parameters.default_nav_to_pose_bt_xml":       bt_xml_resolved,
+                # Disable the VL53 range-sensor layer in simulation (no Teensy topics).
+                "local_costmap.local_costmap.ros__parameters.range_sensor_layer.enabled":
+                    range_sensor_enabled,
+            },
             convert_types=True,
         ),
         allow_substs=True,
     )
 
-    stdout_linebuf_envvar = SetEnvironmentVariable(
-        'RCUTILS_LOGGING_BUFFERED_STREAM', '1'
-    )
+    # TF remappings applied to every Nav2 node so namespaced deployments work.
+    tf_remappings = [("/tf", "tf"), ("/tf_static", "tf_static")]
 
-    declare_namespace_cmd = DeclareLaunchArgument(
-        'namespace', default_value='', description='Top-level namespace'
-    )
+    # ---------------------------------------------------------------------------
+    # Bringup group — namespace push + container + localisation + navigation.
+    # ---------------------------------------------------------------------------
+    bringup_group = GroupAction([
+        PushROSNamespace(condition=IfCondition(use_namespace), namespace=namespace),
 
-    declare_use_namespace_cmd = DeclareLaunchArgument(
-        'use_namespace',
-        default_value='false',
-        description='Whether to apply a namespace to the navigation stack',
-    )
-
-    declare_slam_cmd = DeclareLaunchArgument(
-        'slam', default_value='False', description='Whether run a SLAM'
-    )
-
-    declare_map_yaml_cmd = DeclareLaunchArgument(
-        'map', default_value='', description='Full path to map yaml file to load'
-    )
-
-    declare_use_localization_cmd = DeclareLaunchArgument(
-        'use_localization', default_value='True',
-        description='Whether to enable localization or not'
-    )
-
-    declare_use_sim_time_cmd = DeclareLaunchArgument(
-        'use_sim_time',
-        default_value='false',
-        description='Use simulation (Gazebo) clock if true',
-    )
-
-    declare_use_range_sensors_cmd = DeclareLaunchArgument(
-        'use_range_sensors',
-        default_value='auto',
-        description=(
-            "Enable VL53 range sensors in local costmap: 'auto' (default: off in sim, on real), 'true', or 'false'"
+        # Component container — all Nav2 servers load into this process when
+        # use_composition=true, dramatically reducing IPC overhead.
+        Node(
+            package="rclcpp_components",
+            executable="component_container_isolated",
+            name="nav2_container",
+            condition=IfCondition(use_composition),
+            output="screen",
+            parameters=[configured_params, {"autostart": autostart}],
+            arguments=["--ros-args", "--log-level", log_level],
+            remappings=tf_remappings,
         ),
-    )
 
-    declare_params_file_cmd = DeclareLaunchArgument(
-        'params_file',
-        default_value=os.path.join(bringup_dir, 'params', 'nav2_params.yaml'),
-        description='Full path to the ROS2 parameters file to use for all launched nodes',
-    )
-
-    declare_autostart_cmd = DeclareLaunchArgument(
-        'autostart',
-        default_value='true',
-        description='Automatically startup the nav2 stack',
-    )
-
-    declare_use_composition_cmd = DeclareLaunchArgument(
-        'use_composition',
-        default_value='True',
-        description='Whether to use composed bringup',
-    )
-
-    declare_use_respawn_cmd = DeclareLaunchArgument(
-        'use_respawn',
-        default_value='False',
-        description='Whether to respawn if a node crashes. Applied when composition is disabled.',
-    )
-
-    declare_log_level_cmd = DeclareLaunchArgument(
-        'log_level', default_value='info', description='log level'
-    )
-
-    declare_bt_xml_cmd = DeclareLaunchArgument(
-        'bt_xml',
-        default_value='',
-        description='Full path to the behavior tree xml file to use. If empty, uses default nav_through_poses.xmlx'
-    )
-
-    # Specify the actions
-    bringup_cmd_group = GroupAction(
-        [
-            PushROSNamespace(condition=IfCondition(use_namespace), namespace=namespace),
-            Node(
-                condition=IfCondition(use_composition),
-                name='nav2_container',
-                package='rclcpp_components',
-                executable='component_container_isolated',
-                parameters=[configured_params, {'autostart': autostart}],
-                arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings,
-                output='screen',
+        # SLAM path: run SLAM Toolbox instead of AMCL.
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(nav2_launch, "slam_launch.py")
             ),
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    os.path.join(launch_dir, 'slam_launch.py')
-                ),
-                condition=IfCondition(PythonExpression([slam, ' and ', use_localization])),
-                launch_arguments={
-                    'namespace': namespace,
-                    'use_sim_time': use_sim_time,
-                    'autostart': autostart,
-                    'use_respawn': use_respawn,
-                    'params_file': params_file,
-                }.items(),
+            condition=IfCondition(PythonExpression([
+                "'", slam, "'.lower() == 'true'",
+                " and '", use_localization, "'.lower() == 'true'",
+            ])),
+            launch_arguments={
+                "namespace":     namespace,
+                "use_sim_time":  use_sim_time,
+                "autostart":     autostart,
+                "use_respawn":   use_respawn,
+                "params_file":   params_file,
+            }.items(),
+        ),
+
+        # AMCL path: standard map-based localisation.
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(nav2_launch, "localization_launch.py")
             ),
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    os.path.join(launch_dir, 'localization_launch.py')
-                ),
-                condition=IfCondition(PythonExpression(['not ', slam, ' and ', use_localization])),
-                launch_arguments={
-                    'namespace': namespace,
-                    'map': map_yaml_file,
-                    'use_sim_time': use_sim_time,
-                    'autostart': autostart,
-                    'params_file': params_file,
-                    'use_composition': use_composition,
-                    'use_respawn': use_respawn,
-                    'container_name': 'nav2_container',
-                }.items(),
+            condition=IfCondition(PythonExpression([
+                "not '", slam, "'.lower() == 'true'",
+                " and '", use_localization, "'.lower() == 'true'",
+            ])),
+            launch_arguments={
+                "namespace":        namespace,
+                "map":              map_yaml_file,
+                "use_sim_time":     use_sim_time,
+                "autostart":        autostart,
+                "params_file":      params_file,
+                "use_composition":  use_composition,
+                "use_respawn":      use_respawn,
+                "container_name":   "nav2_container",
+            }.items(),
+        ),
+
+        # Navigation servers (controller, planner, BT navigator, etc.).
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(bringup_pkg, "launch", "navigation_launch.py")
             ),
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    os.path.join(base_pgk, 'launch', 'navigation_launch.py')
-                ),
-                launch_arguments={
-                    'namespace': namespace,
-                    'use_sim_time': use_sim_time,
-                    'autostart': autostart,
-                    'params_file': params_file,
-                    'use_composition': use_composition,
-                    'use_respawn': use_respawn,
-                    'container_name': 'nav2_container',
-                }.items(),
-            ),
-        ]
-    )
+            launch_arguments={
+                "namespace":        namespace,
+                "use_sim_time":     use_sim_time,
+                "autostart":        autostart,
+                "params_file":      params_file,
+                "use_composition":  use_composition,
+                "use_respawn":      use_respawn,
+                "container_name":   "nav2_container",
+            }.items(),
+        ),
+    ])
 
-    # Create the launch description and populate
-    ld = LaunchDescription()
+    return LaunchDescription([
+        # Flush log lines immediately — aids debugging with journald / screen output.
+        SetEnvironmentVariable("RCUTILS_LOGGING_BUFFERED_STREAM", "1"),
 
-    # Set environment variables
-    ld.add_action(stdout_linebuf_envvar)
-
-    # Declare the launch options
-    ld.add_action(declare_namespace_cmd)
-    ld.add_action(declare_use_namespace_cmd)
-    ld.add_action(declare_slam_cmd)
-    ld.add_action(declare_map_yaml_cmd)
-    ld.add_action(declare_use_sim_time_cmd)
-    ld.add_action(declare_use_range_sensors_cmd)
-    ld.add_action(declare_params_file_cmd)
-    ld.add_action(declare_autostart_cmd)
-    ld.add_action(declare_use_composition_cmd)
-    ld.add_action(declare_use_respawn_cmd)
-    ld.add_action(declare_log_level_cmd)
-    ld.add_action(declare_use_localization_cmd)
-    ld.add_action(declare_bt_xml_cmd)
-
-    # Add the actions to launch all of the navigation nodes
-    ld.add_action(bringup_cmd_group)
-
-    return ld
+        *declared_args,
+        bringup_group,
+    ])

@@ -136,12 +136,11 @@ def generate_launch_description():
     def _launch_teensy_bridge(context, *args, **kwargs):
         if use_sim_time.perform(context).lower() == 'true':
             return []
-        pkg = get_package_share_directory('sigyn_to_teensy')
+        pkg = get_package_share_directory('wr_ros_teensy')
         return [IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
-                os.path.join(pkg, 'launch', 'sigyn_to_teensy.launch.py')
+                os.path.join(pkg, 'launch', 'teensy_bridge.launch.py')
             ),
-            launch_arguments={'namespace': 'sigyn'}.items(),
         )]
     ld.add_action(OpaqueFunction(function=_launch_teensy_bridge))
 

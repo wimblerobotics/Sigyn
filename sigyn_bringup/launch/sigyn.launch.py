@@ -83,16 +83,15 @@ def _launch_robot_state_publisher(context, urdf_file_name, use_sim_time, do_top_
 
 
 def _launch_sigyn_to_teensy(context, use_sim_time):
-    """Include sigyn_to_teensy launch only on the real robot."""
+    """Include wr_ros_teensy teensy_bridge launch only on the real robot."""
     if context.perform_substitution(use_sim_time).lower() == "true":
         return []
-    pkg = get_package_share_directory("sigyn_to_teensy")
+    pkg = get_package_share_directory("wr_ros_teensy")
     return [
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
-                os.path.join(pkg, "launch", "sigyn_to_teensy.launch.py")
+                os.path.join(pkg, "launch", "teensy_bridge.launch.py")
             ),
-            launch_arguments={"namespace": "sigyn"}.items(),
         )
     ]
 
