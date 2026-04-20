@@ -8,15 +8,25 @@ Included by sigyn.launch.py when do_oakd:=true and do_oakd_yolo26:=true.
 
 import os
 
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import PackageNotFoundError, get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, LogInfo
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
 def generate_launch_description() -> LaunchDescription:
     """Delegate to sigyn_oakd_detection's oakd_detector.launch.py."""
-    pkg_share = get_package_share_directory("sigyn_oakd_detection")
+    try:
+        pkg_share = get_package_share_directory("sigyn_oakd_detection")
+    except PackageNotFoundError:
+        return LaunchDescription([
+            LogInfo(
+                msg=(
+                    "sigyn_oakd_detection package not found; "
+                    "skipping OAK-D YOLO26 detector launch"
+                )
+            )
+        ])
 
     detector_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(

@@ -27,6 +27,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
+    GroupAction,
     IncludeLaunchDescription,
     LogInfo,
     OpaqueFunction,
@@ -35,7 +36,7 @@ from launch.actions import (
 )
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import AndSubstitution, LaunchConfiguration, NotSubstitution
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 # Evaluated once at generation time.  Used to select the Gazebo render engine
@@ -92,6 +93,29 @@ def _launch_sigyn_to_teensy(context, use_sim_time):
                 os.path.join(pkg, "launch", "sigyn_to_teensy.launch.py")
             ),
             launch_arguments={"namespace": "sigyn"}.items(),
+        )
+    ]
+
+
+def _launch_oakd_yolo26(context, bringup_pkg, use_sim_time, do_oakd, do_oakd_yolo26):
+    """Include YOLO26 detector launch only when explicitly enabled on real robot."""
+    if context.perform_substitution(use_sim_time).lower() == "true":
+        return []
+    if context.perform_substitution(do_oakd).lower() != "true":
+        return []
+    if context.perform_substitution(do_oakd_yolo26).lower() != "true":
+        return []
+
+    return [
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(
+                    bringup_pkg,
+                    "launch",
+                    "sub_launch",
+                    "oakd_yolo26_detector.launch.py",
+                )
+            ),
         )
     ]
 
@@ -204,15 +228,6 @@ def generate_launch_description():
     use_compressed_rviz_feeds = LaunchConfiguration("use_compressed_rviz_feeds")
     use_sim_time              = LaunchConfiguration("use_sim_time")
     world                     = LaunchConfiguration("world")
-
-    # Named compound conditions — avoids repeating nested AndSubstitution expressions.
-    real_robot           = NotSubstitution(use_sim_time)
-    real_and_oakd        = AndSubstitution(real_robot, do_oakd)
-    real_oakd_yolo       = AndSubstitution(real_and_oakd, do_oakd_yolo26)
-    real_oakd_no_yolo    = AndSubstitution(real_and_oakd, NotSubstitution(do_oakd_yolo26))
-    real_rviz_compressed = AndSubstitution(
-        AndSubstitution(real_robot, do_rviz), use_compressed_rviz_feeds
-    )
 
     # -----------------------------------------------------------------------
     # Informational log (useful when inspecting launch output).
@@ -337,15 +352,15 @@ def generate_launch_description():
     nav2 = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(nav2_launch_path),
         launch_arguments={
-            "autostart":        "true",
+            "autostart":        "True",
             "bt_xml":           bt_xml,
             "container_name":   "nav2_container",
             "map":              map_path,
             "params_file":      nav2_config,
-            "slam":             "false",
-            "use_composition":  "true",
-            "use_localization": "true",
-            "use_respawn":      "true",
+            "slam":             "False",
+            "use_composition":  "True",
+            "use_localization": "True",
+            "use_respawn":      "True",
             "use_sim_time":     use_sim_time,
         }.items(),
     )
@@ -419,43 +434,50 @@ def generate_launch_description():
     # -----------------------------------------------------------------------
     # OAK-D camera (optional, real robot only).
     # -----------------------------------------------------------------------
-    oakd_yolo_detector = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(bringup_pkg, "launch", "sub_launch", "oakd_yolo26_detector.launch.py")
-        ),
-        condition=IfCondition(real_oakd_yolo),
-    )
-
-    # Non-YOLO path: on-device spatial annotator + Detection2D converter.
-    oakd_spatial_annotator = Node(
-        package="can_do_challenge",
-        executable="spatial_detection_annotator.py",
-        name="oakd_spatial_annotator",
-        condition=IfCondition(real_oakd_no_yolo),
-        output="screen",
-        parameters=[{
-            "image_topic":      "/oakd_top/oak/rgb/image_raw",
-            "detections_topic": "/oakd_top/oak/nn/spatial_detections",
-            "annotated_topic":  "/oakd/annotated_image",
-            "labels":           ["Can"],
-            "min_score":        0.3,
-        }],
-    )
-    oakd_detection_converter = Node(
-        package="can_do_challenge",
-        executable="spatial_to_detection2d_converter.py",
-        name="oakd_detection_converter",
-        condition=IfCondition(real_oakd_no_yolo),
-        output="screen",
-    )
-
-    oakd_compressed_republisher = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(
-                bringup_pkg, "launch", "sub_launch", "oakd_compressed_republisher.launch.py"
-            )
-        ),
-        condition=IfCondition(real_and_oakd),
+    oakd_nodes = GroupAction(
+        condition=UnlessCondition(use_sim_time),
+        actions=[
+            GroupAction(
+                condition=IfCondition(do_oakd),
+                actions=[
+                    IncludeLaunchDescription(
+                        PythonLaunchDescriptionSource(
+                            os.path.join(
+                                bringup_pkg,
+                                "launch",
+                                "sub_launch",
+                                "oakd_compressed_republisher.launch.py",
+                            )
+                        ),
+                    ),
+                    OpaqueFunction(
+                        function=_launch_oakd_yolo26,
+                        args=[bringup_pkg, use_sim_time, do_oakd, do_oakd_yolo26],
+                    ),
+                    Node(
+                        package="can_do_challenge",
+                        executable="spatial_detection_annotator.py",
+                        name="oakd_spatial_annotator",
+                        condition=UnlessCondition(do_oakd_yolo26),
+                        output="screen",
+                        parameters=[{
+                            "image_topic":      "/oakd_top/oak/rgb/image_raw",
+                            "detections_topic": "/oakd_top/oak/nn/spatial_detections",
+                            "annotated_topic":  "/oakd/annotated_image",
+                            "labels":           ["Can"],
+                            "min_score":        0.3,
+                        }],
+                    ),
+                    Node(
+                        package="can_do_challenge",
+                        executable="spatial_to_detection2d_converter.py",
+                        name="oakd_detection_converter",
+                        condition=UnlessCondition(do_oakd_yolo26),
+                        output="screen",
+                    ),
+                ],
+            ),
+        ],
     )
 
     # -----------------------------------------------------------------------
@@ -465,7 +487,7 @@ def generate_launch_description():
         package="can_do_challenge",
         executable="simple_can_detector.py",
         name="gripper_can_detector",
-        condition=IfCondition(AndSubstitution(real_robot, do_pi_cam)),
+        condition=IfCondition(do_pi_cam),
         output="screen",
         parameters=[{
             "use_sim_time":        use_sim_time,
@@ -480,6 +502,10 @@ def generate_launch_description():
             "max_abs_x_m":         0.12,
             "log_throttle_sec":    5.0,
         }],
+    )
+    pi_can_detector_group = GroupAction(
+        condition=UnlessCondition(use_sim_time),
+        actions=[pi_can_detector],
     )
 
     # -----------------------------------------------------------------------
@@ -515,26 +541,36 @@ def generate_launch_description():
     # -----------------------------------------------------------------------
     # RViz + compressed-feed republishers.
     # -----------------------------------------------------------------------
-    rviz_gripper_republisher = Node(
-        package="image_transport",
-        executable="republish",
-        name="rviz_gripper_image_republisher",
-        condition=IfCondition(real_rviz_compressed),
-        arguments=["compressed", "raw"],
-        remappings=[
-            ("in/compressed", "/gripper/camera/annotated_image/compressed"),
-            ("out",           "/gripper/camera/annotated_image_rviz"),
-        ],
-    )
-    rviz_oakd_republisher = Node(
-        package="image_transport",
-        executable="republish",
-        name="rviz_oakd_image_republisher",
-        condition=IfCondition(real_rviz_compressed),
-        arguments=["compressed", "raw"],
-        remappings=[
-            ("in/compressed", "/oakd/annotated_image/compressed"),
-            ("out",           "/oakd/annotated_image_rviz"),
+    rviz_feed_republishers = GroupAction(
+        condition=UnlessCondition(use_sim_time),
+        actions=[
+            GroupAction(
+                condition=IfCondition(do_rviz),
+                actions=[
+                    Node(
+                        package="image_transport",
+                        executable="republish",
+                        name="rviz_gripper_image_republisher",
+                        condition=IfCondition(use_compressed_rviz_feeds),
+                        arguments=["compressed", "raw"],
+                        remappings=[
+                            ("in/compressed", "/gripper/camera/annotated_image/compressed"),
+                            ("out",           "/gripper/camera/annotated_image_rviz"),
+                        ],
+                    ),
+                    Node(
+                        package="image_transport",
+                        executable="republish",
+                        name="rviz_oakd_image_republisher",
+                        condition=IfCondition(use_compressed_rviz_feeds),
+                        arguments=["compressed", "raw"],
+                        remappings=[
+                            ("in/compressed", "/oakd/annotated_image/compressed"),
+                            ("out",           "/oakd/annotated_image_rviz"),
+                        ],
+                    ),
+                ],
+            )
         ],
     )
 
@@ -581,11 +617,8 @@ def generate_launch_description():
         pointcloud_to_laserscan,
 
         # Optional sensors.
-        oakd_yolo_detector,
-        oakd_spatial_annotator,
-        oakd_detection_converter,
-        oakd_compressed_republisher,
-        pi_can_detector,
+        oakd_nodes,
+        pi_can_detector_group,
 
         # Optional joystick.
         joystick,
@@ -594,7 +627,6 @@ def generate_launch_description():
         battery_overlay,
 
         # Visualization.
-        rviz_gripper_republisher,
-        rviz_oakd_republisher,
+        rviz_feed_republishers,
         rviz,
     ])
