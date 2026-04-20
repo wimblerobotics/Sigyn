@@ -22,7 +22,7 @@ amcl: # See: https://assets.researchsquare.com/files/rs-225880/v1_covered.pdf?c=
     laser_max_range: 10.0   # Maximum scan range to be considered, -1.0 will cause the laser’s reported maximum range to be used.
     laser_min_range: -1.0   # Minimum scan range to be considered, -1.0 will cause the laser’s reported minimum range to be used.
     laser_model_type: "likelihood_field" # Which model to use, either beam, likelihood_field, or likelihood_field_prob.
-    max_beams: 250          # How many evenly-spaced beams in each scan to be used when updating the filter.
+    max_beams: 360          # How many evenly-spaced beams in each scan to be used when updating the filter.
     max_particles: 5000     # Maximum allowed number of particles.
     min_particles: 2000     # Minimum allowed number of particles.
     odom_frame_id: "odom"   # Which frame to use for odometry.
@@ -37,7 +37,8 @@ amcl: # See: https://assets.researchsquare.com/files/rs-225880/v1_covered.pdf?c=
     tf_broadcast: true      # Set this to false to prevent amcl from publishing the transform between the global frame and the odometry frame.
     transform_tolerance: 0.2 # Time with which to post-date the transform that is published, to indicate that this transform is valid into the future.
     # One degree = 0.017453278 radians
-    update_min_a: 0.005      # Rotational movement required before performing a filter update.
+    update_min_a: 0.05        # Rotational movement required before performing a filter update.
+                             # 0.005 was too low (~0.3°): AMCL over-corrected map→odom during turns.
     update_min_d: 0.01     # Translational movement required before performing a filter update.
     z_hit: 0.9 ###0.95             # Mixture weight for z_hit part of model, sum of all used z weight must be 1. 
     z_max: 0.05 ###0.001            # Mixture weight for z_max part of model, sum of all used z weight must be 1. Beam uses all 4, likelihood model uses z_hit and z_rand.
@@ -55,7 +56,7 @@ bt_navigator:
     global_frame: map
     robot_base_frame: base_link
     odom_topic: /odom
-    bt_loop_duration: 1      # was 10, tick BT every 1 s instead of 10 s
+    bt_loop_duration: 10     # 10ms = 100 Hz BT tick rate for responsive decisions
     default_server_timeout: 5 # 20
     wait_for_service_timeout: 1000
     action_server_result_timeout: 900.0
@@ -64,7 +65,7 @@ bt_navigator:
       plugin: "nav2_bt_navigator::NavigateToPoseNavigator"
     navigate_through_poses:
       plugin: "nav2_bt_navigator::NavigateThroughPosesNavigator"
-    default_nav_to_pose_bt_xml: '/opt/ros/jazzy/share/nav2_bt_navigator/behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml'
+    default_nav_to_pose_bt_xml: '/home/ros/sigyn_ws/install/sigyn_bringup/share/sigyn_bringup/bt_xml/navigate_to_pose_w_recovery.xml'
     # 'default_nav_through_poses_bt_xml' and 'default_nav_to_pose_bt_xml' are use defaults:
     # nav2_bt_navigator/navigate_to_pose_w_replanning_and_recovery.xml
     # nav2_bt_navigator/navigate_through_poses_w_replanning_and_recovery.xml
@@ -74,8 +75,8 @@ bt_navigator:
     # Built-in plugins are added automatically
     # plugin_lib_names: []
     # sigyn_behavior_trees plugins disabled - package not built in this workspace
-    # plugin_lib_names:
-    # - sigyn_say_something_plugin_node
+    plugin_lib_names:
+    - sigyn_say_something_plugin_node
     # - sigyn_move_a_short_distance_ahead_plugin_node
 
     error_code_names:
@@ -101,36 +102,42 @@ controller_server:
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
       required_movement_radius: 0.15    # reduced radius requirement
-      movement_time_allowance: 10.0    # increased time allowance
+      movement_time_allowance: 6.0     # 6s: enough for RotationShim 180° turn (~2.5s) plus MPPI to start moving; was 8.0 which meant 8s of inaction per recovery cycle at narrow doorways
     # Goal checker parameters
     precise_goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.15         # slightly more reasonable tolerance
-      yaw_goal_tolerance: 0.15        # more relaxed orientation tolerance
+      xy_goal_tolerance: 0.30         # 30cm: accept slight overshoots rather than forcing a correction
+      yaw_goal_tolerance: 0.35        # ~20 degrees: patrol doesn't need precise heading at waypoint
       stateful: True
     FollowPath:
-      plugin: "nav2_mppi_controller::MPPIController"
-      time_steps: 56           # reduced for simpler predictions
+      plugin: "nav2_rotation_shim_controller::RotationShimController"
+      angular_dist_threshold: 0.785  # ~45 degrees: spin in place when heading error exceeds this
+      forward_sampling_distance: 0.5
+      rotate_to_heading_angular_vel: 1.8
+      max_angular_accel: 3.2
+      simulate_ahead_time: 1.0
+      primary_controller: "nav2_mppi_controller::MPPIController"
+      time_steps: 56
       model_dt: 0.05
-      batch_size: 2000         # reduced batch size for stability
-      ax_max: 1.0              # reduced acceleration
-      ax_min: -1.0             
-      ay_max: 2.0              # reduced lateral acceleration
-      az_max: 2.0              # reduced angular acceleration
-      vx_std: 0.3   
-      vy_std: 0.3   
-      wz_std: 0.5    
-      vx_max: 0.5    
-      vx_min: -0.2             # minimal reverse motion
+      batch_size: 2000
+      ax_max: 1.0
+      ax_min: -1.0
+      ay_max: 2.0
+      az_max: 2.0
+      vx_std: 0.3
+      vy_std: 0.3
+      wz_std: 0.5
+      vx_max: 0.5
+      vx_min: -0.10            # allow slow reverse motion so MPPI can back out of tight doorway approaches
       vy_max: 0.5
-      wz_max: 1.5              # reduced max angular velocity
+      wz_max: 1.5
       iteration_count: 1
-      prune_distance: 1.5      # slightly reduced pruning distance
+      prune_distance: 1.5
       transform_tolerance: 0.1
       temperature: 0.3
-      gamma: 0.015   
+      gamma: 0.015
       motion_model: "DiffDrive"
-      visualize: false         # disable visualization to reduce load
+      visualize: false
       regenerate_noises: true
       critics: [
         "ConstraintCritic", "CostCritic", "GoalCritic",
@@ -143,7 +150,7 @@ controller_server:
       GoalCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 5.0
+        cost_weight: 8.0
         threshold_to_consider: 1.4
       GoalAngleCritic:
         enabled: true
@@ -153,7 +160,7 @@ controller_server:
       PreferForwardCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 5.0
+        cost_weight: 2.0
         threshold_to_consider: 0.5
       CostCritic:
         enabled: true
@@ -161,7 +168,7 @@ controller_server:
         cost_weight: 3.81
         near_collision_cost: 253
         critical_cost: 300.0
-        consider_footprint: false
+        consider_footprint: false  # true causes SIGSEGV when costmap uses robot_radius instead of footprint polygon
         collision_cost: 1000000.0
         near_goal_distance: 1.0
         trajectory_point_step: 2
@@ -199,7 +206,7 @@ local_costmap:
       debug: True
       # always_send_full_costmap: True # Whether to send full costmap every update, rather than updates.
       global_frame: odom
-      height: 3 # Height of costmap (m).
+      height: 4 # Height of costmap (m) - increased for better lookahead
       # initial_transform_timeout: 60.0 # Time to wait for transform to be available before erroring out.
       # lethal_cost_threshold: 100 # Minimum cost of an occupancy grid map to be considered a lethal obstacle.
       # map_topic: /map # Topic of map from map_server or SLAM.
@@ -215,12 +222,12 @@ local_costmap:
       # trinary_costmap: True # Whether to use trinary or continuous costmap.
       # unknown_cost_value: 255 # Cost of unknown space if tracking it.
       update_frequency: 15.0 # Costmap update frequency.
-      width: 3 # Width of costmap (m).
+      width: 4 # Width of costmap (m) - increased for better lookahead
 
       plugins: [
         "voxel_layer",        # Low lidar clears/marks first
         "oakd_top_layer",     # OAK-D (currently disabled)
-        "range_sensor_layer", # VL53L0X marks after lidar so it isn't cleared
+        "range_sensor_layer", # VL53L0X proximity sensors
         "inflation_layer"]
 
       static_layer:
@@ -242,21 +249,21 @@ local_costmap:
         # Low lidar at 30cm height - detects obstacles at robot navigation height
         # Upper lidar NOT used for navigation - it sees doorframes as obstacles!
         scan_low:
-          topic: /scan
+          topic: /scan_cup
           data_type: "LaserScan"
           clearing: True
           marking: True
           min_obstacle_height: 0.0
           max_obstacle_height: 2.0   # Mark all obstacles up to ceiling height
           obstacle_max_range: 2.5
-          obstacle_min_range: 0.0
+          obstacle_min_range: 0.10  # 10cm minimum — driver already turns <0.2m returns to NaN, this is defence-in-depth against any residual glass/spurious near returns
           raytrace_max_range: 3.0
-          raytrace_min_range: 0.0
+          raytrace_min_range: 0.10  # match obstacle_min_range
 
       inflation_layer:
         enabled: True
-        cost_scaling_factor: 8.0   # increased to push farther from obstacles
-        inflation_radius: 0.15   ## Was 0.35, changed for can_do_challenge # larger buffer radius around obstacles
+        cost_scaling_factor: 3.5   # reduced so inflation cost doesn't drop off too sharply
+        inflation_radius: 0.35   # must exceed robot_radius (0.28m); was incorrectly reduced to 0.15m
         plugin: "nav2_costmap_2d::InflationLayer"
 
       oakd_top_layer:
@@ -281,30 +288,33 @@ local_costmap:
           topic: /stereo/points2 # Topic of data.
 
       range_sensor_layer:
-        enabled: False  # Disabled in simulation - VL53L0X sensors not available
+        enabled: True
         plugin: "nav2_costmap_2d::RangeSensorLayer"
         combination_method: 1   # Max combine so marked cells persist
         topics: [
-          "/sigyn/teensy_bridge/range/vl53l0x_0",
-          "/sigyn/teensy_bridge/range/vl53l0x_1", 
-          "/sigyn/teensy_bridge/range/vl53l0x_2",
-          "/sigyn/teensy_bridge/range/vl53l0x_3",
-          "/sigyn/teensy_bridge/range/vl53l0x_4",
-          "/sigyn/teensy_bridge/range/vl53l0x_5",
-          "/sigyn/teensy_bridge/range/vl53l0x_6",
-          "/sigyn/teensy_bridge/range/vl53l0x_7"
+          "/sigyn/sensors/range/rear_right_bkwd",
+          "/sigyn/sensors/range/rear_right_side",
+          "/sigyn/sensors/range/front_right_side",
+          "/sigyn/sensors/range/front_right_fwd",
+          "/sigyn/sensors/range/front_left_fwd",
+          "/sigyn/sensors/range/front_left_side",
+          "/sigyn/sensors/range/rear_left_side",
+          "/sigyn/sensors/range/rear_left_bkwd"
         ]
-        phi: 0.087            # Very narrow ~5° cone to avoid broad wedges
-        inflate_cone: 0.0     # No inflation; mark only where cone intersects
-        no_readings_timeout: 2.0   # Keep marks around longer so controller can react
-        # Thresholds are relative to layer's max_range; mark if range < mark_threshold * max_range
-        # With max_range=0.12, mark_threshold=0.95 => mark only when range < ~0.114 m
-        mark_threshold: 0.95
-        # Avoid aggressive auto-clearing so short occlusions/heading changes don't erase obstacles
+        phi: 0.218            # VL53L0X half-angle: 25° total FOV = 12.5° = 0.218 rad.
+                              # nav2 RangeSensorLayer phi is a HALF-angle: cells within
+                              # ±phi of the sensor's pointing direction are marked/cleared.
+        inflate_cone: 0.0     # No artificial cone inflation
+        no_readings_timeout: 2.0   # Keep marks 2 s if sensor goes silent
+        # mark_threshold: fraction of max_range below which cells are marked.
+        # With max_range=0.5 m, 0.90 * 0.5 = 0.45 m — marks obstacles within ~45 cm.
+        mark_threshold: 0.90
+        # clear_threshold: fraction of max_range above which cells are cleared.
+        # A reading at 0.5 m (max_range == out-of-range cap) clears the cell.
         clear_threshold: 0.98
-        clear_on_max_reading: false
+        clear_on_max_reading: true  # Out-of-range readings (2 m capped) clear marks
         min_range: 0.03
-        max_range: 0.12
+        max_range: 0.50
 
 
 global_costmap:
@@ -315,7 +325,9 @@ global_costmap:
       publish_frequency: 1.0 # Frequency to publish costmap to topic.
       resolution: 0.0508 # Resolution of 1 pixel of the costmap, in meters.
       robot_base_frame: base_link
-      robot_radius: 0.3      # was 0.2286, enlarge footprint buffer
+      robot_radius: 0.24      # Slightly smaller than physical radius (0.28m) so NavFn can plan
+                              # through tight doorways. Local costmap keeps 0.28m for actual
+                              # real-time collision avoidance.
       track_unknown_space: True # If false, treats unknown space as free space, else as unknown space.
       transform_tolerance: 0.5
       update_frequency: 5.0 # Costmap update frequency.
@@ -388,7 +400,7 @@ planner_server:
     costmap_update_timeout: 1.0
     GridBased:
       plugin: "nav2_navfn_planner::NavfnPlanner"
-      tolerance: 1.0
+      tolerance: 0.30  # match xy_goal_tolerance in goal checker
       use_astar: false
       allow_unknown: true
 
@@ -424,7 +436,7 @@ behavior_server:
     robot_base_frame: base_link
     transform_tolerance: 0.1
     simulate_ahead_time: 2.0
-    max_rotational_vel: 1.0
+    max_rotational_vel: 1.5  # Match controller and smoother limits
     min_rotational_vel: 0.4
     rotational_acc_lim: 3.2
 
@@ -445,8 +457,8 @@ velocity_smoother:
     smoothing_frequency: 20.0
     scale_velocities: False
     feedback: "OPEN_LOOP"
-    max_velocity: [0.5, 0.0, 2.0]
-    min_velocity: [-0.5, 0.0, -2.0]
+    max_velocity: [0.5, 0.0, 1.5]  # Match controller angular velocity limit
+    min_velocity: [0.0, 0.0, -1.5]    # no reverse (matches vx_min=0 in MPPI controller)
     max_accel: [2.5, 0.0, 3.2]
     max_decel: [-2.5, 0.0, -3.2]
     odom_topic: "odom"
@@ -472,9 +484,9 @@ collision_monitor:
       type: "polygon"
       action_type: "approach"
       footprint_topic: "/local_costmap/published_footprint"
-      time_before_collision: 1.2
+      time_before_collision: 2.0      # increased: more stopping distance before impact
       simulation_time_step: 0.1
-      min_points: 6
+      min_points: 2               # lowered: table leg produces only 2-3 lidar returns; 6 made it invisible
       visualize: False
       enabled: True
     observation_sources: ["scan"]
