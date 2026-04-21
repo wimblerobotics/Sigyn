@@ -29,66 +29,50 @@ The guiding principles therefore are:
 
 ## 2. High-Level Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              PC (ROS 2)                                      │
-│                                                                              │
-│  ┌───────────────────┐   ┌────────────────────┐   ┌──────────────────────┐ │
-│  │  TeensyBridge     │   │  FaultRegistry     │   │  SafetyCoordinator   │ │
-│  │  (lifecycle node) │──▶│  (PC-side fault    │──▶│  /human_override     │ │
-│  │                   │   │   state tracker)   │   │  /clear_fault        │ │
-│  │  wire ← FLT msg   │   │                    │   └──────────────────────┘ │
-│  │  wire → FLTCLRC   │◀──│  FaultChangeCallback                            │ │
-│  └───────────────────┘   │  → publishes:      │                            │ │
-│         │ USB serial      │    /fault_event     │   ┌──────────────────────┐ │
-│         │                 │    /human_alert     │──▶│  sigyn_notifier      │ │
-│         │                 │    /fault_list      │   │  (Telegram alerts)   │ │
-│         │                 └────────────────────┘   └──────────────────────┘ │
-│         │                 → FLTCLRC wire cmd on                              │ │
-│         │                   human override                                   │ │
-└─────────┼───────────────────────────────────────────────────────────────────┘
-          │ USB serial (framed protocol)
-          │
-┌─────────┼───────────────────────────────────────────────────────────────────┐
-│ Board 1 │ (Teensy 4.1)                                                        │
-│         ▼                                                                    │
-│  ┌──────────────────┐   ┌──────────────────┐   ┌────────────────────────┐  │
-│  │  FaultCoordinator│◀──│  VL53L0XMonitor  │   │    EStopPin            │  │
-│  │                  │   │  (TOF proximity) │   │  A17 ← Board2 signal   │  │
-│  │  IsEstopRequired()   └──────────────────┘   │  Reports kBoard2Estop  │  │
-│  │    → SetEstopPin()◀──────────────────────── └────────────────────────┘  │
-│  │                  │   ┌──────────────────┐                                │
-│  │  (IEstopController   │  RoboClawMonitor │                                │
-│  │   = RoboClawMonitor) │  CheckRunaway()  │                                │
-│  │                  │◀──│  CheckOvercurrent│                                │
-│  │                  │   │  CheckFatalErrors│                                │
-│  └──────────────────┘   │  CheckTemp()     │                                │
-│         │               │  CheckComm()     │                                │
-│         ▼               └───────────────┬──┘                               │
-│  GPIO 30 (OUTPUT)                        │                                  │
-│    LOW = ESTOP asserted                  │ serial (UART 6)                  │
-│         │               ┌───────────────▼──┐                               │
-│         └──────────────▶│  RoboClaw MC     │                               │
-│                          │  (motor driver)  │                               │
-│                          └──────────────────┘                               │
-└─────────────────────────────────────────────────────────────────────────────┘
-          │ A17 / GPIO 41 (fast path signal, pulled high)
-          │
-┌─────────┼───────────────────────────────────────────────────────────────────┐
-│ Board 2 │ (Teensy 4.1)                                                        │
-│         ▼                                                                    │
-│  ┌──────────────────┐   ┌──────────────────┐                               │
-│  │  FaultCoordinator│◀──│  BatteryMonitor  │  ←  INA226 current sensors   │
-│  │  (IEstopController   │  (kBatteryCritical│                               │
-│  │   = EStopPin)    │   │   kBatteryLow     │                               │
-│  │                  │   │   kPowerRail*)    │                               │
-│  │  → EStopPin      │   └──────────────────┘                               │
-│  │    A17 OUTPUT    │   ┌──────────────────┐                               │
-│  │    LOW = ESTOP   │◀──│  BNO055Monitor   │  ←  IMU (I²C)                │
-│  └──────────────────┘   │  (kImuTilted     │                               │
-│                          │   kImuFallen)    │                               │
-│                          └──────────────────┘                               │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+        subgraph PC[PC ROS 2]
+                TB[TeensyBridge<br/>lifecycle node]
+                FR[FaultRegistry<br/>PC-side fault state tracker]
+                SC[SafetyCoordinator<br/>human_override<br/>clear_fault]
+                SN[sigyn_notifier<br/>Telegram alerts]
+
+                TB --> FR
+                FR --> SC
+                FR -->|publish fault_event| FE[fault_event]
+                FR -->|publish human_alert| HA[human_alert]
+                FR -->|publish fault_list| FL[fault_list]
+                HA --> SN
+                FR -->|human override clear| TB
+        end
+
+        subgraph B1[Board 1 Teensy 4.1]
+                FC1[FaultCoordinator]
+                VL[VL53L0XMonitor<br/>TOF proximity]
+                EP1[EStopPin<br/>A17 input from Board 2]
+                RC[RoboClawMonitor]
+                RCMC[RoboClaw motor controller]
+
+                VL --> FC1
+                EP1 -->|reports BOARD2_ESTOP| FC1
+                RC --> FC1
+                FC1 -->|GPIO 30 LOW = ESTOP| RC
+                RC -->|UART 6| RCMC
+        end
+
+        subgraph B2[Board 2 Teensy 4.1]
+                FC2[FaultCoordinator]
+                BM[BatteryMonitor<br/>INA226 sensors]
+                IMU[BNO055Monitor<br/>tilt and fallen]
+                EP2[EStopPin<br/>A17 output LOW = ESTOP]
+
+                BM --> FC2
+                IMU --> FC2
+                FC2 --> EP2
+        end
+
+        TB <-->|USB serial framed protocol| FC1
+        EP2 -->|A17 fast path| EP1
 ```
 
 ---
@@ -128,22 +112,15 @@ The guiding principles therefore are:
 
 Every safety condition is expressed as a **fault** managed by `FaultCoordinator`.
 
-```
-Sensor detects condition
-        │
-        ▼
-IFaultReporter::ReportFault(module, fault_id, severity, auto_clear, reason)
-        │
-        ▼
-FaultCoordinator::ReportFault()
-  - Adds entry to fault table (if not already active)
-  - Sends FLT<board_id>:{...} wire message to PC
-  - Calls UpdateEstopPin()
-        │
-        ▼
-UpdateEstopPin()
-  - Scans fault table for any EMERGENCY_STOP fault
-  - Calls IEstopController::SetEstopPin(true/false)
+```mermaid
+flowchart TD
+    S[Sensor detects condition] --> R[IFaultReporter::ReportFault<br/>module fault_id severity auto_clear reason]
+    R --> FC[FaultCoordinator::ReportFault]
+    FC --> A[Add or update fault table entry]
+    FC --> W[Send FLT board message to PC]
+    FC --> U[UpdateEstopPin]
+    U --> SCAN[Scan fault table for any EMERGENCY_STOP fault]
+    SCAN --> ESTOP[IEstopController::SetEstopPin true or false]
 ```
 
 **On Board 1**, `IEstopController` is `RoboClawMonitor`:
@@ -160,22 +137,16 @@ UpdateEstopPin()
 
 Wire messages (`FLT<n>:{...}`) pass through `TeensyBridge` into `FaultRegistry`.
 
-```
-FLT1:{...} received
-        │
-        ▼
-MessageParser::ParseFault()
-        │
-        ▼
-FaultRegistry::ActivateFault(board_id, fault_id, ...)
-        │
-        ├─▶ FaultChangeCallback (fired on every state change)
-        │     ├─▶ Publishes /fault_event (FaultEvent.msg) — always
-        │     ├─▶ Publishes /human_alert (HumanAlert.msg) — severity≥DEGRADED, activation only
-        │     └─▶ Sends FLTCLRC wire cmd to Teensy — on human override clear only
-        │
-        └─▶ SafetyCoordinator updates /fault_list topic
-              └─▶ Behavior trees read /fault_list to change navigation policy
+```mermaid
+flowchart TD
+    M[FLT board message received] --> P[MessageParser::ParseFault]
+    P --> AR[FaultRegistry::ActivateFault]
+    AR --> CB[FaultChangeCallback]
+    CB --> FE[/fault_event always/]
+    CB --> HA[/human_alert severity at least DEGRADED activation only/]
+    CB --> CLR[Send FLTCLRC to Teensy on human override clear]
+    AR --> SC[SafetyCoordinator updates /fault_list]
+    SC --> BT[Behavior trees read /fault_list and adjust policy]
 ```
 
 ### 4.3 Fault Clearing
@@ -244,13 +215,12 @@ All fault ID strings are defined in `wr_proto_msgs/include/wr_proto_msgs/fault_i
 
 **Protection Rings (configurable; defaults):**
 
-```
-                                ← robot body edge (≈ 115 mm sensor offset)
-  |───────────────────────────|
-        Ring 2 (ESTOP)          ← 130 mm from sensor (≈ 15 mm from robot edge)
-  |──────────────────────────────────────────────────|
-              Ring 3 (WARNING)   ← 300 mm from sensor (≈ 185 mm from robot edge)
-  |──────────────────────────────────────────────────────────────────────────|
+```mermaid
+flowchart LR
+                S[VL53L0X sensor face] --> R2[Ring 2 ESTOP<br/>130 mm from sensor<br/>about 15 mm from robot edge]
+                R2 --> R3[Ring 3 WARNING<br/>300 mm from sensor<br/>about 185 mm from robot edge]
+                R3 --> C[Clear zone<br/>greater than 300 mm]
+                E[Robot body edge<br/>about 115 mm from sensor] -. reference .-> R2
 ```
 
 | Ring | Distance | Fault | Severity | Action |
