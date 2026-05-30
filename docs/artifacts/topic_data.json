@@ -1,0 +1,6380 @@
+{
+  "generated_at": "2026-04-21T19:26:19.497842+00:00",
+  "hostname": "sigyn7900a",
+  "max_wait_s": 15.0,
+  "ros_distro": "jazzy",
+  "topic_count": 157,
+  "topics": {
+    "/amcl/transition_event": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/amcl",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "lifecycle_msgs/msg/TransitionEvent"
+    },
+    "/amcl_pose": {
+      "avg_msg_size_bytes": 364.0,
+      "bandwidth_bps": 2912.0,
+      "bandwidth_kbps": 2.91,
+      "delay_s": null,
+      "has_header": true,
+      "hz": {
+        "max": null,
+        "mean": null,
+        "min": null,
+        "sample_count": 1,
+        "std_dev": null
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/amcl",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 1,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/PoseWithCovarianceStamped"
+    },
+    "/assisted_teleop/_action/feedback": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav2_msgs/action/AssistedTeleop_FeedbackMessage"
+    },
+    "/assisted_teleop/_action/status": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "action_msgs/msg/GoalStatusArray"
+    },
+    "/backup/_action/feedback": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [
+        {
+          "node": "/bt_navigator_navigate_to_pose_rclcpp_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator_navigate_through_poses_rclcpp_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "nav2_msgs/action/BackUp_FeedbackMessage"
+    },
+    "/backup/_action/status": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [
+        {
+          "node": "/bt_navigator_navigate_to_pose_rclcpp_node",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator_navigate_through_poses_rclcpp_node",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "action_msgs/msg/GoalStatusArray"
+    },
+    "/battery_overlay_text": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/battery_overlay_publisher",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "rviz_2d_overlay_msgs/msg/OverlayText"
+    },
+    "/behavior_server/transition_event": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "lifecycle_msgs/msg/TransitionEvent"
+    },
+    "/behavior_tree_log": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/bt_navigator_navigate_to_pose_rclcpp_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator_navigate_through_poses_rclcpp_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 3.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav2_msgs/msg/BehaviorTreeLog"
+    },
+    "/bond": {
+      "avg_msg_size_bytes": 92.0,
+      "bandwidth_bps": 131995.7,
+      "bandwidth_kbps": 132.0,
+      "delay_s": null,
+      "has_header": true,
+      "hz": {
+        "max": 443.824,
+        "mean": 179.24,
+        "min": 43.001,
+        "sample_count": 2598,
+        "span_s": 14.489,
+        "std_dev": 118.256
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/map_server",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_localization",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/amcl",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_localization",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/controller_server",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/smoother_server",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/planner_server",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/velocity_smoother",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/waypoint_follower",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 2598,
+      "sample_duration_s": 10.0,
+      "subscribers": [
+        {
+          "node": "/map_server",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_localization",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/amcl",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_localization",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/controller_server",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/smoother_server",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/planner_server",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/velocity_smoother",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/waypoint_follower",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "bond/msg/Status"
+    },
+    "/bt_navigator/transition_event": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/bt_navigator",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "lifecycle_msgs/msg/TransitionEvent"
+    },
+    "/clock": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 3.0,
+      "subscribers": [
+        {
+          "node": "/map_server",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        },
+        {
+          "node": "/amcl",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "rosgraph_msgs/msg/Clock"
+    },
+    "/cmd_vel": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/wr_teleop_twist_keyboard",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/wr_twist_multiplexer_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 5.0,
+      "subscribers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/Twist"
+    },
+    "/cmd_vel_gripper": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/Twist"
+    },
+    "/cmd_vel_joystick": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/wr_twist_multiplexer_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/Twist"
+    },
+    "/cmd_vel_keyboard": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/wr_twist_multiplexer_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/Twist"
+    },
+    "/cmd_vel_nav": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/controller_server",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 5.0,
+      "subscribers": [
+        {
+          "node": "/wr_twist_multiplexer_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/velocity_smoother",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/Twist"
+    },
+    "/cmd_vel_smoothed": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/velocity_smoother",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 5.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/Twist"
+    },
+    "/cmd_vel_teleop": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/Twist"
+    },
+    "/compute_path_through_poses/_action/feedback": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/planner_server",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [
+        {
+          "node": "/bt_navigator_navigate_through_poses_rclcpp_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "nav2_msgs/action/ComputePathThroughPoses_FeedbackMessage"
+    },
+    "/compute_path_through_poses/_action/status": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/planner_server",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [
+        {
+          "node": "/bt_navigator_navigate_through_poses_rclcpp_node",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "action_msgs/msg/GoalStatusArray"
+    },
+    "/compute_path_to_pose/_action/feedback": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/planner_server",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [
+        {
+          "node": "/bt_navigator_navigate_to_pose_rclcpp_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "nav2_msgs/action/ComputePathToPose_FeedbackMessage"
+    },
+    "/compute_path_to_pose/_action/status": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/planner_server",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [
+        {
+          "node": "/bt_navigator_navigate_to_pose_rclcpp_node",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "action_msgs/msg/GoalStatusArray"
+    },
+    "/controller_selector": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/bt_navigator_navigate_to_pose_rclcpp_node",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator_navigate_through_poses_rclcpp_node",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "std_msgs/msg/String"
+    },
+    "/controller_server/transition_event": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/controller_server",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "lifecycle_msgs/msg/TransitionEvent"
+    },
+    "/diagnostics": {
+      "avg_msg_size_bytes": 216.6,
+      "bandwidth_bps": 38886.2,
+      "bandwidth_kbps": 38.89,
+      "delay_s": {
+        "max_s": 0.0268,
+        "mean_s": 0.0064,
+        "min_s": 0.0001,
+        "sample_count": 324,
+        "std_dev_s": 0.0055
+      },
+      "has_header": true,
+      "hz": {
+        "max": 402.697,
+        "mean": 22.37,
+        "min": 3.91,
+        "sample_count": 324,
+        "span_s": 14.439,
+        "std_dev": 163.949
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/scan_to_scan_filter_chain",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_localization",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/ekf_filter_node",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 324,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "diagnostic_msgs/msg/DiagnosticArray"
+    },
+    "/drive_on_heading/_action/feedback": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav2_msgs/action/DriveOnHeading_FeedbackMessage"
+    },
+    "/drive_on_heading/_action/status": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "action_msgs/msg/GoalStatusArray"
+    },
+    "/follow_gps_waypoints/_action/feedback": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/waypoint_follower",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav2_msgs/action/FollowGPSWaypoints_FeedbackMessage"
+    },
+    "/follow_gps_waypoints/_action/status": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/waypoint_follower",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "action_msgs/msg/GoalStatusArray"
+    },
+    "/follow_path/_action/feedback": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/controller_server",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [
+        {
+          "node": "/bt_navigator_navigate_to_pose_rclcpp_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator_navigate_through_poses_rclcpp_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "nav2_msgs/action/FollowPath_FeedbackMessage"
+    },
+    "/follow_path/_action/status": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/controller_server",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [
+        {
+          "node": "/bt_navigator_navigate_to_pose_rclcpp_node",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator_navigate_through_poses_rclcpp_node",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "action_msgs/msg/GoalStatusArray"
+    },
+    "/follow_waypoints/_action/feedback": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/waypoint_follower",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav2_msgs/action/FollowWaypoints_FeedbackMessage"
+    },
+    "/follow_waypoints/_action/status": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/waypoint_follower",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "action_msgs/msg/GoalStatusArray"
+    },
+    "/global_costmap/costmap": {
+      "avg_msg_size_bytes": 337601.0,
+      "bandwidth_bps": 2772046.8,
+      "bandwidth_kbps": 2772.05,
+      "delay_s": {
+        "max_s": 0.0031,
+        "mean_s": 0.0026,
+        "min_s": 0.002,
+        "sample_count": 13,
+        "std_dev_s": 0.0004
+      },
+      "has_header": true,
+      "hz": {
+        "max": 1.562,
+        "mean": 0.953,
+        "min": 0.833,
+        "sample_count": 14,
+        "span_s": 13.64,
+        "std_dev": 0.193
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 14,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "nav_msgs/msg/OccupancyGrid"
+    },
+    "/global_costmap/costmap_raw": {
+      "avg_msg_size_bytes": 337617.0,
+      "bandwidth_bps": 2773351.0,
+      "bandwidth_kbps": 2773.35,
+      "delay_s": {
+        "max_s": 0.3685,
+        "mean_s": 0.0287,
+        "min_s": 0.0018,
+        "sample_count": 14,
+        "std_dev_s": 0.0978
+      },
+      "has_header": true,
+      "hz": {
+        "max": 1.576,
+        "mean": 0.953,
+        "min": 0.833,
+        "sample_count": 14,
+        "span_s": 13.634,
+        "std_dev": 0.197
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 14,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/smoother_server",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "nav2_msgs/msg/Costmap"
+    },
+    "/global_costmap/costmap_raw_updates": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 8.0,
+      "subscribers": [
+        {
+          "node": "/smoother_server",
+          "qos": {
+            "depth": 10,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "nav2_msgs/msg/CostmapUpdate"
+    },
+    "/global_costmap/costmap_updates": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 8.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "map_msgs/msg/OccupancyGridUpdate"
+    },
+    "/global_costmap/footprint": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 8.0,
+      "subscribers": [
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/Polygon"
+    },
+    "/global_costmap/global_costmap/transition_event": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "lifecycle_msgs/msg/TransitionEvent"
+    },
+    "/global_costmap/obstacle_layer": {
+      "avg_msg_size_bytes": 337601.0,
+      "bandwidth_bps": 2701243.7,
+      "bandwidth_kbps": 2701.24,
+      "delay_s": {
+        "max_s": 0.0043,
+        "mean_s": 0.0034,
+        "min_s": 0.0022,
+        "sample_count": 13,
+        "std_dev_s": 0.0006
+      },
+      "has_header": true,
+      "hz": {
+        "max": 1.001,
+        "mean": 0.923,
+        "min": 0.833,
+        "sample_count": 13,
+        "span_s": 12.998,
+        "std_dev": 0.085
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 13,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "nav_msgs/msg/OccupancyGrid"
+    },
+    "/global_costmap/obstacle_layer_raw": {
+      "avg_msg_size_bytes": 337617.0,
+      "bandwidth_bps": 2701071.4,
+      "bandwidth_kbps": 2701.07,
+      "delay_s": {
+        "max_s": 0.1028,
+        "mean_s": 0.011,
+        "min_s": 0.0025,
+        "sample_count": 13,
+        "std_dev_s": 0.0276
+      },
+      "has_header": true,
+      "hz": {
+        "max": 1.0,
+        "mean": 0.923,
+        "min": 0.833,
+        "sample_count": 13,
+        "span_s": 12.999,
+        "std_dev": 0.078
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 13,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "nav2_msgs/msg/Costmap"
+    },
+    "/global_costmap/obstacle_layer_raw_updates": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 8.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav2_msgs/msg/CostmapUpdate"
+    },
+    "/global_costmap/obstacle_layer_updates": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 8.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "map_msgs/msg/OccupancyGridUpdate"
+    },
+    "/global_costmap/published_footprint": {
+      "avg_msg_size_bytes": 216.0,
+      "bandwidth_bps": 8762.7,
+      "bandwidth_kbps": 8.76,
+      "delay_s": {
+        "max_s": 0.048,
+        "mean_s": 0.0283,
+        "min_s": 0.0119,
+        "sample_count": 73,
+        "std_dev_s": 0.0092
+      },
+      "has_header": true,
+      "hz": {
+        "max": 5.225,
+        "mean": 5.002,
+        "min": 4.806,
+        "sample_count": 73,
+        "span_s": 14.396,
+        "std_dev": 0.061
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 73,
+      "sample_duration_s": 8.0,
+      "subscribers": [
+        {
+          "node": "/smoother_server",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "geometry_msgs/msg/PolygonStamped"
+    },
+    "/global_costmap/static_layer": {
+      "avg_msg_size_bytes": 337601.0,
+      "bandwidth_bps": 2700806.9,
+      "bandwidth_kbps": 2700.81,
+      "delay_s": {
+        "max_s": 0.0045,
+        "mean_s": 0.0033,
+        "min_s": 0.0025,
+        "sample_count": 13,
+        "std_dev_s": 0.0008
+      },
+      "has_header": true,
+      "hz": {
+        "max": 1.002,
+        "mean": 0.923,
+        "min": 0.832,
+        "sample_count": 13,
+        "span_s": 13.0,
+        "std_dev": 0.086
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 13,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "nav_msgs/msg/OccupancyGrid"
+    },
+    "/global_costmap/static_layer_raw": {
+      "avg_msg_size_bytes": 337617.0,
+      "bandwidth_bps": 2700937.1,
+      "bandwidth_kbps": 2700.94,
+      "delay_s": {
+        "max_s": 0.0042,
+        "mean_s": 0.0031,
+        "min_s": 0.0022,
+        "sample_count": 13,
+        "std_dev_s": 0.0008
+      },
+      "has_header": true,
+      "hz": {
+        "max": 1.002,
+        "mean": 0.923,
+        "min": 0.832,
+        "sample_count": 13,
+        "span_s": 13.0,
+        "std_dev": 0.086
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 13,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "nav2_msgs/msg/Costmap"
+    },
+    "/global_costmap/static_layer_raw_updates": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav2_msgs/msg/CostmapUpdate"
+    },
+    "/global_costmap/static_layer_updates": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "map_msgs/msg/OccupancyGridUpdate"
+    },
+    "/goal_pose": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/bt_navigator",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/PoseStamped"
+    },
+    "/gripper/home": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "std_msgs/msg/Empty"
+    },
+    "/gripper/move_elevator/_action/feedback": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "sigyn_interfaces/action/MoveElevator_FeedbackMessage"
+    },
+    "/gripper/move_elevator/_action/status": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "action_msgs/msg/GoalStatusArray"
+    },
+    "/gripper/move_extender/_action/feedback": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "sigyn_interfaces/action/MoveExtender_FeedbackMessage"
+    },
+    "/gripper/move_extender/_action/status": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "action_msgs/msg/GoalStatusArray"
+    },
+    "/gripper/position/command": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "sigyn_interfaces/msg/GripperPositionCommand"
+    },
+    "/gripper/status": {
+      "avg_msg_size_bytes": 78.0,
+      "bandwidth_bps": 6283.7,
+      "bandwidth_kbps": 6.28,
+      "delay_s": {
+        "max_s": 0.0134,
+        "mean_s": 0.0029,
+        "min_s": 0.0014,
+        "sample_count": 144,
+        "std_dev_s": 0.002
+      },
+      "has_header": true,
+      "hz": {
+        "max": 11.282,
+        "mean": 10.0,
+        "min": 9.039,
+        "sample_count": 144,
+        "span_s": 14.3,
+        "std_dev": 0.3
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 144,
+      "sample_duration_s": 5.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "sigyn_interfaces/msg/GripperStatus"
+    },
+    "/initialpose": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/amcl",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/PoseWithCovarianceStamped"
+    },
+    "/joint_states": {
+      "avg_msg_size_bytes": 388.0,
+      "bandwidth_bps": 217070.0,
+      "bandwidth_kbps": 217.07,
+      "delay_s": {
+        "max_s": 0.3075,
+        "mean_s": 0.0255,
+        "min_s": 0.0018,
+        "sample_count": 500,
+        "std_dev_s": 0.0388
+      },
+      "has_header": true,
+      "hz": {
+        "max": 446.394,
+        "mean": 69.865,
+        "min": 5.345,
+        "sample_count": 1043,
+        "span_s": 14.914,
+        "std_dev": 138.657
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 1043,
+      "sample_duration_s": 5.0,
+      "subscribers": [
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/JointState"
+    },
+    "/local_costmap/clearing_endpoints": {
+      "avg_msg_size_bytes": 4630.6,
+      "bandwidth_bps": 558388.0,
+      "bandwidth_kbps": 558.39,
+      "delay_s": {
+        "max_s": 0.2784,
+        "mean_s": 0.1349,
+        "min_s": 0.0666,
+        "sample_count": 218,
+        "std_dev_s": 0.0357
+      },
+      "has_header": true,
+      "hz": {
+        "max": 17.171,
+        "mean": 15.004,
+        "min": 13.247,
+        "sample_count": 218,
+        "span_s": 14.463,
+        "std_dev": 0.405
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 218,
+      "sample_duration_s": 5.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/PointCloud2"
+    },
+    "/local_costmap/costmap": {
+      "avg_msg_size_bytes": 6188.0,
+      "bandwidth_bps": 49504.0,
+      "bandwidth_kbps": 49.5,
+      "delay_s": null,
+      "has_header": true,
+      "hz": {
+        "max": null,
+        "mean": null,
+        "min": null,
+        "sample_count": 1,
+        "std_dev": null
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 1,
+      "sample_duration_s": 8.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav_msgs/msg/OccupancyGrid"
+    },
+    "/local_costmap/costmap_raw": {
+      "avg_msg_size_bytes": 6212.0,
+      "bandwidth_bps": 49696.0,
+      "bandwidth_kbps": 49.7,
+      "delay_s": null,
+      "has_header": true,
+      "hz": {
+        "max": null,
+        "mean": null,
+        "min": null,
+        "sample_count": 1,
+        "std_dev": null
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 1,
+      "sample_duration_s": 8.0,
+      "subscribers": [
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "nav2_msgs/msg/Costmap"
+    },
+    "/local_costmap/costmap_raw_updates": {
+      "avg_msg_size_bytes": 5348.0,
+      "bandwidth_bps": 180914.9,
+      "bandwidth_kbps": 180.91,
+      "delay_s": {
+        "max_s": 0.1761,
+        "mean_s": 0.0054,
+        "min_s": 0.0013,
+        "sample_count": 61,
+        "std_dev_s": 0.0223
+      },
+      "has_header": true,
+      "hz": {
+        "max": 32.62,
+        "mean": 4.159,
+        "min": 3.47,
+        "sample_count": 61,
+        "span_s": 14.426,
+        "std_dev": 3.7
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 61,
+      "sample_duration_s": 5.0,
+      "subscribers": [
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 10,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "nav2_msgs/msg/CostmapUpdate"
+    },
+    "/local_costmap/costmap_updates": {
+      "avg_msg_size_bytes": 5348.0,
+      "bandwidth_bps": 178328.2,
+      "bandwidth_kbps": 178.33,
+      "delay_s": {
+        "max_s": 0.0079,
+        "mean_s": 0.0026,
+        "min_s": 0.0014,
+        "sample_count": 60,
+        "std_dev_s": 0.0012
+      },
+      "has_header": true,
+      "hz": {
+        "max": 5.033,
+        "mean": 4.099,
+        "min": 3.47,
+        "sample_count": 60,
+        "span_s": 14.395,
+        "std_dev": 0.421
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 60,
+      "sample_duration_s": 5.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "map_msgs/msg/OccupancyGridUpdate"
+    },
+    "/local_costmap/footprint": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 8.0,
+      "subscribers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/Polygon"
+    },
+    "/local_costmap/local_costmap/transition_event": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "lifecycle_msgs/msg/TransitionEvent"
+    },
+    "/local_costmap/oakd_top_layer": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav_msgs/msg/OccupancyGrid"
+    },
+    "/local_costmap/oakd_top_layer_raw": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav2_msgs/msg/Costmap"
+    },
+    "/local_costmap/oakd_top_layer_raw_updates": {
+      "avg_msg_size_bytes": 5348.0,
+      "bandwidth_bps": 178328.3,
+      "bandwidth_kbps": 178.33,
+      "delay_s": {
+        "max_s": 0.0079,
+        "mean_s": 0.0026,
+        "min_s": 0.0016,
+        "sample_count": 60,
+        "std_dev_s": 0.0012
+      },
+      "has_header": true,
+      "hz": {
+        "max": 5.033,
+        "mean": 4.099,
+        "min": 3.47,
+        "sample_count": 60,
+        "span_s": 14.395,
+        "std_dev": 0.421
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 60,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "nav2_msgs/msg/CostmapUpdate"
+    },
+    "/local_costmap/oakd_top_layer_updates": {
+      "avg_msg_size_bytes": 5348.0,
+      "bandwidth_bps": 178328.5,
+      "bandwidth_kbps": 178.33,
+      "delay_s": {
+        "max_s": 0.0079,
+        "mean_s": 0.0027,
+        "min_s": 0.0016,
+        "sample_count": 60,
+        "std_dev_s": 0.0012
+      },
+      "has_header": true,
+      "hz": {
+        "max": 5.033,
+        "mean": 4.099,
+        "min": 3.47,
+        "sample_count": 60,
+        "span_s": 14.395,
+        "std_dev": 0.421
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 60,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "map_msgs/msg/OccupancyGridUpdate"
+    },
+    "/local_costmap/published_footprint": {
+      "avg_msg_size_bytes": 220.0,
+      "bandwidth_bps": 26531.7,
+      "bandwidth_kbps": 26.53,
+      "delay_s": {
+        "max_s": 0.0923,
+        "mean_s": 0.0529,
+        "min_s": 0.0079,
+        "sample_count": 217,
+        "std_dev_s": 0.0158
+      },
+      "has_header": true,
+      "hz": {
+        "max": 61.122,
+        "mean": 15.005,
+        "min": 9.203,
+        "sample_count": 217,
+        "span_s": 14.395,
+        "std_dev": 5.864
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 217,
+      "sample_duration_s": 8.0,
+      "subscribers": [
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "geometry_msgs/msg/PolygonStamped"
+    },
+    "/local_costmap/range_sensor_layer": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 8.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav_msgs/msg/OccupancyGrid"
+    },
+    "/local_costmap/range_sensor_layer_raw": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 8.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav2_msgs/msg/Costmap"
+    },
+    "/local_costmap/range_sensor_layer_raw_updates": {
+      "avg_msg_size_bytes": 5348.0,
+      "bandwidth_bps": 178330.8,
+      "bandwidth_kbps": 178.33,
+      "delay_s": {
+        "max_s": 0.008,
+        "mean_s": 0.0028,
+        "min_s": 0.0018,
+        "sample_count": 60,
+        "std_dev_s": 0.0012
+      },
+      "has_header": true,
+      "hz": {
+        "max": 5.032,
+        "mean": 4.099,
+        "min": 3.469,
+        "sample_count": 60,
+        "span_s": 14.395,
+        "std_dev": 0.421
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 60,
+      "sample_duration_s": 5.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "nav2_msgs/msg/CostmapUpdate"
+    },
+    "/local_costmap/range_sensor_layer_updates": {
+      "avg_msg_size_bytes": 5348.0,
+      "bandwidth_bps": 178331.0,
+      "bandwidth_kbps": 178.33,
+      "delay_s": {
+        "max_s": 0.008,
+        "mean_s": 0.0028,
+        "min_s": 0.0017,
+        "sample_count": 60,
+        "std_dev_s": 0.0012
+      },
+      "has_header": true,
+      "hz": {
+        "max": 5.031,
+        "mean": 4.099,
+        "min": 3.469,
+        "sample_count": 60,
+        "span_s": 14.395,
+        "std_dev": 0.42
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 60,
+      "sample_duration_s": 5.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "map_msgs/msg/OccupancyGridUpdate"
+    },
+    "/local_costmap/voxel_layer": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 8.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav_msgs/msg/OccupancyGrid"
+    },
+    "/local_costmap/voxel_layer_raw": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 8.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav2_msgs/msg/Costmap"
+    },
+    "/local_costmap/voxel_layer_raw_updates": {
+      "avg_msg_size_bytes": 5348.0,
+      "bandwidth_bps": 178333.1,
+      "bandwidth_kbps": 178.33,
+      "delay_s": {
+        "max_s": 0.0081,
+        "mean_s": 0.0028,
+        "min_s": 0.0016,
+        "sample_count": 60,
+        "std_dev_s": 0.0012
+      },
+      "has_header": true,
+      "hz": {
+        "max": 5.031,
+        "mean": 4.099,
+        "min": 3.469,
+        "sample_count": 60,
+        "span_s": 14.395,
+        "std_dev": 0.42
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 60,
+      "sample_duration_s": 5.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "nav2_msgs/msg/CostmapUpdate"
+    },
+    "/local_costmap/voxel_layer_updates": {
+      "avg_msg_size_bytes": 5348.0,
+      "bandwidth_bps": 178333.5,
+      "bandwidth_kbps": 178.33,
+      "delay_s": {
+        "max_s": 0.0082,
+        "mean_s": 0.0029,
+        "min_s": 0.0016,
+        "sample_count": 60,
+        "std_dev_s": 0.0012
+      },
+      "has_header": true,
+      "hz": {
+        "max": 5.032,
+        "mean": 4.099,
+        "min": 3.469,
+        "sample_count": 60,
+        "span_s": 14.395,
+        "std_dev": 0.42
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 60,
+      "sample_duration_s": 5.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "map_msgs/msg/OccupancyGridUpdate"
+    },
+    "/map": {
+      "avg_msg_size_bytes": 337601.0,
+      "bandwidth_bps": 2700808.0,
+      "bandwidth_kbps": 2700.81,
+      "delay_s": null,
+      "has_header": true,
+      "hz": {
+        "max": null,
+        "mean": null,
+        "min": null,
+        "sample_count": 1,
+        "std_dev": null
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/map_server",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 1,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/amcl",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "nav_msgs/msg/OccupancyGrid"
+    },
+    "/map_server/transition_event": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/map_server",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "lifecycle_msgs/msg/TransitionEvent"
+    },
+    "/navigate_through_poses/_action/feedback": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/bt_navigator",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav2_msgs/action/NavigateThroughPoses_FeedbackMessage"
+    },
+    "/navigate_through_poses/_action/status": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/bt_navigator",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "action_msgs/msg/GoalStatusArray"
+    },
+    "/navigate_to_pose/_action/feedback": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/bt_navigator",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [
+        {
+          "node": "/bt_navigator",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/waypoint_follower",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "nav2_msgs/action/NavigateToPose_FeedbackMessage"
+    },
+    "/navigate_to_pose/_action/status": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/bt_navigator",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [
+        {
+          "node": "/bt_navigator",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/waypoint_follower",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "action_msgs/msg/GoalStatusArray"
+    },
+    "/oakd/annotated_image": {
+      "avg_msg_size_bytes": 519244.0,
+      "bandwidth_bps": 33200147.4,
+      "bandwidth_kbps": 33200.15,
+      "delay_s": {
+        "max_s": 0.0138,
+        "mean_s": 0.0052,
+        "min_s": 0.0018,
+        "sample_count": 113,
+        "std_dev_s": 0.0037
+      },
+      "has_header": true,
+      "hz": {
+        "max": 161.307,
+        "mean": 7.922,
+        "min": 3.964,
+        "sample_count": 113,
+        "span_s": 14.138,
+        "std_dev": 35.926
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "sample_count": 113,
+      "sample_duration_s": 3.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/Image"
+    },
+    "/oakd/annotated_image/compressed": {
+      "avg_msg_size_bytes": 20250.5,
+      "bandwidth_bps": 1296043.4,
+      "bandwidth_kbps": 1296.04,
+      "delay_s": {
+        "max_s": 0.014,
+        "mean_s": 0.006,
+        "min_s": 0.0024,
+        "sample_count": 115,
+        "std_dev_s": 0.0036
+      },
+      "has_header": true,
+      "hz": {
+        "max": 153.411,
+        "mean": 7.93,
+        "min": 4.022,
+        "sample_count": 115,
+        "span_s": 14.375,
+        "std_dev": 32.764
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "sample_count": 115,
+      "sample_duration_s": 3.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/CompressedImage"
+    },
+    "/oakd/can_detections": {
+      "avg_msg_size_bytes": 52.0,
+      "bandwidth_bps": 3328.1,
+      "bandwidth_kbps": 3.33,
+      "delay_s": {
+        "max_s": 0.0133,
+        "mean_s": 0.0054,
+        "min_s": 0.0016,
+        "sample_count": 115,
+        "std_dev_s": 0.0036
+      },
+      "has_header": true,
+      "hz": {
+        "max": 153.46,
+        "mean": 7.931,
+        "min": 3.999,
+        "sample_count": 115,
+        "span_s": 14.375,
+        "std_dev": 32.738
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "sample_count": 115,
+      "sample_duration_s": 8.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "sigyn_interfaces/msg/OakdDetectionArray"
+    },
+    "/oakd/object_detector_heartbeat": {
+      "avg_msg_size_bytes": 52.0,
+      "bandwidth_bps": 3328.1,
+      "bandwidth_kbps": 3.33,
+      "delay_s": {
+        "max_s": 0.0133,
+        "mean_s": 0.0054,
+        "min_s": 0.0017,
+        "sample_count": 115,
+        "std_dev_s": 0.0036
+      },
+      "has_header": true,
+      "hz": {
+        "max": 153.582,
+        "mean": 7.931,
+        "min": 4.024,
+        "sample_count": 115,
+        "span_s": 14.375,
+        "std_dev": 32.848
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "sample_count": 115,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "vision_msgs/msg/Detection2DArray"
+    },
+    "/oakd_top/camera_info": {
+      "avg_msg_size_bytes": 381.0,
+      "bandwidth_bps": 24592.1,
+      "bandwidth_kbps": 24.59,
+      "delay_s": {
+        "max_s": 0.0139,
+        "mean_s": 0.0061,
+        "min_s": 0.0039,
+        "sample_count": 116,
+        "std_dev_s": 0.0017
+      },
+      "has_header": true,
+      "hz": {
+        "max": 10.128,
+        "mean": 7.999,
+        "min": 6.752,
+        "sample_count": 116,
+        "span_s": 14.377,
+        "std_dev": 0.665
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "sample_count": 116,
+      "sample_duration_s": 5.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/CameraInfo"
+    },
+    "/oakd_top/can_point_base": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 8.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/PointStamped"
+    },
+    "/oakd_top/can_point_camera": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 8.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/PointStamped"
+    },
+    "/oakd_top/can_point_raw": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 8.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/PointStamped"
+    },
+    "/oakd_top/color/image/compressed": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/oakd_top/oakd_color_compressed_republisher",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 3.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "sensor_msgs/msg/CompressedImage"
+    },
+    "/oakd_top/depth_image": {
+      "avg_msg_size_bytes": 388876.0,
+      "bandwidth_bps": 5192513.6,
+      "bandwidth_kbps": 5192.51,
+      "delay_s": {
+        "max_s": 0.0129,
+        "mean_s": 0.0086,
+        "min_s": 0.0021,
+        "sample_count": 23,
+        "std_dev_s": 0.0034
+      },
+      "has_header": true,
+      "hz": {
+        "max": 1.654,
+        "mean": 1.597,
+        "min": 1.536,
+        "sample_count": 23,
+        "span_s": 13.78,
+        "std_dev": 0.032
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "sample_count": 23,
+      "sample_duration_s": 3.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/Image"
+    },
+    "/oakd_top/depth_raw": {
+      "avg_msg_size_bytes": 4147276.0,
+      "bandwidth_bps": 258472571.9,
+      "bandwidth_kbps": 258472.57,
+      "delay_s": {
+        "max_s": 0.0149,
+        "mean_s": 0.0089,
+        "min_s": 0.0058,
+        "sample_count": 112,
+        "std_dev_s": 0.0017
+      },
+      "has_header": true,
+      "hz": {
+        "max": 9.386,
+        "mean": 7.721,
+        "min": 3.789,
+        "sample_count": 112,
+        "span_s": 14.377,
+        "std_dev": 0.999
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "sample_count": 112,
+      "sample_duration_s": 3.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/Image"
+    },
+    "/oakd_top/depth_sample_base": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 8.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/PointStamped"
+    },
+    "/oakd_top/depth_sample_camera": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 8.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/PointStamped"
+    },
+    "/oakd_top/out": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/oakd_top/oakd_color_compressed_republisher",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 3.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "sensor_msgs/msg/Image"
+    },
+    "/oakd_top/out/compressedDepth": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/oakd_top/oakd_color_compressed_republisher",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 3.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "sensor_msgs/msg/CompressedImage"
+    },
+    "/oakd_top/out/theora": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/oakd_top/oakd_color_compressed_republisher",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 3.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "theora_image_transport/msg/Packet"
+    },
+    "/oakd_top/out/zstd": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/oakd_top/oakd_color_compressed_republisher",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 3.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "sensor_msgs/msg/CompressedImage"
+    },
+    "/oakd_top/points": {
+      "avg_msg_size_bytes": 1543957.7,
+      "bandwidth_bps": 91924540.4,
+      "bandwidth_kbps": 91924.54,
+      "delay_s": {
+        "max_s": 0.0206,
+        "mean_s": 0.0142,
+        "min_s": 0.0061,
+        "sample_count": 107,
+        "std_dev_s": 0.003
+      },
+      "has_header": true,
+      "hz": {
+        "max": 9.939,
+        "mean": 7.373,
+        "min": 3.657,
+        "sample_count": 107,
+        "span_s": 14.377,
+        "std_dev": 1.328
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "sample_count": 107,
+      "sample_duration_s": 5.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/PointCloud2"
+    },
+    "/oakd_top/rgb_preview": {
+      "avg_msg_size_bytes": 519244.0,
+      "bandwidth_bps": 33482670.1,
+      "bandwidth_kbps": 33482.67,
+      "delay_s": {
+        "max_s": 0.0087,
+        "mean_s": 0.003,
+        "min_s": 0.0017,
+        "sample_count": 116,
+        "std_dev_s": 0.0009
+      },
+      "has_header": true,
+      "hz": {
+        "max": 109.426,
+        "mean": 7.991,
+        "min": 4.11,
+        "sample_count": 116,
+        "span_s": 14.391,
+        "std_dev": 21.541
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "sample_count": 116,
+      "sample_duration_s": 3.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/Image"
+    },
+    "/odom": {
+      "avg_msg_size_bytes": 724.0,
+      "bandwidth_bps": 187446.5,
+      "bandwidth_kbps": 187.45,
+      "delay_s": {
+        "max_s": 0.0362,
+        "mean_s": 0.0135,
+        "min_s": 0.0031,
+        "sample_count": 467,
+        "std_dev_s": 0.0063
+      },
+      "has_header": true,
+      "hz": {
+        "max": 302.937,
+        "mean": 32.294,
+        "min": 17.765,
+        "sample_count": 467,
+        "span_s": 14.43,
+        "std_dev": 20.67
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/ekf_filter_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 467,
+      "sample_duration_s": 3.0,
+      "subscribers": [
+        {
+          "node": "/controller_server",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "nav_msgs/msg/Odometry"
+    },
+    "/optimal_trajectory": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/controller_server",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 5.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav_msgs/msg/Path"
+    },
+    "/parameter_events": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/battery_overlay_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/wr_teleop_twist_keyboard",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/scan_to_scan_filter_chain",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/pointcloud_to_laserscan_node",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/top_ldlidar",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/wr_twist_multiplexer_node",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/_ros2cli_daemon_0_d9b837226db446f08c14e93c332b5d5a",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/map_server",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/amcl",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_localization",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/controller_server",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/smoother_server",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/planner_server",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/waypoint_follower",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/velocity_smoother",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator_navigate_to_pose_rclcpp_node",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator_navigate_through_poses_rclcpp_node",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/launch_ros_4535",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/ekf_filter_node",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/topic_analysis_discovery",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/oakd_top/oakd_color_compressed_republisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/rqt_gui_py_node_1352476",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/cup_ldlidar",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/sigyn_notifier",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/scan_to_scan_filter_chain",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/pointcloud_to_laserscan_node",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/transform_listener_impl_5e865b2ef690",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/top_ldlidar",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/wr_twist_multiplexer_node",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/nav2_container",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/map_server",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/amcl",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_localization",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/controller_server",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/smoother_server",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/planner_server",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/waypoint_follower",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/velocity_smoother",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/transform_listener_impl_71275c008a00",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/transform_listener_impl_712754000fa0",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator_navigate_to_pose_rclcpp_node",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator_navigate_through_poses_rclcpp_node",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/ekf_filter_node",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/transform_listener_impl_5f8a1e348bd0",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/oakd_top/oakd_color_compressed_republisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/oakd_top/oakd_color_compressed_republisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/oakd_top/oakd_color_compressed_republisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/oakd_top/oakd_color_compressed_republisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/cup_ldlidar",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "rcl_interfaces/msg/ParameterEvent"
+    },
+    "/particle_cloud": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/amcl",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav2_msgs/msg/ParticleCloud"
+    },
+    "/plan": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/planner_server",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav_msgs/msg/Path"
+    },
+    "/plan_smoothed": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/smoother_server",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav_msgs/msg/Path"
+    },
+    "/planner_selector": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/bt_navigator_navigate_to_pose_rclcpp_node",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator_navigate_through_poses_rclcpp_node",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "std_msgs/msg/String"
+    },
+    "/planner_server/transition_event": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/planner_server",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "lifecycle_msgs/msg/TransitionEvent"
+    },
+    "/preempt_teleop": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "std_msgs/msg/Empty"
+    },
+    "/raw_scan": {
+      "avg_msg_size_bytes": 3676.0,
+      "bandwidth_bps": 290013.0,
+      "bandwidth_kbps": 290.01,
+      "delay_s": {
+        "max_s": 0.0997,
+        "mean_s": 0.0465,
+        "min_s": 0.0037,
+        "sample_count": 141,
+        "std_dev_s": 0.0295
+      },
+      "has_header": true,
+      "hz": {
+        "max": 11.657,
+        "mean": 9.792,
+        "min": 5.007,
+        "sample_count": 141,
+        "span_s": 14.298,
+        "std_dev": 0.809
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/top_ldlidar",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 141,
+      "sample_duration_s": 5.0,
+      "subscribers": [
+        {
+          "node": "/scan_to_scan_filter_chain",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/LaserScan"
+    },
+    "/robot_description": {
+      "avg_msg_size_bytes": 32660.2,
+      "bandwidth_bps": 19256243.7,
+      "bandwidth_kbps": 19256.24,
+      "delay_s": null,
+      "has_header": false,
+      "hz": {
+        "max": 243.535,
+        "mean": 61.416,
+        "min": 18.404,
+        "sample_count": 6,
+        "span_s": 0.081,
+        "std_dev": 104.196
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 6,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "std_msgs/msg/String"
+    },
+    "/rosout": {
+      "avg_msg_size_bytes": 204.0,
+      "bandwidth_bps": 1632.0,
+      "bandwidth_kbps": 1.63,
+      "delay_s": null,
+      "has_header": false,
+      "hz": {
+        "max": null,
+        "mean": null,
+        "min": null,
+        "sample_count": 1,
+        "std_dev": null
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/battery_overlay_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/wr_teleop_twist_keyboard",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/scan_to_scan_filter_chain",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/pointcloud_to_laserscan_node",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/transform_listener_impl_5e865b2ef690",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/top_ldlidar",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/wr_twist_multiplexer_node",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/_ros2cli_daemon_0_d9b837226db446f08c14e93c332b5d5a",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/nav2_container",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/map_server",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/amcl",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_localization",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/controller_server",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/smoother_server",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/planner_server",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/waypoint_follower",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/velocity_smoother",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/lifecycle_manager_navigation",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/transform_listener_impl_71275c008a00",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/transform_listener_impl_712754000fa0",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator_navigate_to_pose_rclcpp_node",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator_navigate_through_poses_rclcpp_node",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/launch_ros_4535",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/ekf_filter_node",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/transform_listener_impl_5f8a1e348bd0",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/topic_analysis_discovery",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/oakd_top/oakd_color_compressed_republisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/rqt_gui_py_node_1352476",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/cup_ldlidar",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/joint_state_publisher",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/sigyn_notifier",
+          "qos": {
+            "depth": 1000,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 1,
+      "sample_duration_s": 8.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "rcl_interfaces/msg/Log"
+    },
+    "/scan": {
+      "avg_msg_size_bytes": 3672.7,
+      "bandwidth_bps": 289718.1,
+      "bandwidth_kbps": 289.72,
+      "delay_s": {
+        "max_s": 0.0998,
+        "mean_s": 0.0467,
+        "min_s": 0.0037,
+        "sample_count": 141,
+        "std_dev_s": 0.0295
+      },
+      "has_header": true,
+      "hz": {
+        "max": 11.655,
+        "mean": 9.791,
+        "min": 5.007,
+        "sample_count": 141,
+        "span_s": 14.299,
+        "std_dev": 0.807
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/scan_to_scan_filter_chain",
+          "qos": {
+            "depth": 1000,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 141,
+      "sample_duration_s": 5.0,
+      "subscribers": [
+        {
+          "node": "/amcl",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        },
+        {
+          "node": "/global_costmap/global_costmap",
+          "qos": {
+            "depth": 50,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/LaserScan"
+    },
+    "/scan_cup": {
+      "avg_msg_size_bytes": 3684.0,
+      "bandwidth_bps": 290589.3,
+      "bandwidth_kbps": 290.59,
+      "delay_s": {
+        "max_s": 0.1008,
+        "mean_s": 0.0601,
+        "min_s": 0.0032,
+        "sample_count": 141,
+        "std_dev_s": 0.0338
+      },
+      "has_header": true,
+      "hz": {
+        "max": 11.451,
+        "mean": 9.79,
+        "min": 5.007,
+        "sample_count": 141,
+        "span_s": 14.3,
+        "std_dev": 0.786
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/cup_ldlidar",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 141,
+      "sample_duration_s": 5.0,
+      "subscribers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 50,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/LaserScan"
+    },
+    "/set_pose": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/ekf_filter_node",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "geometry_msgs/msg/PoseWithCovarianceStamped"
+    },
+    "/sigyn/power/battery": {
+      "avg_msg_size_bytes": 77.0,
+      "bandwidth_bps": 659.1,
+      "bandwidth_kbps": 0.66,
+      "delay_s": {
+        "max_s": 0.0111,
+        "mean_s": 0.0028,
+        "min_s": 0.0013,
+        "sample_count": 15,
+        "std_dev_s": 0.0024
+      },
+      "has_header": true,
+      "hz": {
+        "max": 1.011,
+        "mean": 0.999,
+        "min": 0.98,
+        "sample_count": 15,
+        "span_s": 14.018,
+        "std_dev": 0.008
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 15,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/sigyn_notifier",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/BatteryState"
+    },
+    "/sigyn/power/rail": {
+      "avg_msg_size_bytes": 39.7,
+      "bandwidth_bps": 1018.3,
+      "bandwidth_kbps": 1.02,
+      "delay_s": {
+        "max_s": 0.0181,
+        "mean_s": 0.0058,
+        "min_s": 0.0017,
+        "sample_count": 45,
+        "std_dev_s": 0.0037
+      },
+      "has_header": true,
+      "hz": {
+        "max": 589.829,
+        "mean": 3.138,
+        "min": 0.984,
+        "sample_count": 45,
+        "span_s": 14.023,
+        "std_dev": 177.856
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 45,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "wr_interfaces/msg/PowerRailStatus"
+    },
+    "/sigyn/roboclaw/status": {
+      "avg_msg_size_bytes": 73.0,
+      "bandwidth_bps": 2959.9,
+      "bandwidth_kbps": 2.96,
+      "delay_s": {
+        "max_s": 0.0107,
+        "mean_s": 0.0025,
+        "min_s": 0.0013,
+        "sample_count": 73,
+        "std_dev_s": 0.0015
+      },
+      "has_header": true,
+      "hz": {
+        "max": 5.228,
+        "mean": 4.999,
+        "min": 4.781,
+        "sample_count": 73,
+        "span_s": 14.403,
+        "std_dev": 0.056
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 73,
+      "sample_duration_s": 8.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "wr_interfaces/msg/RoboClawStatus"
+    },
+    "/sigyn/safety/fault_events": {
+      "avg_msg_size_bytes": 66.9,
+      "bandwidth_bps": 1011.6,
+      "bandwidth_kbps": 1.01,
+      "delay_s": null,
+      "has_header": false,
+      "hz": {
+        "max": 10.127,
+        "mean": 1.718,
+        "min": 0.323,
+        "sample_count": 11,
+        "span_s": 5.82,
+        "std_dev": 4.161
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 50,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 11,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "wr_interfaces/msg/FaultEvent"
+    },
+    "/sigyn/safety/fault_list": {
+      "avg_msg_size_bytes": 26.4,
+      "bandwidth_bps": 2129.1,
+      "bandwidth_kbps": 2.13,
+      "delay_s": null,
+      "has_header": false,
+      "hz": {
+        "max": 11.681,
+        "mean": 10.001,
+        "min": 9.157,
+        "sample_count": 145,
+        "span_s": 14.399,
+        "std_dev": 0.278
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 145,
+      "sample_duration_s": 5.0,
+      "subscribers": [
+        {
+          "node": "/sigyn_notifier",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "wr_interfaces/msg/ActiveFaultList"
+    },
+    "/sigyn/safety/human_alert": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 20,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/sigyn_notifier",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "wr_interfaces/msg/HumanAlert"
+    },
+    "/sigyn/safety/state": {
+      "avg_msg_size_bytes": 28.0,
+      "bandwidth_bps": 2255.8,
+      "bandwidth_kbps": 2.26,
+      "delay_s": null,
+      "has_header": false,
+      "hz": {
+        "max": 11.68,
+        "mean": 10.001,
+        "min": 9.156,
+        "sample_count": 145,
+        "span_s": 14.399,
+        "std_dev": 0.278
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 145,
+      "sample_duration_s": 5.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "wr_interfaces/msg/SafetyState"
+    },
+    "/sigyn/sensors/imu_front_right": {
+      "avg_msg_size_bytes": 340.0,
+      "bandwidth_bps": 78929.3,
+      "bandwidth_kbps": 78.93,
+      "delay_s": {
+        "max_s": 0.015,
+        "mean_s": 0.0029,
+        "min_s": 0.0013,
+        "sample_count": 420,
+        "std_dev_s": 0.0023
+      },
+      "has_header": true,
+      "hz": {
+        "max": 52.255,
+        "mean": 28.949,
+        "min": 20.704,
+        "sample_count": 420,
+        "span_s": 14.474,
+        "std_dev": 4.011
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 420,
+      "sample_duration_s": 3.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/Imu"
+    },
+    "/sigyn/sensors/imu_rear_left": {
+      "avg_msg_size_bytes": 332.0,
+      "bandwidth_bps": 77072.3,
+      "bandwidth_kbps": 77.07,
+      "delay_s": {
+        "max_s": 0.018,
+        "mean_s": 0.0034,
+        "min_s": 0.0013,
+        "sample_count": 420,
+        "std_dev_s": 0.0024
+      },
+      "has_header": true,
+      "hz": {
+        "max": 62.314,
+        "mean": 28.949,
+        "min": 20.7,
+        "sample_count": 420,
+        "span_s": 14.474,
+        "std_dev": 4.294
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 420,
+      "sample_duration_s": 3.0,
+      "subscribers": [],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/Imu"
+    },
+    "/sigyn/sensors/odom": {
+      "avg_msg_size_bytes": 724.0,
+      "bandwidth_bps": 187320.8,
+      "bandwidth_kbps": 187.32,
+      "delay_s": {
+        "max_s": 0.0171,
+        "mean_s": 0.0028,
+        "min_s": 0.0013,
+        "sample_count": 468,
+        "std_dev_s": 0.0022
+      },
+      "has_header": true,
+      "hz": {
+        "max": 65.898,
+        "mean": 32.272,
+        "min": 21.126,
+        "sample_count": 468,
+        "span_s": 14.471,
+        "std_dev": 4.088
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 468,
+      "sample_duration_s": 3.0,
+      "subscribers": [
+        {
+          "node": "/ekf_filter_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "nav_msgs/msg/Odometry"
+    },
+    "/sigyn/sensors/range/front_left_fwd": {
+      "avg_msg_size_bytes": 60.0,
+      "bandwidth_bps": 12406.8,
+      "bandwidth_kbps": 12.41,
+      "delay_s": {
+        "max_s": 0.0182,
+        "mean_s": 0.0027,
+        "min_s": 0.0013,
+        "sample_count": 373,
+        "std_dev_s": 0.0021
+      },
+      "has_header": true,
+      "hz": {
+        "max": 181.347,
+        "mean": 25.778,
+        "min": 15.42,
+        "sample_count": 373,
+        "span_s": 14.431,
+        "std_dev": 13.117
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 373,
+      "sample_duration_s": 3.0,
+      "subscribers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        },
+        {
+          "node": "/rqt_gui_py_node_1352476",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/Range"
+    },
+    "/sigyn/sensors/range/front_left_side": {
+      "avg_msg_size_bytes": 64.0,
+      "bandwidth_bps": 12929.5,
+      "bandwidth_kbps": 12.93,
+      "delay_s": {
+        "max_s": 0.0154,
+        "mean_s": 0.0029,
+        "min_s": 0.0013,
+        "sample_count": 365,
+        "std_dev_s": 0.0022
+      },
+      "has_header": true,
+      "hz": {
+        "max": 100.115,
+        "mean": 25.184,
+        "min": 15.445,
+        "sample_count": 365,
+        "span_s": 14.454,
+        "std_dev": 9.043
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 365,
+      "sample_duration_s": 3.0,
+      "subscribers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/Range"
+    },
+    "/sigyn/sensors/range/front_right_fwd": {
+      "avg_msg_size_bytes": 64.0,
+      "bandwidth_bps": 13184.1,
+      "bandwidth_kbps": 13.18,
+      "delay_s": {
+        "max_s": 0.0134,
+        "mean_s": 0.0028,
+        "min_s": 0.0012,
+        "sample_count": 372,
+        "std_dev_s": 0.0021
+      },
+      "has_header": true,
+      "hz": {
+        "max": 84.967,
+        "mean": 25.681,
+        "min": 9.937,
+        "sample_count": 372,
+        "span_s": 14.447,
+        "std_dev": 10.353
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 372,
+      "sample_duration_s": 3.0,
+      "subscribers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/Range"
+    },
+    "/sigyn/sensors/range/front_right_side": {
+      "avg_msg_size_bytes": 64.0,
+      "bandwidth_bps": 13044.2,
+      "bandwidth_kbps": 13.04,
+      "delay_s": {
+        "max_s": 0.0154,
+        "mean_s": 0.0028,
+        "min_s": 0.0013,
+        "sample_count": 368,
+        "std_dev_s": 0.0023
+      },
+      "has_header": true,
+      "hz": {
+        "max": 80.173,
+        "mean": 25.408,
+        "min": 14.512,
+        "sample_count": 368,
+        "span_s": 14.444,
+        "std_dev": 9.661
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 368,
+      "sample_duration_s": 3.0,
+      "subscribers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/Range"
+    },
+    "/sigyn/sensors/range/rear_left_bkwd": {
+      "avg_msg_size_bytes": 60.0,
+      "bandwidth_bps": 12373.2,
+      "bandwidth_kbps": 12.37,
+      "delay_s": {
+        "max_s": 0.0168,
+        "mean_s": 0.0028,
+        "min_s": 0.0013,
+        "sample_count": 372,
+        "std_dev_s": 0.0022
+      },
+      "has_header": true,
+      "hz": {
+        "max": 39.714,
+        "mean": 25.708,
+        "min": 18.67,
+        "sample_count": 372,
+        "span_s": 14.431,
+        "std_dev": 2.619
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 372,
+      "sample_duration_s": 3.0,
+      "subscribers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/Range"
+    },
+    "/sigyn/sensors/range/rear_left_side": {
+      "avg_msg_size_bytes": 60.0,
+      "bandwidth_bps": 12240.5,
+      "bandwidth_kbps": 12.24,
+      "delay_s": {
+        "max_s": 0.0154,
+        "mean_s": 0.0029,
+        "min_s": 0.0012,
+        "sample_count": 368,
+        "std_dev_s": 0.0023
+      },
+      "has_header": true,
+      "hz": {
+        "max": 70.422,
+        "mean": 25.432,
+        "min": 15.156,
+        "sample_count": 368,
+        "span_s": 14.431,
+        "std_dev": 9.379
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 368,
+      "sample_duration_s": 3.0,
+      "subscribers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/Range"
+    },
+    "/sigyn/sensors/range/rear_right_bkwd": {
+      "avg_msg_size_bytes": 64.0,
+      "bandwidth_bps": 13098.3,
+      "bandwidth_kbps": 13.1,
+      "delay_s": {
+        "max_s": 0.0166,
+        "mean_s": 0.0028,
+        "min_s": 0.0012,
+        "sample_count": 369,
+        "std_dev_s": 0.0023
+      },
+      "has_header": true,
+      "hz": {
+        "max": 44.841,
+        "mean": 25.513,
+        "min": 17.924,
+        "sample_count": 369,
+        "span_s": 14.424,
+        "std_dev": 2.793
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 369,
+      "sample_duration_s": 3.0,
+      "subscribers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/Range"
+    },
+    "/sigyn/sensors/range/rear_right_side": {
+      "avg_msg_size_bytes": 64.0,
+      "bandwidth_bps": 12953.4,
+      "bandwidth_kbps": 12.95,
+      "delay_s": {
+        "max_s": 0.0149,
+        "mean_s": 0.0028,
+        "min_s": 0.0012,
+        "sample_count": 366,
+        "std_dev_s": 0.0022
+      },
+      "has_header": true,
+      "hz": {
+        "max": 37.569,
+        "mean": 25.23,
+        "min": 18.836,
+        "sample_count": 366,
+        "span_s": 14.467,
+        "std_dev": 2.339
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 366,
+      "sample_duration_s": 3.0,
+      "subscribers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "supports_delay": true,
+      "type": "sensor_msgs/msg/Range"
+    },
+    "/sigyn/stepper/status": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 5.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "wr_interfaces/msg/StepperStatus"
+    },
+    "/sigyn/take_oakd_picture": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "std_msgs/msg/Bool"
+    },
+    "/sigyn/teensy_bridge/battery/status": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/battery_overlay_publisher",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "sensor_msgs/msg/BatteryState"
+    },
+    "/smooth_path/_action/feedback": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/smoother_server",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav2_msgs/action/SmoothPath_FeedbackMessage"
+    },
+    "/smooth_path/_action/status": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/smoother_server",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "action_msgs/msg/GoalStatusArray"
+    },
+    "/smoother_server/transition_event": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/smoother_server",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "lifecycle_msgs/msg/TransitionEvent"
+    },
+    "/speed_limit": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/controller_server",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "nav2_msgs/msg/SpeedLimit"
+    },
+    "/spin/_action/feedback": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [
+        {
+          "node": "/bt_navigator_navigate_to_pose_rclcpp_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator_navigate_through_poses_rclcpp_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "nav2_msgs/action/Spin_FeedbackMessage"
+    },
+    "/spin/_action/status": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [
+        {
+          "node": "/bt_navigator_navigate_to_pose_rclcpp_node",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator_navigate_through_poses_rclcpp_node",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "action_msgs/msg/GoalStatusArray"
+    },
+    "/stereo/points2": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/pointcloud_to_laserscan_node",
+          "qos": {
+            "depth": 5,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 5.0,
+      "subscribers": [
+        {
+          "node": "/local_costmap/local_costmap",
+          "qos": {
+            "depth": 50,
+            "durability": "VOLATILE",
+            "reliability": "BEST_EFFORT"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "sensor_msgs/msg/LaserScan"
+    },
+    "/teensy_bridge/status": {
+      "avg_msg_size_bytes": 18.0,
+      "bandwidth_bps": 304.7,
+      "bandwidth_kbps": 0.3,
+      "delay_s": null,
+      "has_header": false,
+      "hz": {
+        "max": 5.809,
+        "mean": 2.045,
+        "min": 1.969,
+        "sample_count": 30,
+        "span_s": 14.178,
+        "std_dev": 0.708
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 30,
+      "sample_duration_s": 10.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "std_msgs/msg/String"
+    },
+    "/teensy_bridge/transition_event": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/teensy_bridge",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/launch_ros_4535",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "lifecycle_msgs/msg/TransitionEvent"
+    },
+    "/tf": {
+      "avg_msg_size_bytes": 576.9,
+      "bandwidth_bps": 600778.7,
+      "bandwidth_kbps": 600.78,
+      "delay_s": null,
+      "has_header": false,
+      "hz": {
+        "max": 415.698,
+        "mean": 130.116,
+        "min": 20.037,
+        "sample_count": 1880,
+        "span_s": 14.441,
+        "std_dev": 131.961
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/amcl",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/ekf_filter_node",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 1880,
+      "sample_duration_s": 3.0,
+      "subscribers": [
+        {
+          "node": "/transform_listener_impl_5e865b2ef690",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/amcl",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/transform_listener_impl_71275c008a00",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/smoother_server",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/transform_listener_impl_712754000fa0",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/transform_listener_impl_5f8a1e348bd0",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 100,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "tf2_msgs/msg/TFMessage"
+    },
+    "/tf_static": {
+      "avg_msg_size_bytes": 3937.3,
+      "bandwidth_bps": 2199773.3,
+      "bandwidth_kbps": 2199.77,
+      "delay_s": null,
+      "has_header": false,
+      "hz": {
+        "max": 270.127,
+        "mean": 58.198,
+        "min": 16.779,
+        "sample_count": 6,
+        "span_s": 0.086,
+        "std_dev": 115.181
+      },
+      "never_published": false,
+      "publishers": [
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/robot_state_publisher",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 6,
+      "sample_duration_s": 15.0,
+      "subscribers": [
+        {
+          "node": "/transform_listener_impl_5e865b2ef690",
+          "qos": {
+            "depth": 100,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/amcl",
+          "qos": {
+            "depth": 100,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/transform_listener_impl_71275c008a00",
+          "qos": {
+            "depth": 100,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/smoother_server",
+          "qos": {
+            "depth": 100,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/transform_listener_impl_712754000fa0",
+          "qos": {
+            "depth": 100,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 100,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator",
+          "qos": {
+            "depth": 100,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/transform_listener_impl_5f8a1e348bd0",
+          "qos": {
+            "depth": 100,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/oakd_detector",
+          "qos": {
+            "depth": 100,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "tf2_msgs/msg/TFMessage"
+    },
+    "/trajectories": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/controller_server",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 5.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "visualization_msgs/msg/MarkerArray"
+    },
+    "/transformed_global_plan": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/controller_server",
+          "qos": {
+            "depth": 1,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 5.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "nav_msgs/msg/Path"
+    },
+    "/velocity_smoother/transition_event": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/velocity_smoother",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "lifecycle_msgs/msg/TransitionEvent"
+    },
+    "/wait/_action/feedback": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [
+        {
+          "node": "/bt_navigator_navigate_to_pose_rclcpp_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator_navigate_through_poses_rclcpp_node",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "nav2_msgs/action/Wait_FeedbackMessage"
+    },
+    "/wait/_action/status": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/behavior_server",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 10.0,
+      "subscribers": [
+        {
+          "node": "/bt_navigator_navigate_to_pose_rclcpp_node",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        },
+        {
+          "node": "/bt_navigator_navigate_through_poses_rclcpp_node",
+          "qos": {
+            "depth": 1,
+            "durability": "TRANSIENT_LOCAL",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "supports_delay": false,
+      "type": "action_msgs/msg/GoalStatusArray"
+    },
+    "/waypoint_follower/transition_event": {
+      "has_header": false,
+      "never_published": true,
+      "publishers": [
+        {
+          "node": "/waypoint_follower",
+          "qos": {
+            "depth": 10,
+            "durability": "VOLATILE",
+            "reliability": "RELIABLE"
+          }
+        }
+      ],
+      "sample_count": 0,
+      "sample_duration_s": 15.0,
+      "subscribers": [],
+      "supports_delay": false,
+      "type": "lifecycle_msgs/msg/TransitionEvent"
+    }
+  }
+}

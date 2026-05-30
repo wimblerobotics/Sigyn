@@ -47,8 +47,8 @@ amcl: # See: https://assets.researchsquare.com/files/rs-225880/v1_covered.pdf?c=
     scan_topic: scan  # Use filtered scan topic (either top or cup lidar depending on do_top_lidar parameter)
     set_initial_pose: true # Causes AMCL to set initial pose from the initial_pose* parameters instead of waiting for the initial_pose message.
     initial_pose:
-      x: 9.531 #8.81
-      y: 2.075 #2.64
+      x: 8.38 # 9.531 #8.81
+      y: 2.17 # 2.075 #2.64
       yaw: 0.0
 
 bt_navigator:
@@ -113,8 +113,8 @@ controller_server:
       plugin: "nav2_rotation_shim_controller::RotationShimController"
       angular_dist_threshold: 0.785  # ~45 degrees: spin in place when heading error exceeds this
       forward_sampling_distance: 0.5
-      rotate_to_heading_angular_vel: 1.8
-      max_angular_accel: 3.2
+      rotate_to_heading_angular_vel: 0.8
+      max_angular_accel: 1.5
       simulate_ahead_time: 1.0
       primary_controller: "nav2_mppi_controller::MPPIController"
       time_steps: 56
@@ -155,7 +155,7 @@ controller_server:
       GoalAngleCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 3.0
+        cost_weight: 5.0
         threshold_to_consider: 0.5
       PreferForwardCritic:
         enabled: true
@@ -175,7 +175,7 @@ controller_server:
       PathAlignCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 14.0
+        cost_weight: 10.0
         max_path_occupancy_ratio: 0.05
         trajectory_point_step: 4
         threshold_to_consider: 0.5

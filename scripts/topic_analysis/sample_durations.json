@@ -1,0 +1,1304 @@
+{
+  "/amcl/transition_event": {
+    "expected_hz": 0.1,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Lifecycle transition; fires only at startup/shutdown",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/amcl_pose": {
+    "expected_hz": 2.0,
+    "has_header": true,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Published when robot moves enough to trigger an AMCL update",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/assisted_teleop/_action/feedback": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/assisted_teleop/_action/status": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/backup/_action/feedback": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/backup/_action/status": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/battery_overlay_text": {
+    "expected_hz": 1.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/behavior_server/transition_event": {
+    "expected_hz": 0.1,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Lifecycle transition only",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/behavior_tree_log": {
+    "expected_hz": 100.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Fires at BT tick rate (100 Hz) while navigator is active",
+    "sample_duration_s": 3.0,
+    "supports_delay": false
+  },
+  "/bond": {
+    "expected_hz": 2.0,
+    "has_header": true,
+    "last_measured_hz": 179.24,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 3.0,
+    "supports_delay": false
+  },
+  "/bt_navigator/transition_event": {
+    "expected_hz": 0.1,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/clicked_point": {
+    "expected_hz": 0.0,
+    "has_header": true,
+    "notes": "Event-driven from RViz2 user interaction",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/clock": {
+    "expected_hz": 100.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "High-rate; short sample sufficient",
+    "sample_duration_s": 3.0,
+    "supports_delay": false
+  },
+  "/cmd_vel": {
+    "expected_hz": 20.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Final velocity output after mux+safety; 20 Hz when navigating",
+    "sample_duration_s": 5.0,
+    "supports_delay": false
+  },
+  "/cmd_vel_gripper": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/cmd_vel_joystick": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/cmd_vel_keyboard": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/cmd_vel_nav": {
+    "expected_hz": 20.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Controller server output before mux; 20 Hz when navigating",
+    "sample_duration_s": 5.0,
+    "supports_delay": false
+  },
+  "/cmd_vel_smoothed": {
+    "expected_hz": 20.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 5.0,
+    "supports_delay": false
+  },
+  "/cmd_vel_teleop": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/compute_path_through_poses/_action/feedback": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/compute_path_through_poses/_action/status": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/compute_path_to_pose/_action/feedback": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/compute_path_to_pose/_action/status": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/controller_selector": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/controller_server/transition_event": {
+    "expected_hz": 0.1,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/diagnostics": {
+    "expected_hz": 1.0,
+    "has_header": true,
+    "last_measured_hz": 22.37,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 5.0,
+    "supports_delay": true
+  },
+  "/drive_on_heading/_action/feedback": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/drive_on_heading/_action/status": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/follow_gps_waypoints/_action/feedback": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/follow_gps_waypoints/_action/status": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/follow_path/_action/feedback": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/follow_path/_action/status": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/follow_waypoints/_action/feedback": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/follow_waypoints/_action/status": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/global_costmap/costmap": {
+    "expected_hz": 1.0,
+    "has_header": true,
+    "last_measured_hz": 0.953,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Full OccupancyGrid; large message published at publish_frequency=1 Hz",
+    "sample_duration_s": 15.0,
+    "supports_delay": true
+  },
+  "/global_costmap/costmap_raw": {
+    "expected_hz": 1.0,
+    "has_header": true,
+    "last_measured_hz": 0.953,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": true
+  },
+  "/global_costmap/costmap_raw_updates": {
+    "expected_hz": 5.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Incremental updates at update_frequency=5 Hz; much smaller than full costmap",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/global_costmap/costmap_updates": {
+    "expected_hz": 5.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/global_costmap/footprint": {
+    "expected_hz": 5.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/global_costmap/global_costmap/transition_event": {
+    "expected_hz": 0.1,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/global_costmap/obstacle_layer": {
+    "expected_hz": 1.0,
+    "has_header": true,
+    "last_measured_hz": 0.923,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": true
+  },
+  "/global_costmap/obstacle_layer_raw": {
+    "expected_hz": 1.0,
+    "has_header": true,
+    "last_measured_hz": 0.923,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": true
+  },
+  "/global_costmap/obstacle_layer_raw_updates": {
+    "expected_hz": 5.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/global_costmap/obstacle_layer_updates": {
+    "expected_hz": 5.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/global_costmap/published_footprint": {
+    "expected_hz": 5.0,
+    "has_header": true,
+    "last_measured_hz": 5.002,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/global_costmap/static_layer": {
+    "expected_hz": 0.1,
+    "has_header": true,
+    "last_measured_hz": 0.923,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Published once when map loads then again on map updates",
+    "sample_duration_s": 15.0,
+    "supports_delay": true
+  },
+  "/global_costmap/static_layer_raw": {
+    "expected_hz": 0.1,
+    "has_header": true,
+    "last_measured_hz": 0.923,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": true
+  },
+  "/global_costmap/static_layer_raw_updates": {
+    "expected_hz": 0.5,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/global_costmap/static_layer_updates": {
+    "expected_hz": 0.5,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/goal_pose": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Event-driven from RViz2 Nav2 goal or programmatic goal",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/gripper/home": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/gripper/move_elevator/_action/feedback": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/gripper/move_elevator/_action/status": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/gripper/move_extender/_action/feedback": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/gripper/move_extender/_action/status": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/gripper/position/command": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/gripper/status": {
+    "expected_hz": 10.0,
+    "has_header": true,
+    "last_measured_hz": 10.0,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Firmware sends GRIP3: at 10 Hz; published by TopicPublisher",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/initialpose": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Event-driven from RViz2 or programmatic reset",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/joint_states": {
+    "expected_hz": 10.0,
+    "has_header": true,
+    "last_measured_hz": 69.865,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 3.0,
+    "supports_delay": true
+  },
+  "/local_costmap/clearing_endpoints": {
+    "expected_hz": 15.0,
+    "has_header": true,
+    "last_measured_hz": 15.004,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 5.0,
+    "supports_delay": true
+  },
+  "/local_costmap/costmap": {
+    "expected_hz": 5.0,
+    "has_header": true,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Full OccupancyGrid at publish_frequency=5 Hz; large message",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/local_costmap/costmap_raw": {
+    "expected_hz": 5.0,
+    "has_header": true,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/local_costmap/costmap_raw_updates": {
+    "expected_hz": 15.0,
+    "has_header": true,
+    "last_measured_hz": 4.159,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Incremental updates at update_frequency=15 Hz; much smaller",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/local_costmap/costmap_updates": {
+    "expected_hz": 15.0,
+    "has_header": true,
+    "last_measured_hz": 4.099,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/local_costmap/footprint": {
+    "expected_hz": 5.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/local_costmap/local_costmap/transition_event": {
+    "expected_hz": 0.1,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/local_costmap/oakd_top_layer": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Currently disabled in navigation.yaml (oakd_top_layer.enabled=False)",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/local_costmap/oakd_top_layer_raw": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/local_costmap/oakd_top_layer_raw_updates": {
+    "expected_hz": 0.0,
+    "has_header": true,
+    "last_measured_hz": 4.099,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/local_costmap/oakd_top_layer_updates": {
+    "expected_hz": 0.0,
+    "has_header": true,
+    "last_measured_hz": 4.099,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/local_costmap/published_footprint": {
+    "expected_hz": 5.0,
+    "has_header": true,
+    "last_measured_hz": 15.005,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 5.0,
+    "supports_delay": true
+  },
+  "/local_costmap/range_sensor_layer": {
+    "expected_hz": 5.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/local_costmap/range_sensor_layer_raw": {
+    "expected_hz": 5.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/local_costmap/range_sensor_layer_raw_updates": {
+    "expected_hz": 15.0,
+    "has_header": true,
+    "last_measured_hz": 4.099,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/local_costmap/range_sensor_layer_updates": {
+    "expected_hz": 15.0,
+    "has_header": true,
+    "last_measured_hz": 4.099,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/local_costmap/voxel_layer": {
+    "expected_hz": 5.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/local_costmap/voxel_layer_raw": {
+    "expected_hz": 5.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/local_costmap/voxel_layer_raw_updates": {
+    "expected_hz": 15.0,
+    "has_header": true,
+    "last_measured_hz": 4.099,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/local_costmap/voxel_layer_updates": {
+    "expected_hz": 15.0,
+    "has_header": true,
+    "last_measured_hz": 4.099,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/map": {
+    "expected_hz": 0.1,
+    "has_header": true,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "TRANSIENT_LOCAL; published once at startup; very large message",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/map_server/transition_event": {
+    "expected_hz": 0.1,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/map_updates": {
+    "expected_hz": 0.0,
+    "has_header": true,
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/navigate_through_poses/_action/feedback": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/navigate_through_poses/_action/status": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/navigate_to_pose/_action/feedback": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/navigate_to_pose/_action/status": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/oakd/annotated_image": {
+    "expected_hz": 15.0,
+    "has_header": true,
+    "last_measured_hz": 7.922,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Raw annotated image; large",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/oakd/annotated_image/compressed": {
+    "expected_hz": 15.0,
+    "has_header": true,
+    "last_measured_hz": 7.93,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/oakd/can_detections": {
+    "expected_hz": 5.0,
+    "has_header": true,
+    "last_measured_hz": 7.931,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/oakd/object_detector_heartbeat": {
+    "expected_hz": 1.0,
+    "has_header": true,
+    "last_measured_hz": 7.931,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/oakd_top/camera_info": {
+    "expected_hz": 15.0,
+    "has_header": true,
+    "last_measured_hz": 7.999,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/oakd_top/can_point_base": {
+    "expected_hz": 5.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/oakd_top/can_point_camera": {
+    "expected_hz": 5.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/oakd_top/can_point_raw": {
+    "expected_hz": 5.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/oakd_top/color/image/compressed": {
+    "expected_hz": 15.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 3.0,
+    "supports_delay": false
+  },
+  "/oakd_top/depth_image": {
+    "expected_hz": 15.0,
+    "has_header": true,
+    "last_measured_hz": 1.597,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/oakd_top/depth_raw": {
+    "expected_hz": 15.0,
+    "has_header": true,
+    "last_measured_hz": 7.721,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/oakd_top/depth_sample_base": {
+    "expected_hz": 5.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/oakd_top/depth_sample_camera": {
+    "expected_hz": 5.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/oakd_top/out": {
+    "expected_hz": 15.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 3.0,
+    "supports_delay": false
+  },
+  "/oakd_top/out/compressedDepth": {
+    "expected_hz": 15.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 3.0,
+    "supports_delay": false
+  },
+  "/oakd_top/out/theora": {
+    "expected_hz": 15.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 3.0,
+    "supports_delay": false
+  },
+  "/oakd_top/out/zstd": {
+    "expected_hz": 15.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 3.0,
+    "supports_delay": false
+  },
+  "/oakd_top/points": {
+    "expected_hz": 10.0,
+    "has_header": true,
+    "last_measured_hz": 7.373,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Dense point cloud; potentially very large message",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/oakd_top/rgb_preview": {
+    "expected_hz": 15.0,
+    "has_header": true,
+    "last_measured_hz": 7.991,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/odom": {
+    "expected_hz": 50.0,
+    "has_header": true,
+    "last_measured_hz": 32.294,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "EKF-fused odometry from robot_localization; 50 Hz",
+    "sample_duration_s": 5.0,
+    "supports_delay": true
+  },
+  "/optimal_trajectory": {
+    "expected_hz": 20.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "MPPI best trajectory visualisation",
+    "sample_duration_s": 5.0,
+    "supports_delay": false
+  },
+  "/parameter_events": {
+    "expected_hz": 0.1,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Fired only when parameters change",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/particle_cloud": {
+    "expected_hz": 2.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "AMCL particle cloud; published at AMCL update rate when moving",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/plan": {
+    "expected_hz": 0.5,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Event-driven; published when a new plan is computed",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/plan_smoothed": {
+    "expected_hz": 0.5,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/planner_selector": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/planner_server/transition_event": {
+    "expected_hz": 0.1,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/preempt_teleop": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/raw_scan": {
+    "expected_hz": 10.0,
+    "has_header": true,
+    "last_measured_hz": 9.792,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Raw LD14P lidar output before any filtering",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/robot_description": {
+    "expected_hz": 0.1,
+    "has_header": false,
+    "last_measured_hz": 61.416,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "TRANSIENT_LOCAL; published once at startup",
+    "sample_duration_s": 3.0,
+    "supports_delay": false
+  },
+  "/rosout": {
+    "expected_hz": 5.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/scan": {
+    "expected_hz": 10.0,
+    "has_header": true,
+    "last_measured_hz": 9.791,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Filtered upper lidar; used by AMCL and global costmap obstacle layer",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/scan_cup": {
+    "expected_hz": 10.0,
+    "has_header": true,
+    "last_measured_hz": 9.79,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Lower cup lidar at ~30cm; used by local costmap voxel layer",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/set_pose": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/sigyn/power/battery": {
+    "expected_hz": 1.0,
+    "has_header": true,
+    "last_measured_hz": 0.999,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "BatteryState from Teensy Board 2; ~1 Hz",
+    "sample_duration_s": 15.0,
+    "supports_delay": true
+  },
+  "/sigyn/power/rail": {
+    "expected_hz": 1.0,
+    "has_header": true,
+    "last_measured_hz": 3.138,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/sigyn/roboclaw/status": {
+    "expected_hz": 5.0,
+    "has_header": true,
+    "last_measured_hz": 4.999,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "RoboClaw motor controller status; 5 Hz per implementation notes",
+    "sample_duration_s": 8.0,
+    "supports_delay": true
+  },
+  "/sigyn/safety/fault_events": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": 1.718,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Event-driven; only published when a new fault is detected",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/sigyn/safety/fault_list": {
+    "expected_hz": 10.0,
+    "has_header": false,
+    "last_measured_hz": 10.001,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Active fault list; published at safety coordinator rate \u226510 Hz",
+    "sample_duration_s": 5.0,
+    "supports_delay": false
+  },
+  "/sigyn/safety/human_alert": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Event-driven; published when human notification is needed",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/sigyn/safety/state": {
+    "expected_hz": 10.0,
+    "has_header": false,
+    "last_measured_hz": 10.001,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Aggregated safety state (NORMAL/DEGRADED/CRITICAL/ESTOP); \u226510 Hz",
+    "sample_duration_s": 5.0,
+    "supports_delay": false
+  },
+  "/sigyn/sensors/imu_front_right": {
+    "expected_hz": 100.0,
+    "has_header": true,
+    "last_measured_hz": 28.949,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "BNO055 IMU on Board 2; 100 Hz per spec",
+    "sample_duration_s": 5.0,
+    "supports_delay": true
+  },
+  "/sigyn/sensors/imu_rear_left": {
+    "expected_hz": 100.0,
+    "has_header": true,
+    "last_measured_hz": 28.949,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 5.0,
+    "supports_delay": true
+  },
+  "/sigyn/sensors/odom": {
+    "expected_hz": 50.0,
+    "has_header": true,
+    "last_measured_hz": 32.272,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Raw wheel encoder odometry from RoboClaw; 50 Hz per spec",
+    "sample_duration_s": 5.0,
+    "supports_delay": true
+  },
+  "/sigyn/sensors/range/front_left_fwd": {
+    "expected_hz": 50.0,
+    "has_header": true,
+    "last_measured_hz": 25.778,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "VL53L0X ToF range sensor; polled at Teensy loop rate ~50 Hz",
+    "sample_duration_s": 5.0,
+    "supports_delay": true
+  },
+  "/sigyn/sensors/range/front_left_side": {
+    "expected_hz": 50.0,
+    "has_header": true,
+    "last_measured_hz": 25.184,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 5.0,
+    "supports_delay": true
+  },
+  "/sigyn/sensors/range/front_right_fwd": {
+    "expected_hz": 50.0,
+    "has_header": true,
+    "last_measured_hz": 25.681,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 5.0,
+    "supports_delay": true
+  },
+  "/sigyn/sensors/range/front_right_side": {
+    "expected_hz": 50.0,
+    "has_header": true,
+    "last_measured_hz": 25.408,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 5.0,
+    "supports_delay": true
+  },
+  "/sigyn/sensors/range/rear_left_bkwd": {
+    "expected_hz": 50.0,
+    "has_header": true,
+    "last_measured_hz": 25.708,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 5.0,
+    "supports_delay": true
+  },
+  "/sigyn/sensors/range/rear_left_side": {
+    "expected_hz": 50.0,
+    "has_header": true,
+    "last_measured_hz": 25.432,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 5.0,
+    "supports_delay": true
+  },
+  "/sigyn/sensors/range/rear_right_bkwd": {
+    "expected_hz": 50.0,
+    "has_header": true,
+    "last_measured_hz": 25.513,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 5.0,
+    "supports_delay": true
+  },
+  "/sigyn/sensors/range/rear_right_side": {
+    "expected_hz": 50.0,
+    "has_header": true,
+    "last_measured_hz": 25.23,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 5.0,
+    "supports_delay": true
+  },
+  "/sigyn/stepper/status": {
+    "expected_hz": 10.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Elevator/extender stepper status from Board 3; 10 Hz",
+    "sample_duration_s": 5.0,
+    "supports_delay": false
+  },
+  "/sigyn/take_oakd_picture": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/sigyn/teensy_bridge/battery/status": {
+    "expected_hz": 0.5,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/smooth_path/_action/feedback": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/smooth_path/_action/status": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/smoother_server/transition_event": {
+    "expected_hz": 0.1,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/speed_limit": {
+    "expected_hz": 0.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Published by speed restriction costmap filter; event-driven",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/spin/_action/feedback": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/spin/_action/status": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/stereo/points2": {
+    "expected_hz": 10.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "OAK-D stereo point cloud; potentially very large message",
+    "sample_duration_s": 5.0,
+    "supports_delay": false
+  },
+  "/teensy_bridge/status": {
+    "expected_hz": 2.0,
+    "has_header": false,
+    "last_measured_hz": 2.045,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Status string published every 500 ms by teensy_bridge node",
+    "sample_duration_s": 8.0,
+    "supports_delay": false
+  },
+  "/teensy_bridge/transition_event": {
+    "expected_hz": 0.1,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/tf": {
+    "expected_hz": 100.0,
+    "has_header": false,
+    "last_measured_hz": 130.116,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "High-rate TF2 transforms; many publishers, very high aggregate rate",
+    "sample_duration_s": 3.0,
+    "supports_delay": false
+  },
+  "/tf_static": {
+    "expected_hz": 0.1,
+    "has_header": false,
+    "last_measured_hz": 58.198,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "TRANSIENT_LOCAL; published once at startup for fixed frames",
+    "sample_duration_s": 3.0,
+    "supports_delay": false
+  },
+  "/trajectories": {
+    "expected_hz": 20.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "MPPI candidate trajectories visualisation; high bandwidth",
+    "sample_duration_s": 5.0,
+    "supports_delay": false
+  },
+  "/transformed_global_plan": {
+    "expected_hz": 20.0,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "notes": "Global plan transformed into local frame for controller",
+    "sample_duration_s": 5.0,
+    "supports_delay": false
+  },
+  "/velocity_smoother/transition_event": {
+    "expected_hz": 0.1,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/wait/_action/feedback": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/wait/_action/status": {
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 10.0,
+    "supports_delay": false
+  },
+  "/waypoint_follower/transition_event": {
+    "expected_hz": 0.1,
+    "has_header": false,
+    "last_measured_hz": null,
+    "last_run": "2026-04-21T19:26:19.502180+00:00",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "/waypoints": {
+    "expected_hz": 0.0,
+    "has_header": true,
+    "notes": "Event-driven; published when new waypoint list is set",
+    "sample_duration_s": 15.0,
+    "supports_delay": false
+  },
+  "_comment": [
+    "Per-topic sampling configuration for gather.py.",
+    "Fields:",
+    "  sample_duration_s  \u2013 how long to sample this topic (updated by gather.py after each run)",
+    "  expected_hz        \u2013 expected publish rate (Hz); used by report.py health column",
+    "  has_header         \u2013 true if msg has std_msgs/Header with stamp (updated by gather.py)",
+    "  supports_delay     \u2013 true if delay was successfully measured (updated by gather.py)",
+    "  last_measured_hz   \u2013 measured rate from last gather run (written by gather.py)",
+    "  last_run           \u2013 ISO timestamp of last gather run (written by gather.py)",
+    "  notes              \u2013 optional human notes, never overwritten by gather.py"
+  ]
+}
