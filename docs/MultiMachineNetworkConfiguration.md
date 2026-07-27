@@ -11,19 +11,22 @@ are comfortable with Linux but may not have deep networking experience.
 ```
 Internet
    │
-192.168.12.1  ← Google Nest mesh router (primary) + 4 x mesh repeaters
+Google Nest mesh router (primary) + 4 x mesh repeaters
    │
-   ├── wired Ethernet
-   │      └── amdc  (192.168.12.140)   AMD Ryzen 9 7900X development desktop
+   ├── Subnet 192.168.86.0/24 (gateway 192.168.86.1)
+   │      ├── amdc  (192.168.86.28)   AMD Ryzen 9 7900X development desktop (wired)
+   │      ├── MiniMe4 (192.168.86.35) Development/test system
+   │      └── sigyn7900a  (192.168.86.109)   Robot main computer — AMD Ryzen 9 7900X (Wi-Fi)
    │
-   └── Wi-Fi 802.11ax (Wi-Fi 6), 5 GHz band
-          ├── sigyn7900a  (192.168.12.210)   Robot main computer — AMD Ryzen 9 7900X
-          └── sigynVision (192.168.12.120)   Robot vision processor — Raspberry Pi 5
+   └── Subnet 192.168.12.0/24 (gateway 192.168.12.1)
+          ├── sigynVision (192.168.12.120)   Robot vision processor — Raspberry Pi 5 (Wi-Fi)
+          └── sigynNvidia1 (192.168.12.219)  Jetson Orin Nano dev board (Wi-Fi)
 ```
 
-All three machines share the `192.168.12.0/24` subnet, served by the Google Nest mesh at
-gateway `192.168.12.1`. There is no NAT between them — they communicate directly at LAN
-speeds.
+The network uses two subnets, both served by the Google Nest mesh. Machines can communicate
+across subnets through the router. The development desktop (amdc) uses wired Ethernet for
+reliability and maximum throughput, while the main robot computer (sigyn7900a) and auxiliary
+robot processors use Wi-Fi for mobility.
 
 ---
 
@@ -52,9 +55,9 @@ Each machine carries an identical `/etc/hosts` file covering all robot computers
 127.0.0.1       localhost
 127.0.1.1       <this-machine-hostname>
 
-192.168.12.136  MiniMe4     MiniMe4    # development/test system
-192.168.12.140  amdc        amdc       # AMD Ryzen 9 7900X desktop
-192.168.12.210  sigyn7900a  SR         # Robot main computer
+192.168.86.35   MiniMe4     MiniMe4    # development/test system
+192.168.86.28   amdc        amdc       # AMD Ryzen 9 7900X desktop
+192.168.86.109  sigyn7900a  SR         # Robot main computer
 192.168.12.120  sigynVision SV         # Robot vision processor (RPi 5)
 192.168.12.219  sigynNvidia1 SN1       # Jetson Orin Nano dev board
 ```
@@ -71,8 +74,8 @@ computer, add its entry to **all** machines' `/etc/hosts`.
 | Property | Value |
 |---|---|
 | Interface | `wlp9s0` (now **wired** via Ethernet) |
-| IP | `192.168.12.140/24` |
-| Gateway | `192.168.12.1` |
+| IP | `192.168.86.28/24` |
+| Gateway | `192.168.86.1` |
 | Method | Static (`ipv4.method = manual`) |
 | Role | iperf3 server, ROS 2 visualization, bag recording |
 
@@ -86,15 +89,20 @@ See §7 for why this matters.
 |---|---|
 | Interface | `wlp8s0` |
 | Wi-Fi chip | MediaTek MT7922 (PCIe, `mt7921e` driver) |
-| IP | `192.168.12.210/24` |
-| Gateway | `192.168.12.1` |
+| IP | `192.168.86.109/24` |
+| Gateway | `192.168.86.1` |
 | Band | 5 GHz only (`802-11-wireless.band = a`) |
 | Channel | Any (`802-11-wireless.channel = 0`) |
-| Powersave | Disabled (`802-11-wireless.powersave = 2`) |
-| PMF | Optional on WPA2 mesh profiles (`802-11-wireless-security.pmf = 2`) |
-| MAC randomization | Off (`mac-address-randomization = never`) |
+| Powersave | Disabled |
+| PMF | Optional on the production mesh profile |
+| MAC randomization | Off |
 | Background scan | `bgscan="simple:30:-65:8"` applied on reconnect via NM dispatcher |
-| Route metric | 50 (lowest = preferred default route) |
+| Route metric | 50 |
+| Method | Static (`ipv4.method = manual`) |
+| Role | Robot main computer, ROS2 navigation, control |
+
+`sigyn7900a` is the main robot computer and requires Wi-Fi for mobility. It uses the MediaTek
+MT7922 PCIe Wi-Fi adapter with ASPM disabled (see §5.2) for stable connectivity.
 
 ### 4.3 `sigynVision` — Robot Vision Processor (Wi-Fi)
 
@@ -345,6 +353,16 @@ When adding a computer to the fleet:
 
 1. **Set a static IP** in the NetworkManager profile:
    ```bash
+   # For machines on 192.168.86.x subnet (wired Ethernet):
+   nmcli con modify <profile-name> \
+     ipv4.method manual \
+     ipv4.addresses <NEW_IP>/24 \
+     ipv4.gateway 192.168.86.1 \
+     ipv4.dns "8.8.8.8 8.8.4.4" \
+     ipv4.route-metric 50 \
+     ipv4.never-default no
+   
+   # For machines on 192.168.12.x subnet (Wi-Fi):
    nmcli con modify <profile-name> \
      ipv4.method manual \
      ipv4.addresses <NEW_IP>/24 \
@@ -423,7 +441,222 @@ nmcli -f ACTIVE,BSSID,SSID,FREQ,SIGNAL,RATE dev wifi   # current AP
 
 ---
 
-## 10. Quick Reference
+## 10. DDS Configuration for Large Messages Over WiFi
+
+ROS 2 uses DDS (specifically CycloneDDS in this setup) for inter-machine communication via
+UDP. Small messages like LaserScans (~few KB) work reliably across WiFi, but large messages
+like camera images (100s of KB to MBs) fail with `ddsi_udp_conn_write` errors when DDS tries
+to fragment them into oversized UDP packets.
+
+### 10.1 The Problem
+
+**Symptom:** Nodes publishing large topics (camera images, point clouds) work fine locally
+(`ros2 topic hz` succeeds on the publisher machine) but remote machines see nothing. The
+publisher logs show:
+
+```
+ddsi_udp_conn_write to udp/192.168.86.28:7411 failed with retcode -58
+```
+
+Error code **-58** is `ESHUTDOWN` — the transport layer cannot send the fragmented message.
+
+**Why this happens:**
+
+1. A compressed camera image is typically 200–500 KB
+2. DDS by default tries to send this as UDP fragments of 1400+ bytes
+3. WiFi mesh networks have unpredictable MTU paths and drop large fragment chains
+4. UDP has no retransmission, so packet loss kills the entire message
+5. After repeated failures, the transport shuts down the send queue
+
+Small messages like LaserScans (~2–4 KB) fit in a single UDP packet and work fine.
+
+### 10.2 The Solution: CycloneDDS Configuration
+
+The fleet uses a system-wide `/etc/cyclonedds.xml` config file on **all machines** that limits
+fragment size for WiFi mesh reliability. This forces DDS to use many small UDP packets instead
+of large fragmented ones that fail over wireless networks.
+
+#### Step 1: Create or update the system config file
+
+On **each machine** (`sigyn7900a`, `amdc`, `sigynVision`, etc.):
+
+**For WiFi machines** (sigyn7900a, sigynVision):
+
+```bash
+sudo tee /etc/cyclonedds.xml > /dev/null << 'EOF'
+<?xml version="1.0" encoding="UTF-8" ?>
+<CycloneDDS>
+  <Domain>
+    <General>
+      <Interfaces>
+        <NetworkInterface name="wlp8s0" />
+      </Interfaces>
+      <!-- Small fragments for WiFi mesh reliability -->
+      <MaxMessageSize>4MB</MaxMessageSize>
+      <FragmentSize>1200B</FragmentSize>
+    </General>
+    <Discovery>
+      <ParticipantIndex>auto</ParticipantIndex>
+      <Peers>
+        <Peer Address="192.168.12.120"/>
+        <Peer Address="192.168.12.219"/>
+        <Peer Address="192.168.86.109"/>
+        <Peer Address="192.168.86.28"/>
+        <Peer Address="192.168.86.35"/>
+        <Peer Address="192.168.86.65"/>
+      </Peers>
+    </Discovery>
+  </Domain>
+</CycloneDDS>
+EOF
+```
+
+**For wired machines** (amdc):
+
+```bash
+sudo tee /etc/cyclonedds.xml > /dev/null << 'EOF'
+<?xml version="1.0" encoding="UTF-8" ?>
+<CycloneDDS>
+  <Domain>
+    <General>
+      <Interfaces>
+        <NetworkInterface name="eno1" />
+      </Interfaces>
+      <!-- Small fragments for WiFi mesh reliability -->
+      <MaxMessageSize>4MB</MaxMessageSize>
+      <FragmentSize>1200B</FragmentSize>
+    </General>
+    <Discovery>
+      <ParticipantIndex>auto</ParticipantIndex>
+      <Peers>
+        <Peer Address="192.168.12.120"/>
+        <Peer Address="192.168.12.219"/>
+        <Peer Address="192.168.86.109"/>
+        <Peer Address="192.168.86.28"/>
+        <Peer Address="192.168.86.35"/>
+        <Peer Address="192.168.86.65"/>
+      </Peers>
+    </Discovery>
+  </Domain>
+</CycloneDDS>
+EOF
+```
+
+**Key parameters:**
+
+- `NetworkInterface`: Specifies the interface to use (`wlp8s0` for WiFi, `eno1` for Ethernet)
+- `MaxMessageSize`: 4 MB — allows large messages like uncompressed images
+- `FragmentSize`: **1200 B** — ensures fragments fit within WiFi MTU with overhead. **This is
+  critical.** Do NOT use large values like 63000B - they will fail over WiFi mesh.
+- `Peers`: Static peer list ensures discovery works across subnets and reduces discovery latency
+
+#### Step 2: Set the environment variable
+
+Add to `~/.bashrc` on **all machines**:
+
+```bash
+export CYCLONEDDS_URI=file:///etc/cyclonedds.xml
+```
+
+Then reload:
+
+```bash
+source ~/.bashrc
+```
+
+**Critical:** Both publisher and subscriber machines must use this config with **1200B
+fragments**. If only one side has it, or if one side uses large fragments (e.g., 63000B),
+messages will still fail over WiFi.
+
+#### Step 3: Increase system UDP buffer sizes
+
+On **all machines**, increase kernel UDP buffer limits:
+
+```bash
+sudo sysctl -w net.core.rmem_max=8388608
+sudo sysctl -w net.core.wmem_max=8388608
+sudo sysctl -w net.core.rmem_default=2097152
+sudo sysctl -w net.core.wmem_default=2097152
+```
+
+Make permanent by adding to `/etc/sysctl.conf`:
+
+```bash
+echo "net.core.rmem_max=8388608" | sudo tee -a /etc/sysctl.conf
+echo "net.core.wmem_max=8388608" | sudo tee -a /etc/sysctl.conf
+```
+
+### 10.3 Verification
+
+After applying the config:
+
+1. **Verify the config loads:**
+
+   Launch a ROS 2 node and check for config messages in the output. You should see:
+   ```
+   config: //CycloneDDS/Domain/General/MaxMessageSize/#text: 4096 B
+   config: //CycloneDDS/Domain/General/FragmentSize/#text: 1200 B
+   ```
+
+   If you don't see config messages, the `CYCLONEDDS_URI` environment variable is not set.
+   Check with:
+   ```bash
+   echo $CYCLONEDDS_URI
+   ```
+
+2. **Test large message transmission:**
+
+   On publisher machine (e.g., `sigyn7900a`):
+   ```bash
+   ros2 launch sigyn_oakd_detection oakd_apriltag.launch.py
+   ```
+
+   On subscriber machine (e.g., `amdc`):
+   ```bash
+   ros2 topic hz /oakd_apriltag_node/annotated_image
+   ```
+
+   You should now see message rates (e.g., `average rate: 10.000`).
+
+3. **Check for transport errors:**
+
+   In the publisher terminal, verify there are **no** `ddsi_udp_conn_write` errors in the logs.
+
+### 10.4 When to Use Image Transport Compression
+
+Even with proper DDS fragmentation, raw uncompressed images are wasteful over WiFi. The OAK-D
+node already publishes compressed images, which is correct. If you're writing a custom camera
+node, always publish compressed formats when operating over a wireless network:
+
+- Use `sensor_msgs/CompressedImage` for RGB
+- Use `sensor_msgs/PointCloud2` with compression for depth/point clouds
+- Consider reducing resolution/framerate for non-critical camera streams
+
+### 10.5 Troubleshooting
+
+**Problem:** Messages work locally but not remotely, even with config applied.
+
+**Checks:**
+
+1. Verify config loads on **both** machines (check for config warnings in launch output)
+2. Verify `$CYCLONEDDS_URI` is set in the shell that launches the node:
+   ```bash
+   echo $CYCLONEDDS_URI
+   ```
+3. If using `systemd` services, ensure the environment variable is set in the service file
+4. Check firewall rules allow UDP traffic between machines
+5. Verify basic connectivity with `ping` and `iperf3`
+
+**Problem:** Config warnings show deprecated elements.
+
+**Solution:** Ensure you specify units (`B`, `KB`, `MB`) for all size parameters in the XML.
+The examples above use proper units.
+
+---
+
+## 11. Quick Reference
+
+### For Wi-Fi Machines (wlp8s0 or similar)
 
 ```bash
 # Check current Wi-Fi link quality
@@ -436,7 +669,7 @@ nmcli dev wifi list ifname wlp8s0
 nmcli con show --active
 
 # Force reconnect (picks up any profile changes)
-nmcli con up livingroom
+nmcli con up <profile-name>
 
 # Verify bgscan and legacy roam-agent state
 sudo wpa_cli -i wlp8s0 get_network 0 bgscan
@@ -448,4 +681,20 @@ ip -4 addr show wlp8s0
 
 # Verify default route goes via Wi-Fi
 ip -4 route get 1.1.1.1
+```
+
+### For Wired Ethernet Machines (eno1 or similar)
+
+```bash
+# Verify static IP is applied
+ip -4 addr show eno1
+
+# Check link status
+ip link show eno1
+
+# Verify default route
+ip -4 route get 1.1.1.1
+
+# Show active connection profile
+nmcli con show --active
 ```
