@@ -518,16 +518,21 @@ docking_server:
       docking_threshold: 0.05
       staging_x_offset: -0.7
       use_external_detection_pose: true
-      use_battery_status: false # true
-      use_stall_detection: false # true
-
+      use_battery_status: true  # Monitor /sigyn/power/charger for charging confirmation
+      use_stall_detection: true
+      
+      # Detection frame: oakd_apriltag_optical_frame
+      # Measured AprilTag pose when docked: x=-0.079m, y=0.017m, z=0.364m
       external_detection_timeout: 1.0
-      external_detection_translation_x: -0.18
-      external_detection_translation_y: 0.0
+      external_detection_translation_x: -0.079  # Updated from captured docking position
+      external_detection_translation_y: 0.017   # Updated from captured docking position
       external_detection_rotation_roll: -1.57
       external_detection_rotation_pitch: -1.57
       external_detection_rotation_yaw: 0.0
       filter_coef: 0.1
+      
+      # Charging validation (from /sigyn/power/charger topic)
+      charging_threshold: 0.01  # Current in Amps - positive indicates charging
 
     # Dock instances
     # The following example illustrates configuring dock instances.

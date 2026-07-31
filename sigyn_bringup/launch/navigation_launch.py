@@ -137,7 +137,7 @@ def generate_launch_description():
         "bt_navigator",
         "waypoint_follower",
         # "collision_monitor",  # Uncomment to enable collision monitoring.
-        # "docking_server",     # Uncomment to enable opennav docking.
+        "docking_server",     # Enabled for AprilTag-based charging dock
     ]
 
     # ---------------------------------------------------------------------------
@@ -230,6 +230,17 @@ def generate_launch_description():
                 remappings=tf_remappings + [("cmd_vel", "cmd_vel_nav")],
             ),
             Node(
+                package="opennav_docking",
+                executable="opennav_docking",
+                name="docking_server",
+                output="screen",
+                respawn=use_respawn,
+                respawn_delay=2.0,
+                parameters=[configured_params],
+                arguments=["--ros-args", "--log-level", log_level],
+                remappings=tf_remappings,
+            ),
+            Node(
                 package="nav2_lifecycle_manager",
                 executable="lifecycle_manager",
                 name="lifecycle_manager_navigation",
@@ -307,13 +318,13 @@ def generate_launch_description():
                     #     parameters=[configured_params],
                     #     remappings=tf_remappings,
                     # ),
-                    # ComposableNode(
-                    #     package="opennav_docking",
-                    #     plugin="opennav_docking::DockingServer",
-                    #     name="docking_server",
-                    #     parameters=[configured_params],
-                    #     remappings=tf_remappings,
-                    # ),
+                    ComposableNode(
+                        package="opennav_docking",
+                        plugin="opennav_docking::DockingServer",
+                        name="docking_server",
+                        parameters=[configured_params],
+                        remappings=tf_remappings,
+                    ),
                     ComposableNode(
                         package="nav2_lifecycle_manager",
                         plugin="nav2_lifecycle_manager::LifecycleManager",
