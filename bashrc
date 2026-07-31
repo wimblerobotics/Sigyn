@@ -39,7 +39,7 @@
 # ==================== ROS2 ENVIRONMENT ====================
 export ROS_DOMAIN_ID=0
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-export CYCLONEDDS_URI=file:///etc/cyclonedds.xml
+export CYCLONEDDS_URI=file://$HOME/.ros/cyclonedds.xml
 
 # Source ROS2 and workspace
 if [ -f /opt/ros/jazzy/setup.bash ]; then

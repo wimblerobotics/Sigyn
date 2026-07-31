@@ -32,6 +32,9 @@ def generate_launch_description() -> LaunchDescription:
         PythonLaunchDescriptionSource(
             os.path.join(pkg_share, "launch", "oakd_detector.launch.py")
         ),
+        launch_arguments={
+            "camera_mx_id": "14442C1051B665D700"
+        }.items(),
     )
 
     return LaunchDescription([detector_launch])

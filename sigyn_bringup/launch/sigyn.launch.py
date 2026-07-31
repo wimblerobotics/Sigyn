@@ -449,6 +449,19 @@ def generate_launch_description():
                             )
                         ),
                     ),
+                    IncludeLaunchDescription(
+                        PythonLaunchDescriptionSource(
+                            os.path.join(
+                                get_package_share_directory("sigyn_oakd_detection"),
+                                "launch",
+                                "oakd_apriltag.launch.py",
+                            )
+                        ),
+                        launch_arguments={
+                            "camera_mx_id": "1944301081303C1200",
+                            "tag_size_m": "0.120",
+                        }.items(),
+                    ),
                     OpaqueFunction(
                         function=_launch_oakd_yolo26,
                         args=[bringup_pkg, use_sim_time, do_oakd, do_oakd_yolo26],
