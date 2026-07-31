@@ -521,6 +521,10 @@ docking_server:
       use_battery_status: true  # Monitor /sigyn/power/charger for charging confirmation
       use_stall_detection: true
       
+      # AprilTag detection topic and frame
+      external_detection_topic: "/oakd_apriltag_node/detections"
+      dock_detection_frame: "oakd_apriltag_optical_frame"
+      
       # Detection frame: oakd_apriltag_optical_frame
       # Measured AprilTag pose when docked: x=-0.079m, y=0.017m, z=0.364m
       external_detection_timeout: 1.0
@@ -533,14 +537,15 @@ docking_server:
       
       # Charging validation (from /sigyn/power/charger topic)
       charging_threshold: 0.01  # Current in Amps - positive indicates charging
+      battery_state_topic: "/sigyn/power/charger"
 
     # Dock instances
-    # The following example illustrates configuring dock instances.
-    # docks: ['home_dock']  # Input your docks here
-    # home_dock:
-    #   type: 'simple_charging_dock'
-    #   frame: map
-    #   pose: [0.0, 0.0, 0.0]
+    # TODO: Update pose with actual map coordinates of charging station
+    docks: ['home_charging_dock']
+    home_charging_dock:
+      type: 'simple_charging_dock'
+      frame: map
+      pose: [8.47, 2.42, 0.72]  # Temporary: current AMCL position - update with actual dock location
 
     controller:
       k_phi: 3.0
