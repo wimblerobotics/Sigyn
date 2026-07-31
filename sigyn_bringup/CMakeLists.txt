@@ -32,8 +32,10 @@ install(DIRECTORY
 )
 
 install(PROGRAMS
+  scripts/apriltag_to_dock_pose.py
   scripts/battery_overlay_publisher.py
   scripts/detection_frame_reporter.py
+  scripts/docking_helper.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

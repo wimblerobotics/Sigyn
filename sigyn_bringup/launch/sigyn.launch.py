@@ -364,6 +364,21 @@ def generate_launch_description():
         }.items(),
     )
 
+    # AprilTag to Dock Pose Converter (for Nav2 docking server)
+    # Converts Detection3DArray from AprilTag detector to PoseStamped expected by docking server
+    apriltag_dock_converter = Node(
+        package="sigyn_bringup",
+        executable="apriltag_to_dock_pose.py",
+        name="apriltag_dock_converter",
+        condition=IfCondition(do_oakd),  # Only needed when AprilTag detector is running
+        output="screen",
+        parameters=[{
+            "use_sim_time": use_sim_time,
+            "dock_tag_id": "1",           # AprilTag ID for charging dock
+            "min_detection_score": 50.0,  # Minimum score to accept detection
+        }],
+    )
+
     # -----------------------------------------------------------------------
     # Real-robot hardware drivers.
     # -----------------------------------------------------------------------
@@ -620,6 +635,7 @@ def generate_launch_description():
 
         # Navigation.
         nav2,
+        apriltag_dock_converter,
 
         # Real-robot hardware (guarded by ~use_sim_time).
         ekf_node,

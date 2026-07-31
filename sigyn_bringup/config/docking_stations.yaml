@@ -1,31 +1,53 @@
 # Dock Stations Database for Sigyn Robot
 # Date: 2026-07-31
 #
-# Reference measurements from docked position:
-# - AprilTag ID: 1
-# - AprilTag detection score: 76.71
-# - AprilTag pose (from oakd_apriltag_optical_frame):
-#     position: x=-0.079m, y=0.017m, z=0.364m
-#     orientation: x=-0.021, y=-0.009, z=-0.026, w=0.999
-# - Charging current when mated: 4.07A (threshold > 0.01A)
-# - Charging voltage: 41.73V
+# This file defines all known docking stations for the robot.
+# Each dock entry specifies its location in the map frame and the AprilTag ID used for detection.
+#
+# Reference measurements from successful docking:
+# - AprilTag detection score: 76.71 (typical)
+# - AprilTag distance when docked: 0.364m from camera
+# - Charging current when mated: 4.07A (threshold > 0.01A confirms connection)
+# - Charging voltage: ~41.73V
+
+# Dock definitions for the docking server
+# Format for each dock:
+#   dock_name:
+#     type: 'simple_charging_dock'  # Must match a configured dock_plugin
+#     frame: 'map'                   # Reference frame (usually 'map')
+#     pose: [x, y, yaw]              # [meters, meters, radians] in the reference frame
+#     apriltag_id: N                 # AprilTag marker ID for visual detection
 
 docking_server:
   ros__parameters:
+    # List of available docks
     docks: ['home_charging_dock']
     
+    # Home Charging Station
     home_charging_dock:
       type: 'simple_charging_dock'
       frame: 'map'
-      # TODO: Set the actual map coordinates of the charging station
-      # These are placeholder values - update with actual dock location in map frame
-      pose: [0.0, 0.0, 0.0]  # [x, y, yaw] in map frame
+      # TODO: Measure and update with actual dock location in map coordinates
+      # Current placeholder based on AMCL position during testing
+      pose: [8.47, 2.42, 0.72]  # [x(m), y(m), yaw(rad)]
       
-      # Detection configuration based on captured AprilTag data
-      # AprilTag ID 1 at ~0.364m distance indicates successful docking
-      apriltag_id: 1
-      expected_distance: 0.364  # meters from camera to tag when docked
+      # AprilTag marker configuration
+      apriltag_id: 1              # Tag ID visible on charging station
+      expected_distance: 0.364    # Expected distance (m) from camera when docked
+      min_detection_score: 50.0   # Minimum AprilTag detection score to accept
       
-      # Charging validation thresholds (from /sigyn/power/charger topic)
-      charging_current_threshold: 0.01  # Amps - positive value indicates charging
-      charging_voltage_nominal: 41.73   # Volts - expected charging voltage
+      # Charging validation thresholds
+      charging_current_threshold: 0.01   # Amps - positive indicates charging
+      charging_voltage_nominal: 41.73    # Volts - expected when charging
+
+# Instructions for adding new docking stations:
+# 1. Add a new entry to the 'docks' list above
+# 2. Define the dock with a unique name:
+#      new_dock_name:
+#        type: 'simple_charging_dock'
+#        frame: 'map'
+#        pose: [x, y, yaw]  # Measure actual location
+#        apriltag_id: N     # Use unique AprilTag ID
+# 3. Place corresponding AprilTag marker (120mm, tag36h11 family) at dock location
+# 4. Rebuild: colcon build --packages-select sigyn_bringup
+

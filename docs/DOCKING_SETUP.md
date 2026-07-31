@@ -30,7 +30,42 @@ From `/sigyn/power/charger` when charging port is mated:
 
 ## Configuration Files
 
-### 1. Navigation Configuration
+### 1. Dock Database (Primary Configuration)
+**File:** `sigyn_bringup/config/docking_stations.yaml`
+
+This is the **source of truth** for all dock locations. Define your docking stations here:
+
+```yaml
+docking_server:
+  ros__parameters:
+    docks: ['home_charging_dock', 'workshop_dock']  # Add dock names here
+    
+    home_charging_dock:
+      type: 'simple_charging_dock'
+      frame: 'map'
+      pose: [8.47, 2.42, 0.72]  # [x, y, yaw] in map frame
+      apriltag_id: 1
+      expected_distance: 0.364
+      min_detection_score: 50.0
+      charging_current_threshold: 0.01
+      charging_voltage_nominal: 41.73
+    
+    # Example: Adding a second dock
+    # workshop_dock:
+    #   type: 'simple_charging_dock'
+    #   frame: 'map'
+    #   pose: [5.0, 8.0, 3.14]
+    #   apriltag_id: 2  # Use different AprilTag ID
+```
+
+**To add a new dock:**
+1. Place AprilTag marker (120mm, tag36h11 family, unique ID) at dock location
+2. Add dock name to `docks` list
+3. Define dock entry with measured map coordinates
+4. Rebuild: `colcon build --packages-select sigyn_bringup`
+5. Restart navigation stack
+
+### 2. Navigation Configuration
 **File:** `sigyn_bringup/config/navigation.yaml`
 
 Key docking parameters:
@@ -70,13 +105,40 @@ docking_server:
     home_charging_dock:
       type: 'simple_charging_dock'
       frame: 'map'
-      pose: [x, y, yaw]  # TODO: Set actual map coordinates
+      pose: [x, y, yaw]
+      apriltag_id: 1
 ```
 
 ### 3. Launch Configuration
-**File:** `sigyn_bringup/launch/navigation_launch.py`
+**File:** `sigyn_bringup/launch/sigyn.launch.py`
 
-Docking server is now enabled in the navigation stack lifecycle.
+Docking server is enabled in the navigation stack lifecycle.
+AprilTag-to-DockPose converter node automatically launches when `do_oakd=true`.
+
+## System Architecture
+
+The docking system uses several components working together:
+
+1. **AprilTag Detector** (`oakd_apriltag_node`)
+   - Publishes: `/oakd_apriltag_node/detections` (Detection3DArray)
+   - Detects AprilTag markers and estimates 6-DOF pose
+
+2. **Dock Pose Converter** (`apriltag_dock_converter`)
+   - Subscribes: `/oakd_apriltag_node/detections`
+   - Subscribes: `/sigyn/power/charger`
+   - Publishes: `/detected_dock_pose` (PoseStamped)
+   - Publishes: `/battery_state` (BatteryState)
+   - Filters for configured dock tag ID and converts message types
+
+3. **Docking Server** (`docking_server`)
+   - Subscribes: `/detected_dock_pose` (visual feedback)
+   - Subscribes: `/battery_state` (charging confirmation)
+   - Publishes: `/cmd_vel` (docking control)
+   - Uses dock database for initial navigation
+
+4. **Dock Database** (`docking_stations.yaml`)
+   - Defines all known dock locations in map frame
+   - Associates AprilTag IDs with dock positions
 
 ## Usage
 
