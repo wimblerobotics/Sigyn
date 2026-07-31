@@ -12,7 +12,7 @@ import sys
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
-from opennav_docking_msgs.action import DockRobot, UndockRobot
+from nav2_msgs.action import DockRobot, UndockRobot
 from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import BatteryState
 from vision_msgs.msg import Detection3DArray
@@ -74,10 +74,10 @@ class DockingHelper(Node):
         Send docking command to Nav2 docking server.
         
         Args:
-            dock_id: Name of the dock to approach
-            use_dock_id: If True, use dock_id; if False, use dock_pose
+            dock_id: Name of the dock to approach (when use_dock_id=True)
+            use_dock_id: If True, use dock_id; if False, use current position
         """
-        self.get_logger().info(f'Requesting docking to: {dock_id}')
+        self.get_logger().info(f'Requesting docking to: {dock_id if use_dock_id else "current position"}')
         
         if not self._dock_client.wait_for_server(timeout_sec=5.0):
             self.get_logger().error('Docking server not available!')
@@ -85,8 +85,14 @@ class DockingHelper(Node):
         
         goal_msg = DockRobot.Goal()
         goal_msg.use_dock_id = use_dock_id
-        goal_msg.dock_id = dock_id
-        goal_msg.navigate_to_staging_pose = True
+        
+        if use_dock_id:
+            goal_msg.dock_id = dock_id
+            goal_msg.navigate_to_staging_pose = True
+        else:
+            # Using current position - AprilTag must be visible
+            goal_msg.navigate_to_staging_pose = False
+            goal_msg.dock_type = 'simple_charging_dock'
         
         send_goal_future = self._dock_client.send_goal_async(
             goal_msg,

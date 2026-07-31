@@ -84,18 +84,18 @@ Docking server is now enabled in the navigation stack lifecycle.
 
 #### 1. Dock the Robot
 ```bash
-# Using dock ID from database
-ros2 action send_goal /dock_robot opennav_docking_msgs/action/DockRobot \
+# Using dock ID from database (requires map coordinates set in docking_stations.yaml)
+ros2 action send_goal /dock_robot nav2_msgs/action/DockRobot \
   "{use_dock_id: true, dock_id: 'home_charging_dock', navigate_to_staging_pose: true}"
 
-# Using current pose (requires AprilTag in view)
-ros2 action send_goal /dock_robot opennav_docking_msgs/action/DockRobot \
-  "{use_dock_id: false, navigate_to_staging_pose: false}"
+# Using current pose (drive near dock first, requires AprilTag in view)
+ros2 action send_goal /dock_robot nav2_msgs/action/DockRobot \
+  "{use_dock_id: false, navigate_to_staging_pose: false, dock_type: 'simple_charging_dock'}"
 ```
 
 #### 2. Undock the Robot
 ```bash
-ros2 action send_goal /undock_robot opennav_docking_msgs/action/UndockRobot "{}"
+ros2 action send_goal /undock_robot nav2_msgs/action/UndockRobot "{}"
 ```
 
 #### 3. Monitor Docking Detection
