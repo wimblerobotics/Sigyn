@@ -5,11 +5,29 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CYCLONEDDS_XML="$SCRIPT_DIR/cyclonedds.xml"
 TARGET_DIR="$HOME/.ros"
 TARGET_FILE="$TARGET_DIR/cyclonedds.xml"
 
 echo "Setting up CycloneDDS configuration..."
+
+# Detect hostname and choose appropriate config
+HOSTNAME=$(hostname)
+CYCLONEDDS_XML=""
+
+case "$HOSTNAME" in
+    sigyn7900a)
+        CYCLONEDDS_XML="$SCRIPT_DIR/cyclonedds_sigyn7900a.xml"
+        echo "Detected sigyn7900a robot - using WiFi (wlp8s0) configuration"
+        ;;
+    amdc)
+        CYCLONEDDS_XML="$SCRIPT_DIR/cyclonedds_amdc.xml"
+        echo "Detected amdc desktop - using Ethernet (eno1) configuration"
+        ;;
+    *)
+        CYCLONEDDS_XML="$SCRIPT_DIR/cyclonedds.xml"
+        echo "Unknown hostname '$HOSTNAME' - using generic configuration"
+        ;;
+esac
 
 # Create ~/.ros directory if it doesn't exist
 if [ ! -d "$TARGET_DIR" ]; then
@@ -17,9 +35,9 @@ if [ ! -d "$TARGET_DIR" ]; then
     mkdir -p "$TARGET_DIR"
 fi
 
-# Copy the cyclonedds.xml file
+# Copy the appropriate cyclonedds.xml file
 if [ -f "$CYCLONEDDS_XML" ]; then
-    echo "Copying cyclonedds.xml to $TARGET_FILE..."
+    echo "Copying $(basename $CYCLONEDDS_XML) to $TARGET_FILE..."
     cp "$CYCLONEDDS_XML" "$TARGET_FILE"
     echo "CycloneDDS configuration installed successfully."
 else

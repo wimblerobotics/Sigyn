@@ -37,6 +37,7 @@ from nav2_common.launch import RewrittenYaml
 def generate_launch_description():
     bringup_pkg  = get_package_share_directory("sigyn_bringup")
     default_params = os.path.join(bringup_pkg, "config", "navigation.yaml")
+    docking_stations_file = os.path.join(bringup_pkg, "config", "docking_stations.yaml")
 
     # ---------------------------------------------------------------------------
     # Declare all arguments up-front.
@@ -236,7 +237,7 @@ def generate_launch_description():
                 output="screen",
                 respawn=use_respawn,
                 respawn_delay=2.0,
-                parameters=[configured_params],
+                parameters=[configured_params, docking_stations_file],
                 arguments=["--ros-args", "--log-level", log_level],
                 remappings=tf_remappings,
             ),
@@ -322,7 +323,7 @@ def generate_launch_description():
                         package="opennav_docking",
                         plugin="opennav_docking::DockingServer",
                         name="docking_server",
-                        parameters=[configured_params],
+                        parameters=[configured_params, docking_stations_file],
                         remappings=tf_remappings,
                     ),
                     ComposableNode(

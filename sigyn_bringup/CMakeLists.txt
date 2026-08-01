@@ -36,6 +36,7 @@ install(PROGRAMS
   scripts/battery_overlay_publisher.py
   scripts/detection_frame_reporter.py
   scripts/docking_helper.py
+  scripts/laser_scan_qos_relay.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

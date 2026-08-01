@@ -29,7 +29,8 @@ docking_server:
       frame: 'map'
       # TODO: Measure and update with actual dock location in map coordinates
       # Current placeholder based on AMCL position during testing
-      pose: [8.47, 2.42, 0.72]  # [x(m), y(m), yaw(rad)]
+      # 8.1833; 2.4301
+      pose: [8.1833, 2.4301, 3.118]  # [x(m), y(m), yaw(rad)]
       
       # AprilTag marker configuration
       apriltag_id: 1              # Tag ID visible on charging station

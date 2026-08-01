@@ -2,6 +2,19 @@
 # Copyright 2026 Wimble Robotics
 scan_to_scan_filter_chain:
   ros__parameters:
+    # QoS overrides: Use BEST_EFFORT for sensor data to avoid WiFi saturation.
+    # The default for laser_filters is RELIABLE with depth 1000, which causes
+    # severe network congestion when new subscribers connect over WiFi.
+    # Sensor data is time-sensitive - better to drop old packets than congest
+    # the network with reliable retransmissions.
+    qos_overrides:
+      /scan_filtered:
+        publisher:
+          depth: 5
+          reliability: best_effort
+          history: keep_last
+          durability: volatile
+    
     filter1:
       name: angle
       type: laser_filters/LaserScanAngularBoundsFilter

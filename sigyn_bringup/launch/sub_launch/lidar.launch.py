@@ -111,7 +111,7 @@ def generate_launch_description():
 
     # ---------------------------------------------------------------------------
     # Angular laser filter.
-    # Reads raw_scan, removes out-of-range bearings, publishes to /scan.
+    # Reads raw_scan, removes out-of-range bearings, publishes to scan_filtered.
     # ---------------------------------------------------------------------------
     laser_filter = Node(
         package="laser_filters",
@@ -122,8 +122,26 @@ def generate_launch_description():
             PathJoinSubstitution([bringup_pkg, "config", "laser_filters_angular.yaml"]),
         ],
         remappings=[
-            ("scan",          "raw_scan"),
-            ("scan_filtered", "scan"),
+            ("scan", "raw_scan"),
+            # Don't remap scan_filtered - let it publish to scan_filtered
+        ],
+    )
+    
+    # ---------------------------------------------------------------------------
+    # QoS relay to fix network performance.
+    # laser_filters hardcodes RELIABLE QoS with depth=1000, which saturates WiFi.
+    # This relay subscribes to scan_filtered and republishes to /scan with
+    # BEST_EFFORT QoS and depth=5 to prevent network congestion.
+    # ---------------------------------------------------------------------------
+    qos_relay = Node(
+        package="sigyn_bringup",
+        executable="laser_scan_qos_relay.py",
+        name="laser_scan_qos_relay",
+        output="screen",
+        parameters=[
+            {"input_topic": "scan_filtered"},
+            {"output_topic": "scan"},
+            {"queue_size": 5},
         ],
     )
 
@@ -133,4 +151,5 @@ def generate_launch_description():
         cup_ldlidar,
         cup_as_top_ldlidar,
         laser_filter,
+        qos_relay,
     ])

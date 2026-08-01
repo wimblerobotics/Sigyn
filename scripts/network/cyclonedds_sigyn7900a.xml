@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CycloneDDS xmlns="https://cdds.io/config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclonedds.xsd">
+  <Domain>
+    <General>
+      <!-- Use multicast for discovery but also add unicast peers for reliability over WiFi -->
+      <AllowMulticast>true</AllowMulticast>
+      <MaxMessageSize>4096 B</MaxMessageSize>
+      <FragmentSize>1200 B</FragmentSize>
+      <!-- WiFi interface on sigyn7900a robot -->
+      <Interfaces>
+        <NetworkInterface name="wlp8s0" priority="default" multicast="true"/>
+      </Interfaces>
+    </General>
+    <Discovery>
+      <!-- Add explicit peer addresses for unicast discovery (WiFi multicast often unreliable) -->
+      <Peers>
+        <Peer address="192.168.86.28"/>  <!-- amdc desktop -->
+        <Peer address="192.168.86.109"/> <!-- sigyn7900a (self) -->
+      </Peers>
+      <ParticipantIndex>auto</ParticipantIndex>
+    </Discovery>
+    <Internal>
+      <SocketReceiveBufferSize min="10MB"/>
+      <SocketSendBufferSize min="10MB"/>
+    </Internal>
+  </Domain>
+</CycloneDDS>

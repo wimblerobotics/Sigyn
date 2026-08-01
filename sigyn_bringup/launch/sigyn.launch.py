@@ -475,6 +475,8 @@ def generate_launch_description():
                         launch_arguments={
                             "camera_mx_id": "1944301081303C1200",
                             "tag_size_m": "0.120",
+                            "apriltag_detect_every": "10",
+                            "apriltag_quad_decimate": "3.0",
                         }.items(),
                     ),
                     OpaqueFunction(
