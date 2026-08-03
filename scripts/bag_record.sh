@@ -75,31 +75,31 @@ TOPICS=(
   /map
   /map_server/transition_event
   /map_updates
-  /oakd/annotated_image
-  /oakd/annotated_image/compressed
-  /oakd/can_detections
-  /oakd/object_detector_heartbeat
-  /oakd_apriltag_node/annotated_image
-  /oakd_apriltag_node/camera_info
-  /oakd_apriltag_node/depth_image
+  # /oakd/annotated_image
+  # /oakd/annotated_image/compressed
+  # /oakd/can_detections
+  # /oakd/object_detector_heartbeat
+  # /oakd_apriltag_node/annotated_image
+  # /oakd_apriltag_node/camera_info
+  # /oakd_apriltag_node/depth_image
   /oakd_apriltag_node/detections
   /oakd_apriltag_node/points
-  /oakd_apriltag_node/rgb_image
-  /oakd_top/camera_info
-  /oakd_top/can_point_base
-  /oakd_top/can_point_camera
-  /oakd_top/can_point_raw
-  /oakd_top/color/image/compressed
-  /oakd_top/depth_image
-  /oakd_top/depth_raw
-  /oakd_top/depth_sample_base
-  /oakd_top/depth_sample_camera
-  /oakd_top/out
-  /oakd_top/out/compressedDepth
-  /oakd_top/out/theora
-  /oakd_top/out/zstd
-  /oakd_top/points
-  /oakd_top/rgb_preview
+  # /oakd_apriltag_node/rgb_image
+  # /oakd_top/camera_info
+  # /oakd_top/can_point_base
+  # /oakd_top/can_point_camera
+  # /oakd_top/can_point_raw
+  # /oakd_top/color/image/compressed
+  # /oakd_top/depth_image
+  # /oakd_top/depth_raw
+  # /oakd_top/depth_sample_base
+  # /oakd_top/depth_sample_camera
+  # /oakd_top/out
+  # /oakd_top/out/compressedDepth
+  # /oakd_top/out/theora
+  # /oakd_top/out/zstd
+  # /oakd_top/points
+  # /oakd_top/rgb_preview
   /odom
   /optimal_trajectory
   /parameter_events
