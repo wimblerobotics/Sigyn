@@ -22,17 +22,17 @@ amcl: # See: https://assets.researchsquare.com/files/rs-225880/v1_covered.pdf?c=
     laser_max_range: 10.0   # Maximum scan range to be considered, -1.0 will cause the laser’s reported maximum range to be used.
     laser_min_range: -1.0   # Minimum scan range to be considered, -1.0 will cause the laser’s reported minimum range to be used.
     laser_model_type: "likelihood_field" # Which model to use, either beam, likelihood_field, or likelihood_field_prob.
-    max_beams: 360          # How many evenly-spaced beams in each scan to be used when updating the filter.
-    max_particles: 5000     # Maximum allowed number of particles.
-    min_particles: 2000     # Minimum allowed number of particles.
+    max_beams: 60 ### 360          # How many evenly-spaced beams in each scan to be used when updating the filter.
+    max_particles: 1000 ### 5000     # Maximum allowed number of particles.
+    min_particles: 500 ### 2000     # Minimum allowed number of particles.
     odom_frame_id: "odom"   # Which frame to use for odometry.
     pf_err: 0.03            # Particle Filter population error.  
     pf_z: 0.99              # Particle filter population density.
     recovery_alpha_fast: 0.01   # Exponential decay rate for the fast average weight filter, used in deciding when to recover by adding random poses.
     recovery_alpha_slow: 0.0001  # Exponential decay rate for the slow average weight filter, used in deciding when to recover by adding random poses. A good value might be 0.001.
-    resample_interval: 1    # Number of filter updates required before resampling.
+    resample_interval: 2 ### 1    # Number of filter updates required before resampling.
     robot_model_type: "nav2_amcl::DifferentialMotionModel" # The fully-qualified type of the plugin class.
-    save_pose_rate: 0.5     # Maximum rate (Hz) at which to store the last estimated pose and covariance to the parameter server.
+    save_pose_rate: 4.0 ### 0.5     # Maximum rate (Hz) at which to store the last estimated pose and covariance to the parameter server.
     sigma_hit: 0.2          # Standard deviation for Gaussian model used in z_hit part of the model.
     tf_broadcast: true      # Set this to false to prevent amcl from publishing the transform between the global frame and the odometry frame.
     transform_tolerance: 0.2 # Time with which to post-date the transform that is published, to indicate that this transform is valid into the future.

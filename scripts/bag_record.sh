@@ -9,6 +9,7 @@ TOPICS=(
   /amcl/transition_event
   /amcl_pose
   /battery_overlay_text
+  /battery_state
   /behavior_server/transition_event
   /behavior_tree_log
   /bond
@@ -24,7 +25,12 @@ TOPICS=(
   /cmd_vel_teleop
   /controller_selector
   /controller_server/transition_event
+  /detected_dock_pose
   /diagnostics
+  /dock_pose
+  /docking_server/transition_event
+  /docking_trajectory
+  /filtered_dock_pose
   /global_costmap/costmap
   /global_costmap/costmap_raw
   /global_costmap/costmap_raw_updates
@@ -73,6 +79,12 @@ TOPICS=(
   /oakd/annotated_image/compressed
   /oakd/can_detections
   /oakd/object_detector_heartbeat
+  /oakd_apriltag_node/annotated_image
+  /oakd_apriltag_node/camera_info
+  /oakd_apriltag_node/depth_image
+  /oakd_apriltag_node/detections
+  /oakd_apriltag_node/points
+  /oakd_apriltag_node/rgb_image
   /oakd_top/camera_info
   /oakd_top/can_point_base
   /oakd_top/can_point_camera
@@ -102,8 +114,10 @@ TOPICS=(
   /rosout
   /scan
   /scan_cup
+  /scan_filtered
   /set_pose
   /sigyn/power/battery
+  /sigyn/power/charger
   /sigyn/power/rail
   /sigyn/roboclaw/status
   /sigyn/safety/fault_events
@@ -126,6 +140,7 @@ TOPICS=(
   /sigyn/teensy_bridge/battery/status
   /smoother_server/transition_event
   /speed_limit
+  /staging_pose
   /stereo/points2
   /teensy_bridge/status
   /teensy_bridge/transition_event
