@@ -53,7 +53,14 @@ export CYCLONEDDS_URI=file://$HOME/.ros/cyclonedds.xml
 
 The CycloneDDS configuration includes:
 - **AllowMulticast**: Enabled for ROS 2 discovery
-- **MaxMessageSize**: 4096 bytes
+- **MaxMessageSize**: 1470 bytes — deliberately kept BELOW the network MTU
+  (1500) so CycloneDDS never needs OS-level IP fragmentation (which WiFi
+  drops unreliably) and never hits `EMSGSIZE` (`DDS_RETCODE_NOT_ENOUGH_SPACE`,
+  retcode -58) trying to write an oversized UDP datagram. Large samples
+  (images, pointclouds) are still handled fine via DDSI-level `FragmentSize`
+  chopping - do NOT raise `MaxMessageSize` to "support big messages"; that
+  makes delivery worse, not better. See `CYCLONEDDS_ISSUE_ANALYSIS.md` in the
+  Sigyn repo root for the full incident writeup.
 - **FragmentSize**: 1200 bytes (optimized for network MTU)
 - **SocketReceiveBufferSize**: 10MB minimum
 - **SocketSendBufferSize**: 10MB minimum

@@ -491,8 +491,11 @@ sudo tee /etc/cyclonedds.xml > /dev/null << 'EOF'
       <Interfaces>
         <NetworkInterface name="wlp8s0" />
       </Interfaces>
-      <!-- Small fragments for WiFi mesh reliability -->
-      <MaxMessageSize>4MB</MaxMessageSize>
+      <!-- CORRECTED: keep MaxMessageSize below the path MTU (1500) to avoid
+           OS-level IP fragmentation (WiFi drops fragmented UDP reliably) and
+           EMSGSIZE errors. See CYCLONEDDS_ISSUE_ANALYSIS.md correction note
+           and /memories/repo/cyclonedds_maxmessagesize_root_cause.md. -->
+      <MaxMessageSize>1470B</MaxMessageSize>
       <FragmentSize>1200B</FragmentSize>
     </General>
     <Discovery>
@@ -522,8 +525,8 @@ sudo tee /etc/cyclonedds.xml > /dev/null << 'EOF'
       <Interfaces>
         <NetworkInterface name="eno1" />
       </Interfaces>
-      <!-- Small fragments for WiFi mesh reliability -->
-      <MaxMessageSize>4MB</MaxMessageSize>
+      <!-- CORRECTED: keep MaxMessageSize below the path MTU (1500). -->
+      <MaxMessageSize>1470B</MaxMessageSize>
       <FragmentSize>1200B</FragmentSize>
     </General>
     <Discovery>
@@ -545,7 +548,12 @@ EOF
 **Key parameters:**
 
 - `NetworkInterface`: Specifies the interface to use (`wlp8s0` for WiFi, `eno1` for Ethernet)
-- `MaxMessageSize`: 4 MB — allows large messages like uncompressed images
+- `MaxMessageSize`: **1470 B** — must stay below the path MTU (1500) or CycloneDDS will
+  either hit EMSGSIZE (`DDS_RETCODE_NOT_ENOUGH_SPACE`, retcode -58) trying to write an
+  oversized UDP datagram, or rely on fragile OS-level IP fragmentation that WiFi drops.
+  MB-scale values (4MB, 16MB) look appealing for "allowing large images" but actually break
+  large-message delivery entirely — large samples are already handled by DDSI-level
+  fragmentation (see `FragmentSize` below), not by raising this value.
 - `FragmentSize`: **1200 B** — ensures fragments fit within WiFi MTU with overhead. **This is
   critical.** Do NOT use large values like 63000B - they will fail over WiFi mesh.
 - `Peers`: Static peer list ensures discovery works across subnets and reduces discovery latency

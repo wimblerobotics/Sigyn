@@ -35,6 +35,19 @@ if [ ! -d "$TARGET_DIR" ]; then
     mkdir -p "$TARGET_DIR"
 fi
 
+# A system-wide /etc/cyclonedds.xml takes lower precedence than CYCLONEDDS_URI,
+# but a stale/conflicting copy has caused real confusion before (see
+# CYCLONEDDS_ISSUE_ANALYSIS.md in the Sigyn repo root). Back it up and remove
+# it so there is only ever one active config to reason about.
+if [ -f /etc/cyclonedds.xml ]; then
+    BACKUP_DATE=$(date +%Y%m%d_%H%M%S)
+    echo ""
+    echo "Found a system-wide /etc/cyclonedds.xml - backing it up and removing it"
+    echo "so CYCLONEDDS_URI (~/.ros/cyclonedds.xml) is the only config in play."
+    sudo mv /etc/cyclonedds.xml "/etc/cyclonedds.xml.backup_$BACKUP_DATE"
+    echo "Backed up to /etc/cyclonedds.xml.backup_$BACKUP_DATE"
+fi
+
 # Copy the appropriate cyclonedds.xml file
 if [ -f "$CYCLONEDDS_XML" ]; then
     echo "Copying $(basename $CYCLONEDDS_XML) to $TARGET_FILE..."

@@ -3,7 +3,19 @@
   <Domain>
     <General>
       <AllowMulticast>true</AllowMulticast>
-      <MaxMessageSize>4096 B</MaxMessageSize>
+      <!-- IMPORTANT: keep MaxMessageSize BELOW the real network MTU (1500 on
+           typical Ethernet/WiFi). CycloneDDS docs: "the maximum size of the
+           UDP payload that Cyclone DDS will generate... On some networks it
+           may be necessary to set this item to keep the packet size below
+           the MTU to prevent IP fragmentation." Raising this to MB-scale
+           values causes EMSGSIZE (DDS_RETCODE_NOT_ENOUGH_SPACE / retcode -58)
+           on every large message; raising it only to just-under-MTU values
+           (e.g. the 14720 B upstream default) forces fragile OS-level IP
+           fragmentation that WiFi tends to drop, silently killing large
+           topics (images/pointclouds). DDSI-level FragmentSize already
+           chops large samples into small pieces - do not raise
+           MaxMessageSize to "fix" large message delivery. -->
+      <MaxMessageSize>1470 B</MaxMessageSize>
       <FragmentSize>1200 B</FragmentSize>
     </General>
     <Internal>
