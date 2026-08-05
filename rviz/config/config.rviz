@@ -22,20 +22,19 @@ Panels:
         - /Imu01/Axes properties1
         - /Imu11/Topic1
         - /Imu11/Axes properties1
-        - /TOF1/VL53L0X-01/Topic1
-        - /TOF1/VL53L0X-11/Topic1
-        - /TOF1/VL53L0X-21/Topic1
-        - /TOF1/VL53L0X-41/Topic1
-        - /TOF1/VL53L0X-61/Topic1
-        - /TOF1/VL53L0X-71
-        - /TOF1/VL53L0X-71/Topic1
-        - /OAKD TOP DEPTH1/Topic1
-        - /GripperCamera1/Topic1
-        - /AprilTagCamea1/Status1
-        - /AprilTagCamea1/Topic1
-        - /TOF2
-      Splitter Ratio: 0.5437352061271667
-    Tree Height: 1796
+        - /TOF1/rear_right_bkwd1/Topic1
+        - /TOF1/rear_right_side1/Topic1
+        - /TOF1/front_right_side1/Topic1
+        - /OAKD Image1/Topic1
+        - /Gripper Image1/Topic1
+        - /PointStamped1/Topic1
+        - /OAKD_top points1/Topic1
+        - /Depth Raw1/Topic1
+        - /Camera1
+        - /Camera1/Status1
+        - /Camera1/Topic1
+      Splitter Ratio: 0.5
+    Tree Height: 832
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -234,6 +233,18 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
+        oakd_apriltag_base_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        oakd_apriltag_camera_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        oakd_apriltag_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
         parallel_gripper_base_plate:
           Alpha: 1
           Show Axes: false
@@ -410,11 +421,11 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Transient Local
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /map_updates
       Use Timestamp: false
       Value: true
-    - Alpha: 0.20000000298023224
+    - Alpha: 0.30000001192092896
       Binary representation: false
       Binary threshold: 100
       Class: rviz_default_plugins/Map
@@ -427,13 +438,13 @@ Visualization Manager:
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /global_costmap/costmap
       Update Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /global_costmap/costmap_updates
       Use Timestamp: false
       Value: true
@@ -456,7 +467,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /local_costmap/costmap_updates
       Use Timestamp: false
       Value: true
@@ -496,13 +507,13 @@ Visualization Manager:
             Durability Policy: Transient Local
             Filter size: 10
             History Policy: Keep Last
-            Reliability Policy: Reliable
+            Reliability Policy: Best Effort
             Value: /local_costmap/costmap
           Update Topic:
             Depth: 5
             Durability Policy: Volatile
             History Policy: Keep Last
-            Reliability Policy: Reliable
+            Reliability Policy: Best Effort
             Value: /local_costmap/costmap_updates
           Use Timestamp: false
           Value: false
@@ -531,7 +542,7 @@ Visualization Manager:
             Durability Policy: Volatile
             Filter size: 10
             History Policy: Keep Last
-            Reliability Policy: Reliable
+            Reliability Policy: Best Effort
             Value: /local_plan
           Value: false
         - Class: rviz_default_plugins/MarkerArray
@@ -543,7 +554,7 @@ Visualization Manager:
             Depth: 5
             Durability Policy: Volatile
             History Policy: Keep Last
-            Reliability Policy: Reliable
+            Reliability Policy: Best Effort
             Value: /marker
           Value: false
         - Alpha: 1
@@ -556,7 +567,7 @@ Visualization Manager:
             Durability Policy: Volatile
             Filter size: 10
             History Policy: Keep Last
-            Reliability Policy: Reliable
+            Reliability Policy: Best Effort
             Value: /local_costmap/published_footprint
           Value: false
         - Alpha: 1
@@ -588,7 +599,7 @@ Visualization Manager:
             Durability Policy: Volatile
             Filter size: 10
             History Policy: Keep Last
-            Reliability Policy: Reliable
+            Reliability Policy: Best Effort
             Value: /local_costmap/voxel_marked_cloud
           Use Fixed Frame: true
           Use rainbow: true
@@ -604,7 +615,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /waypoints
       Value: false
     - Class: rviz_common/Group
@@ -622,13 +633,13 @@ Visualization Manager:
             Durability Policy: Transient Local
             Filter size: 10
             History Policy: Keep Last
-            Reliability Policy: Reliable
+            Reliability Policy: Best Effort
             Value: /global_costmap/costmap
           Update Topic:
             Depth: 5
             Durability Policy: Volatile
             History Policy: Keep Last
-            Reliability Policy: Reliable
+            Reliability Policy: Best Effort
             Value: /global_costmap/costmap_updates
           Use Timestamp: false
           Value: true
@@ -645,13 +656,13 @@ Visualization Manager:
             Durability Policy: Transient Local
             Filter size: 10
             History Policy: Keep Last
-            Reliability Policy: Reliable
+            Reliability Policy: Best Effort
             Value: /downsampled_costmap
           Update Topic:
             Depth: 5
             Durability Policy: Volatile
             History Policy: Keep Last
-            Reliability Policy: Reliable
+            Reliability Policy: Best Effort
             Value: /downsampled_costmap_updates
           Use Timestamp: false
           Value: false
@@ -680,7 +691,7 @@ Visualization Manager:
             Durability Policy: Volatile
             Filter size: 10
             History Policy: Keep Last
-            Reliability Policy: Reliable
+            Reliability Policy: Best Effort
             Value: /plan
           Value: true
         - Alpha: 1
@@ -712,7 +723,7 @@ Visualization Manager:
             Durability Policy: Volatile
             Filter size: 10
             History Policy: Keep Last
-            Reliability Policy: Reliable
+            Reliability Policy: Best Effort
             Value: /global_costmap/voxel_marked_cloud
           Use Fixed Frame: true
           Use rainbow: true
@@ -727,7 +738,7 @@ Visualization Manager:
             Durability Policy: Volatile
             Filter size: 10
             History Policy: Keep Last
-            Reliability Policy: Reliable
+            Reliability Policy: Best Effort
             Value: /global_costmap/published_footprint
           Value: true
       Enabled: false
@@ -815,7 +826,7 @@ Visualization Manager:
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /global_costmap/published_footprint
       Value: false
     - Alpha: 1
@@ -828,7 +839,7 @@ Visualization Manager:
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /local_costmap/published_footprint
       Value: false
     - Class: rviz_default_plugins/Marker
@@ -841,7 +852,7 @@ Visualization Manager:
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /line_markers
       Value: false
     - Alpha: 1
@@ -904,7 +915,7 @@ Visualization Manager:
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /plan
       Value: true
     - Alpha: 1
@@ -932,7 +943,7 @@ Visualization Manager:
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /plan
       Value: false
     - Class: rviz_default_plugins/Axes
@@ -1008,13 +1019,13 @@ Visualization Manager:
         Durability Policy: Transient Local
         Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /local_costmap/oakd_top_layer
       Update Topic:
         Depth: 5
         Durability Policy: Transient Local
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /local_costmap/oakd_top_layer_updates
       Use Timestamp: false
       Value: false
@@ -1031,13 +1042,13 @@ Visualization Manager:
         Durability Policy: Transient Local
         Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /local_costmap/lidar_layer
       Update Topic:
         Depth: 5
         Durability Policy: Transient Local
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /local_costmap/lidar_layer_updates
       Use Timestamp: false
       Value: false
@@ -1104,112 +1115,112 @@ Visualization Manager:
           Class: rviz_default_plugins/Range
           Color: 170; 0; 255
           Enabled: true
-          Name: VL53L0X-0
+          Name: rear_right_bkwd
           Topic:
             Depth: 5
             Durability Policy: Volatile
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Best Effort
-            Value: /sigyn/teensy_bridge/range/vl53l0x_0
+            Value: /sigyn/sensors/range/rear_right_bkwd
           Value: true
         - Alpha: 0.5
           Buffer Length: 1
           Class: rviz_default_plugins/Range
           Color: 170; 0; 255
           Enabled: true
-          Name: VL53L0X-1
+          Name: rear_right_side
           Topic:
             Depth: 5
             Durability Policy: Volatile
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Best Effort
-            Value: /sigyn/teensy_bridge/range/vl53l0x_1
+            Value: /sigyn/sensors/range/rear_right_side
           Value: true
         - Alpha: 0.5
           Buffer Length: 1
           Class: rviz_default_plugins/Range
           Color: 170; 0; 255
           Enabled: true
-          Name: VL53L0X-2
+          Name: front_right_side
           Topic:
             Depth: 5
             Durability Policy: Volatile
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Best Effort
-            Value: /sigyn/teensy_bridge/range/vl53l0x_2
+            Value: /sigyn/sensors/range/front_right_side
           Value: true
         - Alpha: 0.5
           Buffer Length: 1
           Class: rviz_default_plugins/Range
           Color: 170; 0; 255
           Enabled: true
-          Name: VL53L0X-3
+          Name: front_right_fwd
           Topic:
             Depth: 5
             Durability Policy: Volatile
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Best Effort
-            Value: /sigyn/teensy_bridge/range/vl53l0x_3
+            Value: /sigyn/sensors/range/front_right_fwd
           Value: true
         - Alpha: 0.5
           Buffer Length: 1
           Class: rviz_default_plugins/Range
           Color: 170; 0; 255
           Enabled: true
-          Name: VL53L0X-4
+          Name: front_left_fwd
           Topic:
             Depth: 5
             Durability Policy: Volatile
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Best Effort
-            Value: /sigyn/teensy_bridge/range/vl53l0x_4
+            Value: /sigyn/sensors/range/front_left_fwd
           Value: true
         - Alpha: 0.5
           Buffer Length: 1
           Class: rviz_default_plugins/Range
           Color: 170; 0; 255
           Enabled: true
-          Name: VL53L0X-5
+          Name: front_left_side
           Topic:
             Depth: 5
             Durability Policy: Volatile
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Best Effort
-            Value: /sigyn/teensy_bridge/range/vl53l0x_5
+            Value: /sigyn/sensors/range/front_left_side
           Value: true
         - Alpha: 0.5
           Buffer Length: 1
           Class: rviz_default_plugins/Range
           Color: 170; 0; 255
           Enabled: true
-          Name: VL53L0X-6
+          Name: rear_left_side
           Topic:
             Depth: 5
             Durability Policy: Volatile
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Best Effort
-            Value: /sigyn/teensy_bridge/range/vl53l0x_6
+            Value: /sigyn/sensors/range/rear_left_side
           Value: true
         - Alpha: 0.5
           Buffer Length: 1
           Class: rviz_default_plugins/Range
           Color: 170; 0; 255
           Enabled: true
-          Name: VL53L0X-7
+          Name: rear_left_bkwd
           Topic:
             Depth: 5
             Durability Policy: Volatile
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Best Effort
-            Value: /sigyn/teensy_bridge/range/vl53l0x_7
+            Value: /sigyn/sensors/range/rear_left_bkwd
           Value: true
       Enabled: false
       Name: TOF
@@ -1229,7 +1240,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /battery_overlay_text
       Value: false
       font: DejaVu Sans Mono
@@ -1246,21 +1257,21 @@ Visualization Manager:
       Max Value: 1
       Median window: 5
       Min Value: 0
-      Name: OAKD TOP DEPTH
+      Name: OAKD Image
       Normalize Range: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /oakd_top/oak/stereo/image_raw
+        Value: /oakd/annotated_image
       Value: false
     - Class: rviz_default_plugins/Image
       Enabled: false
       Max Value: 1
       Median window: 5
       Min Value: 0
-      Name: GripperCamera
+      Name: Gripper Image
       Normalize Range: true
       Topic:
         Depth: 5
@@ -1269,39 +1280,129 @@ Visualization Manager:
         Reliability Policy: Best Effort
         Value: /gripper/camera/annotated_image
       Value: false
-    - Class: rviz_default_plugins/Image
+    - Alpha: 1
+      Class: rviz_default_plugins/PointStamped
+      Color: 192; 28; 40
       Enabled: false
-      Max Value: 1
-      Median window: 5
-      Min Value: 0
-      Name: Camera Top
-      Normalize Range: true
+      History Length: 1
+      Name: PointStamped
+      Radius: 0.10000000149011612
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /oakd_top/can_point_raw
+      Value: false
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 1.0956014394760132
+        Min Value: -2.901858329772949
+        Value: true
+      Axis: Z
+      Channel Name: z
+      Class: rviz_default_plugins/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: AxisColor
+      Decay Time: 0
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: OAKD_top points
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.009999999776482582
+      Style: Flat Squares
       Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /oakd/annotated_image
+        Reliability Policy: Best Effort
+        Value: /oakd_top/points
+      Use Fixed Frame: true
+      Use rainbow: true
       Value: false
     - Class: rviz_default_plugins/Camera
-      Enabled: true
+      Enabled: false
       Far Plane Distance: 100
       Image Rendering: background and overlay
-      Name: AprilTagCamea
+      Name: Depth Raw
       Overlay Alpha: 0.5
       Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /oakd/annotated_image
+        Reliability Policy: Best Effort
+        Value: /oakd_top/depth_raw
+      Value: false
+      Visibility:
+        /amcl_pose: true
+        /local_plan: true
+        /plan: true
+        Amcl Particle Swarm: true
+        Camera: true
+        Controller:
+          "": true
+          Value: true
+        Cost cloud: true
+        Global Planner:
+          "": true
+          Value: true
+        Global costmap: true
+        Global footprint: true
+        Grid: true
+        Gripper Image: true
+        Home Axes: true
+        Imu0: true
+        Imu1: true
+        LIDAR CostMap: true
+        Local CostMap: true
+        Local footprint: true
+        Map: true
+        Marker: true
+        OAK-D Top As Laser: true
+        OAKD Image: true
+        OAKD Top CostMap: true
+        OAKD_top points: true
+        Odom Axes: true
+        Odometry: true
+        PointStamped: true
+        RobotModel: true
+        TF: true
+        TOF:
+          "": true
+          Value: true
+        TextOverlay: true
+        Value: true
+        Waypoints.: true
+        cup LIDAR: true
+        top LIDAR: true
+        waypoints: true
+      Zoom Factor: 1
+    - Class: rviz_default_plugins/Camera
+      Enabled: true
+      Far Plane Distance: 100
+      Image Rendering: background and overlay
+      Name: Camera
+      Overlay Alpha: 0.5
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /oakd_apriltag_node/annotated_image
       Value: true
       Visibility:
         /amcl_pose: true
         /local_plan: true
         /plan: true
         Amcl Particle Swarm: true
-        Camera Top: true
         Controller:
           Local Costmap: true
           Local Plan: true
@@ -1310,6 +1411,7 @@ Visualization Manager:
           Value: true
           VoxelGrid: true
         Cost cloud: true
+        Depth Raw: true
         Global Planner:
           Downsampled Costmap: true
           Global Costmap: true
@@ -1320,7 +1422,7 @@ Visualization Manager:
         Global costmap: true
         Global footprint: true
         Grid: true
-        GripperCamera: true
+        Gripper Image: true
         Home Axes: true
         Imu0: true
         Imu1: true
@@ -1330,22 +1432,24 @@ Visualization Manager:
         Map: true
         Marker: true
         OAK-D Top As Laser: true
-        OAKD TOP DEPTH: true
+        OAKD Image: true
         OAKD Top CostMap: true
+        OAKD_top points: true
         Odom Axes: true
         Odometry: true
+        PointStamped: true
         RobotModel: true
         TF: true
         TOF:
-          Range FrontLeftFwd: true
-          RangeFrontLeftSide: true
-          RangeFrontRightFwd: true
-          RangeFrontRightSide: true
-          RangeRearLeftBkw: true
-          RangeRearLeftSide: true
-          RangeRearRightBkw: true
-          RangeRearRightSide: true
           Value: true
+          front_left_fwd: true
+          front_left_side: true
+          front_right_fwd: true
+          front_right_side: true
+          rear_left_bkwd: true
+          rear_left_side: true
+          rear_right_bkwd: true
+          rear_right_side: true
         TextOverlay: true
         Value: true
         Waypoints.: true
@@ -1353,122 +1457,6 @@ Visualization Manager:
         top LIDAR: true
         waypoints: true
       Zoom Factor: 1
-    - Class: rviz_common/Group
-      Displays:
-        - Alpha: 0.5
-          Buffer Length: 1
-          Class: rviz_default_plugins/Range
-          Color: 98; 160; 234
-          Enabled: true
-          Name: Range FrontLeftFwd
-          Topic:
-            Depth: 5
-            Durability Policy: Volatile
-            Filter size: 10
-            History Policy: Keep Last
-            Reliability Policy: Reliable
-            Value: /sigyn/sensors/range/front_left_fwd
-          Value: true
-        - Alpha: 0.5
-          Buffer Length: 1
-          Class: rviz_default_plugins/Range
-          Color: 98; 160; 234
-          Enabled: true
-          Name: RangeFrontRightFwd
-          Topic:
-            Depth: 5
-            Durability Policy: Volatile
-            Filter size: 10
-            History Policy: Keep Last
-            Reliability Policy: Reliable
-            Value: /sigyn/sensors/range/front_right_fwd
-          Value: true
-        - Alpha: 0.5
-          Buffer Length: 1
-          Class: rviz_default_plugins/Range
-          Color: 98; 160; 234
-          Enabled: true
-          Name: RangeFrontLeftSide
-          Topic:
-            Depth: 5
-            Durability Policy: Volatile
-            Filter size: 10
-            History Policy: Keep Last
-            Reliability Policy: Reliable
-            Value: /sigyn/sensors/range/front_left_side
-          Value: true
-        - Alpha: 0.5
-          Buffer Length: 1
-          Class: rviz_default_plugins/Range
-          Color: 98; 160; 234
-          Enabled: true
-          Name: RangeFrontRightSide
-          Topic:
-            Depth: 5
-            Durability Policy: Volatile
-            Filter size: 10
-            History Policy: Keep Last
-            Reliability Policy: Reliable
-            Value: /sigyn/sensors/range/front_right_side
-          Value: true
-        - Alpha: 0.5
-          Buffer Length: 1
-          Class: rviz_default_plugins/Range
-          Color: 98; 160; 234
-          Enabled: true
-          Name: RangeRearLeftBkw
-          Topic:
-            Depth: 5
-            Durability Policy: Volatile
-            Filter size: 10
-            History Policy: Keep Last
-            Reliability Policy: Reliable
-            Value: /sigyn/sensors/range/rear_left_bkwd
-          Value: true
-        - Alpha: 0.5
-          Buffer Length: 1
-          Class: rviz_default_plugins/Range
-          Color: 98; 160; 234
-          Enabled: true
-          Name: RangeRearRightBkw
-          Topic:
-            Depth: 5
-            Durability Policy: Volatile
-            Filter size: 10
-            History Policy: Keep Last
-            Reliability Policy: Reliable
-            Value: /sigyn/sensors/range/rear_right_bkwd
-          Value: true
-        - Alpha: 0.5
-          Buffer Length: 1
-          Class: rviz_default_plugins/Range
-          Color: 98; 160; 234
-          Enabled: true
-          Name: RangeRearLeftSide
-          Topic:
-            Depth: 5
-            Durability Policy: Volatile
-            Filter size: 10
-            History Policy: Keep Last
-            Reliability Policy: Reliable
-            Value: /sigyn/sensors/range/rear_left_side
-          Value: true
-        - Alpha: 0.5
-          Buffer Length: 1
-          Class: rviz_default_plugins/Range
-          Color: 98; 160; 234
-          Enabled: true
-          Name: RangeRearRightSide
-          Topic:
-            Depth: 5
-            Durability Policy: Volatile
-            Filter size: 10
-            History Policy: Keep Last
-            Reliability Policy: Reliable
-            Value: /sigyn/sensors/range/rear_right_side
-          Value: true
-      Enabled: true
-      Name: TOF
   Enabled: true
   Global Options:
     Background Color: 136; 138; 133
@@ -1497,7 +1485,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /clicked_point
     - Class: nav2_rviz_plugins/GoalTool
   Transformation:
@@ -1516,35 +1504,35 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 135.9197540283203
+      Scale: 152.48876953125
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz_default_plugins)
-      X: 8.824668884277344
-      Y: 8.342077255249023
+      X: 10.608195304870605
+      Y: 3.2825284004211426
     Saved: ~
 Window Geometry:
-  AprilTagCamea:
+  Camera:
     collapsed: false
-  Camera Top:
+  Depth Raw:
     collapsed: false
   Displays:
     collapsed: false
-  GripperCamera:
+  Gripper Image:
     collapsed: false
-  Height: 2017
+  Height: 1406
   Hide Left Dock: false
-  Hide Right Dock: false
+  Hide Right Dock: true
   Navigation 2:
     collapsed: false
-  OAKD TOP DEPTH:
+  OAKD Image:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000400000000000001fe00000783fc0200000018fb0000001200530065006c0065006300740069006f006e000000003f000001330000005d00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003f00000744000000cc00fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb00000018004e0061007600690067006100740069006f006e002000320000000111000001e3000001f800fffffffb0000001e005200650061006c00730065006e0073006500430061006d00650072006101000001ee0000004b0000000000000000fb0000001a0041007000720069006c00540061006700430061006d006500610100000789000000390000001700fffffffb00000022004f0041004b002d00440020004c006500660074002000430061006d006500720061000000041a000000f60000000000000000fb0000000c00430061006d00650072006101000001f4000000df0000000000000000fb00000024004f0041004b002d0044002000520069006700680074002000430061006d00650072006100000003ba000000b50000000000000000fb0000001400430061006d00650072006100200054006f00700000000425000002820000001700fffffffb000000220053006c0061006d0054006f006f006c0062006f00780050006c007500670069006e00000003720000019e0000000000000000fb0000000c00430061006d0065007200610100000439000000d70000000000000000fb0000000a0049006d0061006700650100000349000001c70000000000000000fb0000001a004700720069007000700065007200430061006d00650072006100000005970000013f0000001700fffffffb0000000c00430061006d00650072006101000003e8000000d40000000000000000fb0000000c00430061006d00650072006101000003e8000000d40000000000000000fb0000001c004f0041004b004400200054004f005000200044004500500054004800000003ec000000d00000001700fffffffb0000001a004700720069007000700065007200430061006d00650072006101000003e8000000d40000000000000000fb0000000c00430061006d0065007200610100000620000001a20000000000000000000000010000010f00000783fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073010000003f00000783000000a900fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004420000003efc0100000002fb0000000800540069006d00650100000000000004420000000000000000fb0000000800540069006d00650100000000000004500000000000000000000005a80000078300000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd00000004000000000000025000000520fc0200000025fb0000001200530065006c0065006300740069006f006e000000003f000001330000005d00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003f00000380000000cc00fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb00000018004e0061007600690067006100740069006f006e0020003200000002eb0000024a000001f800fffffffb0000001e005200650061006c00730065006e0073006500430061006d00650072006101000001ee0000004b0000000000000000fb0000000c00430061006d00650072006101000003c50000019a0000001700fffffffb00000022004f0041004b002d00440020004c006500660074002000430061006d006500720061000000041a000000f60000000000000000fb0000000c00430061006d00650072006101000001f4000000df0000000000000000fb00000024004f0041004b002d0044002000520069006700680074002000430061006d00650072006100000003ba000000b50000000000000000fb0000001400430061006d00650072006100200054006f007000000003d1000000ac0000000000000000fb000000220053006c0061006d0054006f006f006c0062006f00780050006c007500670069006e00000003720000019e0000000000000000fb0000000c00430061006d0065007200610100000439000000d70000000000000000fb0000000a0049006d0061006700650100000349000001c70000000000000000fb0000001a004700720069007000700065007200430061006d006500720061000000041f000000720000000000000000fb0000000c00430061006d00650072006101000003e8000000d40000000000000000fb0000000c00430061006d00650072006101000003e8000000d40000000000000000fb0000001c004f0041004b004400200054004f005000200044004500500054004800000004ac000000b30000000000000000fb0000001a004700720069007000700065007200430061006d00650072006101000003e8000000d40000000000000000fb000000320047007200690070007000650072002000430061006d00650072006100200043006f006d0070007200650073007300650064010000047a000000e50000000000000000fb0000002c004f0061006b0044002000430061006d00650072006100200043006f006d007000720065007300730065006400000003ea000000a60000000000000000fb0000000c00430061006d0065007200610100000477000000e80000000000000000fb0000000c00430061006d0065007200610100000486000000d90000000000000000fb0000000c00430061006d0065007200610100000486000000d90000000000000000fb00000014004f0041004b004400200049006d0061006700650000000499000000c60000001700fffffffb0000001a004700720069007000700065007200200049006d0061006700650000000447000001180000001700fffffffb0000000c00430061006d00650072006101000003cc000000b40000000000000000fb0000000c00430061006d0065007200610100000462000000fd0000000000000000fb00000012004400650070007400680020005200610077000000043d000001220000001700fffffffb0000000c00430061006d0065007200610100000486000000d90000000000000000fb0000000c00430061006d0065007200610100000486000000d90000000000000000fb0000000a0049006d006100670065010000049a000000c50000000000000000fb0000000c00430061006d0065007200610000000481000000de0000000000000000000000010000010f00000520fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003f00000520000000a900fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004420000003efc0100000002fb0000000800540069006d00650100000000000004420000000000000000fb0000000800540069006d00650100000000000004500000000000000000000004b70000052000000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Tool Properties:
     collapsed: false
   Views:
-    collapsed: false
-  Width: 2241
-  X: 452
-  Y: 103
+    collapsed: true
+  Width: 1805
+  X: 1935
+  Y: 269
