@@ -37,6 +37,7 @@ install(PROGRAMS
   scripts/detection_frame_reporter.py
   scripts/docking_helper.py
   scripts/laser_scan_qos_relay.py
+  scripts/nav2_debug_monitor.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

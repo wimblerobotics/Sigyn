@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CycloneDDS xmlns="https://cdds.io/config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+    xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclonedds.xsd">
+  <Domain>
+    <General>
+      <!-- Enable multicast for discovery, but rely on unicast peers for reliability over WiFi -->
+      <AllowMulticast>true</AllowMulticast>
+      
+      <!-- CRITICAL: Large enough for image data (1920x1080x3 = ~6MB) -->
+      <!-- Setting to 16MB to handle compressed images and future growth -->
+      <MaxMessageSize>16MB</MaxMessageSize>
+      
+      <!-- Fragment size optimized for WiFi MTU minus overhead -->
+      <FragmentSize>1200B</FragmentSize>
+      
+      <!-- Network interface configuration -->
+      <!-- FOR SIGYN7900A (robot): use wlp8s0 -->
+      <!-- FOR AMDC (desktop): use enp6s0 or your Ethernet interface -->
+      <Interfaces>
+        <NetworkInterface name="wlp8s0" priority="default" multicast="true"/>
+      </Interfaces>
+    </General>
+    
+    <Discovery>
+      <!-- Explicit unicast peers for reliable discovery over WiFi -->
+      <!-- WiFi multicast is often unreliable, so we list all participants -->
+      <Peers>
+        <Peer address="192.168.86.28"/>   <!-- amdc desktop -->
+        <Peer address="192.168.86.109"/>  <!-- sigyn7900a robot -->
+      </Peers>
+      <ParticipantIndex>auto</ParticipantIndex>
+    </Discovery>
+    
+    <Internal>
+      <!-- Large socket buffers to handle burst traffic (images, laser scans, etc.) -->
+      <SocketReceiveBufferSize min="10MB"/>
+      <SocketSendBufferSize min="10MB"/>
+    </Internal>
+  </Domain>
+</CycloneDDS>

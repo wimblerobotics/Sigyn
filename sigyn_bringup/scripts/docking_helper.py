@@ -13,9 +13,10 @@ import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
 from nav2_msgs.action import DockRobot, UndockRobot
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from sensor_msgs.msg import BatteryState
 from vision_msgs.msg import Detection3DArray
+import math
 
 
 class DockingHelper(Node):
@@ -41,25 +42,50 @@ class DockingHelper(Node):
             self._charger_callback,
             10
         )
+        self._amcl_pose_sub = self.create_subscription(
+            PoseWithCovarianceStamped,
+            '/amcl_pose',
+            self._amcl_pose_callback,
+            10
+        )
         
         self._last_detection = None
         self._last_charger = None
+        self._last_amcl_pose = None
+        self._last_docking_state = None
         
         self.get_logger().info('Docking helper initialized')
     
     def _apriltag_callback(self, msg):
         """Monitor AprilTag detections."""
+        prev_had_detection = self._last_detection is not None and self._last_detection.detections
         self._last_detection = msg
+        
         if msg.detections:
             for detection in msg.detections:
                 if detection.results:
                     tag_id = detection.results[0].hypothesis.class_id
                     score = detection.results[0].hypothesis.score
                     pos = detection.results[0].pose.pose.position
-                    self.get_logger().debug(
-                        f'AprilTag ID {tag_id}: score={score:.2f}, '
-                        f'distance={pos.z:.3f}m'
+                    orient = detection.results[0].pose.pose.orientation
+                    
+                    # Log detection event
+                    if not prev_had_detection:
+                        self.get_logger().info(
+                            f'🎯 APRILTAG ACQUIRED - ID:{tag_id} @ '
+                            f'x={pos.x:.3f}m y={pos.y:.3f}m z={pos.z:.3f}m '
+                            f'score={score:.1f}'
+                        )
+                    
+                    # Always log current state for debugging
+                    self.get_logger().info(
+                        f'AprilTag ID {tag_id}: '
+                        f'pos=[{pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}] '
+                        f'orient=[{orient.x:.3f}, {orient.y:.3f}, {orient.z:.3f}, {orient.w:.3f}] '
+                        f'score={score:.1f}'
                     )
+        elif prev_had_detection:
+            self.get_logger().warn('❌ APRILTAG LOST - No detection')
     
     def _charger_callback(self, msg):
         """Monitor charging status."""
@@ -68,6 +94,22 @@ class DockingHelper(Node):
             self.get_logger().debug(
                 f'Charging: {msg.voltage:.2f}V, {msg.current:.2f}A'
             )
+    
+    def _amcl_pose_callback(self, msg):
+        """Track robot localization."""
+        self._last_amcl_pose = msg
+    
+    def _format_pose(self, pose_msg):
+        """Format pose for readable logging."""
+        pos = pose_msg.pose.pose.position
+        orient = pose_msg.pose.pose.orientation
+        
+        # Convert quaternion to yaw
+        siny_cosp = 2.0 * (orient.w * orient.z + orient.x * orient.y)
+        cosy_cosp = 1.0 - 2.0 * (orient.y * orient.y + orient.z * orient.z)
+        yaw = math.atan2(siny_cosp, cosy_cosp)
+        
+        return f'pos=({pos.x:.4f}, {pos.y:.4f}) yaw={yaw:.4f}rad ({math.degrees(yaw):.2f}°)'
     
     def dock_robot(self, dock_id='home_charging_dock', use_dock_id=True):
         """
@@ -127,10 +169,37 @@ class DockingHelper(Node):
     def _dock_feedback_callback(self, feedback_msg):
         """Display docking progress."""
         feedback = feedback_msg.feedback
+        state_names = {
+            0: 'INITIAL',
+            1: 'WAIT_FOR_VALID_DOCK',
+            2: 'DOCK_APPROACH',
+            3: 'DOCKING',
+            4: 'WAIT_FOR_CHARGE',
+        }
+        state_str = state_names.get(feedback.state, f'UNKNOWN({feedback.state})')
+        
+        # Log state changes with robot pose
+        if feedback.state != self._last_docking_state:
+            self._last_docking_state = feedback.state
+            pose_str = self._format_pose(self._last_amcl_pose) if self._last_amcl_pose else 'POSE UNKNOWN'
+            self.get_logger().info(
+                f'🔄 STATE CHANGE → {state_str} | Robot: {pose_str}'
+            )
+        
         self.get_logger().info(
-            f'Docking progress: state={feedback.state}, '
-            f'num_retries={feedback.num_retries}'
+            f'📍 DOCKING STATE: {state_str} | '
+            f'Retries: {feedback.num_retries} | '
+            f'AprilTag: {"VISIBLE" if self._last_detection and self._last_detection.detections else "NO DETECTION"}'
         )
+        
+        # Log AprilTag pose during docking
+        if self._last_detection and self._last_detection.detections:
+            for det in self._last_detection.detections:
+                if det.results:
+                    pos = det.results[0].pose.pose.position
+                    self.get_logger().info(
+                        f'   └─ Tag at: x={pos.x:.3f}m y={pos.y:.3f}m z={pos.z:.3f}m'
+                    )
     
     def undock_robot(self):
         """Send undocking command."""

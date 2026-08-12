@@ -47,9 +47,9 @@ amcl: # See: https://assets.researchsquare.com/files/rs-225880/v1_covered.pdf?c=
     scan_topic: scan  # Use filtered scan topic (either top or cup lidar depending on do_top_lidar parameter)
     set_initial_pose: true # Causes AMCL to set initial pose from the initial_pose* parameters instead of waiting for the initial_pose message.
     initial_pose:
-      x: 8.38 # 9.531 #8.81
-      y: 2.17 # 2.075 #2.64
-      yaw: 0.0
+      x: 8.3 # 9.531 #8.81
+      y: 2.4633 # 2.075 #2.64
+      yaw: 3.132
 
 bt_navigator:
   ros__parameters:
@@ -94,7 +94,7 @@ controller_server:
     progress_checker_plugins: ["progress_checker"]
     goal_checker_plugins: ["precise_goal_checker"]
     controller_plugins: ["FollowPath"]
-    use_realtime_priority: false  # Changed from 'yes' to 'false'
+    use_realtime_priority: true  # Re-enabled: false was only needed for Mac/VM simulation, not on real robot hardware
     # current_progress_checker: "progress_checker"  # explicit progress checker selection
     # current_goal_checker: "precise_goal_checker"    # explicit goal checker selection
     
@@ -107,14 +107,14 @@ controller_server:
     precise_goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
       xy_goal_tolerance: 0.10          # 10cm: achievable for a slow-moving differential drive robot
-      yaw_goal_tolerance: 0.35        # ~20 degrees: patrol doesn't need precise heading at waypoint
+      yaw_goal_tolerance: 0.035       # ~2 degrees: must face dock precisely for AprilTag detection at staging
       stateful: True
     FollowPath:
       plugin: "nav2_rotation_shim_controller::RotationShimController"
       angular_dist_threshold: 0.785  # ~45 degrees: spin in place when heading error exceeds this
       forward_sampling_distance: 0.5
-      rotate_to_heading_angular_vel: 0.8
-      max_angular_accel: 1.5
+      rotate_to_heading_angular_vel: 0.5  # reduced from 0.8: was ~2x the robot's validated safe/stable angular speed (~0.43 rad/s), causing wild rotation while achieving staging pose
+      max_angular_accel: 0.8  # reduced from 1.5 to match the gentler angular velocity above
       simulate_ahead_time: 1.0
       primary_controller: "nav2_mppi_controller::MPPIController"
       time_steps: 56
@@ -130,7 +130,7 @@ controller_server:
       vx_max: 0.5
       vx_min: -0.10            # allow slow reverse motion so MPPI can back out of tight doorway approaches
       vy_max: 0.5
-      wz_max: 1.5
+      wz_max: 0.6  # reduced from 1.5: was ~3.5x the robot's validated safe/stable angular speed (~0.43 rad/s)
       iteration_count: 1
       prune_distance: 1.5
       transform_tolerance: 0.1
@@ -227,7 +227,7 @@ local_costmap:
       plugins: [
         "voxel_layer",        # Low lidar clears/marks first
         "oakd_top_layer",     # OAK-D (currently disabled)
-        "range_sensor_layer", # VL53L0X proximity sensors
+        "range_sensor_layer", # VL53L0X proximity sensors (currently disabled below, see enabled: False)
         "inflation_layer"]
 
       static_layer:
@@ -288,7 +288,11 @@ local_costmap:
           topic: /stereo/points2 # Topic of data.
 
       range_sensor_layer:
-        enabled: True
+        # TEMPORARILY DISABLED for docking diagnosis (2026-08-05): suspected VL53L0X
+        # false-positive/short-range marking was implicated in MPPI "Optimizer fail
+        # to compute path" bursts / Failed-to-make-progress cascades while
+        # navigating to the docking staging pose. Re-enable once ruled in/out.
+        enabled: False
         plugin: "nav2_costmap_2d::RangeSensorLayer"
         combination_method: 1   # Max combine so marked cells persist
         topics: [
@@ -436,9 +440,9 @@ behavior_server:
     robot_base_frame: base_link
     transform_tolerance: 0.1
     simulate_ahead_time: 2.0
-    max_rotational_vel: 1.5  # Match controller and smoother limits
+    max_rotational_vel: 0.6  # Match controller and smoother limits (reduced from 1.5 to match validated safe angular speed)
     min_rotational_vel: 0.4
-    rotational_acc_lim: 3.2
+    rotational_acc_lim: 1.5  # reduced from 3.2 to match the gentler angular velocity above
 
 waypoint_follower:
   ros__parameters:
@@ -457,10 +461,10 @@ velocity_smoother:
     smoothing_frequency: 20.0
     scale_velocities: False
     feedback: "OPEN_LOOP"
-    max_velocity: [0.5, 0.0, 1.5]  # Match controller angular velocity limit
-    min_velocity: [0.0, 0.0, -1.5]    # no reverse (matches vx_min=0 in MPPI controller)
-    max_accel: [2.5, 0.0, 3.2]
-    max_decel: [-2.5, 0.0, -3.2]
+    max_velocity: [0.5, 0.0, 0.6]  # Match controller angular velocity limit (reduced from 1.5 to match validated safe angular speed)
+    min_velocity: [0.0, 0.0, -0.6]    # no reverse (matches vx_min=0 in MPPI controller)
+    max_accel: [2.5, 0.0, 1.5]
+    max_decel: [-2.5, 0.0, -1.5]
     odom_topic: "odom"
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]
@@ -509,13 +513,13 @@ docking_server:
     base_frame: "base_link"
     fixed_frame: "odom"
     dock_backwards: false
-    dock_prestaging_tolerance: 0.08
+    dock_prestaging_tolerance: 0.035  # ~2 degrees: opennav_docking uses this for BOTH position (m) and angular (rad) prestaging checks
 
     # Types of docks
     dock_plugins: ['simple_charging_dock']
     simple_charging_dock:
       plugin: 'opennav_docking::SimpleChargingDock'
-      docking_threshold: 0.10
+      docking_threshold: 0.08  # 80mm - tighter than 100mm, looser than 50mm
       staging_x_offset: -0.7
       use_external_detection_pose: true
       use_battery_status: true  # Monitor /sigyn/power/charger for charging confirmation
@@ -526,14 +530,22 @@ docking_server:
       dock_detection_frame: "oakd_apriltag_optical_frame"
       
       # Detection frame: oakd_apriltag_optical_frame
-      # Measured AprilTag pose when docked: x=-0.079m, y=0.017m, z=0.364m
+      # Measured AprilTag pose when docked (5-sample average, 2026-08-05, robot manually positioned):
+      #   x=-0.0883m, y=+0.0082m, z=0.360m  (sub-mm consistency across samples)
+      # Previous values (Tests 1-2, old dock pose [8.1833, 2.4301]):
+      #   Test 1: x=-0.127m, y=-0.019m, z=0.344m
+      #   Test 2: x=-0.126m, y=-0.010m, z=0.341m
       external_detection_timeout: 2.0
-      external_detection_translation_x: -0.079  # Updated from captured docking position
-      external_detection_translation_y: 0.017   # Updated from captured docking position
+      external_detection_translation_x: -0.0883  # Measured when correctly docked (2026-08-05)
+      external_detection_translation_y:  0.0082  # Measured y-offset; near zero = laterally centred
       external_detection_rotation_roll: -1.57
       external_detection_rotation_pitch: -1.57
       external_detection_rotation_yaw: 0.0
-      filter_coef: 0.1
+      filter_coef: 0.5  # test5 2026-08-11: increased from 0.3 — AprilTag updates ~1.5 Hz during
+                        # approach; filter_coef=0.3 (30% new / 70% old) caused ~0.5s detection
+                        # lag → ~2.5cm positional lag at v_linear_min=0.05 m/s, which is the
+                        # observed residual lateral error at mating. 0.5 (50/50) cuts lag ~half.
+                        # (Original 0.1 was over-smoothing; 0.3 was still too laggy for lateral)
       
       # Charging validation (from /sigyn/power/charger topic)
       charging_threshold: 0.01  # Current in Amps - positive indicates charging
@@ -543,8 +555,17 @@ docking_server:
     # This allows easy management of multiple docking locations
 
     controller:
-      k_phi: 3.0
-      k_delta: 2.0
+      k_phi: 4.0  # test4 2026-08-11: reduced from 6.0 — at 6.0 the aggressive lateral
+                  # correction caused the robot to drift 20° anticlockwise during approach
+                  # (y-offset at staging entry caused overcorrection that k_delta couldn't
+                  # recover). 4.0 still provides meaningful lateral correction.
+      k_delta: 4.0  # test4 2026-08-11: increased from 2.0 — heading recovery was too weak
+                  # relative to k_phi, causing yaw to drift and never recover toward -180°
+                  # during the approach. Higher k_delta pulls heading back faster.
+      slowdown_radius: 1.0  # explicitly set (was package default/unset): starts the
+                  # v_linear_max->v_linear_min deceleration ramp across nearly the whole
+                  # approach distance, giving more control-loop iterations for k_phi's
+                  # lateral correction to actually take effect before contact.
       v_linear_min: 0.05
       v_linear_max: 0.08
       use_collision_detection: false

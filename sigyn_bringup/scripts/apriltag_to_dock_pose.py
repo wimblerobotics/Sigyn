@@ -56,6 +56,9 @@ class AprilTagToDockPose(Node):
             10
         )
         
+        self._last_detection_time = None
+        self._had_detection = False
+        
         self.get_logger().info(
             f'Converting AprilTag ID {self._dock_tag_id} to dock pose '
             f'(min score: {self._min_score})'
@@ -64,9 +67,13 @@ class AprilTagToDockPose(Node):
     def _detection_callback(self, msg: Detection3DArray):
         """Convert AprilTag detections to dock pose."""
         if not msg.detections:
+            if self._had_detection:
+                self.get_logger().warn('❌ DOCK TAG LOST - No detections in array')
+                self._had_detection = False
             return
         
         # Find the dock tag (ID 1)
+        found_dock_tag = False
         for detection in msg.detections:
             if not detection.results:
                 continue
@@ -76,22 +83,48 @@ class AprilTagToDockPose(Node):
             score = result.hypothesis.score
             
             # Check if this is the dock tag with sufficient score
-            if tag_id == self._dock_tag_id and score >= self._min_score:
-                # Create PoseStamped from detection
-                dock_pose = PoseStamped()
-                dock_pose.header = detection.header
-                dock_pose.pose = result.pose.pose
+            if tag_id == self._dock_tag_id:
+                if score >= self._min_score:
+                    # Create PoseStamped from detection
+                    dock_pose = PoseStamped()
+                    dock_pose.header = detection.header
+                    dock_pose.pose = result.pose.pose
+                    
+                    # Publish for docking server
+                    self._dock_pose_pub.publish(dock_pose)
+                    
+                    # Log detection state changes
+                    if not self._had_detection:
+                        self.get_logger().info(
+                            f'🎯 DOCK TAG ACQUIRED - ID:{tag_id} '
+                            f'pos=[{dock_pose.pose.position.x:.3f}, '
+                            f'{dock_pose.pose.position.y:.3f}, '
+                            f'{dock_pose.pose.position.z:.3f}] '
+                            f'score={score:.1f}'
+                        )
+                        self._had_detection = True
+                    else:
+                        # Log continuous tracking
+                        self.get_logger().info(
+                            f'📍 Dock @ x={dock_pose.pose.position.x:.3f}m '
+                            f'y={dock_pose.pose.position.y:.3f}m '
+                            f'z={dock_pose.pose.position.z:.3f}m '
+                            f'score={score:.1f}'
+                        )
+                    
+                    self._last_detection_time = self.get_clock().now()
+                    found_dock_tag = True
+                else:
+                    self.get_logger().warn(
+                        f'⚠️  Dock tag score too low: {score:.1f} < {self._min_score}'
+                    )
                 
-                # Publish for docking server
-                self._dock_pose_pub.publish(dock_pose)
-                
-                self.get_logger().debug(
-                    f'Dock detected: Tag {tag_id}, score={score:.1f}, '
-                    f'distance={dock_pose.pose.position.z:.3f}m'
-                )
-                
-                # Only publish the best (first valid) detection
-                return
+                # Only handle the first valid detection
+                break
+        
+        if not found_dock_tag and self._had_detection:
+            self.get_logger().warn('❌ DOCK TAG LOST - Not in detection array')
+            self._had_detection = False
     
     def _charger_callback(self, msg: BatteryState):
         """Forward charger status to /battery_state for docking server."""
